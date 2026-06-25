@@ -108,16 +108,21 @@ cd web && npm install && npm run dev   # фронтенд
 порты (Protocol), скелеты сервисов, ORM-модели, репозитории-скелеты, DI-контейнер (dishka,
 поднимается), бот (4 роутера, `/start` рабочий), API (7 эндпоинтов, `/tariffs` рабочий),
 HMAC-валидатор initData (реализован + тесты), Kaspi-провайдер, Alembic (async env), Docker,
-фронтенд-каркас (React+Vite+TS+Tailwind). Зелёное: ruff + mypy(strict) + pytest(20).
+фронтенд-каркас (React+Vite+TS+Tailwind).
+
+**Сделано (Фаза 1 — БД):** миграция `c2d3c2c343d2_initial` применена; репозитории
+`PgMovie/PgUser/PgPayment` реализованы (мапперы ORM↔домен, `upsert` ON CONFLICT) +
+интеграционные тесты (фикстура `session`, skip без БД); логотип в `web/public/logo.png`.
+Зелёное: ruff + mypy(strict) + pytest(25).
 
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Поднять postgres → `alembic revision --autogenerate` (миграция `0001_initial`) → `upgrade head`.
-2. Репозитории (тела) + сервисы (тела): Auth, Catalog, Ingestion, Subscription.
-3. Бот: парсер канала, защищённая inline-выдача, модерация чеков.
-4. API: авторизация по initData (зависимость), приём чека (multipart).
-5. Оплата: Telegram Stars (инвойс + авто-подписка), крон сброса `expired` (apscheduler).
-6. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
-7. Прод: webhook + Nginx.
+1. Сервисы (тела): Auth (+ авторизация Web App по initData, FastAPI-зависимость), Catalog,
+   MovieIngestion, Subscription.
+2. Бот: парсер канала, защищённая inline-выдача, модерация чеков.
+3. API: приём чека (multipart) + защита эндпоинтов авторизацией.
+4. Оплата: Telegram Stars (инвойс + авто-подписка), крон сброса `expired` (apscheduler).
+5. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
+6. Прод: webhook + Nginx.
 
 ## Решения, которые уже приняты (не пересматривать без причины)
 - **Python 3.13**. Backend — **FastAPI** (не Django/PHP): ложится на async-стек.

@@ -9,7 +9,7 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
-**Фаза 0 завершена (каркас).** Дальше → **Фаза 1: БД и репозитории**.
+**Фаза 1 завершена (БД + репозитории).** Дальше → **Фаза 2: Авторизация Web App (initData)**.
 
 ---
 
@@ -34,15 +34,15 @@
 
 ---
 
-## Фаза 1 — БД и репозитории
+## Фаза 1 — БД и репозитории ✅
 **Цель:** живая БД + рабочие репозитории (мапинг ORM↔домен).
-- [ ] `docker compose up -d postgres` и `cp .env.example .env` (заполнить DB_*)
-- [ ] `alembic revision --autogenerate -m "initial"` → проверить `migrations/versions/0001_*.py`
-- [ ] `alembic upgrade head` → проверить таблицы `users/movies/payment_requests`
-- [ ] `PgMovieRepository`: `add`, `get`, `list_all(category)`, `search(query)` + мапперы `_to_domain`
-- [ ] `PgUserRepository`: `get`, `upsert` (ON CONFLICT по telegram_id), `list_expired(now)`
-- [ ] `PgPaymentRepository`: `add`, `get`, `set_status`
-- [ ] Тесты репозиториев (на тестовой БД или transactional rollback fixture)
+- [x] `docker compose up -d --wait postgres` + локальный `.env`
+- [x] `alembic revision --autogenerate` → миграция `c2d3c2c343d2_initial` (3 таблицы + индексы)
+- [x] `alembic upgrade head` → таблицы `users/movies/payment_requests` созданы
+- [x] `PgMovieRepository`: `add`, `get`, `list_all(category)`, `search(query)` + мапперы `_to_domain`
+- [x] `PgUserRepository`: `get`, `upsert` (ON CONFLICT по telegram_id), `list_expired(now)`
+- [x] `PgPaymentRepository`: `add`, `get`, `set_status`
+- [x] Интеграционные тесты репозиториев (фикстура `session`, skip без БД) — 5 шт.
 
 ## Фаза 2 — Авторизация Web App (initData) end-to-end
 **Цель:** фронт шлёт initData → бэк валидирует → отдаёт статус/доступ.
