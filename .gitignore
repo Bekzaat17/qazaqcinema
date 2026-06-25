@@ -1,0 +1,27 @@
+# --- Python ---
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# --- env / secrets ---
+.env
+*.env
+!.env.example
+
+# --- local data ---
+*.sqlite3
+/uploads/          # скриншоты чеков, если когда-то хранятся на диске
+
+# --- frontend ---
+web/node_modules/
+web/dist/
+web/.vite/
+
+# --- OS / IDE ---
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,36 @@
+"""Порты репозиториев (DIP). Сервисы зависят от этих Protocol, не от инфраструктуры.
+
+Интерфейсы намеренно мелкие и раздельные (ISP): MovieRepository ≠ UserRepository ≠
+PaymentRepository. Реализации — в app/infrastructure/db/repositories.py.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Protocol
+
+from app.domain.entities.enums import PaymentStatus
+from app.domain.entities.movie import Movie
+from app.domain.entities.subscription import PaymentRequest
+from app.domain.entities.user import User
+
+
+class MovieRepository(Protocol):
+    async def add(self, movie: Movie) -> Movie: ...
+    async def get(self, movie_id: int) -> Movie | None: ...
+    async def list_all(self, category: str | None = None) -> list[Movie]: ...
+    async def search(self, query: str) -> list[Movie]: ...
+
+
+class UserRepository(Protocol):
+    async def get(self, telegram_id: int) -> User | None: ...
+    async def upsert(self, user: User) -> User: ...
+    async def list_expired(self, now: datetime) -> list[User]: ...
+
+
+class PaymentRepository(Protocol):
+    async def add(self, request: PaymentRequest) -> PaymentRequest: ...
+    async def get(self, request_id: int) -> PaymentRequest | None: ...
+    async def set_status(
+        self, request_id: int, status: PaymentStatus, reviewed_at: datetime
+    ) -> PaymentRequest | None: ...
