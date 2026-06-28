@@ -14,7 +14,7 @@ __pycache__/
 
 # --- local data ---
 *.sqlite3
-/uploads/          # скриншоты чеков, если когда-то хранятся на диске
+/uploads/          # постеры (uploads/posters) и прочая локальная статика
 
 # --- frontend ---
 web/node_modules/

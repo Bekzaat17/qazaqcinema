@@ -7,8 +7,8 @@
 **QazaqCinema** — онлайн-кинотеатр (Netflix-style) внутри Telegram Web App: редкие мультфильмы
 и аниме с казахской озвучкой. Видео лежит в приватном **канале-архиве** Telegram (бэкенд не
 стримит тяжёлое видео), защита через `protect_content=True`, монетизация — подписка (Kaspi-чеки +
-Telegram Stars). Контент наполняется автоматически: админ постит видео с подписью-ключами в канал,
-бот парсит и пишет фильм в БД.
+Telegram Stars). Контент наполняет админ через бот-визард `/add` (видео + постер + метаданные
+пошагово); видео уходит в канал-архив, постеры — статикой на VPS.
 
 ## Стек (зафиксирован)
 - **Python 3.13**
@@ -119,12 +119,18 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
 из `request.state.dishka_container`); каталог и оплата защищены, `/tariffs` публичный; оплата
 берёт `user_id` из initData; юнит-тесты `AuthService` (фейки). Зелёное: ruff + mypy + pytest(28).
 
+**Сделано (Фаза 3 — добавление фильмов):** мультиязычные названия (`title_kk/ru/original`) +
+миграция `b7f3a9c2d1e4` (pg_trgm/unaccent/f_unaccent + GIN-trgm индексы, проверена на живой БД);
+постеры статикой на VPS (`PosterStorage`/`LocalPosterStorage` + StaticFiles `/posters`);
+`PgMovieRepository.search` (триграммы) + `CatalogService`; бот-визард `/add` (FSM, админ-гейт) →
+`MovieIngestionService.ingest`. Зелёное: ruff + mypy + pytest(29).
+
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Сервисы (тела): `CatalogService`, `SubscriptionService`, `MovieIngestionService`.
-2. **Добавление фильмов — бот-визард `/add`** (FSM, Фаза 3): смена `poster_url`→`poster_file_id`,
-   эндпоинт `GET /api/posters/{id}` (бот качает фото), видео в канал-хранилище.
+1. Применить `alembic upgrade head` на рабочей БД + ручная проверка визарда `/add` (нужен Docker).
+2. Каталог (Фаза 4): эндпоинты есть — добить тест «нет `telegram_file_id` в ответе».
 3. Бот: защищённая inline-выдача (`protect_content`), модерация чеков (✅/❌).
-4. Оплата: приём чека (multipart), Telegram Stars (инвойс + авто-подписка), крон `expired`.
+4. Оплата: приём чека (multipart), Telegram Stars (инвойс + авто-подписка), крон `expired`,
+   тело `SubscriptionService`.
 5. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
 6. Прод: webhook + Nginx.
 
@@ -133,6 +139,18 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
 - **БД — PostgreSQL** (asyncpg + Alembic). ORM-модели отделены от доменных сущностей намеренно.
 - `telegram_file_id` — **только боту**, в API-DTO отсутствует. Inline-видео — всегда
   `protect_content=True`. Это ядро безопасности продукта.
+- **Постеры — файлами на VPS** (не Telegram file_id/прокси): постер публичен (витрина), крошечный,
+  нужен стабильный URL под `<img>`. Порт `PosterStorage` → `LocalPosterStorage` + StaticFiles
+  `/posters`; видео остаётся в канале-архиве. Постер скачивается один раз при `/add`.
+- **Названия фильма — мультиязычные**: `title_kk` (основное, казахское), `title_ru`,
+  `title_original` (оба nullable). Фронт показывает казахское основным.
+- **Поиск каталога — pg_trgm + unaccent** (не FTS): триграммы дают опечатки/подстроку и **работают
+  для казахского** (у Postgres FTS нет казахского словаря). Immutable-обёртка `f_unaccent` (stock
+  `unaccent` лишь STABLE → в индекс по выражению нельзя); один и тот же `f_unaccent` в запросе и в
+  GIN-индексе, иначе индекс не используется.
+- **Наполнение каталога — бот-визард `/add` (FSM)**, не подпись-#ключи; `caption_parser` — утилита.
+- Тесты репозиториев идут через `create_all` (не миграции): conftest сам заводит `pg_trgm`/
+  `unaccent`/`f_unaccent` и делает drop+create (иначе дрейф схемы от старых прогонов).
 - Категория/статус/способ оплаты в БД — **VARCHAR**, не PG-ENUM (добавить значение без миграции).
 - `users.telegram_id` и `payment_requests.user_id` — **BIGINT** без автоинкремента (Telegram ID).
 - **Оплата — Strategy-порт** `PaymentProvider`: Kaspi (MVP, ручной чек) + Telegram Stars
@@ -149,3 +167,9 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
   валидатор (иначе pydantic-settings пытается JSON-декодить).
 - Alembic берёт DSN из `DatabaseConfig` (для миграций BOT_TOKEN не нужен); переопределение
   `alembic -x dsn=...`.
+- **Имена миграций — `yyyymmdd_<slug>`** (через `file_template` в alembic.ini). Случайный hex от
+  Alembic — лишь уникальный `revision id` (по нему связи `down_revision`/`alembic_version`), дата в
+  имени файла — для людей; id внутри файла при переименовании не трогаем.
+- **Подписка — отдельный «движок доступа» ДО оплаты** (Фаза 6): `SubscriptionService.activate/
+  expire_due` + `has_active_access` — единая точка грант/ревок/проверки. Способы оплаты (Kaspi/Stars)
+  лишь вызывают `activate`; не размазывать активацию по платёжным хендлерам.

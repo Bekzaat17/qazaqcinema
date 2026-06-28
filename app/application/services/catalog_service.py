@@ -11,10 +11,13 @@ class CatalogService:
         self._movies = movies
 
     async def list_movies(self, category: str | None = None) -> list[Movie]:
-        raise NotImplementedError
+        return await self._movies.list_all(category)
 
     async def search_movies(self, query: str) -> list[Movie]:
-        raise NotImplementedError
+        normalized = query.strip()
+        if not normalized:
+            return []
+        return await self._movies.search(normalized)
 
     async def get_movie(self, movie_id: int) -> Movie | None:
-        raise NotImplementedError
+        return await self._movies.get(movie_id)

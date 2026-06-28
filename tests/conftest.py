@@ -24,7 +24,23 @@ async def session() -> AsyncIterator[AsyncSession]:
     engine = create_engine(DatabaseConfig().dsn)
     try:
         async with engine.begin() as conn:
+            # Фикстура — источник истины по схеме (в проде это делает миграция).
+            # drop+create обязателен: иначе старая таблица movies из прошлых прогонов
+            # даёт дрейф схемы — create_all не меняет уже существующие таблицы.
+            await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
+            # В проде поисковую инфру создаёт миграция; тесты идут через create_all,
+            # поэтому расширения и immutable-обёртку f_unaccent заводим здесь (иначе
+            # PgMovieRepository.search упадёт — нет f_unaccent/similarity).
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
+            await conn.execute(
+                text(
+                    "CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text "
+                    "LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT "
+                    "AS $$ SELECT public.unaccent('public.unaccent', $1) $$"
+                )
+            )
     except Exception:
         await engine.dispose()
         pytest.skip("PostgreSQL недоступен — интеграционные тесты репозиториев пропущены")

@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(slots=True)
 class Movie:
-    title: str
+    title_kk: str          # казахское название — основное (продукт казахоязычный)
     description: str
-    category: str         # slug категории; справочник — domain/catalog/categories.py
-    poster_url: str
+    category: str          # slug категории; справочник — domain/catalog/categories.py
+    poster_url: str        # публичный путь к постеру-статике, напр. /posters/<uuid>.jpg
     telegram_file_id: str  # ВНУТРЕННЕЕ: уходит только боту, НИКОГДА на фронтенд
+    title_ru: str | None = None        # русское название (для показа и поиска)
+    title_original: str | None = None  # оригинал/EN (для поиска: «Frozen», «Naruto»)
     year: int | None = None
     rating: float | None = None
+    created_at: datetime | None = None  # проставляет БД (server_default); None до вставки
     id: int | None = None  # None до вставки в БД

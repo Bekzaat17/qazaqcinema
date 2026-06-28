@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dishka import AsyncContainer
 from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routers import auth, catalog, payments
 from app.config.settings import load_config
@@ -34,6 +36,14 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(catalog.router)
     app.include_router(payments.router)
+
+    # Постеры — статика на диске (см. LocalPosterStorage). Каталог создаём заранее,
+    # иначе StaticFiles упадёт при старте, пока постеров ещё нет. В проде эту раздачу
+    # берёт на себя Nginx (Фаза 10).
+    posters_dir = Path(config.media.root) / "posters"
+    posters_dir.mkdir(parents=True, exist_ok=True)
+    app.mount(config.media.posters_url_base, StaticFiles(directory=posters_dir), name="posters")
+
     setup_dishka(container or build_container(), app)
     return app
 

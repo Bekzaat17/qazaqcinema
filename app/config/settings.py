@@ -87,6 +87,13 @@ class ApiConfig(BaseSettings):
     _origins = field_validator("cors_origins", mode="before")(_split_csv_str)
 
 
+class MediaConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MEDIA_", env_file=".env", extra="ignore")
+
+    root: str = "uploads"               # каталог на диске (постеры и прочая статика)
+    posters_url_base: str = "/posters"  # публичный префикс URL постера (mount StaticFiles)
+
+
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -95,6 +102,7 @@ class AppConfig(BaseSettings):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     payments: PaymentsConfig = Field(default_factory=PaymentsConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
+    media: MediaConfig = Field(default_factory=MediaConfig)
 
 
 def load_config() -> AppConfig:

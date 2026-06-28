@@ -9,7 +9,9 @@ from app.domain.entities.movie import Movie
 
 class MovieOut(BaseModel):
     id: int
-    title: str
+    title_kk: str                      # основное название (казахское)
+    title_ru: str | None = None
+    title_original: str | None = None
     description: str
     category: str
     poster_url: str
@@ -23,7 +25,9 @@ class MovieOut(BaseModel):
             raise ValueError("movie без id не может быть отдан наружу")
         return cls(
             id=movie.id,
-            title=movie.title,
+            title_kk=movie.title_kk,
+            title_ru=movie.title_ru,
+            title_original=movie.title_original,
             description=movie.description,
             category=movie.category,
             poster_url=movie.poster_url,

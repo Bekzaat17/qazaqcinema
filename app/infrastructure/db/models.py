@@ -29,14 +29,19 @@ class UserModel(Base):
 class MovieModel(Base):
     __tablename__ = "movies"
 
+    # Триграммные GIN-индексы по названиям (для поиска pg_trgm + unaccent) и сам
+    # immutable-враппер f_unaccent создаются вручную в миграции (autogenerate их не видит).
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(255))
+    title_kk: Mapped[str] = mapped_column(String(255))
+    title_ru: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    title_original: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(32), index=True)
     poster_url: Mapped[str] = mapped_column(Text)
     telegram_file_id: Mapped[str] = mapped_column(Text)
     year: Mapped[int | None] = mapped_column(nullable=True)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PaymentRequestModel(Base):

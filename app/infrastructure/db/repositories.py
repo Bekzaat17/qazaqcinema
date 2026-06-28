@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,13 +23,16 @@ from app.infrastructure.db.models import MovieModel, PaymentRequestModel, UserMo
 def _movie_to_domain(model: MovieModel) -> Movie:
     return Movie(
         id=model.id,
-        title=model.title,
+        title_kk=model.title_kk,
+        title_ru=model.title_ru,
+        title_original=model.title_original,
         description=model.description,
         category=model.category,
         poster_url=model.poster_url,
         telegram_file_id=model.telegram_file_id,
         year=model.year,
         rating=model.rating,
+        created_at=model.created_at,
     )
 
 
@@ -63,7 +66,9 @@ class PgMovieRepository:
 
     async def add(self, movie: Movie) -> Movie:
         model = MovieModel(
-            title=movie.title,
+            title_kk=movie.title_kk,
+            title_ru=movie.title_ru,
+            title_original=movie.title_original,
             description=movie.description,
             category=movie.category,
             poster_url=movie.poster_url,
@@ -88,10 +93,31 @@ class PgMovieRepository:
         return [_movie_to_domain(model) for model in result]
 
     async def search(self, query: str) -> list[Movie]:
+        """Поиск по названиям (kk/ru/original) и описанию.
+
+        Нечувствителен к регистру и диакритике (`f_unaccent`), ловит подстроку и
+        опечатки (pg_trgm). Подстрочное совпадение по `f_unaccent(col) ILIKE %q%`
+        ускоряется GIN-trgm индексом; опечатки добирает `similarity()`. Ранжирование —
+        по максимальной похожести среди названий (описание в ранг не входит — шумит).
+        """
+        normalized = func.f_unaccent(query)
+        pattern = func.concat("%", normalized, "%")
+        searchable = (
+            MovieModel.title_kk,
+            MovieModel.title_ru,
+            MovieModel.title_original,
+            MovieModel.description,
+        )
+        substring_match = or_(*(func.f_unaccent(col).ilike(pattern) for col in searchable))
+        relevance = func.greatest(
+            func.similarity(func.f_unaccent(MovieModel.title_kk), normalized),
+            func.similarity(func.f_unaccent(MovieModel.title_ru), normalized),
+            func.similarity(func.f_unaccent(MovieModel.title_original), normalized),
+        )
         stmt = (
             select(MovieModel)
-            .where(MovieModel.title.ilike(f"%{query}%"))
-            .order_by(MovieModel.id.desc())
+            .where(or_(substring_match, relevance > 0.3))
+            .order_by(func.coalesce(relevance, 0.0).desc(), MovieModel.id.desc())
         )
         result = await self._session.scalars(stmt)
         return [_movie_to_domain(model) for model in result]

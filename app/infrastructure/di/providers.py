@@ -22,6 +22,7 @@ from app.application.ports.repositories import (
     UserRepository,
 )
 from app.application.ports.security import InitDataVerifier
+from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
 from app.application.services.auth_service import AuthService
 from app.application.services.catalog_service import CatalogService
@@ -37,6 +38,7 @@ from app.infrastructure.db.repositories import (
     PgUserRepository,
 )
 from app.infrastructure.payments.kaspi import KaspiManualProvider
+from app.infrastructure.storage.local import LocalPosterStorage
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.notifier import AiogramNotifier
 
@@ -67,6 +69,10 @@ class AppProvider(Provider):
     @provide
     def notifier(self, bot: Bot, config: AppConfig) -> TelegramNotifier:
         return AiogramNotifier(bot, config.bot.admin_chat_id, config.bot.admin_user_ids)
+
+    @provide
+    def poster_storage(self, config: AppConfig) -> PosterStorage:
+        return LocalPosterStorage(config.media)
 
     @provide
     def payment_providers(self, config: AppConfig) -> Mapping[PaymentMethod, PaymentProvider]:

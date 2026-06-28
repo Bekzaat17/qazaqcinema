@@ -14,13 +14,14 @@ from app.infrastructure.db.repositories import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def _movie(title: str, category: str, file_id: str) -> Movie:
+def _movie(title_kk: str, category: str, file_id: str, title_ru: str | None = None) -> Movie:
     return Movie(
-        title=title,
+        title_kk=title_kk,
         description="описание",
         category=category,
-        poster_url="https://x/y.jpg",
+        poster_url="/posters/x.jpg",
         telegram_file_id=file_id,
+        title_ru=title_ru,
     )
 
 
@@ -28,34 +29,42 @@ async def test_movie_add_and_get(session: AsyncSession) -> None:
     repo = PgMovieRepository(session)
     saved = await repo.add(
         Movie(
-            title="Король Лев",
+            title_kk="Арыстан Патша",
+            title_ru="Король Лев",
             description="d",
             category="disney",
-            poster_url="u",
+            poster_url="/posters/u.jpg",
             telegram_file_id="fid",
             year=1994,
             rating=8.5,
         )
     )
     assert saved.id is not None
+    assert saved.created_at is not None  # проставлен server_default
 
     got = await repo.get(saved.id)
     assert got is not None
-    assert got.title == "Король Лев"
+    assert got.title_kk == "Арыстан Патша"
+    assert got.title_ru == "Король Лев"
     assert got.telegram_file_id == "fid"
 
 
 async def test_movie_list_and_search(session: AsyncSession) -> None:
     repo = PgMovieRepository(session)
-    await repo.add(_movie("Король Лев", "disney", "f1"))
+    await repo.add(_movie("Арыстан Патша", "disney", "f1", title_ru="Король Лев"))
     await repo.add(_movie("Наруто", "anime", "f2"))
 
     assert len(await repo.list_all()) == 2
     assert len(await repo.list_all("anime")) == 1
 
-    found = await repo.search("король")
-    assert len(found) == 1
-    assert found[0].title == "Король Лев"
+    by_ru = await repo.search("король")  # по русскому названию
+    assert [m.title_kk for m in by_ru] == ["Арыстан Патша"]
+
+    by_kk = await repo.search("арыстан")  # по казахскому
+    assert [m.title_kk for m in by_kk] == ["Арыстан Патша"]
+
+    by_partial = await repo.search("нар")  # частичный ввод
+    assert [m.title_kk for m in by_partial] == ["Наруто"]
 
 
 async def test_user_upsert_overwrites(session: AsyncSession) -> None:

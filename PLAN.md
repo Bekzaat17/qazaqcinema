@@ -9,7 +9,26 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
-**Фаза 2 завершена (авторизация).** Дальше → **Фаза 3: Добавление фильмов (бот-визард `/add`)**.
+**Фаза 3 — код готов** (мультиязычные названия, миграция, поиск pg_trgm+unaccent, постеры-статика,
+визард `/add`, тесты). Зелёные ruff + mypy(strict) + pytest(29); миграция проверена base→head на
+живой БД (scratch). Осталось ручное: применить `alembic upgrade head` на рабочей БД и прогнать
+визард через @qazaqcinema_bot. Дальше → **Фаза 4: Каталог (API)**.
+
+> **План пересмотрен 2026-06-28:** подписка вынесена в отдельную **Фазу 6 (Подписка и контроль
+> доступа)** ПЕРЕД оплатой (Kaspi → Фаза 7, Stars → Фаза 8); прежняя «Фаза 8 — Крон» влита в Фазу 6.
+> Порядок след. сессии: ручной шаг Фазы 3 → чора по именам миграций (ниже) → Фаза 4.
+
+## 🔧 Чоры (вне фаз)
+- [ ] **Человекочитаемые имена миграций** (`yyyymmdd_<slug>`). Сейчас имя файла = `<random_hex>_<slug>.py`:
+      Alembic даёт случайный hex как `revision id` — это лишь уникальный ключ для `down_revision`/
+      `alembic_version`, порядок задаётся связями, а не датой/именем (для людей — неудобно).
+      Сделать: в `alembic.ini` задать
+      `file_template = %%(year)d%%(month).2d%%(day).2d_%%(slug)s`
+      (при желании точнее — добавить `_%%(hour).2d%%(minute).2d`). `revision id` внутри файла
+      можно оставить hex — на работу не влияет. Существующие переименовать (id ВНУТРИ не трогать):
+      `c2d3c2c343d2_initial.py` → `20260625_initial.py`;
+      `b7f3a9c2d1e4_movie_titles_and_search.py` → `20260628_movie_titles_and_search.py`.
+      После — сверить `alembic history` и `alembic upgrade head --sql`.
 
 ---
 
@@ -53,24 +72,38 @@
 - [x] Юнит-тесты `AuthService` (фейки): создание NEW / существующий / битый initData
 - [ ] (опционально, позже) e2e-тест эндпоинта через TestClient (нужен httpx)
 
-## Фаза 3 — Добавление фильмов: бот-визард `/add` (FSM)
-**Цель:** нетехнический админ добавляет фильм пошагово в личке бота. Видео уходит в
-канал-хранилище (`qazaqcinema`), метаданные — в БД. (Решение 2026-06: визард вместо
-подписи-#ключами; `caption_parser` пока остаётся как утилита, не основной путь.)
+## Фаза 3 — Добавление фильмов: бот-визард `/add` (FSM) ✅ (код; ручная проверка — за тобой)
+**Цель:** нетехнический админ добавляет фильм пошагово в личке бота. Видео — копией в канал-архив
+(`protect_content`), постер — статикой на VPS, метаданные — в БД.
 
-**Изменения модели/инфры (в начале фазы):**
-- [ ] `Movie`/`MovieModel`: `poster_url` → `poster_file_id` (Telegram photo file_id) + миграция
-- [ ] Порт `TelegramFiles` (get_file/download) + адаптер поверх aiogram Bot
-- [ ] `GET /api/posters/{movie_id}`: бот качает фото по file_id, отдаёт картинку (кэш на диск `/uploads`)
-- [ ] `MovieOut.poster_url` = `/api/posters/{id}` (контракт фронта не меняется)
+**Решения 2026-06-28 (детали в CLAUDE.md):** постеры — **файлами на VPS** (не Telegram file_id,
+не прокси); основное название — **казахское** `title_kk` (+ `title_ru`, `title_original`); поиск —
+**pg_trgm + unaccent** (опечатки/подстрока, работает для казахского). Визард вместо подписи-#ключами;
+`caption_parser` остаётся утилитой.
 
-**Визард (aiogram FSM, только для `BOT_ADMIN_USER_IDS`):**
-- [ ] `/add` → видео → постер (фото) → категория (inline-кнопки из `CATEGORIES`) → название
-      → год (/skip) → рейтинг (/skip) → описание → экран подтверждения
-- [ ] По подтверждению: бот отправляет видео в канал-хранилище → берёт `file_id` для inline-выдачи
-- [ ] `MovieIngestionService.ingest(...)` → запись в БД → DM админу «Фильм «{title}» добавлен. ID: {id}»
-- [ ] `/cancel` сбрасывает визард; валидация шагов (не фото вместо видео и т.п.)
-- [ ] Ручная проверка через @qazaqcinema_bot: фильм в БД, видео — в канале
+**Схема/инфра:**
+- [x] `Movie`/`MovieModel`: `title`→`title_kk`, +`title_ru`/`title_original` (nullable), +`created_at`
+- [x] `MovieOut` отдаёт `title_kk/title_ru/title_original` (фронт покажет kk основным)
+- [x] Миграция `b7f3a9c2d1e4` (ручная): rename + колонки + `pg_trgm`/`unaccent` + immutable
+      `f_unaccent` + GIN-trgm индексы на 3 поля названий (проверена base→head на scratch-БД)
+- [x] `MediaConfig` (`MEDIA_ROOT`/`MEDIA_POSTERS_URL_BASE`); порт `PosterStorage` +
+      `LocalPosterStorage` (uuid-имя, async-запись); StaticFiles-mount `/posters` в API; DI
+- [ ] ⚠️ применить `alembic upgrade head` на рабочей БД (CREATE EXTENSION требует прав superuser)
+
+**Поиск (фундамент Фазы 4):**
+- [x] `PgMovieRepository.search`: `f_unaccent` + ILIKE-подстрока по title_kk/ru/original/description
+      + ранжирование `similarity()` (тот же `f_unaccent`, что в GIN-индексе)
+- [x] `CatalogService.list_movies/search_movies/get_movie`
+- [x] conftest: `pg_trgm`/`unaccent`/`f_unaccent` + drop/create (тесты идут через `create_all`)
+
+**Визард (aiogram FSM, только `BOT_ADMIN_USER_IDS`):**
+- [x] `/add`: видео → постер → категория (кнопки из `CATEGORIES`) → `title_kk` → `title_ru`(/skip)
+      → `title_original`(/skip) → год(/skip) → рейтинг(/skip) → описание → подтверждение
+- [x] По подтверждению: видео копией в канал-архив (`protect_content`) → file_id; постер
+      скачивается 1 раз; `MovieIngestionService.ingest(...)` → запись + DM админам
+- [x] `/cancel` сбрасывает визард; ретраи при неверном вводе (не фото/видео и т.п.)
+- [x] Юнит-тест `MovieIngestionService` (фейки storage/repo/notifier)
+- [ ] Ручная проверка через @qazaqcinema_bot: фильм в БД, видео в канале, постер открывается
 
 ## Фаза 4 — Каталог (сервис + API)
 **Цель:** Web App получает список/поиск/детали фильмов (без `telegram_file_id`).
@@ -85,29 +118,37 @@
 - [ ] `InlineQueryResultCachedVideo(video_file_id=movie.telegram_file_id, protect_content=True)`
 - [ ] Ручная проверка: подписчик видит видео, не-подписчик — нет; запрет скачивания работает
 
-## Фаза 6 — Оплата: Kaspi (ручной чек)
-**Цель:** выбор тарифа → реквизиты → загрузка чека → модерация → активация.
-- [ ] `PaymentService.initiate` (Kaspi) → реквизиты (номер/имя) на фронт
-- [ ] `POST /api/payments/proof` (multipart): залить файл боту → `file_id`
-- [ ] `SubscriptionService.submit_proof`: PaymentRequest(PENDING) + User→PENDING_REVIEW
-- [ ] `notifier.send_payment_proof_to_admins`: фото чека в чат модерации + кнопки ✅/❌
-- [ ] `moderation.py`: callback `pay:approve|reject:<id>`
-- [ ] `SubscriptionService.approve` (compute_expiry → User ACTIVE, DM юзеру) / `reject`
-- [ ] Тест жизненного цикла подписки (с фейковыми портами)
+## Фаза 6 — Подписка и контроль доступа
+**Цель:** единый «движок доступа» ДО оплаты — потом любой способ оплаты просто дёргает его.
+Грант/ревок подписки и проверка `has_active_access` живут здесь, а не размазаны по способам оплаты.
+- [ ] `SubscriptionService.activate(user, tariff, now)`: `compute_expiry` → User ACTIVE +
+      `expires_at` + DM пользователю. Ядро гранта — вызывается из любого способа оплаты.
+- [ ] `SubscriptionService.expire_due(now)`: ACTIVE с истёкшим `expires_at` → EXPIRED.
+- [ ] `infrastructure/scheduler.py`: apscheduler-джоб каждые N минут → `expire_due`
+      (REQUEST-scope контейнер); запуск планировщика в `main.py`.
+- [ ] Контроль доступа: `has_active_access` (уже есть в `User`) — единый гейт. API-зависимость
+      `require_active_access` (поверх `get_current_user`) для «только подписчикам»; в inline-выдаче
+      (Фаза 5) — тот же чек. Каталог-просмотр свободный, видео — по подписке.
+- [ ] Тесты `SubscriptionService` на фейках: activate (срок по тарифу), expire_due (только
+      просроченные), has_active_access (граничные даты).
 
-## Фаза 7 — Оплата: Telegram Stars (авто-подписка)
+## Фаза 7 — Оплата: Kaspi (ручной чек)
+**Цель:** выбор тарифа → реквизиты → загрузка чека → модерация → активация (через Фазу 6).
+- [ ] `PaymentService.initiate` (Kaspi) → реквизиты (номер/имя) на фронт
+- [ ] `POST /api/payments/proof` (multipart): залить файл боту → `file_id`;
+      PaymentRequest(PENDING) + User→PENDING_REVIEW
+- [ ] `notifier.send_payment_proof_to_admins`: фото чека в чат модерации + кнопки ✅/❌
+- [ ] `moderation.py`: callback `pay:approve|reject:<id>` → approve вызывает
+      `SubscriptionService.activate`, reject → PaymentRequest=REJECTED (грант — в Фазе 6, не дублируем)
+- [ ] Тест: одобрение чека → подписка активна; отклонение → доступа нет
+
+## Фаза 8 — Оплата: Telegram Stars (авто-подписка)
 **Цель:** нативная оплата цифрового контента + помесячная авто-подписка.
 - [ ] Сверить актуальную доку Telegram Payments (Stars/XTR, subscription_period)
 - [ ] `TelegramStarsProvider.initiate`: `create_invoice_link(currency="XTR", …)`
-- [ ] Хендлеры `pre_checkout_query` + `successful_payment` → авто-approve подписки
+- [ ] Хендлеры `pre_checkout_query` + `successful_payment` → `SubscriptionService.activate`
 - [ ] Зарегистрировать Stars в `payment_providers` (DI) — без правок сервисов
 - [ ] Обработка авто-продления (recurring) для тарифа `1_month`
-
-## Фаза 8 — Крон: сброс просроченных
-- [ ] `SubscriptionService.expire_due(now)`: ACTIVE с истёкшим `expires_at` → EXPIRED
-- [ ] `infrastructure/scheduler.py`: job каждые N минут через REQUEST-scope контейнера
-- [ ] Запуск планировщика в `main.py`
-- [ ] Тест `expire_due` на фейковом репозитории
 
 ## Фаза 9 — Фронтенд: Web App
 **Цель:** тёмный Netflix-style интерфейс.
