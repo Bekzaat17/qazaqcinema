@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.application.ports.repositories import UserRepository
 from app.application.ports.security import InitDataVerifier
+from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 
 
@@ -13,11 +14,19 @@ class AuthService:
         self._users = users
 
     async def authenticate(self, init_data: str) -> User:
-        """Проверить initData (HMAC), найти юзера или создать нового со статусом NEW.
+        """Проверить initData (HMAC) и вернуть пользователя.
 
-        Алгоритм:
-          1. tg_user = self._verifier.verify(init_data)  # бросит InitDataError
-          2. user = await self._users.get(tg_user.id)
-          3. если None — upsert нового User(status=NEW), вернуть.
+        Первый вход — создаём User со статусом NEW. Бросает InitDataError,
+        если подпись initData невалидна.
         """
-        raise NotImplementedError
+        tg_user = self._verifier.verify(init_data)
+        user = await self._users.get(tg_user.id)
+        if user is None:
+            user = await self._users.upsert(
+                User(
+                    telegram_id=tg_user.id,
+                    username=tg_user.username,
+                    status=UserStatus.NEW,
+                )
+            )
+        return user

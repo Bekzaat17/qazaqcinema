@@ -113,14 +113,18 @@ HMAC-валидатор initData (реализован + тесты), Kaspi-пр
 **Сделано (Фаза 1 — БД):** миграция `c2d3c2c343d2_initial` применена; репозитории
 `PgMovie/PgUser/PgPayment` реализованы (мапперы ORM↔домен, `upsert` ON CONFLICT) +
 интеграционные тесты (фикстура `session`, skip без БД); логотип в `web/public/logo.png`.
-Зелёное: ruff + mypy(strict) + pytest(25).
+
+**Сделано (Фаза 2 — авторизация):** `AuthService.authenticate` (verify initData →
+get/upsert User NEW); FastAPI-зависимость `get_current_user` (request-scope контейнер dishka
+из `request.state.dishka_container`); каталог и оплата защищены, `/tariffs` публичный; оплата
+берёт `user_id` из initData; юнит-тесты `AuthService` (фейки). Зелёное: ruff + mypy + pytest(28).
 
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Сервисы (тела): Auth (+ авторизация Web App по initData, FastAPI-зависимость), Catalog,
-   MovieIngestion, Subscription.
-2. Бот: парсер канала, защищённая inline-выдача, модерация чеков.
-3. API: приём чека (multipart) + защита эндпоинтов авторизацией.
-4. Оплата: Telegram Stars (инвойс + авто-подписка), крон сброса `expired` (apscheduler).
+1. Сервисы (тела): `CatalogService`, `SubscriptionService`, `MovieIngestionService`.
+2. **Добавление фильмов — бот-визард `/add`** (FSM, Фаза 3): смена `poster_url`→`poster_file_id`,
+   эндпоинт `GET /api/posters/{id}` (бот качает фото), видео в канал-хранилище.
+3. Бот: защищённая inline-выдача (`protect_content`), модерация чеков (✅/❌).
+4. Оплата: приём чека (multipart), Telegram Stars (инвойс + авто-подписка), крон `expired`.
 5. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
 6. Прод: webhook + Nginx.
 

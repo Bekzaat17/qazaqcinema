@@ -9,7 +9,7 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
-**Фаза 1 завершена (БД + репозитории).** Дальше → **Фаза 2: Авторизация Web App (initData)**.
+**Фаза 2 завершена (авторизация).** Дальше → **Фаза 3: Добавление фильмов (бот-визард `/add`)**.
 
 ---
 
@@ -44,21 +44,33 @@
 - [x] `PgPaymentRepository`: `add`, `get`, `set_status`
 - [x] Интеграционные тесты репозиториев (фикстура `session`, skip без БД) — 5 шт.
 
-## Фаза 2 — Авторизация Web App (initData) end-to-end
+## Фаза 2 — Авторизация Web App (initData) ✅
 **Цель:** фронт шлёт initData → бэк валидирует → отдаёт статус/доступ.
-- [ ] `AuthService.authenticate`: verify(initData) → get/upsert User(NEW) → вернуть
-- [ ] FastAPI-зависимость `api/deps/auth.py` (`get_current_user`) поверх `AuthService`
-- [ ] `POST /api/auth` возвращает `AuthOut` (status, expires_at, has_access)
-- [ ] Защитить каталог/оплату зависимостью авторизации
-- [ ] Тест: валидный initData → 200; битый → 401
+- [x] `AuthService.authenticate`: verify(initData) → get/upsert User(NEW) → вернуть
+- [x] FastAPI-зависимость `api/deps/auth.py` (`get_current_user`) поверх `AuthService`
+- [x] `POST /api/auth` возвращает `AuthOut` (status, expires_at, has_access)
+- [x] Защищены каталог + оплата (`Depends(get_current_user)`); `/tariffs` публичный
+- [x] Юнит-тесты `AuthService` (фейки): создание NEW / существующий / битый initData
+- [ ] (опционально, позже) e2e-тест эндпоинта через TestClient (нужен httpx)
 
-## Фаза 3 — Бот: автонаполнение из канала
-**Цель:** видео-пост в канале-архиве → фильм в БД + DM админу.
-- [ ] `channel_post.py`: фильтр только `BOT_ARCHIVE_CHANNEL_ID` + наличие `video`
-- [ ] `parse_caption(message.caption)`; на `CaptionParseError` — DM админу об ошибке
-- [ ] `MovieIngestionService.ingest(parsed, message.video.file_id)` (INSERT + DM)
-- [ ] Проверка неизвестной категории (`is_known_category`) → предупредить, но сохранить
-- [ ] Ручная проверка: запостить в канал, увидеть фильм в БД и DM «ID: N»
+## Фаза 3 — Добавление фильмов: бот-визард `/add` (FSM)
+**Цель:** нетехнический админ добавляет фильм пошагово в личке бота. Видео уходит в
+канал-хранилище (`qazaqcinema`), метаданные — в БД. (Решение 2026-06: визард вместо
+подписи-#ключами; `caption_parser` пока остаётся как утилита, не основной путь.)
+
+**Изменения модели/инфры (в начале фазы):**
+- [ ] `Movie`/`MovieModel`: `poster_url` → `poster_file_id` (Telegram photo file_id) + миграция
+- [ ] Порт `TelegramFiles` (get_file/download) + адаптер поверх aiogram Bot
+- [ ] `GET /api/posters/{movie_id}`: бот качает фото по file_id, отдаёт картинку (кэш на диск `/uploads`)
+- [ ] `MovieOut.poster_url` = `/api/posters/{id}` (контракт фронта не меняется)
+
+**Визард (aiogram FSM, только для `BOT_ADMIN_USER_IDS`):**
+- [ ] `/add` → видео → постер (фото) → категория (inline-кнопки из `CATEGORIES`) → название
+      → год (/skip) → рейтинг (/skip) → описание → экран подтверждения
+- [ ] По подтверждению: бот отправляет видео в канал-хранилище → берёт `file_id` для inline-выдачи
+- [ ] `MovieIngestionService.ingest(...)` → запись в БД → DM админу «Фильм «{title}» добавлен. ID: {id}»
+- [ ] `/cancel` сбрасывает визард; валидация шагов (не фото вместо видео и т.п.)
+- [ ] Ручная проверка через @qazaqcinema_bot: фильм в БД, видео — в канале
 
 ## Фаза 4 — Каталог (сервис + API)
 **Цель:** Web App получает список/поиск/детали фильмов (без `telegram_file_id`).
