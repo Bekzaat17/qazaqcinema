@@ -125,12 +125,19 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
 `PgMovieRepository.search` (триграммы) + `CatalogService`; бот-визард `/add` (FSM, админ-гейт) →
 `MovieIngestionService.ingest`. Зелёное: ruff + mypy + pytest(29).
 
+**Сделано (Фаза 4 — каталог API):** 3 эндпоинта (`/api/movies`, `/search`, `/{id}`) +
+`CatalogService` были готовы с Фазы 3; добавлен тест-страж `tests/test_movie_dto.py`
+(«`telegram_file_id` не утекает в `MovieOut`»: нет поля в схеме + значение не появляется в JSON).
+Чора: имена миграций → `yyyymmdd_<slug>` (`file_template` в `alembic.ini`; revision id не тронуты).
+Зелёное: ruff + mypy(strict, `app`) + pytest(32).
+
 **Не сделано — по приоритету (детали в PLAN.md):**
 1. Применить `alembic upgrade head` на рабочей БД + ручная проверка визарда `/add` (нужен Docker).
-2. Каталог (Фаза 4): эндпоинты есть — добить тест «нет `telegram_file_id` в ответе».
-3. Бот: защищённая inline-выдача (`protect_content`), модерация чеков (✅/❌).
-4. Оплата: приём чека (multipart), Telegram Stars (инвойс + авто-подписка), крон `expired`,
-   тело `SubscriptionService`.
+2. Бот: защищённая inline-выдача (`protect_content`, гейт по `has_active_access`) — Фаза 5.
+3. Подписка (Фаза 6): `SubscriptionService.activate/expire_due` + apscheduler-джоб — «движок
+   доступа» ДО оплаты.
+4. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
+   Фаза 8); модерация чеков и крон `expired` — там же.
 5. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
 6. Прод: webhook + Nginx.
 

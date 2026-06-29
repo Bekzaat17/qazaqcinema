@@ -9,17 +9,23 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
-**Фаза 3 — код готов** (мультиязычные названия, миграция, поиск pg_trgm+unaccent, постеры-статика,
-визард `/add`, тесты). Зелёные ruff + mypy(strict) + pytest(29); миграция проверена base→head на
-живой БД (scratch). Осталось ручное: применить `alembic upgrade head` на рабочей БД и прогнать
-визард через @qazaqcinema_bot. Дальше → **Фаза 4: Каталог (API)**.
+**Фаза 4 — закрыта** (2026-06-29): каталог-сервис + 3 эндпоинта были готовы с Фазы 3, добавлен
+тест-страж `tests/test_movie_dto.py` — `telegram_file_id` не утекает в `MovieOut` (нет поля в
+схеме + значение не появляется в JSON). **Чора имён миграций — сделана** (`yyyymmdd_<slug>`, см.
+ниже). Зелёные ruff + mypy(strict, `app`) + pytest(32). Дальше → **Фаза 5: защищённая inline-выдача**.
+
+Остаётся ручное (хвост Фазы 3, нужен Docker + живой бот): применить `alembic upgrade head` на
+рабочей БД и прогнать визард `/add` через @qazaqcinema_bot — код готов, на проде не верифицирован.
 
 > **План пересмотрен 2026-06-28:** подписка вынесена в отдельную **Фазу 6 (Подписка и контроль
 > доступа)** ПЕРЕД оплатой (Kaspi → Фаза 7, Stars → Фаза 8); прежняя «Фаза 8 — Крон» влита в Фазу 6.
-> Порядок след. сессии: ручной шаг Фазы 3 → чора по именам миграций (ниже) → Фаза 4.
 
 ## 🔧 Чоры (вне фаз)
-- [ ] **Человекочитаемые имена миграций** (`yyyymmdd_<slug>`). Сейчас имя файла = `<random_hex>_<slug>.py`:
+- [x] **Человекочитаемые имена миграций** (`yyyymmdd_<slug>`). Сделано 2026-06-29: `file_template`
+      в `alembic.ini` задан; файлы → `20260625_initial.py` / `20260628_movie_titles_and_search.py`
+      (`git mv`, revision id ВНУТРИ файлов не тронут); `alembic history` + offline `upgrade head --sql`
+      перепроверены — цепочка `<base> → c2d3c2c343d2 → b7f3a9c2d1e4 (head)` цела. Контекст ниже:
+      Сейчас имя файла = `<random_hex>_<slug>.py`:
       Alembic даёт случайный hex как `revision id` — это лишь уникальный ключ для `down_revision`/
       `alembic_version`, порядок задаётся связями, а не датой/именем (для людей — неудобно).
       Сделать: в `alembic.ini` задать
@@ -105,11 +111,12 @@
 - [x] Юнит-тест `MovieIngestionService` (фейки storage/repo/notifier)
 - [ ] Ручная проверка через @qazaqcinema_bot: фильм в БД, видео в канале, постер открывается
 
-## Фаза 4 — Каталог (сервис + API)
+## Фаза 4 — Каталог (сервис + API) ✅
 **Цель:** Web App получает список/поиск/детали фильмов (без `telegram_file_id`).
-- [ ] `CatalogService.list_movies / search_movies / get_movie`
-- [ ] `GET /api/movies?category=`, `/api/movies/search?q=`, `/api/movies/{id}` → `MovieOut`
-- [ ] Тест: ответ НЕ содержит `telegram_file_id`
+- [x] `CatalogService.list_movies / search_movies / get_movie` (готов с Фазы 3)
+- [x] `GET /api/movies?category=`, `/api/movies/search?q=`, `/api/movies/{id}` → `MovieOut`
+- [x] Тест: ответ НЕ содержит `telegram_file_id` (`tests/test_movie_dto.py` — страж на уровне DTO,
+      без БД/HTTP: нет поля в схеме + значение не просачивается в JSON)
 
 ## Фаза 5 — Бот: защищённая inline-выдача
 **Цель:** тап по превью → видео с `protect_content=True` только подписчику.
