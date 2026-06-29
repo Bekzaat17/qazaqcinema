@@ -131,15 +131,21 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
 Чора: имена миграций → `yyyymmdd_<slug>` (`file_template` в `alembic.ini`; revision id не тронуты).
 Зелёное: ruff + mypy(strict, `app`) + pytest(32).
 
+**Проверено вживую (2026-06-29):** миграция применена на рабочей БД (head `b7f3a9c2d1e4`); визард
+`/add` прогнан через @qazaqcinema_bot — фильм id=1 в БД, видео в канале-архиве (`protect_content`),
+постер в `uploads/posters/`. Грабли: `BOT_ARCHIVE_CHANNEL_ID` должен быть `-100…` (без `-` →
+«chat not found»), бот — админ канала. **Фазы 0–4 готовы и проверены вживую.**
+
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Применить `alembic upgrade head` на рабочей БД + ручная проверка визарда `/add` (нужен Docker).
-2. Бот: защищённая inline-выдача (`protect_content`, гейт по `has_active_access`) — Фаза 5.
-3. Подписка (Фаза 6): `SubscriptionService.activate/expire_due` + apscheduler-джоб — «движок
+1. Бот: защищённая inline-выдача (`protect_content`, гейт по `has_active_access`) — Фаза 5.
+2. Подписка (Фаза 6): `SubscriptionService.activate/expire_due` + apscheduler-джоб — «движок
    доступа» ДО оплаты.
-4. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
+3. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
    Фаза 8); модерация чеков и крон `expired` — там же.
-5. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
-6. Прод: webhook + Nginx.
+4. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
+5. Прод: webhook + Nginx.
+⚠️ Чоры (вне фаз): (a) `conftest` шьёт рабочую БД через `create_all` (дрейф схемы) — изолировать
+тест-БД; (b) `confirm_add` без `try/except` — при ошибке зависает «⏳ Сақталуда…» без текста.
 
 ## Решения, которые уже приняты (не пересматривать без причины)
 - **Python 3.13**. Backend — **FastAPI** (не Django/PHP): ложится на async-стек.

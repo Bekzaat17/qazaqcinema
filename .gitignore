@@ -14,7 +14,8 @@ __pycache__/
 
 # --- local data ---
 *.sqlite3
-/uploads/          # постеры (uploads/posters) и прочая локальная статика
+# постеры (uploads/posters) и прочая локальная статика (inline-коммент сломал бы паттерн)
+/uploads/
 
 # --- frontend ---
 web/node_modules/

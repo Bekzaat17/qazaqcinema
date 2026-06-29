@@ -14,13 +14,21 @@
 схеме + значение не появляется в JSON). **Чора имён миграций — сделана** (`yyyymmdd_<slug>`, см.
 ниже). Зелёные ruff + mypy(strict, `app`) + pytest(32). Дальше → **Фаза 5: защищённая inline-выдача**.
 
-Остаётся ручное (хвост Фазы 3, нужен Docker + живой бот): применить `alembic upgrade head` на
-рабочей БД и прогнать визард `/add` через @qazaqcinema_bot — код готов, на проде не верифицирован.
+Хвост Фазы 3 — **закрыт** (2026-06-29): миграция применена на рабочей БД (`b7f3a9c2d1e4`, полная
+схема), визард `/add` прогнан через @qazaqcinema_bot вживую — фильм id=1 в БД, видео ушло в
+канал-архив (`protect_content`), постер сохранён в `uploads/posters/`. Грабли: id канала должен быть
+`-100…` (без `-` → «chat not found»), бот — админ канала. **Фазы 0–4 готовы и проверены вживую.**
 
 > **План пересмотрен 2026-06-28:** подписка вынесена в отдельную **Фазу 6 (Подписка и контроль
 > доступа)** ПЕРЕД оплатой (Kaspi → Фаза 7, Stars → Фаза 8); прежняя «Фаза 8 — Крон» влита в Фазу 6.
 
 ## 🔧 Чоры (вне фаз)
+- [ ] **Изоляция БД тестов от рабочей** (footgun, проявился 2026-06-29). `tests/conftest.py` делает
+      `drop_all`+`create_all` по ТОЙ ЖЕ `DatabaseConfig().dsn`, что и приложение → прогон `pytest`
+      перешивает рабочую `movies` через `create_all` (колонки = head по моделям, но БЕЗ миграционных
+      GIN-trgm индексов), а `alembic_version` не трогается → дрейф, из-за которого `upgrade head` падал
+      на `ALTER … RENAME title`. Фикс: отдельная тест-БД (напр. `DB_NAME=qazaqcinema_test`-override в
+      conftest) или транзакция-rollback на тест; рабочую БД тесты трогать не должны.
 - [x] **Человекочитаемые имена миграций** (`yyyymmdd_<slug>`). Сделано 2026-06-29: `file_template`
       в `alembic.ini` задан; файлы → `20260625_initial.py` / `20260628_movie_titles_and_search.py`
       (`git mv`, revision id ВНУТРИ файлов не тронут); `alembic history` + offline `upgrade head --sql`
@@ -78,7 +86,7 @@
 - [x] Юнит-тесты `AuthService` (фейки): создание NEW / существующий / битый initData
 - [ ] (опционально, позже) e2e-тест эндпоинта через TestClient (нужен httpx)
 
-## Фаза 3 — Добавление фильмов: бот-визард `/add` (FSM) ✅ (код; ручная проверка — за тобой)
+## Фаза 3 — Добавление фильмов: бот-визард `/add` (FSM) ✅ (код + ручная проверка вживую 2026-06-29)
 **Цель:** нетехнический админ добавляет фильм пошагово в личке бота. Видео — копией в канал-архив
 (`protect_content`), постер — статикой на VPS, метаданные — в БД.
 
@@ -94,7 +102,11 @@
       `f_unaccent` + GIN-trgm индексы на 3 поля названий (проверена base→head на scratch-БД)
 - [x] `MediaConfig` (`MEDIA_ROOT`/`MEDIA_POSTERS_URL_BASE`); порт `PosterStorage` +
       `LocalPosterStorage` (uuid-имя, async-запись); StaticFiles-mount `/posters` в API; DI
-- [ ] ⚠️ применить `alembic upgrade head` на рабочей БД (CREATE EXTENSION требует прав superuser)
+- [x] ✅ `alembic upgrade head` на рабочей БД (2026-06-29). Драма дрейфа: БД стояла на `c2d3c2c343d2`,
+      но `movies` уже имела схему head (наследие `create_all` из conftest на ТОЙ ЖЕ БД) → `upgrade`
+      падал на `ALTER … RENAME title`. Таблицы пустые → чистая пересборка (DROP всех таблиц +
+      `alembic_version`, затем upgrade с нуля). Итог: head, 3 GIN-trgm индекса + extensions +
+      `f_unaccent`, smoke ок. Корень проблемы → чора «изоляция БД тестов» выше.
 
 **Поиск (фундамент Фазы 4):**
 - [x] `PgMovieRepository.search`: `f_unaccent` + ILIKE-подстрока по title_kk/ru/original/description
@@ -109,7 +121,8 @@
       скачивается 1 раз; `MovieIngestionService.ingest(...)` → запись + DM админам
 - [x] `/cancel` сбрасывает визард; ретраи при неверном вводе (не фото/видео и т.п.)
 - [x] Юнит-тест `MovieIngestionService` (фейки storage/repo/notifier)
-- [ ] Ручная проверка через @qazaqcinema_bot: фильм в БД, видео в канале, постер открывается
+- [x] Ручная проверка через @qazaqcinema_bot (2026-06-29): фильм id=1 в БД, видео в канале-архиве,
+      постер в `uploads/posters/` (грабли: id канала `-100…`, бот — админ канала)
 
 ## Фаза 4 — Каталог (сервис + API) ✅
 **Цель:** Web App получает список/поиск/детали фильмов (без `telegram_file_id`).
