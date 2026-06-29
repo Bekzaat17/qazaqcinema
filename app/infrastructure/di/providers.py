@@ -28,6 +28,7 @@ from app.application.services.auth_service import AuthService
 from app.application.services.catalog_service import CatalogService
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.payment_service import PaymentService
+from app.application.services.playback_service import PlaybackService
 from app.application.services.subscription_service import SubscriptionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
@@ -107,6 +108,7 @@ class RequestProvider(Provider):
     auth = provide(AuthService)
     catalog = provide(CatalogService)
     ingestion = provide(MovieIngestionService)
+    playback = provide(PlaybackService)
     subscription = provide(SubscriptionService)
 
 

@@ -9,10 +9,11 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
-**Фаза 4 — закрыта** (2026-06-29): каталог-сервис + 3 эндпоинта были готовы с Фазы 3, добавлен
-тест-страж `tests/test_movie_dto.py` — `telegram_file_id` не утекает в `MovieOut` (нет поля в
-схеме + значение не появляется в JSON). **Чора имён миграций — сделана** (`yyyymmdd_<slug>`, см.
-ниже). Зелёные ruff + mypy(strict, `app`) + pytest(32). Дальше → **Фаза 5: защищённая inline-выдача**.
+**Фаза 5 — код готов** (2026-06-29): защищённая выдача видео переосмыслена — inline не умеет
+`protect_content`, поэтому видео шлёт бот в личку (`send_video(protect_content=True)`), триггер —
+`POST /api/movies/{id}/play` (initData-гейт + `has_active_access`); inline стал подсказкой-кнопкой.
+Новый `PlaybackService` + порт `send_protected_video` + юнит-тесты (3). Зелёные ruff + mypy(strict,
+`app`, 77) + pytest(35). Осталась ручная e2e (за Web App). Дальше → **Фаза 6: подписка**.
 
 Хвост Фазы 3 — **закрыт** (2026-06-29): миграция применена на рабочей БД (`b7f3a9c2d1e4`, полная
 схема), визард `/add` прогнан через @qazaqcinema_bot вживую — фильм id=1 в БД, видео ушло в
@@ -131,12 +132,22 @@
 - [x] Тест: ответ НЕ содержит `telegram_file_id` (`tests/test_movie_dto.py` — страж на уровне DTO,
       без БД/HTTP: нет поля в схеме + значение не просачивается в JSON)
 
-## Фаза 5 — Бот: защищённая inline-выдача
-**Цель:** тап по превью → видео с `protect_content=True` только подписчику.
-- [ ] `inline_query.py`: распарсить `movie_<id>`
-- [ ] Проверить `User.has_active_access(now)`; нет доступа → подсказка открыть Web App
-- [ ] `InlineQueryResultCachedVideo(video_file_id=movie.telegram_file_id, protect_content=True)`
-- [ ] Ручная проверка: подписчик видит видео, не-подписчик — нет; запрет скачивания работает
+## Фаза 5 — Защищённая выдача видео ✅ (код; ручная e2e — за Web App/Фазой 9)
+**Цель:** видео с `protect_content=True` только подписчику.
+**Правка дизайна 2026-06-29:** inline-выдача НЕВОЗМОЖНА — `InlineQueryResult*` не поддерживают
+`protect_content` (проверено на aiogram 3.29). Видео шлёт бот напрямую в личку через
+`send_video(protect_content=True)`; триггер — API `/play` (initData-гейт). Inline оставлен как
+подсказка-кнопка (открыть Web App), видео не отдаёт.
+- [x] `PlaybackService.deliver(user, movie_id, now)`: гейт `has_active_access` → `NO_ACCESS`;
+      фильма нет → `NOT_FOUND`; иначе `notifier.send_protected_video`. Юнит-тест (3 кейса).
+- [x] Порт `TelegramNotifier.send_protected_video` + `AiogramNotifier` (`send_video`,
+      `protect_content=True`); DI-провайдер `playback`.
+- [x] `POST /api/movies/{id}/play` (гейт `get_current_user`) → 200 `{status:"sent"}` /
+      403 `no_access` / 404. `telegram_file_id` наружу не отдаётся.
+- [x] `inline_query.py`: пустая выдача + `InlineQueryResultsButton` (web_app/deep-link),
+      `cache_time=0`, `is_personal`.
+- [ ] Ручная e2e: подписчик получает видео в личке (protect_content), не-подписчик → 403.
+      Полноценно — через Web App (Фаза 9) или crafted initData + ACTIVE-юзер.
 
 ## Фаза 6 — Подписка и контроль доступа
 **Цель:** единый «движок доступа» ДО оплаты — потом любой способ оплаты просто дёргает его.

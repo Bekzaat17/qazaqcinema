@@ -18,6 +18,14 @@ class AiogramNotifier:
         for admin_id in self._admin_user_ids:
             await self._bot.send_message(admin_id, text)
 
+    async def send_protected_video(
+        self, chat_id: int, file_id: str, caption: str | None = None
+    ) -> None:
+        # protect_content=True — ядро безопасности: получатель не может скачать/переслать.
+        await self._bot.send_video(
+            chat_id, file_id, caption=caption, protect_content=True
+        )
+
     async def send_payment_proof_to_admins(
         self,
         request_id: int,

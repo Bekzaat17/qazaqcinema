@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from app.domain.entities.movie import Movie
@@ -34,3 +36,9 @@ class MovieOut(BaseModel):
             year=movie.year,
             rating=movie.rating,
         )
+
+
+class PlayOut(BaseModel):
+    """Ответ `/play`: видео отправлено в чат пользователя с ботом (не через HTTP)."""
+
+    status: Literal["sent"]

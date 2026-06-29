@@ -1,23 +1,40 @@
-"""Защищённая выдача видео через inline-режим.
+"""Inline-режим: НЕ отдаёт видео.
 
-Скелет. Реализация — PLAN (фаза «бот»):
-  1. Распарсить query вида 'movie_<id>'.
-  2. Проверить активную подписку юзера (User.has_active_access). Нет — пустая выдача/подсказка.
-  3. movie = await catalog.get_movie(id); вернуть InlineQueryResultCachedVideo(
-        video_file_id=movie.telegram_file_id, ..., protect_content=True).
-Флаг protect_content=True — запрет скачивания/пересылки/записи экрана.
+`InlineQueryResult*` не поддерживают `protect_content` (проверено на aiogram 3.x), а
+незащищённое видео нарушило бы ядро безопасности продукта. Поэтому inline показывает
+лишь кнопку открыть Web App / оформить подписку, а защищённую выдачу делает API
+`/play` → `PlaybackService` → `send_video(protect_content=True)`.
 """
 
 from __future__ import annotations
 
 from aiogram import Router
-from aiogram.types import InlineQuery
+from aiogram.types import InlineQuery, InlineQueryResultsButton, WebAppInfo
+from dishka import FromDishka
+from dishka.integrations.aiogram import inject
+
+from app.config.settings import AppConfig
 
 router = Router(name="inline_query")
 
-MOVIE_PREFIX = "movie_"
+
+def _open_app_button(webapp_url: str) -> InlineQueryResultsButton:
+    text = "QazaqCinema-ны ашу"
+    # web_app требует https-URL; если он не настроен (dev) — deep-link в бота,
+    # иначе answerInlineQuery упадёт с BadRequest.
+    if webapp_url.startswith("https://"):
+        return InlineQueryResultsButton(text=text, web_app=WebAppInfo(url=webapp_url))
+    return InlineQueryResultsButton(text=text, start_parameter="open")
 
 
 @router.inline_query()
-async def handle_inline_query(query: InlineQuery) -> None:
-    return  # TODO(PLAN: бот): проверка подписки + защищённая inline-выдача видео
+@inject
+async def handle_inline_query(query: InlineQuery, config: FromDishka[AppConfig]) -> None:
+    # Пустая выдача + кнопка. cache_time=0 + is_personal: ничего не кешируем по чужим
+    # подпискам (задел на случай будущих персональных результатов).
+    await query.answer(
+        results=[],
+        cache_time=0,
+        is_personal=True,
+        button=_open_app_button(config.bot.webapp_url),
+    )

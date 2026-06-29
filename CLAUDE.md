@@ -27,7 +27,7 @@ Bot и API — два «presentation»-входа, оба тонкие: дост
 ```
 app/
   bot/            # Presentation #1. ТОЛЬКО здесь импортируется aiogram
-    handlers/     # start, channel_post (автонаполнение), inline_query (выдача), moderation (✅/❌)
+    handlers/     # start, channel_post (автонаполнение), inline_query (подсказка-кнопка), moderation (✅/❌)
     keyboards/    # webapp-кнопка, клавиатура модерации
   api/            # Presentation #2. FastAPI
     routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек)
@@ -136,22 +136,27 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
 постер в `uploads/posters/`. Грабли: `BOT_ARCHIVE_CHANNEL_ID` должен быть `-100…` (без `-` →
 «chat not found»), бот — админ канала. **Фазы 0–4 готовы и проверены вживую.**
 
+**Сделано (Фаза 5 — защищённая выдача видео):** inline не умеет `protect_content` → видео шлёт бот
+в личку через `send_protected_video` (`send_video(protect_content=True)`); триггер — `POST
+/api/movies/{id}/play` (initData-гейт + `has_active_access`). Новый `PlaybackService` (+юнит-тесты),
+порт `send_protected_video`, DI-провайдер `playback`. Inline стал подсказкой-кнопкой. pytest(35).
+
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Бот: защищённая inline-выдача (`protect_content`, гейт по `has_active_access`) — Фаза 5.
-2. Подписка (Фаза 6): `SubscriptionService.activate/expire_due` + apscheduler-джоб — «движок
-   доступа» ДО оплаты.
-3. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
+1. Подписка (Фаза 6): `SubscriptionService.activate/expire_due` + apscheduler-джоб — «движок
+   доступа» ДО оплаты (read-side гейт `has_active_access` уже используется в `/play`).
+2. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
    Фаза 8); модерация чеков и крон `expired` — там же.
-4. Фронтенд: каталог/карусели, поиск, модалки, пэйволл с загрузкой чека.
-5. Прод: webhook + Nginx.
+3. Фронтенд: каталог/карусели, поиск, модалки, пэйволл, кнопка «Көру» → `POST /play`.
+4. Прод: webhook + Nginx.
 ⚠️ Чоры (вне фаз): (a) `conftest` шьёт рабочую БД через `create_all` (дрейф схемы) — изолировать
 тест-БД; (b) `confirm_add` без `try/except` — при ошибке зависает «⏳ Сақталуда…» без текста.
 
 ## Решения, которые уже приняты (не пересматривать без причины)
 - **Python 3.13**. Backend — **FastAPI** (не Django/PHP): ложится на async-стек.
 - **БД — PostgreSQL** (asyncpg + Alembic). ORM-модели отделены от доменных сущностей намеренно.
-- `telegram_file_id` — **только боту**, в API-DTO отсутствует. Inline-видео — всегда
-  `protect_content=True`. Это ядро безопасности продукта.
+- `telegram_file_id` — **только боту**, в API-DTO отсутствует. Видео отдаётся ТОЛЬКО ботом через
+  `send_video(protect_content=True)` (inline-результаты `protect_content` НЕ умеют — проверено на
+  aiogram 3.29); API `/play` лишь триггерит отправку после initData-гейта. Это ядро безопасности.
 - **Постеры — файлами на VPS** (не Telegram file_id/прокси): постер публичен (витрина), крошечный,
   нужен стабильный URL под `<img>`. Порт `PosterStorage` → `LocalPosterStorage` + StaticFiles
   `/posters`; видео остаётся в канале-архиве. Постер скачивается один раз при `/add`.
