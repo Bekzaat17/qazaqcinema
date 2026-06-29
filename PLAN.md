@@ -9,11 +9,18 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Фаза 6 — код готов** (2026-06-29): движок доступа. `SubscriptionService.activate(user, tariff,
+now)` (compute_expiry → ACTIVE + expires_at + DM юзеру) и `expire_due(now)` (просроченные ACTIVE →
+EXPIRED, возвращает кол-во). apscheduler-джоб `expire_due` каждые 15 мин через REQUEST-scope
+контейнер, старт/стоп в `main.py`. API-зависимость `require_active_access` (поверх
+`get_current_user`) для «только подписчикам». Решение пользователя: **тарифа теперь два** — `1_day`
+(тестовый доступ) и `1_month` (`3_months` убран). Юнит-тесты `SubscriptionService` (5). Зелёные
+ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. Дальше → **Фаза 7: Kaspi**.
+
 **Фаза 5 — код готов** (2026-06-29): защищённая выдача видео переосмыслена — inline не умеет
 `protect_content`, поэтому видео шлёт бот в личку (`send_video(protect_content=True)`), триггер —
 `POST /api/movies/{id}/play` (initData-гейт + `has_active_access`); inline стал подсказкой-кнопкой.
-Новый `PlaybackService` + порт `send_protected_video` + юнит-тесты (3). Зелёные ruff + mypy(strict,
-`app`, 77) + pytest(35). Осталась ручная e2e (за Web App). Дальше → **Фаза 6: подписка**.
+Новый `PlaybackService` + порт `send_protected_video` + юнит-тесты (3). Осталась ручная e2e (за Web App).
 
 Хвост Фазы 3 — **закрыт** (2026-06-29): миграция применена на рабочей БД (`b7f3a9c2d1e4`, полная
 схема), визард `/add` прогнан через @qazaqcinema_bot вживую — фильм id=1 в БД, видео ушло в
@@ -149,19 +156,23 @@
 - [ ] Ручная e2e: подписчик получает видео в личке (protect_content), не-подписчик → 403.
       Полноценно — через Web App (Фаза 9) или crafted initData + ACTIVE-юзер.
 
-## Фаза 6 — Подписка и контроль доступа
+## Фаза 6 — Подписка и контроль доступа ✅ (код; ручная e2e — за Web App/Фазой 9)
 **Цель:** единый «движок доступа» ДО оплаты — потом любой способ оплаты просто дёргает его.
 Грант/ревок подписки и проверка `has_active_access` живут здесь, а не размазаны по способам оплаты.
-- [ ] `SubscriptionService.activate(user, tariff, now)`: `compute_expiry` → User ACTIVE +
-      `expires_at` + DM пользователю. Ядро гранта — вызывается из любого способа оплаты.
-- [ ] `SubscriptionService.expire_due(now)`: ACTIVE с истёкшим `expires_at` → EXPIRED.
-- [ ] `infrastructure/scheduler.py`: apscheduler-джоб каждые N минут → `expire_due`
-      (REQUEST-scope контейнер); запуск планировщика в `main.py`.
-- [ ] Контроль доступа: `has_active_access` (уже есть в `User`) — единый гейт. API-зависимость
-      `require_active_access` (поверх `get_current_user`) для «только подписчикам»; в inline-выдаче
-      (Фаза 5) — тот же чек. Каталог-просмотр свободный, видео — по подписке.
-- [ ] Тесты `SubscriptionService` на фейках: activate (срок по тарифу), expire_due (только
-      просроченные), has_active_access (граничные даты).
+- [x] `SubscriptionService.activate(user, tariff, now)`: `compute_expiry` → User ACTIVE +
+      `expires_at` + `selected_tariff` + DM пользователю (kk). Ядро гранта — вызывается из любого
+      способа оплаты. Зависит только от `UserRepository` + `TelegramNotifier` (PaymentRepository не
+      нужен: заведение PaymentRequest/модерация — Фаза 7, её approve дёргает этот `activate`).
+- [x] `SubscriptionService.expire_due(now)`: ACTIVE с истёкшим `expires_at` → EXPIRED (через
+      `users.list_expired`), возвращает кол-во.
+- [x] `infrastructure/scheduler.py`: apscheduler-джоб `expire_due` каждые 15 мин (REQUEST-scope
+      контейнер `async with container()`); запуск/останов планировщика в `main.py`.
+- [x] Контроль доступа: API-зависимость `require_active_access` (поверх `get_current_user`) →
+      403 `no_access` для «только подписчикам». `/play` уже гейтит через PlaybackService. Каталог-
+      просмотр свободный, видео — по подписке.
+- [x] Тарифов теперь два (решение 2026-06-29): `1_day` (тестовый) + `1_month`; `3_months` убран.
+- [x] Тесты `SubscriptionService` на фейках (5): activate (новый/продление/после истечения + DM),
+      expire_due (только просроченные + счёт). Граничные `has_active_access` — в `test_user.py`.
 
 ## Фаза 7 — Оплата: Kaspi (ручной чек)
 **Цель:** выбор тарифа → реквизиты → загрузка чека → модерация → активация (через Фазу 6).

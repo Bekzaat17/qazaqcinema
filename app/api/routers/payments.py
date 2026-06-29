@@ -40,5 +40,7 @@ async def submit_proof(
     tariff: str = Form(...),
     file: UploadFile = File(...),
 ) -> dict[str, str]:
-    # PLAN (оплата): залить файл чека боту → file_id → SubscriptionService.submit_proof(...).
+    # PLAN (Фаза 7, Kaspi): залить файл чека боту → file_id → создать PaymentRequest(PENDING),
+    # юзера → PENDING_REVIEW, переслать чек админам с кнопками ✅/❌. Активация — только после
+    # одобрения, через SubscriptionService.activate (см. moderation.py).
     raise NotImplementedError

@@ -5,19 +5,18 @@ from datetime import timedelta
 from app.domain.tariffs.catalog import all_tariffs, get_tariff
 
 
-def test_three_tariffs_present() -> None:
-    assert {t.slug for t in all_tariffs()} == {"1_day", "1_month", "3_months"}
+def test_two_tariffs_present() -> None:
+    assert {t.slug for t in all_tariffs()} == {"1_day", "1_month"}
 
 
 def test_prices_match_prd() -> None:
     assert get_tariff("1_day").price_kzt == 349  # type: ignore[union-attr]
     assert get_tariff("1_month").price_kzt == 1899  # type: ignore[union-attr]
-    assert get_tariff("3_months").price_kzt == 4999  # type: ignore[union-attr]
 
 
 def test_durations() -> None:
     assert get_tariff("1_day").duration == timedelta(days=1)  # type: ignore[union-attr]
-    assert get_tariff("3_months").duration == timedelta(days=90)  # type: ignore[union-attr]
+    assert get_tariff("1_month").duration == timedelta(days=30)  # type: ignore[union-attr]
 
 
 def test_only_monthly_is_recurring() -> None:

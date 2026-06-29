@@ -67,6 +67,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]            # re-export в пакетах — это норма
 "app/api/routers/*" = ["B008"]      # Form()/File()/Depends() в дефолтах — паттерн FastAPI
+"app/api/deps/*" = ["B008"]         # Depends() в дефолтах зависимостей — тот же паттерн FastAPI
 
 # ---------------------------------------------------------------------------
 # Типизация (strict)

@@ -1,53 +1,57 @@
-"""Жизненный цикл подписки: заявка → модерация → активация/отказ → истечение.
+"""Движок доступа: единая точка гранта/ревока подписки.
 
-Расчёт срока — чистая функция domain/subscription/expiry.compute_expiry.
+Это ядро Фазы 6 — ДО любой оплаты. Способы оплаты (Kaspi-модерация, Telegram Stars)
+не активируют подписку сами, а лишь вызывают `activate` (см. CLAUDE.md: «не размазывать
+активацию по платёжным хендлерам»). Заведение PaymentRequest и модерация — это Фаза 7,
+её хендлер на одобрение дёргает тот же `activate`.
+
+Расчёт срока — чистая функция `domain/subscription/expiry.compute_expiry`
+(продлевает активную подписку, иначе считает от now).
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from app.application.ports.repositories import (
-    PaymentRepository,
-    UserRepository,
-)
+from app.application.ports.repositories import UserRepository
 from app.application.ports.telegram import TelegramNotifier
-from app.domain.entities.enums import PaymentMethod
-from app.domain.entities.subscription import PaymentRequest
+from app.domain.entities.enums import UserStatus
+from app.domain.entities.user import User
+from app.domain.subscription.expiry import compute_expiry
+from app.domain.tariffs.tariff import Tariff
 
 
 class SubscriptionService:
-    def __init__(
-        self,
-        users: UserRepository,
-        payments: PaymentRepository,
-        notifier: TelegramNotifier,
-    ) -> None:
+    def __init__(self, users: UserRepository, notifier: TelegramNotifier) -> None:
         self._users = users
-        self._payments = payments
         self._notifier = notifier
 
-    async def submit_proof(
-        self,
-        user_id: int,
-        username: str | None,
-        tariff_slug: str,
-        method: PaymentMethod,
-        proof_file_id: str,
-    ) -> PaymentRequest:
-        """Kaspi: принять чек → PaymentRequest(PENDING), юзер → PENDING_REVIEW,
-        переслать чек в чат модерации (кнопки ✅/❌)."""
-        raise NotImplementedError
+    async def activate(self, user: User, tariff: Tariff, now: datetime) -> User:
+        """Грант подписки: рассчитать срок, перевести юзера в ACTIVE, сохранить, уведомить.
 
-    async def approve(self, request_id: int, now: datetime) -> None:
-        """Одобрить заявку: статус APPROVED, рассчитать expires_at (compute_expiry),
-        юзер → ACTIVE, уведомить юзера в ЛС."""
-        raise NotImplementedError
-
-    async def reject(self, request_id: int, now: datetime) -> None:
-        """Отклонить заявку: статус REJECTED, вернуть статус юзера, уведомить в ЛС."""
-        raise NotImplementedError
+        Идемпотентна по эффекту: повторный вызов с активной подпиской — продлевает
+        (compute_expiry считает от текущего `expires_at`), а не сбрасывает срок.
+        """
+        user.expires_at = compute_expiry(now, tariff, user.expires_at)
+        user.status = UserStatus.ACTIVE
+        user.selected_tariff = tariff.slug
+        saved = await self._users.upsert(user)
+        await self._notifier.notify_user(
+            user.telegram_id,
+            "✅ Жазылым белсендірілді!\n"
+            f"Тариф: {tariff.title_kk}\n"
+            f"Қолжетімді: {user.expires_at:%d.%m.%Y %H:%M} (UTC) дейін",
+        )
+        return saved
 
     async def expire_due(self, now: datetime) -> int:
-        """Фоновая задача: перевести просроченных ACTIVE → EXPIRED. Вернуть кол-во."""
-        raise NotImplementedError
+        """Фоновая задача: ACTIVE с истёкшим `expires_at` → EXPIRED. Вернуть кол-во.
+
+        Списком из репозитория (`list_expired`), без побочной выдачи видео — гейт доступа
+        и так читает `has_active_access`, эта задача лишь приводит хранимый статус в порядок.
+        """
+        expired = await self._users.list_expired(now)
+        for user in expired:
+            user.status = UserStatus.EXPIRED
+            await self._users.upsert(user)
+        return len(expired)

@@ -141,13 +141,21 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
 /api/movies/{id}/play` (initData-гейт + `has_active_access`). Новый `PlaybackService` (+юнит-тесты),
 порт `send_protected_video`, DI-провайдер `playback`. Inline стал подсказкой-кнопкой. pytest(35).
 
+**Сделано (Фаза 6 — подписка и контроль доступа):** «движок доступа» ДО оплаты.
+`SubscriptionService.activate(user, tariff, now)` (compute_expiry → ACTIVE + expires_at +
+selected_tariff + DM на казахском) и `expire_due(now)` (просроченные ACTIVE → EXPIRED через
+`list_expired`, возвращает кол-во); зависит только от `UserRepository` + `TelegramNotifier`.
+apscheduler-джоб `expire_due` каждые 15 мин (REQUEST-scope контейнер `async with container()`),
+старт/стоп в `main.py`. API-зависимость `require_active_access` (поверх `get_current_user`) → 403
+`no_access`. **Тарифа теперь два** (решение пользователя): `1_day` (тестовый) + `1_month`;
+`3_months` убран. Юнит-тесты `SubscriptionService` (5, фейки). Зелёное: ruff + mypy + pytest(40).
+
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Подписка (Фаза 6): `SubscriptionService.activate/expire_due` + apscheduler-джоб — «движок
-   доступа» ДО оплаты (read-side гейт `has_active_access` уже используется в `/play`).
-2. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
-   Фаза 8); модерация чеков и крон `expired` — там же.
-3. Фронтенд: каталог/карусели, поиск, модалки, пэйволл, кнопка «Көру» → `POST /play`.
-4. Прод: webhook + Nginx.
+1. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
+   Фаза 8). Модерация одобряет → дёргает `SubscriptionService.activate` (грант не дублировать);
+   заведение PaymentRequest + перевод юзера в PENDING_REVIEW — тоже Фаза 7.
+2. Фронтенд: каталог/карусели, поиск, модалки, пэйволл (2 тарифа), кнопка «Көру» → `POST /play`.
+3. Прод: webhook + Nginx.
 ⚠️ Чоры (вне фаз): (a) `conftest` шьёт рабочую БД через `create_all` (дрейф схемы) — изолировать
 тест-БД; (b) `confirm_add` без `try/except` — при ошибке зависает «⏳ Сақталуда…» без текста.
 
@@ -172,7 +180,9 @@ get/upsert User NEW); FastAPI-зависимость `get_current_user` (request
 - Категория/статус/способ оплаты в БД — **VARCHAR**, не PG-ENUM (добавить значение без миграции).
 - `users.telegram_id` и `payment_requests.user_id` — **BIGINT** без автоинкремента (Telegram ID).
 - **Оплата — Strategy-порт** `PaymentProvider`: Kaspi (MVP, ручной чек) + Telegram Stars
-  (авто-подписка, **только помесячная** по ограничению Telegram). 1 день/3 месяца — разовые покупки.
+  (авто-подписка, **только помесячная** по ограничению Telegram). **Тарифа два** (решение
+  2026-06-29): `1_day` — разовый тестовый доступ; `1_month` — основной (`recurring=True`, пригоден
+  под авто-подписку Stars). `3_months` убран. Менять сетку — `domain/tariffs/catalog.py` (данные).
   Цифровой контент по политике Telegram продаётся через Stars (сверяться с актуальной докой!).
 - **Заявки на оплату** — единая таблица `payment_requests` (аудит), универсальная по способу:
   `proof_file_id` для Kaspi, `external_charge_id` для Stars/фиата.

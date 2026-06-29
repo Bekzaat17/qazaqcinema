@@ -12,15 +12,19 @@ from aiogram import Bot
 
 from app.bot.setup import build_dispatcher
 from app.infrastructure.di.providers import build_container
+from app.infrastructure.scheduler import build_scheduler
 
 
 async def main() -> None:
     container = build_container()
     bot = await container.get(Bot)
     dispatcher = build_dispatcher(container)
+    scheduler = build_scheduler(container)
+    scheduler.start()
     try:
         await dispatcher.start_polling(bot)
     finally:
+        scheduler.shutdown(wait=False)
         await bot.session.close()
         await container.close()
 
