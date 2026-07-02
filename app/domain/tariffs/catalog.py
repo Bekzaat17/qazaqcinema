@@ -13,9 +13,11 @@ from app.domain.tariffs.tariff import Tariff
 
 TARIFFS: dict[str, Tariff] = {
     # 1 сутки — разовый «тестовый» доступ, чтобы попробовать кинотеатр.
-    "1_day": Tariff("1_day", "1 день", "1 күн", 349, timedelta(days=1)),
+    "1_day": Tariff("1_day", "1 день", "1 күн", 349, timedelta(days=1), price_xtr=50),
     # 1 месяц — основной тариф; recurring → пригоден для авто-подписки Telegram Stars.
-    "1_month": Tariff("1_month", "1 месяц", "1 ай", 1899, timedelta(days=30), recurring=True),
+    "1_month": Tariff(
+        "1_month", "1 месяц", "1 ай", 1899, timedelta(days=30), price_xtr=250, recurring=True
+    ),
 }
 
 

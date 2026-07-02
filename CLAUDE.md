@@ -163,13 +163,23 @@ apscheduler-джоб `expire_due` каждые 15 мин (REQUEST-scope конт
 месте). DI: `PaymentService` → REQUEST-scope (нужны репозитории), добавлен `moderation`. Юнит-тесты
 (9, фейки): PaymentService (5) + PaymentModerationService (4). Зелёное: ruff + mypy(78) + pytest(49).
 
+**Сделано (Фаза 8 — оплата Telegram Stars, авто-подписка):** `TelegramStarsProvider.initiate` →
+`bot.create_invoice_link(currency="XTR", provider_token="", subscription_period=2592000 для
+recurring)` — помесячный тариф уходит подпиской, разовый (`1_day`) обычным инвойсом. Бот-хендлеры
+`bot/handlers/stars.py`: `pre_checkout_query` (быстрая in-memory валидация payload, лимит ~10 c) +
+`successful_payment` → `StarsPaymentService.confirm` (запись `PaymentRequest(STARS, APPROVED,
+external_charge_id)` + грант через `SubscriptionService.activate`; авто-продление recurring —
+тем же путём, продлевает от текущего срока). Тариф получил `price_xtr` (данные: 1_day=50, 1_month=250),
+`TariffOut` отдаёт его фронту. Payload `<user_id>:<slug>` (`build_payload` в провайдере ↔
+`parse_payload` в сервисе). DI: Stars в `payment_providers` (с Bot), `StarsPaymentService` (REQUEST).
+Константы Stars сверены с докой Telegram (payments-stars). Юнит-тесты (8): сервис (6) + провайдер на
+фейковом Bot (2). Зелёное: ruff + mypy(80) + pytest(57). **Оба способа оплаты (Kaspi + Stars) готовы.**
+
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Оплата: Telegram Stars (инвойс `create_invoice_link(XTR)` + `pre_checkout`/`successful_payment` →
-   `SubscriptionService.activate`, авто-подписка помесячно, Фаза 8). Регистрируется в
-   `payment_providers` (DI) без правок сервисов. (Kaspi — Фаза 7, готова.)
-2. Фронтенд: каталог/карусели, поиск, модалки, пэйволл (2 тарифа), кнопка «Көру» → `POST /play`,
-   загрузка чека → `POST /proof`.
-3. Прод: webhook + Nginx.
+1. Фронтенд (Фаза 9): каталог/карусели, поиск, модалки, пэйволл (2 тарифа, Kaspi первым + Stars),
+   кнопка «Көру» → `POST /play`, Kaspi-чек → `POST /proof`, Stars → `WebApp.openInvoice`. Разблокирует
+   живую e2e фаз 5–8.
+2. Прод (Фаза 10): webhook + Nginx, CORS под домен, бэкапы.
 ⚠️ Чоры (вне фаз): (a) `conftest` шьёт рабочую БД через `create_all` (дрейф схемы) — изолировать
 тест-БД; (b) `confirm_add` без `try/except` — при ошибке зависает «⏳ Сақталуда…» без текста.
 
@@ -198,6 +208,13 @@ apscheduler-джоб `expire_due` каждые 15 мин (REQUEST-scope конт
   2026-06-29): `1_day` — разовый тестовый доступ; `1_month` — основной (`recurring=True`, пригоден
   под авто-подписку Stars). `3_months` убран. Менять сетку — `domain/tariffs/catalog.py` (данные).
   Цифровой контент по политике Telegram продаётся через Stars (сверяться с актуальной докой!).
+- **Telegram Stars — сверенные константы** (Фаза 8, docs `core.telegram.org/bots/payments-stars`):
+  валюта `currency="XTR"`; `provider_token=""` (для Stars пусто); `amount` в XTR = число звёзд
+  напрямую (XTR без дробной части, не ×100); `subscription_period=2592000` (30 дней) — единственный
+  допустимый период Stars-подписки. **Цена в звёздах — данные тарифа** `price_xtr` (1_day=50,
+  1_month=250; бизнес-значения, подкрутить в `domain/tariffs/catalog.py`). Активация — только на
+  `successful_payment` (не на `initiate`): `StarsPaymentService.confirm` → `SubscriptionService.
+  activate`; авто-продление recurring идёт тем же хендлером. Payload `<user_id>:<slug>`.
 - **Заявки на оплату** — единая таблица `payment_requests` (аудит), универсальная по способу:
   `proof_file_id` для Kaspi, `external_charge_id` для Stars/фиата.
 - **Авторизация Web App** — валидация `initData` (HMAC) на каждый запрос, без JWT (stateless).

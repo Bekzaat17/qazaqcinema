@@ -9,6 +9,19 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Фаза 8 — код готов** (2026-07-02): оплата Telegram Stars (XTR) + авто-подписка.
+`TelegramStarsProvider.initiate` → `create_invoice_link(currency="XTR", provider_token="",
+subscription_period=2592000 для recurring)`; помесячный тариф = подписка, разовый = разовый инвойс.
+Бот-хендлеры `pre_checkout_query` (быстрая валидация payload, без БД) + `successful_payment` →
+`StarsPaymentService.confirm` (запись `PaymentRequest(STARS, APPROVED, external_charge_id)` + грант
+через `SubscriptionService.activate`; авто-продление recurring идёт тем же путём — продлевает).
+Тариф получил `price_xtr` (данные: 1_day=50, 1_month=250 — бизнес может подкрутить); `TariffOut`
+отдаёт его на фронт. DI: Stars в `payment_providers` (с Bot) + `StarsPaymentService` (REQUEST).
+Константы Stars сверены с докой Telegram (payments-stars). Юнит-тесты (8): StarsPaymentService (6) +
+провайдер на фейковом Bot (2, проверяют XTR/provider_token/subscription_period/amount). Зелёные ruff
++ mypy(strict, `app`, 80) + pytest(57). Осталась ручная e2e. **Оба способа оплаты готовы.**
+Дальше → **Фаза 9: фронтенд** (Mini App — разблокирует живую e2e всех фаз).
+
 **Фаза 7 — код готов** (2026-07-02): оплата Kaspi (ручной чек). `PaymentService.initiate`
 (валидирует тариф/способ → инструкция провайдера) + `submit_proof` (подтверждает приём чека
 юзеру и тем же send берёт telegram `file_id` → PaymentRequest(PENDING) → уведомляет админов →
@@ -205,13 +218,23 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 - [ ] Ручная e2e: чек через Web App → модерация в админ-чате → подписка активна. Полноценно —
       через Web App (Фаза 9) или crafted initData + multipart к `/proof`.
 
-## Фаза 8 — Оплата: Telegram Stars (авто-подписка)
+## Фаза 8 — Оплата: Telegram Stars (авто-подписка) ✅ (код; ручная e2e — за Web App/Фазой 9)
 **Цель:** нативная оплата цифрового контента + помесячная авто-подписка.
-- [ ] Сверить актуальную доку Telegram Payments (Stars/XTR, subscription_period)
-- [ ] `TelegramStarsProvider.initiate`: `create_invoice_link(currency="XTR", …)`
-- [ ] Хендлеры `pre_checkout_query` + `successful_payment` → `SubscriptionService.activate`
-- [ ] Зарегистрировать Stars в `payment_providers` (DI) — без правок сервисов
-- [ ] Обработка авто-продления (recurring) для тарифа `1_month`
+- [x] Сверено с докой Telegram (payments-stars): валюта `XTR`, `provider_token` пустой,
+      `subscription_period` = 2592000 c (30 дней, единственное значение), amount XTR = звёзды без ×100
+- [x] `TelegramStarsProvider.initiate`: `create_invoice_link(currency="XTR", provider_token="",
+      subscription_period=... )`; recurring-тариф → подписка, разовый → обычный инвойс. `price_xtr`
+      как данные тарифа (1_day=50, 1_month=250 — подкрутить в `domain/tariffs/catalog.py`)
+- [x] Бот-хендлеры `bot/handlers/stars.py`: `pre_checkout_query` (валидация payload) +
+      `successful_payment` → `StarsPaymentService.confirm` → `SubscriptionService.activate`
+- [x] Stars в `payment_providers` (DI, с Bot) — без правок `PaymentService` (OCP);
+      `StarsPaymentService` в REQUEST-scope
+- [x] Авто-продление (recurring) для `1_month`: прилетает тем же `successful_payment`, `confirm`
+      → `activate` продлевает от текущего срока (одна ветка для первого платежа и продления)
+- [x] Тесты (8): `StarsPaymentService.confirm/resolve/parse` (6) + провайдер на фейковом Bot (2 —
+      сверка XTR/provider_token/subscription_period/amount). `TariffOut` отдаёт `price_xtr` фронту
+- [ ] Ручная e2e: реальная оплата Stars в Telegram → активация; авто-списание через 30 дней →
+      продление. Полноценно — через Web App (Фаза 9, `WebApp.openInvoice`).
 
 ## Фаза 9 — Фронтенд: Web App (Telegram Mini App)
 **Цель:** тёмный Netflix-style интерфейс. Каталог листают ВСЕ; подписка проверяется только

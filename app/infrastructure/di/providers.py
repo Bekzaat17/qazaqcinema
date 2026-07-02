@@ -30,6 +30,7 @@ from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
+from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
@@ -40,6 +41,7 @@ from app.infrastructure.db.repositories import (
     PgUserRepository,
 )
 from app.infrastructure.payments.kaspi import KaspiManualProvider
+from app.infrastructure.payments.stars import TelegramStarsProvider
 from app.infrastructure.storage.local import LocalPosterStorage
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.notifier import AiogramNotifier
@@ -77,12 +79,15 @@ class AppProvider(Provider):
         return LocalPosterStorage(config.media)
 
     @provide
-    def payment_providers(self, config: AppConfig) -> Mapping[PaymentMethod, PaymentProvider]:
-        # Stars-провайдер добавится тут на Фазе 8 (PLAN), без правок сервисов.
+    def payment_providers(
+        self, config: AppConfig, bot: Bot
+    ) -> Mapping[PaymentMethod, PaymentProvider]:
+        # Новый способ = запись в этой карте, без правок PaymentService (OCP).
         return {
             PaymentMethod.KASPI: KaspiManualProvider(
                 config.payments.kaspi_number, config.payments.kaspi_name
             ),
+            PaymentMethod.STARS: TelegramStarsProvider(bot),
         }
 
 
@@ -107,6 +112,7 @@ class RequestProvider(Provider):
     subscription = provide(SubscriptionService)
     payment = provide(PaymentService)
     moderation = provide(PaymentModerationService)
+    stars = provide(StarsPaymentService)
 
 
 def build_container() -> AsyncContainer:

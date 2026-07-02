@@ -6,7 +6,14 @@ from aiogram import Dispatcher
 from dishka import AsyncContainer
 from dishka.integrations.aiogram import setup_dishka
 
-from app.bot.handlers import add_movie, channel_post, inline_query, moderation, start
+from app.bot.handlers import (
+    add_movie,
+    channel_post,
+    inline_query,
+    moderation,
+    stars,
+    start,
+)
 
 
 def build_dispatcher(container: AsyncContainer) -> Dispatcher:
@@ -17,6 +24,7 @@ def build_dispatcher(container: AsyncContainer) -> Dispatcher:
         channel_post.router,
         inline_query.router,
         moderation.router,
+        stars.router,
     )
     setup_dishka(container=container, router=dp)
     return dp

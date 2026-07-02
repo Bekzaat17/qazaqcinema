@@ -12,6 +12,7 @@ class TariffOut(BaseModel):
     title_ru: str
     title_kk: str
     price_kzt: int
+    price_xtr: int  # цена в Telegram Stars — для кнопки Stars в пэйволле
     days: int
     recurring: bool
 
@@ -22,6 +23,7 @@ class TariffOut(BaseModel):
             title_ru=tariff.title_ru,
             title_kk=tariff.title_kk,
             price_kzt=tariff.price_kzt,
+            price_xtr=tariff.price_xtr,
             days=tariff.duration.days,
             recurring=tariff.recurring,
         )
