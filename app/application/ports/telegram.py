@@ -22,6 +22,17 @@ class TelegramNotifier(Protocol):
         """Видео в личку с protect_content=True (запрет скачивания/пересылки/записи экрана)."""
         ...
 
+    async def acknowledge_payment_proof(
+        self, telegram_id: int, proof: bytes, caption: str
+    ) -> str:
+        """Отправить пользователю его чек как подтверждение приёма; вернуть telegram file_id.
+
+        Двойная роль: даёт юзеру обратную связь «чек получен» и одновременно — так как
+        Telegram на любой upload возвращает file_id — отдаёт стабильный bot-owned
+        `file_id`, который вызывающий переиспользует для пересылки чека админам.
+        """
+        ...
+
     async def send_payment_proof_to_admins(
         self,
         request_id: int,

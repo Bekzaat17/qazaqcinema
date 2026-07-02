@@ -13,6 +13,13 @@ class PaymentInitIn(BaseModel):
     method: PaymentMethod = PaymentMethod.KASPI
 
 
+class ProofAccepted(BaseModel):
+    """Ответ на загрузку чека: заявка принята и ушла на модерацию."""
+
+    status: str = "pending_review"
+    request_id: int
+
+
 class PaymentInitOut(BaseModel):
     method: str
     kaspi_number: str | None = None

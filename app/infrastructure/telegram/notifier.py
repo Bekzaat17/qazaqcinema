@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from aiogram import Bot
+from aiogram.types import BufferedInputFile
+
+# Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
+# reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
+from app.bot.keyboards.moderation import moderation_keyboard
 
 
 class AiogramNotifier:
@@ -26,6 +31,18 @@ class AiogramNotifier:
             chat_id, file_id, caption=caption, protect_content=True
         )
 
+    async def acknowledge_payment_proof(
+        self, telegram_id: int, proof: bytes, caption: str
+    ) -> str:
+        # Отправляем чек обратно юзеру (подтверждение приёма); ответ Telegram содержит
+        # file_id (bot-owned) — его переиспользуем для пересылки чека админам.
+        message = await self._bot.send_photo(
+            telegram_id, BufferedInputFile(proof, "proof.jpg"), caption=caption
+        )
+        if not message.photo:
+            raise RuntimeError("Telegram did not return a photo file_id")
+        return message.photo[-1].file_id
+
     async def send_payment_proof_to_admins(
         self,
         request_id: int,
@@ -34,6 +51,16 @@ class AiogramNotifier:
         tariff_title: str,
         proof_file_id: str,
     ) -> None:
-        # PLAN (фаза «оплата»): bot.send_photo(admin_chat_id, proof_file_id, caption=...,
-        # reply_markup=moderation_keyboard(request_id)) — кнопки ✅ approve / ❌ reject.
-        raise NotImplementedError
+        handle = f"@{username}" if username else f"id{user_id}"
+        caption = (
+            "🧾 Жаңа төлем чегі\n"
+            f"Пайдаланушы: {handle} (id {user_id})\n"
+            f"Тариф: {tariff_title}\n"
+            f"Өтініш #{request_id}"
+        )
+        await self._bot.send_photo(
+            self._admin_chat_id,
+            proof_file_id,
+            caption=caption,
+            reply_markup=moderation_keyboard(request_id),
+        )

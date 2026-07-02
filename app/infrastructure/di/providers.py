@@ -27,6 +27,7 @@ from app.application.ports.telegram import TelegramNotifier
 from app.application.services.auth_service import AuthService
 from app.application.services.catalog_service import CatalogService
 from app.application.services.ingestion_service import MovieIngestionService
+from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
 from app.application.services.subscription_service import SubscriptionService
@@ -77,18 +78,12 @@ class AppProvider(Provider):
 
     @provide
     def payment_providers(self, config: AppConfig) -> Mapping[PaymentMethod, PaymentProvider]:
-        # Stars-провайдер добавится тут на фазе «оплата» (PLAN), без правок сервисов.
+        # Stars-провайдер добавится тут на Фазе 8 (PLAN), без правок сервисов.
         return {
             PaymentMethod.KASPI: KaspiManualProvider(
                 config.payments.kaspi_number, config.payments.kaspi_name
             ),
         }
-
-    @provide
-    def payment_service(
-        self, providers: Mapping[PaymentMethod, PaymentProvider]
-    ) -> PaymentService:
-        return PaymentService(providers)
 
 
 class RequestProvider(Provider):
@@ -110,6 +105,8 @@ class RequestProvider(Provider):
     ingestion = provide(MovieIngestionService)
     playback = provide(PlaybackService)
     subscription = provide(SubscriptionService)
+    payment = provide(PaymentService)
+    moderation = provide(PaymentModerationService)
 
 
 def build_container() -> AsyncContainer:

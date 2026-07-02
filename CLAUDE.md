@@ -150,11 +150,25 @@ apscheduler-джоб `expire_due` каждые 15 мин (REQUEST-scope конт
 `no_access`. **Тарифа теперь два** (решение пользователя): `1_day` (тестовый) + `1_month`;
 `3_months` убран. Юнит-тесты `SubscriptionService` (5, фейки). Зелёное: ruff + mypy + pytest(40).
 
+**Сделано (Фаза 7 — оплата Kaspi, ручной чек):** `PaymentService.initiate` (валидирует тариф/способ
+→ инструкция `PaymentProvider`; `UnknownTariffError`/`UnsupportedMethodError` → 400) + `submit_proof`
+(подтверждает приём чека юзеру и тем же send берёт telegram `file_id` → `PaymentRequest(PENDING)` →
+уведомляет админов → юзер в `PENDING_REVIEW`). `PaymentModerationService.approve/reject`: approve
+дёргает `SubscriptionService.activate` (грант — Фаза 6, не дублируем; идемпотентно — только PENDING,
+повтор не грантит дважды), reject → `REJECTED` + юзер `EXPIRED` + DM. Тонкий `moderation.py`
+(callback `pay:approve|reject:<id>` → сервис, правит подпись + снимает кнопки). API: `POST
+/api/payments/{initiate,proof}` (proof — multipart, гейт `image/*` + лимит 10 МБ). Порт
+`acknowledge_payment_proof` + `send_payment_proof_to_admins` (фото + `moderation_keyboard` в
+админ-чат; нотифаер тянет клавиатуру из `bot/keyboards`, чтобы формат callback-data жил в одном
+месте). DI: `PaymentService` → REQUEST-scope (нужны репозитории), добавлен `moderation`. Юнит-тесты
+(9, фейки): PaymentService (5) + PaymentModerationService (4). Зелёное: ruff + mypy(78) + pytest(49).
+
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Оплата: Kaspi (чек multipart + модерация ✅/❌, Фаза 7), Telegram Stars (инвойс + авто-подписка,
-   Фаза 8). Модерация одобряет → дёргает `SubscriptionService.activate` (грант не дублировать);
-   заведение PaymentRequest + перевод юзера в PENDING_REVIEW — тоже Фаза 7.
-2. Фронтенд: каталог/карусели, поиск, модалки, пэйволл (2 тарифа), кнопка «Көру» → `POST /play`.
+1. Оплата: Telegram Stars (инвойс `create_invoice_link(XTR)` + `pre_checkout`/`successful_payment` →
+   `SubscriptionService.activate`, авто-подписка помесячно, Фаза 8). Регистрируется в
+   `payment_providers` (DI) без правок сервисов. (Kaspi — Фаза 7, готова.)
+2. Фронтенд: каталог/карусели, поиск, модалки, пэйволл (2 тарифа), кнопка «Көру» → `POST /play`,
+   загрузка чека → `POST /proof`.
 3. Прод: webhook + Nginx.
 ⚠️ Чоры (вне фаз): (a) `conftest` шьёт рабочую БД через `create_all` (дрейф схемы) — изолировать
 тест-БД; (b) `confirm_add` без `try/except` — при ошибке зависает «⏳ Сақталуда…» без текста.
@@ -201,3 +215,9 @@ apscheduler-джоб `expire_due` каждые 15 мин (REQUEST-scope конт
 - **Подписка — отдельный «движок доступа» ДО оплаты** (Фаза 6): `SubscriptionService.activate/
   expire_due` + `has_active_access` — единая точка грант/ревок/проверки. Способы оплаты (Kaspi/Stars)
   лишь вызывают `activate`; не размазывать активацию по платёжным хендлерам.
+- **Фронтенд Mini App** (решения 2026-06-30, детали в PLAN.md Фаза 9): каталог/поиск/карточка —
+  свободны всем (только initData), гейт подписки ТОЛЬКО на «Көру» (`POST /play` → 403). Видео не
+  играется в Mini App (`protect_content`) → «Көру» шлёт его в чат с ботом, фронт показывает модалку
+  «видео отправлено» + кнопка «Жабу» (`WebApp.close()`), НЕ авто-закрытие. Тема — фиксированная
+  тёмная брендовая (не тема Telegram). Язык UI — казахский (`title_kk` основной). Пэйволл — bottom
+  sheet, 2 тарифа, **Kaspi первым/акцентным**, Stars вторым. Постеры: полка 2:3, hero 16:9.

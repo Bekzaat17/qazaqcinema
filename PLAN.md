@@ -9,6 +9,19 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Фаза 7 — код готов** (2026-07-02): оплата Kaspi (ручной чек). `PaymentService.initiate`
+(валидирует тариф/способ → инструкция провайдера) + `submit_proof` (подтверждает приём чека
+юзеру и тем же send берёт telegram `file_id` → PaymentRequest(PENDING) → уведомляет админов →
+юзер в PENDING_REVIEW). Новый `PaymentModerationService.approve/reject` (approve дёргает
+`SubscriptionService.activate` из Фазы 6; идемпотентен — только PENDING, повтор не грантит дважды;
+reject → REJECTED + юзер EXPIRED + DM). Тонкий бот-хендлер `moderation.py` (кнопки ✅/❌ →
+сервис). API: `POST /api/payments/{initiate,proof}` (proof — multipart, image-гейт + лимит 10 МБ).
+Порт `TelegramNotifier.acknowledge_payment_proof` + реализация `send_payment_proof_to_admins`
+(фото+клавиатура в админ-чат). DI: `PaymentService` переехал в REQUEST-scope (нужны репозитории),
+добавлен `moderation`. Юнит-тесты (9): PaymentService (5) + PaymentModerationService (4). Зелёные
+ruff + mypy(strict, `app`, 78) + pytest(49). Осталась ручная e2e. Дальше → **Фаза 8: Stars** или
+**Фаза 9: фронтенд** (по решению пользователя).
+
 **Фаза 6 — код готов** (2026-06-29): движок доступа. `SubscriptionService.activate(user, tariff,
 now)` (compute_expiry → ACTIVE + expires_at + DM юзеру) и `expire_due(now)` (просроченные ACTIVE →
 EXPIRED, возвращает кол-во). apscheduler-джоб `expire_due` каждые 15 мин через REQUEST-scope
@@ -174,15 +187,23 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 - [x] Тесты `SubscriptionService` на фейках (5): activate (новый/продление/после истечения + DM),
       expire_due (только просроченные + счёт). Граничные `has_active_access` — в `test_user.py`.
 
-## Фаза 7 — Оплата: Kaspi (ручной чек)
+## Фаза 7 — Оплата: Kaspi (ручной чек) ✅ (код; ручная e2e — за Web App/Фазой 9)
 **Цель:** выбор тарифа → реквизиты → загрузка чека → модерация → активация (через Фазу 6).
-- [ ] `PaymentService.initiate` (Kaspi) → реквизиты (номер/имя) на фронт
-- [ ] `POST /api/payments/proof` (multipart): залить файл боту → `file_id`;
-      PaymentRequest(PENDING) + User→PENDING_REVIEW
-- [ ] `notifier.send_payment_proof_to_admins`: фото чека в чат модерации + кнопки ✅/❌
-- [ ] `moderation.py`: callback `pay:approve|reject:<id>` → approve вызывает
-      `SubscriptionService.activate`, reject → PaymentRequest=REJECTED (грант — в Фазе 6, не дублируем)
-- [ ] Тест: одобрение чека → подписка активна; отклонение → доступа нет
+- [x] `PaymentService.initiate` (Kaspi) → реквизиты (номер/имя) на фронт; валидирует
+      тариф (`UnknownTariffError`) и способ (`UnsupportedMethodError`) → 400 в роутере
+- [x] `POST /api/payments/proof` (multipart): подтверждаем приём чека юзеру (тем же send берём
+      telegram `file_id`) → `PaymentRequest(PENDING)` → уведомляем админов → User→PENDING_REVIEW.
+      Гейт: `image/*` + лимит 10 МБ. `PaymentService` переехал в REQUEST-scope (нужны репозитории)
+- [x] `notifier.acknowledge_payment_proof` (чек юзеру + возврат file_id) +
+      `send_payment_proof_to_admins` (фото + `moderation_keyboard` в админ-чат)
+- [x] `PaymentModerationService.approve/reject` + тонкий `moderation.py`: callback
+      `pay:approve|reject:<id>` → approve дёргает `SubscriptionService.activate` (грант — Фаза 6,
+      не дублируем; идемпотентно — только PENDING), reject → REJECTED + User→EXPIRED + DM
+- [x] Тест: одобрение чека → подписка активна (реальный `SubscriptionService` на фейках);
+      отклонение → доступа нет; повторный клик не грантит дважды (`test_moderation_service.py`,
+      `test_payment_service.py`)
+- [ ] Ручная e2e: чек через Web App → модерация в админ-чате → подписка активна. Полноценно —
+      через Web App (Фаза 9) или crafted initData + multipart к `/proof`.
 
 ## Фаза 8 — Оплата: Telegram Stars (авто-подписка)
 **Цель:** нативная оплата цифрового контента + помесячная авто-подписка.
@@ -192,15 +213,60 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 - [ ] Зарегистрировать Stars в `payment_providers` (DI) — без правок сервисов
 - [ ] Обработка авто-продления (recurring) для тарифа `1_month`
 
-## Фаза 9 — Фронтенд: Web App
-**Цель:** тёмный Netflix-style интерфейс.
-- [ ] Авторизация при старте (`api.auth`), ветвление по `has_access`
-- [ ] Экран пэйволла: 3 тарифа (`/tariffs`), выбор → реквизиты Kaspi → загрузка чека
-- [ ] Каталог: карусели по категориям (`/movies?category=`), постеры по `poster_url`
-- [ ] Поиск (`/movies/search`)
-- [ ] Модалка фильма + кнопка «Көру / Смотреть» → `switchInlineQuery(movie_<id>)`
-- [ ] Состояния pending_review / expired
-- [ ] Сборка `npm run build`, отдача статики (Nginx или FastAPI StaticFiles)
+## Фаза 9 — Фронтенд: Web App (Telegram Mini App)
+**Цель:** тёмный Netflix-style интерфейс. Каталог листают ВСЕ; подписка проверяется только
+в момент «Көру». Дизайн обсуждён и зафиксирован 2026-06-30 (решения ниже).
+
+### Зафиксированные решения (UX/UI)
+- **Доступ:** каталог/поиск/карточка — свободны (только initData-авторизация, без `has_access`).
+  Гейт подписки — ТОЛЬКО на «Көру»: фронт по `has_access` рисует на кнопке замок 🔒, но источник
+  правды — сервер (`POST /play` → `403 no_access`).
+- **Хэндофф видео (ключевое):** видео не играется в Mini App — `protect_content` шлёт его в чат
+  с ботом (Фаза 5). Поэтому «Көру» → `POST /play` → при успехе показываем **модалку
+  «🎬 Видео ботқа жіберілді — чаттан қараңыз» + кнопка «Жабу»** (кнопка вызывает `WebApp.close()`,
+  юзер попадает в чат с ботом, где уже лежит видео). НЕ авто-закрытие — явное подтверждение.
+- **Тема:** фиксированная тёмная брендовая (кинотеатр), НЕ подстройка под тему Telegram.
+- **Язык UI:** казахский. Тайтлы — `title_kk` основным (+ `title_original` мелким).
+- **Оплата:** в пэйволле первым/акцентным — **Kaspi** (ручной чек); Telegram Stars — вторым.
+- **Постеры:** карусели — портрет 2:3 (полка), hero — ландшафт 16:9. Соотношение фиксируем на `/add`.
+
+### Главный экран
+- [ ] Sticky topbar: компактный логотип слева, иконка профиля/статуса подписки справа (👤).
+- [ ] Поиск ОТДЕЛЬНОЙ строкой во всю ширину (`/movies/search?q=`), а не рядом с лого.
+- [ ] Hero-баннер сверху (одна новинка, 16:9) — оживляет редкий каталог, CTA «Көру ▸ ботта».
+- [ ] Карусели: «Жаңа түскен» (новинки, `/movies` по дате) + «Танымал» (топ по рейтингу) +
+      ряды по категориям («Мультфильмдер», «Аниме» из `/movies?category=`).
+- [ ] ⚠️ Маленький каталог: ряд рендерим только если в нём ≥ N уникальных (нет в hero), иначе
+      одни и те же тайтлы дублируются в 4 рядах. Старт: Hero + «Жаңа» + ряды категорий.
+
+### Карточка фильма + просмотр
+- [ ] Карточка (bottom sheet / экран): постер, `title_kk` (+ `title_original`), год, рейтинг ⭐,
+      описание, категория; крупная кнопка «Көру ▸ ботта» (с замком 🔒, если нет доступа).
+- [ ] «Көру» → `POST /api/movies/{id}/play`: 200 → модалка «видео отправлено» + «Жабу»
+      (`WebApp.close()`); 403 `no_access` → открыть пэйволл-шторку; 404 → тост об ошибке.
+- [ ] Заменить заглушку `web/src/lib/telegram.ts:watchMovie` (старый `switchInlineQuery`) на
+      `api.play(id)` + хэндофф-модалку.
+
+### Пэйволл (bottom sheet, 2 тарифа)
+- [ ] Контекстная шторка снизу поверх карточки (не отдельный экран): «чтобы посмотреть X — оформи».
+- [ ] 2 тарифа из `/api/payments/tariffs`: `1_day` (349 ₸, «сынап көру») и `1_month`
+      (1899 ₸, бейдж «ең тиімді» + дробная цена ₸/күн).
+- [ ] Способы оплаты: **Kaspi первым** (перевод + загрузка чека → «10–15 мин ішінде тексереміз»),
+      Telegram Stars вторым («бірден» — мгновенно). Kaspi: `initiate` → реквизиты → `proof` (чек).
+- [ ] Нативная нижняя `MainButton` для главного действия оплаты.
+
+### Состояния пользователя
+- [ ] new / expired → листает всё, «Көру» открывает пэйволл.
+- [ ] pending_review → баннер сверху «Чек тексерілуде ⏳», «Көру» заблокирован.
+- [ ] active → в профиле (👤) счётчик «осталось N дней» + дата `expires_at`.
+
+### Нативный Telegram + сборка
+- [ ] `expand()` при старте, `BackButton` для навигации назад, `HapticFeedback` на «Көру»/оплату.
+- [ ] Скелетоны постеров при загрузке (мобильная сеть); пустые/ошибочные состояния.
+- [ ] Доавторизация: `api.auth()` при старте (статус/доступ для замков и профиля).
+- [ ] API-клиент: добавить `auth()`, `movies()`, `searchMovies()`, `play()`, `initiatePayment()`,
+      `submitProof()` в `web/src/lib/api.ts` (сейчас только `tariffs()`).
+- [ ] Сборка `npm run build`, отдача статики (Nginx или FastAPI StaticFiles).
 
 ## Фаза 10 — Прод
 - [ ] aiogram webhook вместо polling; FastAPI-роут вебхука
