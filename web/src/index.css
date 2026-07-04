@@ -1,12 +1,119 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
+/* ── Дизайн-токены QazaqCinema (фиксированная тёмная «кино»-тема, не тема Telegram) ──
+   Значения превращаются в утилиты Tailwind v4: bg-bg, text-muted, text-brand, rounded-card… */
+@theme {
+  /* Поверхности: почти-чёрный фон → приподнятые карточки/шторки */
+  --color-bg: #09090b;
+  --color-surface: #141418;
+  --color-surface-2: #1c1c22;
+  --color-elevated: #232329;
+  --color-border: #2a2a31;
+
+  /* Бренд: синий из свечения логотипа (rgb 61,139,255) */
+  --color-brand: #3d8bff;
+  --color-brand-600: #2f6fe0;
+  --color-brand-050: #d6e6ff;
+
+  /* Акценты: золото для рейтинга, красный Kaspi (узнаваемость), звёздный янтарь */
+  --color-gold: #f5c518;
+  --color-kaspi: #ff3b30;
+  --color-star: #f5b301;
+  --color-success: #34d399;
+
+  /* Текст */
+  --color-text: #f4f4f5;
+  --color-muted: #a1a1ab;
+  --color-faint: #6c6c78;
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --radius-card: 16px;
+  --radius-sheet: 24px;
 }
 
+:root {
+  color-scheme: dark;
+  /* Инсеты безопасной зоны (нотч/домашняя полоса) — используем в отступах */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
 body {
   margin: 0;
-  background-color: #0a0a0a;
-  color: #f5f5f5;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Числа-моноширинные (счётчик «N күн қалды», цены) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Горизонтальные полки: прячем скроллбар, оставляем инерцию */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Анимации (нативно, без зависимостей; уважают reduce-motion) ── */
+@keyframes qc-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes qc-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes qc-pop {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes qc-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.anim-fade { animation: qc-fade 0.2s ease-out both; }
+.anim-sheet { animation: qc-sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-pop { animation: qc-pop 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Скелетон-мерцание */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-2);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  animation: qc-shimmer 1.5s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade,
+  .anim-sheet,
+  .anim-pop,
+  .skeleton::after {
+    animation: none;
+  }
 }

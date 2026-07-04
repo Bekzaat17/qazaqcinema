@@ -3,9 +3,9 @@ import { createRoot } from "react-dom/client";
 
 import App from "./App";
 import "./index.css";
-import { ready } from "./lib/telegram";
+import { initWebApp } from "./lib/telegram";
 
-ready(); // сообщаем Telegram, что Web App готов
+initWebApp(); // ready + expand + брендовые цвета шапки/фона (dev-preview: no-op вне Telegram)
 
 const root = document.getElementById("root");
 if (root) {
