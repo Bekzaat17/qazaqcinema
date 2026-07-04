@@ -6,6 +6,7 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.api.deps.auth import get_current_user
+from app.api.deps.rate_limit import rate_limit
 from app.api.schemas.payment import PaymentInitIn, PaymentInitOut, ProofAccepted
 from app.api.schemas.tariff import TariffOut
 from app.application.services.payment_service import (
@@ -20,13 +21,18 @@ router = APIRouter(prefix="/api/payments", tags=["payments"], route_class=Dishka
 
 _MAX_PROOF_BYTES = 10 * 1024 * 1024  # чек — картинка; крупнее 10 МБ не ждём
 
+# Rate-limit (данные): платёжные write-ручки тяжёлые (создание инвойса / загрузка чека
+# + уведомление админов) → лимитируем строже каталога. Легальному юзеру этого с запасом.
+_initiate_rate_limited = Depends(rate_limit(limit=20, window_seconds=60, scope="pay_initiate"))
+_proof_rate_limited = Depends(rate_limit(limit=15, window_seconds=300, scope="pay_proof"))
+
 
 @router.get("/tariffs", response_model=list[TariffOut])
 async def list_tariffs() -> list[TariffOut]:
     return [TariffOut.from_domain(tariff) for tariff in all_tariffs()]
 
 
-@router.post("/initiate", response_model=PaymentInitOut)
+@router.post("/initiate", response_model=PaymentInitOut, dependencies=[_initiate_rate_limited])
 async def initiate_payment(
     body: PaymentInitIn,
     payments: FromDishka[PaymentService],
@@ -43,7 +49,7 @@ async def initiate_payment(
     return PaymentInitOut.from_domain(instruction)
 
 
-@router.post("/proof", response_model=ProofAccepted)
+@router.post("/proof", response_model=ProofAccepted, dependencies=[_proof_rate_limited])
 async def submit_proof(
     payments: FromDishka[PaymentService],
     user: User = Depends(get_current_user),

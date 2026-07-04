@@ -9,6 +9,22 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Фаза 11.3 + 11.4 — Redis-хардненинг: локи + rate-limit (2026-07-05):** первый инкремент Фазы 11,
+чистый бэкенд (фронт не тронут). **Паттерн порт+Redis-адаптер заложен:** пакет `app/infrastructure/
+cache/` + порты `application/ports/{lock,rate_limit}.py`; оба адаптера **fail-open** (Redis down →
+пропускаем, основной сценарий не роняем). **11.4 Лок отправки видео:** порт `Lock` → `RedisLock`
+(`SET lock:send_video:<user>:<movie> 1 EX 3 NX`), встроен в `PlaybackService.deliver` перед отправкой →
+повторный `/play` в окне = тихий no-op (тот же DELIVERED, фронт видит ту же модалку, не ошибку).
+**11.3 Rate limiter:** порт `RateLimiter` → `RedisRateLimiter` (фиксированное окно, атомарно
+`SET NX EX`+`INCR` пайплайном — без «залипшего» счётчика); FastAPI-зависимость-фабрика
+`api/deps/rate_limit.py` (ключ — IP из `X-Forwarded-For`; пер-юзер придёт с сессиями 11.1). Лимиты
+(данные): каталог 100/10с на IP (роутер-уровень, покрывает `/play`), `/initiate` 20/60с, `/proof`
+15/300с. DI: `Lock`/`RateLimiter` — APP-scope обёртки над Redis. Тесты (13): адаптеры на **fakeredis**
+(реальная SET NX / окно) + fail-open на стабе + зависимость 429 + анти-двойной-клик в PlaybackService.
+Зелёное: ruff + mypy(90) + pytest(79 в контейнере / 72+7-скипа локально). Проверено вживую против
+реального Redis (лок True/False, окно T/T/T/F, TTL=60). Дальше по Фазе 11 → **11.1 сессии** + **11.2
+кэш каталога** (оба тронут фронт: localStorage-токен + ре-auth; агрегированный `/catalog` + инвалидация).
+
 **Инфра/DevEx — dev/prod-паритет + Redis-фундамент (2026-07-04/05):** весь стек в Docker, **ОДНА
 топология — dev/prod/test отличаются ТОЛЬКО env-файлом** (12-factor; решение пользователя 2026-07-05:
 убраны dev/prod-оверлеи → единый `docker-compose.yml`). `./start.sh` (`.env`) / `prod` (`.env.prod`) /
@@ -384,10 +400,11 @@ greenfield. Каждый концерн — через свой порт (`appli
       (async-генератор в `di/providers.py`); health-ping при старте API (`api/app.py` lifespan) и
       бота (`main.py`) — fail-open. Бонус: `GET /api/health` (`api/routers/health.py`) пингует
       Redis+БД → `{redis,db,status}`. Проверено вживую (2026-07-05): `{"redis":"ok","db":"ok"}`.
-- [ ] Пакет `infrastructure/cache/` (адаптеры) + порты `SessionStore`/`CatalogCache`/`RateLimiter`/
-      `Lock` (мелкие, раздельные — ISP) — по мере фич 11.1–11.4 (пока клиент отдаётся как есть).
-- [~] Политика деградации: health-ping уже **fail-open** (Redis down не роняет старт). Полную
-      политику (сессии→initData-фолбэк, кэш→прямой БД, rate-limit/локи→fail-open) фиксируем при 11.1–11.4.
+- [~] Пакет `infrastructure/cache/` (адаптеры) + порты `SessionStore`/`CatalogCache`/`RateLimiter`/
+      `Lock` (мелкие, раздельные — ISP). Готовы `Lock` + `RateLimiter` (11.3/11.4); `SessionStore`
+      (11.1) + `CatalogCache` (11.2) — ещё нет.
+- [~] Политика деградации: health-ping **fail-open**; rate-limit/локи (11.3/11.4) **fail-open**
+      реализованы (Redis down → пропускаем). Сессии→initData-фолбэк, кэш→прямой БД — при 11.1/11.2.
 
 ### 11.1 — Сессионные токены (auth)
 > ⚠️ Меняет решение «stateless initData, без JWT»: initData остаётся **bootstrap-ом** (HMAC 1 раз),
@@ -411,18 +428,32 @@ greenfield. Каждый концерн — через свой порт (`appli
       не видна до 10 мин (а авто-рассылка Фазы 12 уже зовёт на неё). Не забыть — ключевой момент.
 - [ ] Кэшируем только JSON; постеры — статика (Nginx/StaticFiles), их не трогаем.
 
-### 11.3 — Rate limiter (защита API от выкачки/спама)
-- [ ] Порт `RateLimiter` + Redis-адаптер: fixed-window `INCR ratelimit:<user_id>`; при первом —
-      `EXPIRE 1`; счётчик > N → `429 too_many_requests`. Старт ~5 rps/юзер (данные, подкрутить).
-- [ ] FastAPI-зависимость/middleware; ключ — user из сессии (до auth — по IP как фолбэк).
-- [ ] Статику постеров не лимитируем; на тяжёлые ручки (`/play`, `/proof`) — отдельные лимиты.
-- [ ] Заметка: fixed-window допускает всплеск на стыке окон — для MVP ок; при нужде → sliding.
+### 11.3 — Rate limiter (защита API от выкачки/спама) ✅ (2026-07-05)
+- [x] Порт `RateLimiter` (`application/ports/rate_limit.py`) + `RedisRateLimiter`
+      (`infrastructure/cache/rate_limiter.py`): фиксированное окно, атомарно `SET key 0 EX window NX`
+      + `INCR` в одном пайплайне (TTL ставится один раз на окно и самоочищается — нет «залипшего»
+      счётчика без TTL). `hit(key,limit,window) → bool`; ключ с префиксом `ratelimit:`.
+- [x] FastAPI-зависимость-фабрика `api/deps/rate_limit.py` (`rate_limit(limit,window,scope)`);
+      ключ — IP из `X-Forwarded-For` (за Nginx), фолбэк `request.client` (dev). Пер-юзер-ключ из
+      сессии — с 11.1. Лимит исчерпан → `429 too_many_requests`.
+- [x] Лимиты (данные, крутить в роутерах): каталог 100/10с на IP (роутер-уровень `/api/movies`,
+      покрывает list/search/get/hero/**play**), `/initiate` 20/60с, `/proof` 15/300с. Постеры —
+      статика (Nginx/StaticFiles), не лимитируем. Щедро против ложных 429 на CGNAT-IP мобильных.
+- [x] **Fail-open** в адаптере: Redis недоступен → `hit` возвращает True (лучше обслужить, чем 429
+      всем). Заметка про всплеск на стыке окон — в докстринге адаптера (для MVP ок).
+- [x] Тесты: `test_cache.py` (fakeredis — окно T/T/T/F, независимость ключей, fail-open на стабе) +
+      `test_rate_limit_dep.py` (429 при превышении, ключ по X-Forwarded-For). Проверено вживую на реальном Redis.
 
-### 11.4 — Лок отправки видео (анти-двойной-клик)
-- [ ] Порт `Lock` + Redis-адаптер: `SET lock:send_video:<user_id> 1 EX 3 NX`. Есть ключ → тихо
-      игнорируем повторный `/play` (юзер жмёт кнопку 20 раз на плохом инете); нет → шлём видео.
-- [ ] Встроить в путь `/play` → перед `PlaybackService.deliver` (или внутри). Лок снимается по TTL.
-- [ ] Тест: два быстрых `/play` подряд → одна отправка (фейковый Lock).
+### 11.4 — Лок отправки видео (анти-двойной-клик) ✅ (2026-07-05)
+- [x] Порт `Lock` (`application/ports/lock.py`) + `RedisLock` (`infrastructure/cache/lock.py`):
+      `SET lock:<key> 1 EX ttl NX`; `acquire(key,ttl) → bool` (True — взял, False — занято). Явного
+      release нет — снимается по TTL (для анти-двойного-клика ключ должен пережить операцию).
+- [x] Встроен ВНУТРИ `PlaybackService.deliver` (после гейта доступа и загрузки фильма, перед
+      отправкой). Ключ — `send_video:<user_id>:<movie_id>` (пер-юзер+фильм, чтобы клики по разным
+      фильмам не мешали). Повтор в окне → тихий no-op, но возвращает **DELIVERED** (фронт покажет ту
+      же модалку «видео отправлено», а не ошибку). **Fail-open** (Redis down → acquire True → шлём).
+- [x] Тест: два быстрых `deliver` той же пары → одна отправка (`test_playback_service.py`, реалистичный
+      NX-фейк `_OneShotLock`); адаптер — на fakeredis (`test_cache.py`).
 
 ## Фаза 12 — Рассылки и уведомления о новинках
 **Цель:** уведомлять юзеров о новом фильме, не ловя флуд-бан Telegram (~30 msg/s), уважая выбор

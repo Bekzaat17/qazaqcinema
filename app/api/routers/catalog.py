@@ -8,12 +8,23 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps.auth import get_current_user
+from app.api.deps.rate_limit import rate_limit
 from app.api.schemas.movie import MovieOut, PlayOut
 from app.application.services.catalog_service import CatalogService
 from app.application.services.playback_service import PlaybackOutcome, PlaybackService
 from app.domain.entities.user import User
 
-router = APIRouter(prefix="/api/movies", tags=["catalog"], route_class=DishkaRoute)
+# Rate-limit (данные — крутить здесь): анти-скрейп каталога/поиска/просмотра на IP.
+# Щедро (≈10 rps/IP): останавливает выкачку тысяч id, но не мешает живому юзеру и не
+# бьёт по общему CGNAT-IP мобильной сети. Покрывает и /play (лежит в этом роутере).
+_rate_limited = Depends(rate_limit(limit=100, window_seconds=10, scope="catalog"))
+
+router = APIRouter(
+    prefix="/api/movies",
+    tags=["catalog"],
+    route_class=DishkaRoute,
+    dependencies=[_rate_limited],
+)
 
 
 @router.get("", response_model=list[MovieOut])

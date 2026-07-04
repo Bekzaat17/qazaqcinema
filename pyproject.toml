@@ -33,6 +33,7 @@ dependencies = [
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
+    "fakeredis>=2.26",               # in-memory Redis для тестов кэш-адаптеров (Фаза 11)
     "ruff>=0.8",
     "mypy>=1.13",
 ]

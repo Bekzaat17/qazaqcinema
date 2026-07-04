@@ -17,7 +17,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.application.ports.images import ImageProcessor
+from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
+from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
     MovieRepository,
     PaymentRepository,
@@ -36,6 +38,8 @@ from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
+from app.infrastructure.cache.lock import RedisLock
+from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
     PgMovieRepository,
@@ -78,6 +82,16 @@ class AppProvider(Provider):
             yield client
         finally:
             await client.aclose()
+
+    @provide
+    def lock(self, redis: Redis) -> Lock:
+        # Стейтлес-обёртка над APP-scope Redis → синглтон (Фаза 11.4, анти-двойной-клик).
+        return RedisLock(redis)
+
+    @provide
+    def rate_limiter(self, redis: Redis) -> RateLimiter:
+        # Тоже стейтлес-обёртка над Redis (Фаза 11.3, защита API от выкачки/спама).
+        return RedisRateLimiter(redis)
 
     @provide
     def verifier(self, config: AppConfig) -> InitDataVerifier:
