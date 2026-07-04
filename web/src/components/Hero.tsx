@@ -1,6 +1,6 @@
-// Hero-баннер главного экрана: одна новинка крупно, оживляет редкий каталог.
-// Пока у фильма один портретный постер — используем его как кинематографичный фон
-// с плотным нижним градиентом (16:9-арт появится, когда /add начнёт хранить ландшафт).
+// Hero-баннер главного экрана: одна курируемая новинка крупно. Если у фильма есть
+// горизонтальный баннер (hero_image_url, 3:2 — грузится в /add), показываем его во всю
+// ширину; иначе фолбэк — портретный постер как кинематографичный фон с градиентом.
 
 import { Play } from "lucide-react";
 
@@ -16,9 +16,15 @@ export default function Hero({ movie, onSelect }: { movie: Movie; onSelect: (m: 
         haptic.light();
         onSelect(movie);
       }}
-      className="relative block aspect-[3/4] max-h-[560px] w-full overflow-hidden text-left"
+      className={`relative block ${
+        movie.hero_image_url ? "aspect-[3/2]" : "aspect-[3/4]"
+      } max-h-[560px] w-full overflow-hidden text-left`}
     >
-      <img src={movie.poster_url} alt={movie.title_kk} className="h-full w-full object-cover object-center" />
+      <img
+        src={movie.hero_image_url ?? movie.poster_url}
+        alt={movie.title_kk}
+        className="h-full w-full object-cover object-center"
+      />
       {/* Смешиваем низ постера с фоном страницы */}
       <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-transparent" />
       <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent" />

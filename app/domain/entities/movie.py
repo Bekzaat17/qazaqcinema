@@ -17,5 +17,7 @@ class Movie:
     title_original: str | None = None  # оригинал/EN (для поиска: «Frozen», «Naruto»)
     year: int | None = None
     rating: float | None = None
+    is_featured: bool = False          # показывать на hero главной (курируется админом в /add)
+    hero_image_url: str | None = None  # горизонтальный баннер 3:2 для hero (None → фолбэк постер)
     created_at: datetime | None = None  # проставляет БД (server_default); None до вставки
     id: int | None = None  # None до вставки в БД

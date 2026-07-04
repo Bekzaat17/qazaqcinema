@@ -16,6 +16,9 @@ const MOVIES: Movie[] = [
   { id: 1, title_kk: "Батыл жүрек", title_ru: "Храбрая сердцем", title_original: "Brave", description: "Мерида ханшайым өз тағдырын өзі шешуге бел буады.", category: "disney", poster_url: poster("brave"), year: 2012, rating: 7.1 },
 ];
 
+// Фильм на hero: у первого мока есть горизонтальный баннер 3:2 (проверить широкий hero в браузере).
+const HERO_MOVIE: Movie = { ...MOVIES[0], hero_image_url: "https://picsum.photos/seed/howl-hero/1200/800" };
+
 const TARIFFS: Tariff[] = [
   { slug: "1_day", title_ru: "1 день", title_kk: "1 күн", price_kzt: 349, price_xtr: 50, days: 1, recurring: false },
   { slug: "1_month", title_ru: "1 месяц", title_kk: "1 ай", price_kzt: 1899, price_xtr: 250, days: 30, recurring: true },
@@ -36,6 +39,7 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   let data: unknown;
   if (p === "/api/auth") data = AUTH;
+  else if (p === "/api/movies/hero") data = HERO_MOVIE;
   else if (p === "/api/movies/search") {
     const term = (q.get("q") ?? "").toLowerCase();
     data = MOVIES.filter((m) => `${m.title_kk} ${m.title_original}`.toLowerCase().includes(term));

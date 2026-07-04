@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.entities.enums import PaymentStatus, UserStatus
@@ -41,6 +41,10 @@ class MovieModel(Base):
     telegram_file_id: Mapped[str] = mapped_column(Text)
     year: Mapped[int | None] = mapped_column(nullable=True)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    is_featured: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), nullable=False
+    )
+    hero_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

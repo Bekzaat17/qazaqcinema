@@ -36,6 +36,19 @@ async def search_movies(
     return [MovieOut.from_domain(movie) for movie in movies]
 
 
+@router.get("/hero", response_model=MovieOut | None)
+async def hero_movie(
+    catalog: FromDishka[CatalogService],
+    _user: User = Depends(get_current_user),
+) -> MovieOut | None:
+    """Фильм для hero главного экрана (выбор — на бэкенде: featured → новизна).
+
+    Определён ДО `/{movie_id}`, иначе путь `hero` матчился бы как movie_id.
+    """
+    movie = await catalog.get_hero()
+    return MovieOut.from_domain(movie) if movie is not None else None
+
+
 @router.get("/{movie_id}", response_model=MovieOut)
 async def get_movie(
     movie_id: int,

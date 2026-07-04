@@ -8,24 +8,27 @@
 > и [PLAN.md](PLAN.md) (пошаговая дорожная карта — где остановились и что дальше).
 
 ## Возможности
-- **Автонаполнение каталога**: админ постит видео + подпись с ключами (`#title`, `#category`, …)
-  в секретный канал — бот парсит и добавляет фильм в БД.
-- **Защищённый просмотр**: видео отдаётся через inline-режим с `protect_content=True`
-  (нельзя скачать, переслать, записать экран). `telegram_file_id` никогда не уходит на фронтенд.
-- **Подписка**: 3 тарифа (1 день / 1 месяц / 3 месяца). Kaspi-чеки с ручной модерацией (MVP) +
-  Telegram Stars как нативная авто-подписка.
-- **Web App**: тёмный интерфейс — каталог по категориям, поиск, модалки, экран пэйволла.
+- **Наполнение каталога**: админ добавляет фильм через бот-визард `/add` (видео → постер →
+  на главную?/баннер → категория → названия → метаданные). Видео уходит в канал-архив; постер
+  нормализуется (Pillow → 2:3) и кладётся статикой на VPS.
+- **Защищённый просмотр**: видео шлёт бот в личку с `protect_content=True` (нельзя скачать,
+  переслать, записать экран). `telegram_file_id` никогда не уходит на фронтенд; триггер — `POST /play`.
+- **Подписка**: 2 тарифа (1 күн / 1 ай). Kaspi-чеки с ручной модерацией (MVP) + Telegram Stars
+  как нативная авто-подписка.
+- **Web App**: тёмный интерфейс — hero-баннер (курируется бэком), полки по категориям, поиск,
+  карточка фильма, пэйволл (Kaspi/Stars).
 
 ## Стек
 - **Backend**: Python 3.13, **aiogram 3** (бот), **FastAPI** (API), **SQLAlchemy 2.0 async** +
-  **asyncpg** + **Alembic** (PostgreSQL), **dishka** (DI), **apscheduler** (крон).
+  **asyncpg** + **Alembic** (PostgreSQL), **dishka** (DI), **apscheduler** (крон), **Pillow**
+  (нормализация постеров/hero-баннеров).
 - **Frontend**: React 19 + Vite 6 + TypeScript + Tailwind CSS v4.
 - **Инфраструктура**: Docker Compose (postgres, redis, bot, api).
 
 ## Структура
 ```
 app/
-  bot/            # aiogram: handlers (start, channel_post, inline_query, moderation), keyboards
+  bot/            # aiogram: handlers (start, add_movie, inline_query, moderation, stars), keyboards, security
   api/            # FastAPI: routers (auth, catalog, payments), schemas (DTO), deps
   domain/         # ядро без внешних зависимостей: entities, tariffs, parsing, catalog, subscription
   application/    # ports (Protocol-интерфейсы) + services (use-cases)
@@ -77,6 +80,7 @@ docker compose up --build       # postgres + redis + bot + api
 
 ## Безопасность (ядро продукта)
 - `telegram_file_id` отдаётся **только боту**, в API-схемах (`MovieOut`) его нет.
-- Inline-выдача видео — всегда с `protect_content=True`.
-- Каждый запрос Web App к API авторизуется по Telegram `initData` (валидация HMAC, см.
-  `app/infrastructure/telegram/init_data.py`).
+- Видео шлёт бот в личку с `protect_content=True` (inline-результаты `protect_content` не умеют).
+- Каждый запрос Web App к API авторизуется по Telegram `initData` (валидация HMAC + TTL по
+  `auth_date` против реплея, см. `app/infrastructure/telegram/init_data.py`).
+- Модерация оплат (`pay:approve/reject`) — под явным админ-гейтом (`app/bot/security.is_admin`).

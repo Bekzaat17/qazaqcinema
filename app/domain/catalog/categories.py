@@ -19,6 +19,10 @@ class Category:
 CATEGORIES: dict[str, Category] = {
     "disney": Category("disney", "Мультфильмы", "Мультфильмдер"),
     "anime": Category("anime", "Аниме", "Аниме"),
+    "film": Category("film", "Фильмы", "Фильмдер"),
+    "serial": Category("serial", "Сериалы", "Сериалдар"),
+    "otandyq": Category("otandyq", "Отечественные", "Отандық"),
+    "kids": Category("kids", "Детские", "Балаларға"),
 }
 
 

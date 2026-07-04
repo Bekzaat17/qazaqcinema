@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.application.ports.images import HERO, POSTER, ImageSpec
 from app.application.services.ingestion_service import MovieIngestionService
 from app.domain.entities.movie import Movie
 
@@ -22,7 +23,16 @@ class _FakePosters:
 
     async def save(self, data: bytes, ext: str = "jpg") -> str:
         self.saved.append(data)
-        return f"/posters/fake.{ext}"
+        return f"/posters/fake{len(self.saved)}.{ext}"
+
+
+class _FakeImages:
+    def __init__(self) -> None:
+        self.calls: list[tuple[bytes, ImageSpec]] = []
+
+    async def normalize(self, data: bytes, spec: ImageSpec) -> bytes:
+        self.calls.append((data, spec))
+        return data  # в тесте пиксели не трогаем — важен факт вызова и spec
 
 
 class _FakeNotifier:
@@ -36,8 +46,9 @@ class _FakeNotifier:
 async def test_ingest_saves_poster_persists_and_notifies() -> None:
     movies = _FakeMovies()
     posters = _FakePosters()
+    images = _FakeImages()
     notifier = _FakeNotifier()
-    service = MovieIngestionService(movies, notifier, posters)
+    service = MovieIngestionService(movies, notifier, posters, images)
 
     movie = await service.ingest(
         title_kk="Арыстан Патша",
@@ -47,13 +58,44 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
         description="сипаттама",
         year=1994,
         rating=8.5,
+        is_featured=False,
         video_file_id="archive-file-id",
         poster_bytes=b"image-bytes",
+        hero_bytes=None,
     )
 
     assert movie.id == 1
-    assert movie.poster_url == "/posters/fake.jpg"   # постер ушёл в хранилище
     assert movie.telegram_file_id == "archive-file-id"
-    assert posters.saved == [b"image-bytes"]
+    assert movie.is_featured is False
+    assert movie.hero_image_url is None                # без баннера hero пуст
+    assert posters.saved == [b"image-bytes"]           # только постер
+    assert images.calls == [(b"image-bytes", POSTER)]  # нормализован к 2:3
     assert movies.added[0].title_ru == "Король Лев"
     assert any("Арыстан Патша" in message for message in notifier.messages)
+
+
+async def test_ingest_featured_saves_hero_banner() -> None:
+    movies = _FakeMovies()
+    posters = _FakePosters()
+    images = _FakeImages()
+    notifier = _FakeNotifier()
+    service = MovieIngestionService(movies, notifier, posters, images)
+
+    movie = await service.ingest(
+        title_kk="Наруто",
+        title_ru=None,
+        title_original="Naruto",
+        category="anime",
+        description="сипаттама",
+        year=2002,
+        rating=8.3,
+        is_featured=True,
+        video_file_id="vid",
+        poster_bytes=b"poster",
+        hero_bytes=b"hero",
+    )
+
+    assert movie.is_featured is True
+    assert movie.hero_image_url is not None                      # баннер сохранён
+    assert posters.saved == [b"poster", b"hero"]                 # постер + hero
+    assert {spec for _, spec in images.calls} == {POSTER, HERO}  # обе нормализованы

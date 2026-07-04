@@ -27,6 +27,7 @@ export default function App() {
   const [auth, setAuth] = useState<Auth | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
+  const [hero, setHero] = useState<Movie | null>(null);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Movie[] | null>(null);
@@ -46,14 +47,16 @@ export default function App() {
   const load = useCallback(async () => {
     setPhase("loading");
     try {
-      const [authRes, moviesRes, tariffsRes] = await Promise.all([
+      const [authRes, moviesRes, tariffsRes, heroRes] = await Promise.all([
         api.auth().catch(() => null), // авторизация не должна ронять весь экран
         api.movies(),
         api.tariffs(),
+        api.hero().catch(() => null), // hero необязателен — не роняем экран из-за него
       ]);
       setAuth(authRes);
       setMovies(moviesRes);
       setTariffs(tariffsRes);
+      setHero(heroRes);
       setPhase("ready");
     } catch {
       setPhase("error");
@@ -151,7 +154,7 @@ export default function App() {
     }
   }, []);
 
-  const { hero, shelves } = useMemo(() => buildShelves(movies), [movies]);
+  const { shelves } = useMemo(() => buildShelves(movies, hero?.id), [movies, hero]);
 
   return (
     <div className="min-h-screen bg-bg pb-[calc(28px+var(--safe-bottom))]">

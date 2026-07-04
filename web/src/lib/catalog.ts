@@ -6,6 +6,10 @@ import type { Movie } from "./api";
 const CATEGORY_LABELS: Record<string, string> = {
   disney: "Мультфильмдер",
   anime: "Аниме",
+  film: "Фильмдер",
+  serial: "Сериалдар",
+  otandyq: "Отандық",
+  kids: "Балаларға",
 };
 
 export function categoryLabel(slug: string): string {
@@ -27,16 +31,16 @@ function byNewest(a: Movie, b: Movie): number {
   return b.id - a.id;
 }
 
-/** Раскладывает каталог на hero (одна новинка) + полки. */
-export function buildShelves(movies: Movie[]): { hero: Movie | null; shelves: Shelf[] } {
-  if (movies.length === 0) return { hero: null, shelves: [] };
+/** Раскладывает каталог на полки. Hero выбирает бэкенд (`/api/movies/hero`) — здесь мы
+ * лишь исключаем его из «Жаңа түскен», чтобы он не дублировался под своим же баннером. */
+export function buildShelves(movies: Movie[], heroId?: number): { shelves: Shelf[] } {
+  if (movies.length === 0) return { shelves: [] };
 
   const sorted = [...movies].sort(byNewest);
-  const hero = sorted[0];
   const shelves: Shelf[] = [];
 
-  // «Жаңа түскен» — всё, кроме hero (hero и так наверху крупно).
-  const fresh = sorted.slice(1);
+  // «Жаңа түскен» — всё, кроме hero (он уже наверху крупно).
+  const fresh = sorted.filter((m) => m.id !== heroId);
   if (fresh.length > 0) {
     shelves.push({ key: "fresh", title: "Жаңа түскен", movies: fresh });
   }
@@ -52,5 +56,5 @@ export function buildShelves(movies: Movie[]): { hero: Movie | null; shelves: Sh
     }
   }
 
-  return { hero, shelves };
+  return { shelves };
 }

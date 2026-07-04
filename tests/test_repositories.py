@@ -67,6 +67,35 @@ async def test_movie_list_and_search(session: AsyncSession) -> None:
     assert [m.title_kk for m in by_partial] == ["Наруто"]
 
 
+async def test_movie_get_hero_prefers_featured(session: AsyncSession) -> None:
+    repo = PgMovieRepository(session)
+    await repo.add(
+        Movie(
+            title_kk="Басты",
+            description="d",
+            category="disney",
+            poster_url="/p.jpg",
+            telegram_file_id="f1",
+            is_featured=True,
+        )
+    )
+    await repo.add(_movie("Жаңарақ", "anime", "f2"))  # новее (больший id), но НЕ featured
+
+    hero = await repo.get_hero()
+    assert hero is not None
+    assert hero.title_kk == "Басты"  # featured побеждает более новый
+
+
+async def test_movie_get_hero_falls_back_to_newest(session: AsyncSession) -> None:
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("Ескі", "disney", "f1"))
+    await repo.add(_movie("Жаңа", "anime", "f2"))
+
+    hero = await repo.get_hero()
+    assert hero is not None
+    assert hero.title_kk == "Жаңа"  # featured нет → самый новый (больший id)
+
+
 async def test_user_upsert_overwrites(session: AsyncSession) -> None:
     repo = PgUserRepository(session)
     await repo.upsert(User(telegram_id=10, username="neo"))

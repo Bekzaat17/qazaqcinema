@@ -66,6 +66,7 @@ export interface Movie {
   poster_url: string;
   year: number | null;
   rating: number | null;
+  hero_image_url?: string | null; // горизонтальный баннер, если фильм показан на hero
 }
 
 export interface Tariff {
@@ -103,6 +104,9 @@ export const api = {
     request<Movie[]>(`/api/movies/search?q=${encodeURIComponent(q)}`),
 
   getMovie: (id: number) => request<Movie>(`/api/movies/${id}`),
+
+  /** Фильм для hero главной — выбор делает бэкенд (featured → новизна). null, если каталог пуст. */
+  hero: () => request<Movie | null>("/api/movies/hero"),
 
   /** Триггер защищённой выдачи: бот пришлёт видео в личку (protect_content). 403 → нет доступа. */
   play: (id: number) =>

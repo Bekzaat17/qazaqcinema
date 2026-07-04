@@ -9,6 +9,17 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Пост-Фаза 9 — хардненинг + фичи (2026-07-04):** ревью после готовности фронта закрыл забытые
+куски. **Security:** админ-гейт на модерацию оплат (`is_admin`, `app/bot/security.py`) + TTL на
+initData (`auth_date`, 24 ч). **Категории** расширены плоско (+`film/serial/otandyq/kids`, без
+миграции). **Постер** валидируется/нормализуется через порт `ImageProcessor` (Pillow → 2:3/JPEG,
+битый → `ValueError`). **Hero** курируется: `is_featured` + горизонтальный баннер `hero_image_url`
+(миграция `a1b2c3d4e5f6`), выбор на бэке (`get_hero` → `GET /api/movies/hero`), визард `/add`
+спрашивает «на главную?»+баннер, `confirm_add` в try/except (закрыт footgun). Фронт: широкий hero
+3:2, `buildShelves(movies, heroId)`. Зелёное: ruff + mypy(83) + pytest(69) + web build + браузер-
+превью + миграция offline. ⚠️ На живой БД: `alembic upgrade head`. Ранее удалён мёртвый
+`channel_post`. Дальше → **Фаза 10 (прод)** / живая e2e в Telegram (фазы 5–8).
+
 **Фаза 9 — код готов** (2026-07-04): фронтенд Mini App (тёмный кино-UI, React 19 + Tailwind v4).
 **UI-кит зафиксирован:** иконки — **`lucide-react`** (эмодзи-заглушки заменены на векторные),
 шрифт — **Inter** (казахская кириллица), компоненты — свои на Tailwind-токенах (`@theme` в

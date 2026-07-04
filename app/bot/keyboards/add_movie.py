@@ -7,8 +7,21 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from app.domain.catalog.categories import all_categories
 
 CATEGORY_PREFIX = "addcat:"
+FEATURED_PREFIX = "addfeat:"
 CONFIRM = "addmovie:confirm"
 CANCEL = "addmovie:cancel"
+
+
+def featured_keyboard() -> InlineKeyboardMarkup:
+    """«На главную (hero)?» — Иә/Жоқ. Иә → админ пришлёт горизонтальный баннер."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⭐ Иә", callback_data=f"{FEATURED_PREFIX}1"),
+                InlineKeyboardButton(text="Жоқ", callback_data=f"{FEATURED_PREFIX}0"),
+            ]
+        ]
+    )
 
 
 def category_keyboard() -> InlineKeyboardMarkup:

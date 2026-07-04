@@ -20,6 +20,8 @@ from app.application.services.moderation_service import (
     PaymentModerationService,
 )
 from app.bot.keyboards.moderation import APPROVE_PREFIX, REJECT_PREFIX
+from app.bot.security import is_admin
+from app.config.settings import AppConfig
 
 router = Router(name="moderation")
 
@@ -44,6 +46,15 @@ def _parse_id(data: str | None, prefix: str) -> int | None:
         return None
 
 
+async def _ensure_admin(callback: CallbackQuery, config: AppConfig) -> bool:
+    """Гейт: кнопки чека живут в админ-чате, но в группе их мог бы нажать любой
+    участник — поэтому проверяем автора нажатия явно (не только видимость кнопок)."""
+    if not is_admin(callback.from_user.id, config.bot.admin_user_ids):
+        await callback.answer("Тек әкімші", show_alert=True)
+        return False
+    return True
+
+
 async def _finalize(callback: CallbackQuery, result: ModerationResult) -> None:
     await callback.answer(_ALERTS[result.outcome])
     mark = _MARKS.get(result.outcome)
@@ -55,8 +66,12 @@ async def _finalize(callback: CallbackQuery, result: ModerationResult) -> None:
 @router.callback_query(F.data.startswith(APPROVE_PREFIX))
 @inject
 async def approve(
-    callback: CallbackQuery, moderation: FromDishka[PaymentModerationService]
+    callback: CallbackQuery,
+    moderation: FromDishka[PaymentModerationService],
+    config: FromDishka[AppConfig],
 ) -> None:
+    if not await _ensure_admin(callback, config):
+        return
     request_id = _parse_id(callback.data, APPROVE_PREFIX)
     if request_id is None:
         await callback.answer("Қате өтініш", show_alert=True)
@@ -68,8 +83,12 @@ async def approve(
 @router.callback_query(F.data.startswith(REJECT_PREFIX))
 @inject
 async def reject(
-    callback: CallbackQuery, moderation: FromDishka[PaymentModerationService]
+    callback: CallbackQuery,
+    moderation: FromDishka[PaymentModerationService],
+    config: FromDishka[AppConfig],
 ) -> None:
+    if not await _ensure_admin(callback, config):
+        return
     request_id = _parse_id(callback.data, REJECT_PREFIX)
     if request_id is None:
         await callback.answer("Қате өтініш", show_alert=True)

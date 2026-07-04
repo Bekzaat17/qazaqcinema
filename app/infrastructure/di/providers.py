@@ -15,6 +15,7 @@ from aiogram import Bot
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.application.ports.images import ImageProcessor
 from app.application.ports.payments import PaymentProvider
 from app.application.ports.repositories import (
     MovieRepository,
@@ -40,6 +41,7 @@ from app.infrastructure.db.repositories import (
     PgPaymentRepository,
     PgUserRepository,
 )
+from app.infrastructure.images.pillow import PillowImageProcessor
 from app.infrastructure.payments.kaspi import KaspiManualProvider
 from app.infrastructure.payments.stars import TelegramStarsProvider
 from app.infrastructure.storage.local import LocalPosterStorage
@@ -77,6 +79,10 @@ class AppProvider(Provider):
     @provide
     def poster_storage(self, config: AppConfig) -> PosterStorage:
         return LocalPosterStorage(config.media)
+
+    @provide
+    def image_processor(self) -> ImageProcessor:
+        return PillowImageProcessor()
 
     @provide
     def payment_providers(

@@ -32,6 +32,8 @@ def _movie_to_domain(model: MovieModel) -> Movie:
         telegram_file_id=model.telegram_file_id,
         year=model.year,
         rating=model.rating,
+        is_featured=model.is_featured,
+        hero_image_url=model.hero_image_url,
         created_at=model.created_at,
     )
 
@@ -75,6 +77,8 @@ class PgMovieRepository:
             telegram_file_id=movie.telegram_file_id,
             year=movie.year,
             rating=movie.rating,
+            is_featured=movie.is_featured,
+            hero_image_url=movie.hero_image_url,
         )
         self._session.add(model)
         await self._session.commit()
@@ -83,6 +87,20 @@ class PgMovieRepository:
 
     async def get(self, movie_id: int) -> Movie | None:
         model = await self._session.get(MovieModel, movie_id)
+        return _movie_to_domain(model) if model else None
+
+    async def get_hero(self) -> Movie | None:
+        """Фильм для hero главной: свежайший featured; если featured нет — самый новый.
+
+        Одним запросом: `is_featured DESC` поднимает помеченные наверх, `id DESC` берёт
+        среди них новейший (или новейший вообще, когда помеченных нет).
+        """
+        stmt = (
+            select(MovieModel)
+            .order_by(MovieModel.is_featured.desc(), MovieModel.id.desc())
+            .limit(1)
+        )
+        model = await self._session.scalar(stmt)
         return _movie_to_domain(model) if model else None
 
     async def list_all(self, category: str | None = None) -> list[Movie]:
