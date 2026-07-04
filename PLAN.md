@@ -93,6 +93,12 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
       `c2d3c2c343d2_initial.py` → `20260625_initial.py`;
       `b7f3a9c2d1e4_movie_titles_and_search.py` → `20260628_movie_titles_and_search.py`.
       После — сверить `alembic history` и `alembic upgrade head --sql`.
+- [x] **Удалён мёртвый `channel_post`-скелет** (чистка хвостов, 2026-07-04). Хендлер
+      `@channel_post(F.video)` с Фазы 0 только `return` — автонаполнение каталога из канала
+      отменено в пользу визарда `/add` (решение в CLAUDE.md), т.е. код был заведомо dead.
+      Удалён `app/bot/handlers/channel_post.py` + снят из `bot/setup.py`; попутно поправлены
+      устаревшие строки CLAUDE.md (список handlers + `deps/` уже не TODO). Зелёное: ruff +
+      mypy(79) + pytest(57) + import-смоук (bot.setup/main/api.app).
 
 ---
 
@@ -107,7 +113,8 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 - [x] Скелеты сервисов: Auth, Catalog, MovieIngestion, Subscription, Payment
 - [x] ORM-модели (`users`, `movies`, `payment_requests`), engine, репозитории-скелеты
 - [x] DI-контейнер (dishka) — поднимается; APP + REQUEST scope
-- [x] Бот: роутеры (start✓, channel_post, inline_query, moderation), `setup.py`
+- [x] Бот: роутеры (start✓, inline_query, moderation), `setup.py` (`channel_post`-скелет позже
+      удалён — см. Чоры; `add_movie`/`stars` добавлены в Фазах 3/8)
 - [x] API: FastAPI (`/api/auth`, `/api/movies*`, `/api/payments*`), `/tariffs` рабочий
 - [x] `infrastructure/telegram/init_data.py` — HMAC-валидатор initData (+ тесты)
 - [x] `infrastructure/payments/kaspi.py` — рабочий; `stars.py` — скелет

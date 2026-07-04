@@ -34,12 +34,12 @@ Bot и API — два «presentation»-входа, оба тонкие: дост
 ```
 app/
   bot/            # Presentation #1. ТОЛЬКО здесь импортируется aiogram
-    handlers/     # start, channel_post (автонаполнение), inline_query (подсказка-кнопка), moderation (✅/❌)
+    handlers/     # start, add_movie (визард /add), inline_query (подсказка-кнопка), moderation (✅/❌), stars (оплата)
     keyboards/    # webapp-кнопка, клавиатура модерации
   api/            # Presentation #2. FastAPI
     routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек)
     schemas/      # pydantic DTO — БЕЗ telegram_file_id наружу
-    deps/         # (TODO) FastAPI-зависимость авторизации
+    deps/         # auth: get_current_user + require_active_access (initData-гейт)
   domain/         # Ядро. Без внешних зависимостей. POPO + dataclass
     entities/     # Movie, User (+ has_active_access), PaymentRequest, enums
     tariffs/      # Tariff (VO) + catalog.py (тарифная сетка как данные)
