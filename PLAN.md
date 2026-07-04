@@ -9,6 +9,21 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Инфра/DevEx — dev/prod-паритет + Redis-фундамент (2026-07-04/05):** весь стек в Docker, **ОДНА
+топология — dev/prod/test отличаются ТОЛЬКО env-файлом** (12-factor; решение пользователя 2026-07-05:
+убраны dev/prod-оверлеи → единый `docker-compose.yml`). `./start.sh` (`.env`) / `prod` (`.env.prod`) /
+`test` (`.env.test`) / `logs` / `ps` / `down` [`--clean`] / `migrate`. Контейнеры: postgres, redis,
+`migrate` (авто `alembic upgrade head` ПЕРЕД api/bot), api, bot, web (nginx :80 — статика +
+прокси `/api`+`/posters`); порты БД/Redis/API — на 127.0.0.1. **Тесты — в контейнере** (мультистейдж-
+образ, стадия `test`): ruff+mypy+pytest в изолированной `qazaqcinema_test` (footgun «тесты в рабочей
+БД» закрыт). **Redis подключён** (Фаза 11.0): клиент в DI (APP-scope, graceful `aclose`) + health-ping
+api/bot (fail-open) + `GET /api/health`. Hot-reload — host-venv поверх Docker-инфры (README).
+Проверено: `./start.sh test` зелёный (ruff+mypy(84)+pytest(69) в контейнере), web-образ nginx собран,
+`/api/health`→`{"redis":"ok","db":"ok","status":"ok"}`. Файлы: `start.sh`, единый `docker-compose.yml`,
+мультистейдж `Dockerfile`, `web/{Dockerfile,nginx.conf}`, `.env.{test,prod.example}`, `.dockerignore`,
+`api/routers/health.py`. Живой `./start.sh` (стартует реального бота) — за пользователем.
+Дальше → живой e2e в Telegram / Redis-фичи (11.1+) / добить Фазу 10 (webhook + TLS + домен).
+
 **Пост-Фаза 9 — хардненинг + фичи (2026-07-04):** ревью после готовности фронта закрыл забытые
 куски. **Security:** админ-гейт на модерацию оплат (`is_admin`, `app/bot/security.py`) + TTL на
 initData (`auth_date`, 24 ч). **Категории** расширены плоско (+`film/serial/otandyq/kids`, без
@@ -84,12 +99,13 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 > (сессии/кэш) можно тянуть вместе с Фазой 9; порядок фаз 9–12 гибкий (см. «Когда» в фазах).
 
 ## 🔧 Чоры (вне фаз)
-- [ ] **Изоляция БД тестов от рабочей** (footgun, проявился 2026-06-29). `tests/conftest.py` делает
-      `drop_all`+`create_all` по ТОЙ ЖЕ `DatabaseConfig().dsn`, что и приложение → прогон `pytest`
-      перешивает рабочую `movies` через `create_all` (колонки = head по моделям, но БЕЗ миграционных
-      GIN-trgm индексов), а `alembic_version` не трогается → дрейф, из-за которого `upgrade head` падал
-      на `ALTER … RENAME title`. Фикс: отдельная тест-БД (напр. `DB_NAME=qazaqcinema_test`-override в
-      conftest) или транзакция-rollback на тест; рабочую БД тесты трогать не должны.
+- [x] **Изоляция БД тестов от рабочей** (footgun, проявился 2026-06-29; закрыто 2026-07-04 через
+      `./start.sh test` + `.env.test`). `tests/conftest.py` делает `drop_all`+`create_all` по
+      `DatabaseConfig().dsn` — раньше это была рабочая БД → прогон `pytest` перешивал рабочую `movies`
+      без GIN-trgm индексов, а `alembic_version` не трогался → дрейф, из-за которого `upgrade head`
+      падал на `ALTER … RENAME title`. Фикс: `./start.sh test` экспортирует `DB_NAME=qazaqcinema_test`
+      (из `.env.test`) перед pytest → conftest шьёт ИЗОЛИРОВАННУЮ тест-БД, рабочую не трогает. (Более
+      строгий вариант — транзакция-rollback на тест — не понадобился.)
 - [x] **Человекочитаемые имена миграций** (`yyyymmdd_<slug>`). Сделано 2026-06-29: `file_template`
       в `alembic.ini` задан; файлы → `20260625_initial.py` / `20260628_movie_titles_and_search.py`
       (`git mv`, revision id ВНУТРИ файлов не тронут); `alembic history` + offline `upgrade head --sql`
@@ -344,27 +360,34 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
       `web/dist` — за Фазой 10 (Nginx/StaticFiles); в dev — Vite-прокси `/api`+`/posters`.
 
 ## Фаза 10 — Прод
+> Прагматичная база готова (2026-07-04, `./start.sh prod`): полный стек в Docker (polling), web
+> собран за nginx (:80, проксирует `/api`+`/posters`), авто-миграции (`migrate`-сервис), `uploads/`-
+> том, `.env.prod` (шаблон `.env.prod.example`). Осталось «настоящее прод-разворачивание» под домен:
 - [ ] aiogram webhook вместо polling; FastAPI-роут вебхука
-- [ ] Nginx reverse-proxy (TLS, домен Web App, статика)
-- [ ] Прод-конфиг compose, секреты, бэкапы БД
-- [ ] CORS под реальный домен Web App
+- [ ] Nginx: TLS + реальный домен Web App (сейчас nginx на :80 по IP, без TLS)
+- [x] Прод-конфиг compose + отдача статики `web/dist` (nginx): `docker-compose.prod.yml` + `web/Dockerfile`
+- [ ] Секреты (`.env.prod` вне git — шаблон есть) + бэкапы БД (том `pgdata`)
+- [ ] CORS под реальный домен Web App (сейчас `API_CORS_ORIGINS=*`)
 
 ## Фаза 11 — Redis: скорость и устойчивость (сессии, кэш, rate-limit, локи)
-**Цель:** снять нагрузку с БД и защитить API. Redis уже в стеке (`redis>=5.2`, `redis.asyncio`;
-сервис в compose; `RedisConfig.dsn`), но код его пока НЕ использует — всё greenfield. Каждый концерн —
-через свой порт (`application/ports/`) + Redis-адаптер (`infrastructure/cache/`); сервисы про Redis
-не знают (DIP). Ключи — с префиксами (`session:`, `catalog:`, `ratelimit:`, `lock:`).
+**Цель:** снять нагрузку с БД и защитить API. Redis в стеке (`redis>=5.2`, `redis.asyncio`;
+`RedisConfig.dsn`); **фундамент 11.0 готов** (клиент в DI + health-ping + `GET /api/health`), фичи —
+greenfield. Каждый концерн — через свой порт (`application/ports/`) + Redis-адаптер
+(`infrastructure/cache/`); сервисы про Redis не знают (DIP). Ключи — с префиксами (`session:`,
+`catalog:`, `ratelimit:`, `lock:`).
 
 **Когда:** 11.1 (сессии) и 11.2 (кэш) — компаньоны Фазы 9 (фронт), тянутся параллельно с ней;
 11.3 (rate-limit) и 11.4 (локи) — hardening, удобно с Фазой 10 (прод).
 
 ### 11.0 — Redis-фундамент
-- [ ] `redis.asyncio`-клиент: APP-scoped DI-провайдер из `RedisConfig.dsn` (пул) + graceful close
-      (по аналогии с движком БД); health-ping при старте API/бота.
+- [x] `redis.asyncio`-клиент: APP-scoped DI-провайдер из `RedisConfig.dsn` + graceful `aclose`
+      (async-генератор в `di/providers.py`); health-ping при старте API (`api/app.py` lifespan) и
+      бота (`main.py`) — fail-open. Бонус: `GET /api/health` (`api/routers/health.py`) пингует
+      Redis+БД → `{redis,db,status}`. Проверено вживую (2026-07-05): `{"redis":"ok","db":"ok"}`.
 - [ ] Пакет `infrastructure/cache/` (адаптеры) + порты `SessionStore`/`CatalogCache`/`RateLimiter`/
-      `Lock` (мелкие, раздельные — ISP).
-- [ ] Политика деградации при недоступном Redis (решить и задокументировать): сессии → фолбэк на
-      initData; кэш → прямой запрос в БД; rate-limit/локи → fail-open. Не ронять запрос в 500.
+      `Lock` (мелкие, раздельные — ISP) — по мере фич 11.1–11.4 (пока клиент отдаётся как есть).
+- [~] Политика деградации: health-ping уже **fail-open** (Redis down не роняет старт). Полную
+      политику (сессии→initData-фолбэк, кэш→прямой БД, rate-limit/локи→fail-open) фиксируем при 11.1–11.4.
 
 ### 11.1 — Сессионные токены (auth)
 > ⚠️ Меняет решение «stateless initData, без JWT»: initData остаётся **bootstrap-ом** (HMAC 1 раз),

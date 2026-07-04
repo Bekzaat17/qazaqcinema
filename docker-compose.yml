@@ -1,3 +1,21 @@
+# QazaqCinema — ЕДИНАЯ топология для всех сред (dev / prod / test).
+#
+# Принцип 12-factor: dev и prod — один и тот же стек, отличие ТОЛЬКО в env-файле.
+# Запускать через ./start.sh (он подставляет env-файл режима через ENV_FILE + --env-file).
+#
+#   ./start.sh        → ENV_FILE=.env       (локально)
+#   ./start.sh prod   → ENV_FILE=.env.prod  (те же контейнеры, другой env)
+#   ./start.sh test   → ENV_FILE=.env.test  (профиль test: pytest в контейнере)
+#
+# Порты БД/Redis/API публикуются на 127.0.0.1 (доступны хосту для инструментов/host-venv,
+# но не наружу); web (nginx) — на :80. Одинаково во всех средах → «отличие только в env».
+name: qazaqcinema
+
+# Общий build рантайм-сервисов (api/bot/migrate) — стадия runtime образа.
+x-app-build: &app-build
+  context: .
+  target: runtime
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -6,36 +24,44 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-qazaqcinema}
       POSTGRES_DB: ${DB_NAME:-qazaqcinema}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-qazaqcinema}"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  bot:
-    build: .
-    env_file: .env
+  # Одноразовый прогон миграций ПЕРЕД api/bot (оба ждут его успешного выхода) →
+  # свежая БД всегда получает схему автоматически.
+  migrate:
+    build: *app-build
+    env_file: ${ENV_FILE:-.env}
     environment:
-      DB_HOST: postgres
+      DB_HOST: postgres        # имя сервиса в сети compose (перекрывает DB_HOST из env-файла)
       REDIS_HOST: redis
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
-    command: python -m app.main
+    command: alembic upgrade head
+    restart: "no"
 
   api:
-    build: .
-    env_file: .env
+    build: *app-build
+    env_file: ${ENV_FILE:-.env}
     environment:
       DB_HOST: postgres
       REDIS_HOST: redis
@@ -43,10 +69,61 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     command: uvicorn app.api.app:app --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - uploads:/app/uploads   # постеры: пишет бот (/add), раздаёт api (StaticFiles)
+    restart: unless-stopped
+
+  bot:
+    build: *app-build
+    env_file: ${ENV_FILE:-.env}
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: python -m app.main
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+  # Фронт: собран в статику, раздаётся nginx + проксирует /api и /posters на api
+  # (единый origin, CORS не нужен). Один образ и в dev, и в prod.
+  web:
+    build:
+      context: ./web
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+  # Тесты (профиль test — в обычный up НЕ попадает). Запуск: ./start.sh test.
+  # Гоняет ruff+mypy+pytest в контейнере (образ-стадия test) против postgres compose.
+  test:
+    build:
+      context: .
+      target: test
+    env_file: ${ENV_FILE:-.env.test}
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "ruff check app tests && mypy app && pytest"
+    profiles: ["test"]
 
 volumes:
   pgdata:
+  uploads:

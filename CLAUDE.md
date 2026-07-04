@@ -17,15 +17,18 @@ Telegram Stars). Контент наполняет админ через бот-
 - **SQLAlchemy 2.0 async + asyncpg + Alembic** — PostgreSQL
 - **dishka** — DI-контейнер (composition root)
 - **apscheduler** — фоновые задачи (сброс просроченных подписок)
-- **redis (`redis.asyncio`)** — сессии, кэш каталога, rate-limit, локи, очередь рассылок
-  (Фазы 11–12, **план**; в стеке/compose есть, кодом пока НЕ используется)
+- **redis (`redis.asyncio`)** — клиент подключён в DI (APP-scope, graceful close) + health-ping на
+  старте api/bot + `GET /api/health`. Фичи на нём (сессии, кэш каталога, rate-limit, локи, очередь
+  рассылок) — Фазы 11–12 (порты+адаптеры ещё не написаны).
 - **React 19 + Vite 6 + TypeScript + Tailwind v4** — Web App (`web/`)
 - **UI-кит фронта:** иконки — **`lucide-react`** (открытый ISC-набор; единственный источник иконок,
   эмодзи-заглушки заменены на векторные); шрифт — **Inter** (Google Fonts, покрывает казахскую
   кириллицу ә/ғ/қ/ң/ө/ұ/ү/і); компоненты — свои на Tailwind-токенах (философия shadcn/ui, без
   тяжёлой рантайм-библиотеки → лёгкий бандл для мобильной сети); анимации/карусели — нативный CSS
   (scroll-snap, CSS-шторки; уважают `prefers-reduced-motion`)
-- **Docker Compose** — postgres, redis, bot, api (+ `worker` для рассылок — Фаза 12)
+- **Docker Compose** — **одна топология** для dev/prod/test (postgres, redis, `migrate`, api, bot,
+  web/nginx; + `worker` — Фаза 12), отличие сред ТОЛЬКО в env-файле (12-factor). Единый запуск —
+  **`./start.sh`** (всё в Docker; тесты — тоже в контейнере, образ-стадия `test`)
 
 ## Архитектура: Clean / Hexagonal + DDD-lite
 Принцип: **домен не знает про aiogram/FastAPI/Postgres**. Зависимости направлены внутрь (DIP).
@@ -37,7 +40,7 @@ app/
     handlers/     # start, add_movie (визард /add), inline_query (подсказка-кнопка), moderation (✅/❌), stars (оплата)
     keyboards/    # webapp-кнопка, клавиатура модерации
   api/            # Presentation #2. FastAPI
-    routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек)
+    routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек), health (redis+БД ping)
     schemas/      # pydantic DTO — БЕЗ telegram_file_id наружу
     deps/         # auth: get_current_user + require_active_access (initData-гейт)
   domain/         # Ядро. Без внешних зависимостей. POPO + dataclass
@@ -92,18 +95,18 @@ app/
 
 ## Команды
 ```bash
-.venv/bin/pytest                 # тесты домена (без БД)
+./start.sh                       # локально: весь стек в Docker (env=.env), миграции авто
+./start.sh prod                  # ТЕ ЖЕ контейнеры, env=.env.prod (отличие сред — только env-файл)
+./start.sh test                  # ruff+mypy+pytest В КОНТЕЙНЕРЕ (env=.env.test, БД qazaqcinema_test)
+./start.sh logs / ps / down / migrate    # логи / статус / стоп (--clean стирает тома) / миграции
+# Web → http://localhost/  |  API/docs → :8000/docs  |  health → :8000/api/health
+
+# Гранулярно на хосте (нужен .venv; для hot-reload подними в Docker только postgres+redis):
+.venv/bin/pytest                 # тесты домена (без БД); интеграционные — нужен postgres
 .venv/bin/ruff check app tests   # линт
 .venv/bin/mypy app               # типы (strict)
-.venv/bin/python -m app.main     # бот (polling) — нужен .env
-.venv/bin/uvicorn app.api.app:app --reload   # API + /docs
-
-.venv/bin/alembic revision --autogenerate -m "msg"  # миграция по diff моделей (нужен postgres)
-.venv/bin/alembic upgrade head                       # применить
-.venv/bin/alembic upgrade head --sql                 # offline DDL
-
-docker compose up --build        # postgres + redis + bot + api
-cd web && npm install && npm run dev   # фронтенд
+.venv/bin/alembic upgrade head   # применить миграции (offline DDL: + --sql)
+.venv/bin/uvicorn app.api.app:app --reload   # API с автоперезагрузкой (host-venv)
 ```
 
 ## Состояние / что дальше
@@ -212,18 +215,37 @@ otandyq/kids`, данные, без миграции) + зеркало на фр
 `buildShelves(movies, heroId)`. Зелёное: ruff + mypy(83) + pytest(69) + web build + браузер-превью.
 ⚠️ Миграцию применить на живой БД: `alembic upgrade head`.
 
+**Сделано (инфра/DevEx — единый `./start.sh` + Redis-фундамент, 2026-07-04/05):** весь стек в Docker,
+**одна топология для dev/prod/test — отличие ТОЛЬКО в env-файле** (12-factor; решение пользователя
+2026-07-05: убраны dev/prod-оверлеи, dev==prod). `./start.sh {dev|prod|test|logs|ps|down|migrate}`:
+`dev`→`.env`, `prod`→`.env.prod`, `test`→`.env.test` — те же контейнеры (postgres, redis, `migrate`,
+api, bot, web-nginx :80). Порты БД/Redis/API — на 127.0.0.1 (хосту доступны, наружу нет). Миграции —
+сервис `migrate` ПЕРЕД api/bot; `uploads/` — том. **Тесты — в контейнере** (мультистейдж-образ, стадия
+`test`): `./start.sh test` гоняет ruff+mypy+pytest против postgres в изолированной `qazaqcinema_test`
+(footgun «тесты в рабочей БД» закрыт). Hot-reload (когда нужен) — host-venv поверх Docker-инфры
+(README). **Redis подключён** (Фаза 11.0): клиент в DI (APP-scope, graceful `aclose`), health-ping на
+старте api/bot (fail-open), `GET /api/health` (`{redis,db,status}`). Проверено вживую: `./start.sh
+test` зелёный (ruff+mypy(84)+pytest(69) в контейнере), web-образ nginx собран, `/api/health` →
+`{"redis":"ok","db":"ok","status":"ok"}`. Файлы: `start.sh`, `docker-compose.yml` (единый), `Dockerfile`
+(мультистейдж runtime/test), `web/{Dockerfile,nginx.conf}`, `.env.{test,prod.example}`, `.dockerignore`;
+Redis — `api/routers/health.py` + провайдер в `di/providers.py` + ping в `api/app.py`/`main.py`.
+
 **Не сделано — по приоритету (детали в PLAN.md):**
-1. Прод (Фаза 10): webhook + Nginx, CORS под домен, бэкапы; отдача статики `web/dist` (Nginx/StaticFiles).
-2. Redis (Фаза 11): сессионные токены (initData → `session:<uuid>` в Redis, TTL 24 ч), кэш каталога
+1. Прод (Фаза 10): ✅ база готова (`./start.sh prod` — единый compose + nginx раздаёт `web/dist` и
+   проксирует `/api`+`/posters`, авто-миграции, polling). Осталось: webhook вместо polling, TLS +
+   домен, CORS под домен, бэкапы БД.
+2. Redis (Фаза 11): ✅ фундамент (11.0) — клиент в DI + health-ping + `GET /api/health`. Осталось
+   (нужны порты+адаптеры): сессионные токены (initData → `session:<uuid>`, TTL 24 ч), кэш каталога
    (cache-aside `catalog:main` EX 600 + инвалидация на `/add`), rate-limit (`INCR`+`EXPIRE` → 429),
-   лок отправки видео (`SET NX EX 3`). Порты + Redis-адаптеры (DIP). ⚠️ меняет «stateless initData»
-   → initData как bootstrap. Компаньоны фронта (сессии/кэш) — можно тянуть следом.
+   лок отправки видео (`SET NX EX 3`). ⚠️ сессии меняют «stateless initData» → initData как bootstrap.
 3. Рассылки (Фаза 12): очередь на Redis + worker (~25–30 msg/s, crash-safe, ловит `RetryAfter`),
    авто-уведомление о новинке на `/add`, юзер-тумблер уведомлений (`notifications_enabled`, по
    умолчанию ВКЛ + миграция), ручная рассылка админом.
-⚠️ Чоры (вне фаз): (a) `conftest` шьёт рабочую БД через `create_all` (дрейф схемы) — изолировать
-тест-БД; (b) ✅ исправлено (2026-07-04): `confirm_add` обёрнут в try/except — при ошибке внятный
-текст вместо зависшего «⏳ Сақталуда…».
+⚠️ Чоры (вне фаз): (a) ✅ исправлено (2026-07-04): `./start.sh test` гонит pytest в ИЗОЛИРОВАННОЙ
+`qazaqcinema_test` (env-override `DB_NAME` через `.env.test`) — рабочую БД не трогает; сам `conftest`
+по-прежнему `drop/create` по своей `DatabaseConfig().dsn`, но теперь это тест-БД; (b) ✅ исправлено
+(2026-07-04): `confirm_add` обёрнут в try/except — при ошибке внятный текст вместо зависшего
+«⏳ Сақталуда…».
 
 ## Решения, которые уже приняты (не пересматривать без причины)
 - **Python 3.13**. Backend — **FastAPI** (не Django/PHP): ложится на async-стек.
@@ -276,6 +298,18 @@ otandyq/kids`, данные, без миграции) + зеркало на фр
   валидатор (иначе pydantic-settings пытается JSON-декодить).
 - Alembic берёт DSN из `DatabaseConfig` (для миграций BOT_TOKEN не нужен); переопределение
   `alembic -x dsn=...`.
+- **Единый запуск + dev/prod-паритет — `./start.sh` (решение 2026-07-04, уточнено 2026-07-05):** весь
+  стек в Docker, **ОДНА топология** (единый `docker-compose.yml`, без оверлеев) — dev/prod/test
+  отличаются ТОЛЬКО env-файлом (`.env`/`.env.prod`/`.env.test`; 12-factor, решение пользователя).
+  Прод — прагматичный: polling + web за nginx (:80), без домена/TLS (webhook+TLS → Фаза 10). Порты
+  БД/Redis/API — на 127.0.0.1 (одинаково везде). Миграции — сервис `migrate` ПЕРЕД api/bot. `ENV_FILE`
+  + `--env-file` управляют и `env_file:` сервисов, и интерполяцией `${...}`. **Тесты — в контейнере**
+  (мультистейдж-образ, стадия `test`), БД `qazaqcinema_test` (footgun «тесты в рабочей БД» закрыт).
+  Hot-reload — не в контейнере (dev==prod), а host-venv поверх Docker-инфры (README).
+- **Redis подключён как фундамент (Фаза 11.0, 2026-07-05):** клиент `redis.asyncio` в DI (APP-scope,
+  graceful `aclose`), health-ping на старте api/bot (**fail-open** — недоступность Redis не роняет
+  старт), `GET /api/health` пингует Redis+БД. Фичи (сессии/кэш/rate-limit/локи) — поверх этого через
+  свои порты+адаптеры (Фаза 11.1+), сервисы про Redis не знают (DIP).
 - **Имена миграций — `yyyymmdd_<slug>`** (через `file_template` в alembic.ini). Случайный hex от
   Alembic — лишь уникальный `revision id` (по нему связи `down_revision`/`alembic_version`), дата в
   имени файла — для людей; id внутри файла при переименовании не трогаем.
@@ -296,7 +330,8 @@ otandyq/kids`, данные, без миграции) + зеркало на фр
   рантайм-UI-библиотеки → лёгкий бандл для мобильной сети. Анимации/карусели — **нативный CSS**
   (scroll-snap-полки, CSS-шторки; `prefers-reduced-motion`), без JS-каруселей. Менять акцент/палитру —
   правкой токенов в `@theme` (одно место).
-- **Dev-инфра фронта:** Vite-прокси `/api`+`/posters` → бэкенд (`API_TARGET` в `web/vite.config.ts`) →
+- **Dev-инфра фронта:** Vite-прокси `/api`+`/posters` → бэкенд (`API_TARGET` — env-переменная в
+  `web/vite.config.ts`; в Docker-dev `http://api:8000`, на хосте `http://localhost:8000`) →
   фронт на своём origin, CORS не нужен (прод — Nginx, Фаза 10). Вне Telegram в DEV работает мок
   бэкенда `web/src/lib/devMock.ts` (динамический import под `import.meta.env.DEV && !initData` →
   из прод-бандла вырезается) — можно открыть Mini App в браузере без бэка; статус юзера в моке

@@ -1,0 +1,19 @@
+# Контекст сборки бэкенд-образа. Стадия runtime копирует app/migrations/alembic.ini/
+# pyproject/README; стадия test дополнительно копирует tests/ — поэтому tests/ НЕ исключаем.
+# Всё лишнее (кэши, venv, фронт) вырезаем, чтобы контекст был лёгким.
+.venv/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.git/
+.idea/
+.vscode/
+.DS_Store
+uploads/
+web/            # у фронта свой образ (web/Dockerfile) со своим контекстом ./web
+.env
+.env.*
+!.env.example

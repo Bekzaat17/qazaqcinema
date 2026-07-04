@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator, Mapping
 
 from aiogram import Bot
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.application.ports.images import ImageProcessor
@@ -67,6 +68,16 @@ class AppProvider(Provider):
     @provide
     def sessionmaker(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
         return create_sessionmaker(engine)
+
+    @provide
+    async def redis(self, config: AppConfig) -> AsyncIterator[Redis]:
+        # APP-scope синглтон-пул к Redis. Фундамент под сессии/кэш/rate-limit/локи
+        # (Фаза 11). Закрывается при остановке контейнера (graceful).
+        client = Redis.from_url(config.redis.dsn, decode_responses=True)
+        try:
+            yield client
+        finally:
+            await client.aclose()
 
     @provide
     def verifier(self, config: AppConfig) -> InitDataVerifier:

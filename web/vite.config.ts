@@ -4,8 +4,10 @@ import { defineConfig } from "vite";
 
 // Dev: проксируем API и постеры на бэкенд, чтобы Mini App ходил «на свой же origin» —
 // тогда CORS не нужен, а поведение как в проде (там оба пути обслуживает Nginx — Фаза 10).
-// Если бэкенд не на :8000 — поменяй эту строку. Прод-клиенту хватает VITE_API_URL.
-const API_TARGET = "http://localhost:8000";
+// Адрес бэкенда берём из API_TARGET: в Docker-dev это http://api:8000 (имя сервиса,
+// задаётся в docker-compose.dev.yml), при ручном запуске на хосте — http://localhost:8000.
+declare const process: { env: Record<string, string | undefined> };
+const API_TARGET = process.env.API_TARGET ?? "http://localhost:8000";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
