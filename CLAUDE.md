@@ -17,10 +17,11 @@ Telegram Stars). Контент наполняет админ через бот-
 - **SQLAlchemy 2.0 async + asyncpg + Alembic** — PostgreSQL
 - **dishka** — DI-контейнер (composition root)
 - **apscheduler** — фоновые задачи (сброс просроченных подписок)
-- **redis (`redis.asyncio`)** — клиент подключён в DI (APP-scope, graceful close) + health-ping на
-  старте api/bot + `GET /api/health`. **rate-limit + локи — написаны** (Фаза 11.3/11.4: порты
-  `lock`/`rate_limit` + адаптеры `infrastructure/cache/`, оба fail-open); сессии, кэш каталога,
-  очередь рассылок — Фазы 11.1–12 (порты+адаптеры ещё нет).
+- **redis (`redis.asyncio`)** — клиент в DI (APP-scope, graceful close) + health-ping + `GET /api/health`.
+  **Фаза 11 закрыта:** сессии (`SessionStore`), кэш каталога (`CatalogCache`), rate-limit, локи —
+  мелкие порты `application/ports/` + адаптеры `infrastructure/cache/`, все **fail-open** (Redis down
+  ничего не роняет: сессии→initData-фолбэк, кэш→прямая БД, rate-limit/локи→пропускают). Осталась
+  очередь рассылок — Фаза 12.
 - **React 19 + Vite 6 + TypeScript + Tailwind v4** — Web App (`web/`)
 - **UI-кит фронта:** иконки — **`lucide-react`** (открытый ISC-набор; единственный источник иконок,
   эмодзи-заглушки заменены на векторные); шрифт — **Inter** (Google Fonts, покрывает казахскую
@@ -249,15 +250,33 @@ TTL); FastAPI-зависимость-фабрика `api/deps/rate_limit.py` (к
 вживую против реального Redis (лок True/False, окно T/T/T/F, TTL=60). ⚠️ Новая dev-зависимость
 `fakeredis`.
 
+**Сделано (Фаза 11.1 + 11.2 — сессии + кэш каталога, 2026-07-05): ФАЗА 11 ЗАКРЫТА.** Бэк + фронт.
+**11.1 Сессии:** initData → bootstrap (HMAC 1 раз) → серверная сессия `session:<uuid4().hex>` (Redis,
+`{user_id,username}`, TTL 24 ч; порт `SessionStore` + `RedisSessionStore`, fail-open). `POST /api/auth`
+отдаёт токен в `AuthOut.token` (nullable — Redis down → None). `get_current_user` стал **двухрежимным**
+(`api/deps/auth.py`): Authorization с `=` → initData (stateless HMAC, Redis не нужен — **fail-open
+фолбэк**); без `=` → session-токен → Redis → свежий User из БД (статус/срок — правда там). Промах →
+401 `session_expired`, битый initData → 401 `invalid_init_data`. Обе ветки безопасны (токен неугадываем,
+initData — HMAC). ⚠️ Изменено решение «stateless initData»: теперь initData — bootstrap+фолбэк, а не
+каждый-клик. Фронт (`lib/api.ts`): токен в `localStorage`, `authHeader()`=токен??initData, на 401 —
+прозрачный ре-auth по initData + повтор ОДИН раз (`refreshSession` дедуплицирует параллельные 401,
+bootstrap с `retried:true` против рекурсии). **11.2 Кэш:** агрегированный `GET /api/movies/home`
+(`{hero,movies}` одним ответом, `CatalogHomeOut`) — cache-aside `catalog:main` EX 600 (порт
+`CatalogCache` + `RedisCatalogCache`, fail-open, на хите — сырой JSON `Response` без пересериализации);
+**инвалидация в `MovieIngestionService.ingest`** после `add` (новинка видна сразу). Фронт: `api.home()`
+в `load()` вместо `movies()`+`hero()`; DEV-мок отдаёт `/api/movies/home`. Тесты (+11): `test_auth_dep`
+(двухрежим 4), `test_catalog_home` (cache-aside 2, +страж file_id), `test_cache` (session/catalog
+адаптеры на fakeredis + fail-open, 5), `test_ingestion_service` (invalidate на ingest). Зелёное: ruff +
+mypy(94) + pytest(90 в контейнере) + web build (71 КБ gzip) + браузер-превью (главная из `/home`) +
+живой Redis (сессия TTL 86400, кэш TTL 600). Осталась живая e2e в Telegram (реальные initData/токен).
+
 **Не сделано — по приоритету (детали в PLAN.md):**
 1. Прод (Фаза 10): ✅ база готова (`./start.sh prod` — единый compose + nginx раздаёт `web/dist` и
    проксирует `/api`+`/posters`, авто-миграции, polling). Осталось: webhook вместо polling, TLS +
    домен, CORS под домен, бэкапы БД.
-2. Redis (Фаза 11): ✅ фундамент (11.0) + ✅ **rate-limit (11.3) + локи (11.4)** — порты+адаптеры
-   `infrastructure/cache/`, fail-open. Осталось (тронут фронт): **сессионные токены (11.1)** —
-   initData → `session:<uuid>` TTL 24 ч, `Authorization: <token>`, ре-auth на 401 (⚠️ меняет
-   «stateless initData» → initData как bootstrap); **кэш каталога (11.2)** — агрегированный
-   `/catalog` cache-aside `catalog:main` EX 600 + инвалидация на `/add`.
+2. Redis (Фаза 11): ✅ **ЗАКРЫТА ВСЯ** — фундамент (11.0) + сессии (11.1) + кэш каталога (11.2) +
+   rate-limit (11.3) + локи (11.4). Порты `application/ports/` + адаптеры `infrastructure/cache/`,
+   все fail-open. Осталась только живая e2e в Telegram (реальные initData/токен).
 3. Рассылки (Фаза 12): очередь на Redis + worker (~25–30 msg/s, crash-safe, ловит `RetryAfter`),
    авто-уведомление о новинке на `/add`, юзер-тумблер уведомлений (`notifications_enabled`, по
    умолчанию ВКЛ + миграция), ручная рассылка админом.
@@ -309,7 +328,12 @@ TTL); FastAPI-зависимость-фабрика `api/deps/rate_limit.py` (к
   activate`; авто-продление recurring идёт тем же хендлером. Payload `<user_id>:<slug>`.
 - **Заявки на оплату** — единая таблица `payment_requests` (аудит), универсальная по способу:
   `proof_file_id` для Kaspi, `external_charge_id` для Stars/фиата.
-- **Авторизация Web App** — валидация `initData` (HMAC) на каждый запрос, без JWT (stateless).
+- **Авторизация Web App — сессии поверх initData-bootstrap** (Фаза 11.1, 2026-07-05; ранее было
+  «stateless initData на каждый запрос»): initData валидируется HMAC один раз в `POST /api/auth` →
+  серверная сессия в Redis (`session:<uuid>`, TTL 24 ч) → клиент шлёт токен. `get_current_user` —
+  **двухрежимный**: токен (Redis) ИЛИ initData (stateless-фолбэк, различаем по `=` в строке). initData
+  НЕ выкинут — он bootstrap И fail-open фолбэк (Redis down → вход по HMAC работает). JWT по-прежнему нет
+  (токен — непрозрачный id сессии, данных доступа в нём нет; статус/срок всегда свежие из БД).
 - **Тарифы/категории — данные** (словарь), не классы; способы оплаты/ключи парсера — код (OCP).
 - **DI — dishka**, composition root в `infrastructure/di/providers.py`. APP-scope: config, движок,
   Bot, провайдеры оплаты; REQUEST-scope: сессия БД, репозитории, сервисы.
@@ -330,15 +354,19 @@ TTL); FastAPI-зависимость-фабрика `api/deps/rate_limit.py` (к
   graceful `aclose`), health-ping на старте api/bot (**fail-open** — недоступность Redis не роняет
   старт), `GET /api/health` пингует Redis+БД. Фичи (сессии/кэш/rate-limit/локи) — поверх этого через
   свои порты+адаптеры (Фаза 11.1+), сервисы про Redis не знают (DIP).
-- **Redis-фичи — fail-open + адаптер владеет ключами** (Фаза 11.3/11.4, 2026-07-05): каждый концерн —
-  мелкий порт (`Lock`, `RateLimiter`; ISP) + адаптер в `infrastructure/cache/`. **Деградация — в
-  адаптере**: Redis недоступен → лок/лимитер пропускают (`acquire`/`hit` → True), чтобы кэш не ронял
-  основной путь (лучше повторная отправка/пропуск лимита, чем отказ). Namespace-префиксы (`lock:`,
-  `ratelimit:`) — в адаптере, домен их не знает. Лок отправки видео живёт ВНУТРИ
-  `PlaybackService.deliver` (не в роутере — «не двойным клиентом», а самим use-case'ом), ключ
-  `send_video:<user>:<movie>`, release по TTL (явного нет — для анти-двойного-клика ключ переживает
-  операцию). Rate-limit — FastAPI-зависимость (`api/deps/rate_limit.py`), ключ по IP из
-  `X-Forwarded-For` (пер-юзер — с сессиями 11.1); лимиты — данные в роутерах. Тесты кэш-адаптеров — на
+- **Redis-фичи — fail-open + адаптер владеет ключами** (Фаза 11, 2026-07-05): каждый концерн —
+  мелкий порт (`Lock`, `RateLimiter`, `SessionStore`, `CatalogCache`; ISP) + адаптер в
+  `infrastructure/cache/`. **Деградация — в адаптере**: Redis недоступен → лок/лимитер пропускают
+  (`acquire`/`hit` → True), кэш → промах (`get` → None), сессии → None (клиент откатывается на initData) —
+  чтобы Redis не ронял основной путь (лучше повторная отправка/пропуск лимита/сбор из БД, чем отказ).
+  Namespace-префиксы (`lock:`, `ratelimit:`, `session:`, `catalog:`) — в адаптере, домен их не знает.
+  Лок отправки видео живёт ВНУТРИ `PlaybackService.deliver` (не в роутере — «не двойным клиентом», а
+  самим use-case'ом), ключ `send_video:<user>:<movie>`, release по TTL. Rate-limit — FastAPI-зависимость
+  (`api/deps/rate_limit.py`), ключ по IP из `X-Forwarded-For`; лимиты — данные в роутерах. **Сессии
+  (11.1):** initData → bootstrap → токен; `get_current_user` двухрежимный (токен ИЛИ initData-фолбэк,
+  различаем по `=`); токен непрозрачный, доступ всегда свежий из БД. **Кэш каталога (11.2):**
+  cache-aside `catalog:main` EX 600 за агрегированным `GET /api/movies/home`, **инвалидация в
+  `MovieIngestionService.ingest`** (иначе новинка не видна до TTL). Тесты кэш-адаптеров — на
   **fakeredis** (dev-зависимость), не на живом Redis (тот в `./start.sh test` не поднимается).
 - **Имена миграций — `yyyymmdd_<slug>`** (через `file_template` в alembic.ini). Случайный hex от
   Alembic — лишь уникальный `revision id` (по нему связи `down_revision`/`alembic_version`), дата в

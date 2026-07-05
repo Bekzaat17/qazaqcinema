@@ -7,8 +7,10 @@
 from __future__ import annotations
 
 import fakeredis.aioredis
+from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
+from app.infrastructure.cache.session import RedisSessionStore
 from redis.exceptions import RedisError
 
 
@@ -20,6 +22,12 @@ class _BrokenRedis:
     """Redis, который всегда падает — для проверки fail-open адаптеров."""
 
     async def set(self, *args: object, **kwargs: object) -> object:
+        raise RedisError("redis down")
+
+    async def get(self, *args: object, **kwargs: object) -> object:
+        raise RedisError("redis down")
+
+    async def delete(self, *args: object, **kwargs: object) -> object:
         raise RedisError("redis down")
 
     def pipeline(self, *args: object, **kwargs: object) -> object:
@@ -63,3 +71,44 @@ async def test_rate_limiter_keys_have_independent_windows() -> None:
 async def test_rate_limiter_fails_open_when_redis_down() -> None:
     limiter = RedisRateLimiter(_BrokenRedis())
     assert await limiter.hit("catalog:1.2.3.4", limit=1, window_seconds=60) is True
+
+
+# --- SessionStore (11.1) --------------------------------------------------
+
+async def test_session_create_then_get_roundtrip() -> None:
+    store = RedisSessionStore(_redis())
+    token = await store.create(42, "beka")
+    assert token is not None
+    session = await store.get(token)
+    assert session is not None
+    assert session.user_id == 42
+    assert session.username == "beka"
+
+
+async def test_session_get_unknown_token_is_none() -> None:
+    store = RedisSessionStore(_redis())
+    assert await store.get("no-such-token") is None
+
+
+async def test_session_fails_open_when_redis_down() -> None:
+    store = RedisSessionStore(_BrokenRedis())
+    assert await store.create(1, "x") is None       # не смогли завести → None (клиент на initData)
+    assert await store.get("whatever") is None       # не смогли прочитать → None (→ 401 → ре-auth)
+
+
+# --- CatalogCache (11.2) --------------------------------------------------
+
+async def test_catalog_cache_set_get_invalidate() -> None:
+    cache = RedisCatalogCache(_redis())
+    assert await cache.get() is None                 # пусто на старте
+    await cache.set('{"movies":[]}')
+    assert await cache.get() == '{"movies":[]}'       # хит
+    await cache.invalidate()
+    assert await cache.get() is None                 # после инвалидации — снова промах
+
+
+async def test_catalog_cache_fails_open_when_redis_down() -> None:
+    cache = RedisCatalogCache(_BrokenRedis())
+    assert await cache.get() is None                 # промах → эндпоинт соберёт из БД
+    await cache.set('{"movies":[]}')                 # no-op, не бросает
+    await cache.invalidate()                          # no-op, не бросает

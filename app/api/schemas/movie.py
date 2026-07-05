@@ -44,3 +44,10 @@ class PlayOut(BaseModel):
     """Ответ `/play`: видео отправлено в чат пользователя с ботом (не через HTTP)."""
 
     status: Literal["sent"]
+
+
+class CatalogHomeOut(BaseModel):
+    """Агрегат главного экрана (Фаза 11.2): hero + все фильмы одним ответом, кэшируется."""
+
+    hero: MovieOut | None = None
+    movies: list[MovieOut]

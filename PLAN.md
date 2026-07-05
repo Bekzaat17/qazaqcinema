@@ -9,6 +9,21 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Фаза 11 ЗАВЕРШЕНА — 11.1 сессии + 11.2 кэш каталога (2026-07-05):** добили Redis-фазу (бэк + фронт).
+**11.1 Сессии:** initData → bootstrap (HMAC 1 раз) → серверная сессия `session:<uuid>` (Redis, TTL 24 ч,
+порт `SessionStore`+`RedisSessionStore`, fail-open). `POST /api/auth` отдаёт токен в `AuthOut.token`
+(nullable). `get_current_user` стал **двухрежимным**: Authorization с `=` → initData (stateless HMAC —
+**фолбэк без Redis**), без `=` → session-токен → Redis → свежий User из БД. Фронт (`lib/api.ts`): токен
+в `localStorage`, `authHeader()`=токен??initData, на 401 — прозрачный ре-auth (дедуп параллельных).
+**11.2 Кэш:** агрегированный `GET /api/movies/home` (`{hero,movies}` одним ответом, `CatalogHomeOut`) —
+cache-aside `catalog:main` EX 600 (порт `CatalogCache`+`RedisCatalogCache`, fail-open, сырой JSON
+`Response` на хите); **инвалидация в `MovieIngestionService.ingest`** (новинка видна сразу). Фронт:
+`api.home()` в `load()` вместо `movies()`+`hero()`. Тесты (+11): `test_auth_dep` (двухрежим, 4),
+`test_catalog_home` (cache-aside, 2), `test_cache` (session+catalog адаптеры на fakeredis +fail-open, 5).
+Зелёное: ruff + mypy(94) + pytest(90 в контейнере / 83+7-скипа локально) + web build (71 КБ gzip) +
+браузер-превью (главная из `/home`) + живой Redis (сессия TTL 86400, кэш TTL 600). Осталась живая e2e в
+Telegram (реальные initData/токен). Дальше → **Фаза 12** (рассылки+уведомления) или добить **Фазу 10** (webhook+TLS+домен).
+
 **Фаза 11.3 + 11.4 — Redis-хардненинг: локи + rate-limit (2026-07-05):** первый инкремент Фазы 11,
 чистый бэкенд (фронт не тронут). **Паттерн порт+Redis-адаптер заложен:** пакет `app/infrastructure/
 cache/` + порты `application/ports/{lock,rate_limit}.py`; оба адаптера **fail-open** (Redis down →
@@ -385,7 +400,7 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 - [ ] Секреты (`.env.prod` вне git — шаблон есть) + бэкапы БД (том `pgdata`)
 - [ ] CORS под реальный домен Web App (сейчас `API_CORS_ORIGINS=*`)
 
-## Фаза 11 — Redis: скорость и устойчивость (сессии, кэш, rate-limit, локи)
+## Фаза 11 — Redis: скорость и устойчивость (сессии, кэш, rate-limit, локи) ✅ (2026-07-05)
 **Цель:** снять нагрузку с БД и защитить API. Redis в стеке (`redis>=5.2`, `redis.asyncio`;
 `RedisConfig.dsn`); **фундамент 11.0 готов** (клиент в DI + health-ping + `GET /api/health`), фичи —
 greenfield. Каждый концерн — через свой порт (`application/ports/`) + Redis-адаптер
@@ -400,33 +415,44 @@ greenfield. Каждый концерн — через свой порт (`appli
       (async-генератор в `di/providers.py`); health-ping при старте API (`api/app.py` lifespan) и
       бота (`main.py`) — fail-open. Бонус: `GET /api/health` (`api/routers/health.py`) пингует
       Redis+БД → `{redis,db,status}`. Проверено вживую (2026-07-05): `{"redis":"ok","db":"ok"}`.
-- [~] Пакет `infrastructure/cache/` (адаптеры) + порты `SessionStore`/`CatalogCache`/`RateLimiter`/
-      `Lock` (мелкие, раздельные — ISP). Готовы `Lock` + `RateLimiter` (11.3/11.4); `SessionStore`
-      (11.1) + `CatalogCache` (11.2) — ещё нет.
-- [~] Политика деградации: health-ping **fail-open**; rate-limit/локи (11.3/11.4) **fail-open**
-      реализованы (Redis down → пропускаем). Сессии→initData-фолбэк, кэш→прямой БД — при 11.1/11.2.
+- [x] Пакет `infrastructure/cache/` (адаптеры) + порты `SessionStore`/`CatalogCache`/`RateLimiter`/
+      `Lock` (мелкие, раздельные — ISP). Все четыре готовы (11.1–11.4).
+- [x] Политика деградации — вся **fail-open**: health-ping; rate-limit/локи → пропускают; сессии →
+      initData-фолбэк (двухрежимный `get_current_user`); кэш → прямой сбор из БД. Redis down не роняет ничего.
 
-### 11.1 — Сессионные токены (auth)
-> ⚠️ Меняет решение «stateless initData, без JWT»: initData остаётся **bootstrap-ом** (HMAC 1 раз),
-> далее — серверная сессия в Redis. Плюс: не верифицируем initData каждый клик, свой TTL. Минус:
-> состояние на сервере (Redis нужен для auth). Сам по себе initData дёшев (одна HMAC-SHA256) — это
-> про свой TTL/ревок сессии, а не про «дорого». initData не выкидываем: он — источник правды для входа.
-- [ ] `POST /api/auth`: валидирует initData → `session_token = uuid4()` → Redis
-      `session:<uuid> → {user_id, username}` c TTL 24 ч → вернуть токен фронту.
-- [ ] `get_current_user` принимает `Authorization: <session_token>`: смотрит Redis (≈1 мс); промах/
-      просрочка → 401 `session_expired` (фронт делает тихий повторный `auth()` по initData).
-- [ ] Порт `SessionStore` (create/get/refresh/delete) + Redis-адаптер; DI.
-- [ ] Web App: токен в `localStorage`, слать в `Authorization`; на 401 — прозрачный ре-auth.
-- [ ] Токен — только идентификатор сессии (в нём нет данных доступа); ревок сессии при бане/отписке.
+### 11.1 — Сессионные токены (auth) ✅ (2026-07-05)
+> ⚠️ Изменено решение «stateless initData, без JWT»: initData остался **bootstrap-ом** (HMAC 1 раз),
+> далее — серверная сессия в Redis. initData НЕ выкинут — он и bootstrap, и **fail-open фолбэк**.
+- [x] `POST /api/auth`: валидирует initData → `SessionStore.create` (`session:<uuid4().hex>` →
+      `{user_id, username}` TTL 24 ч) → отдаёт токен в `AuthOut.token` (nullable: Redis down → None).
+- [x] `get_current_user` **двухрежимный** (`api/deps/auth.py`): Authorization с `=` → initData
+      (stateless HMAC, Redis не нужен — фолбэк); без `=` → session-токен → Redis → свежий User из БД
+      (статус/срок — правда там). Промах/протух → 401 `session_expired`, битый initData → 401
+      `invalid_init_data`. Различаем по форме, обе ветки одинаково безопасны (токен неугадываем, initData — HMAC).
+- [x] Порт `SessionStore` (`application/ports/session.py`, методы create/get — минимально; refresh/
+      delete отложены до их вызывающих: sliding-TTL/ревок при бане) + `RedisSessionStore`
+      (`infrastructure/cache/session.py`, **fail-open**); DI (APP-scope).
+- [x] Web App (`lib/api.ts`): токен в `localStorage` (`qc_session`); `authHeader()` = токен ?? initData;
+      на 401 — прозрачный ре-auth по initData + повтор запроса ОДИН раз; `refreshSession` дедуплицирует
+      параллельные 401. Bootstrap-запрос `retried:true` (не зацикливать ре-auth на своём 401).
+- [x] Токен — только идентификатор сессии (данных доступа нет). Ревок при бане/отписке — с их фичей.
+- Тесты: `test_auth_dep.py` (4 — обе ветки + 401 промах/битый initData), `test_cache.py`
+      (RedisSessionStore roundtrip + fail-open). Проверено вживую на реальном Redis (TTL=86400).
 
-### 11.2 — Кэш каталога (cache-aside)
-- [ ] Агрегированный `GET /api/v1/catalog` — главный экран (hero + карусели) одним ответом, чтобы
-      фронт не дёргал `/movies` по каждой полке.
-- [ ] Cache-aside: `GET catalog:main` → есть → отдать; нет → собрать из БД → `SET catalog:main <json>
-      EX 600` (10 мин) → отдать. Порт `CatalogCache` (get/set/invalidate) + адаптер.
-- [ ] ⚠️ **Инвалидация на `/add`**: ingest нового фильма → `invalidate(catalog:main)`, иначе новинка
-      не видна до 10 мин (а авто-рассылка Фазы 12 уже зовёт на неё). Не забыть — ключевой момент.
-- [ ] Кэшируем только JSON; постеры — статика (Nginx/StaticFiles), их не трогаем.
+### 11.2 — Кэш каталога (cache-aside) ✅ (2026-07-05)
+- [x] Агрегированный `GET /api/movies/home` — главный экран (hero + все фильмы) одним ответом
+      (`CatalogHomeOut`), фронт больше не дёргает `/movies`+`/hero` раздельно. (Путь — в роутере
+      `/api/movies`, чтобы переиспользовать rate-limit+auth; отступление от плановых `/api/v1/catalog`.)
+- [x] Cache-aside: `cache.get()` → хит → отдаём сырой JSON `Response` (без пересериализации); промах →
+      собираем из БД → `SET catalog:main <json> EX 600` → отдаём. Порт `CatalogCache`
+      (`application/ports/catalog_cache.py`, get/set/invalidate) + `RedisCatalogCache` (**fail-open**).
+- [x] ⚠️ **Инвалидация на `/add`**: `MovieIngestionService.ingest` после `add` зовёт
+      `cache.invalidate()` → новинка видна сразу (не ждёт TTL; авто-рассылка Фазы 12 тоже придёт на неё).
+- [x] Кэшируем только JSON; постеры — статика, не трогаем. Фронт: `api.home()` в `load()`,
+      `buildShelves(homeRes.movies, homeRes.hero?.id)`. DEV-мок отдаёт `/api/movies/home`.
+- Тесты: `test_catalog_home.py` (хит без БД / промах строит+кэширует + DTO не утекает file_id),
+      `test_cache.py` (RedisCatalogCache set/get/invalidate + fail-open), `test_ingestion_service.py`
+      (invalidate на ingest). Проверено вживую (Redis TTL=600) + браузер-превью (главная из `/home`).
 
 ### 11.3 — Rate limiter (защита API от выкачки/спама) ✅ (2026-07-05)
 - [x] Порт `RateLimiter` (`application/ports/rate_limit.py`) + `RedisRateLimiter`

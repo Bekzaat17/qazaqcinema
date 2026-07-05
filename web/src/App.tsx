@@ -47,16 +47,15 @@ export default function App() {
   const load = useCallback(async () => {
     setPhase("loading");
     try {
-      const [authRes, moviesRes, tariffsRes, heroRes] = await Promise.all([
+      const [authRes, homeRes, tariffsRes] = await Promise.all([
         api.auth().catch(() => null), // авторизация не должна ронять весь экран
-        api.movies(),
+        api.home(), // hero + все фильмы одним кэшируемым ответом (Фаза 11.2)
         api.tariffs(),
-        api.hero().catch(() => null), // hero необязателен — не роняем экран из-за него
       ]);
       setAuth(authRes);
-      setMovies(moviesRes);
+      setMovies(homeRes.movies);
       setTariffs(tariffsRes);
-      setHero(heroRes);
+      setHero(homeRes.hero);
       setPhase("ready");
     } catch {
       setPhase("error");

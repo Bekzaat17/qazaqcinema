@@ -16,6 +16,7 @@ from dishka import AsyncContainer, Provider, Scope, make_async_container, provid
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
@@ -26,6 +27,7 @@ from app.application.ports.repositories import (
     UserRepository,
 )
 from app.application.ports.security import InitDataVerifier
+from app.application.ports.session import SessionStore
 from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
 from app.application.services.auth_service import AuthService
@@ -38,8 +40,10 @@ from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
+from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
+from app.infrastructure.cache.session import RedisSessionStore
 from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
     PgMovieRepository,
@@ -92,6 +96,16 @@ class AppProvider(Provider):
     def rate_limiter(self, redis: Redis) -> RateLimiter:
         # Тоже стейтлес-обёртка над Redis (Фаза 11.3, защита API от выкачки/спама).
         return RedisRateLimiter(redis)
+
+    @provide
+    def session_store(self, redis: Redis) -> SessionStore:
+        # Серверные сессии Web App (Фаза 11.1): initData → токен в Redis, TTL 24 ч.
+        return RedisSessionStore(redis)
+
+    @provide
+    def catalog_cache(self, redis: Redis) -> CatalogCache:
+        # Cache-aside главного экрана (Фаза 11.2): catalog:main EX 600, инвалидация на /add.
+        return RedisCatalogCache(redis)
 
     @provide
     def verifier(self, config: AppConfig) -> InitDataVerifier:

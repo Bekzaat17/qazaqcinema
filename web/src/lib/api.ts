@@ -5,6 +5,28 @@ import { getInitData } from "./telegram";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
+// ── Серверная сессия (Фаза 11.1) ──
+// initData — bootstrap (HMAC один раз). Дальше ходим с непрозрачным токеном из Redis,
+// хранимым в localStorage. На 401 (протух / Redis мигнул) — прозрачный ре-auth по initData.
+const SESSION_KEY = "qc_session";
+let sessionToken: string | null = localStorage.getItem(SESSION_KEY);
+
+interface RequestOpts {
+  auth?: string; // явный заголовок (bootstrap /api/auth всегда шлёт initData)
+  retried?: boolean; // защита от бесконечного цикла ре-auth
+}
+
+function setSessionToken(token: string | null): void {
+  sessionToken = token;
+  if (token) localStorage.setItem(SESSION_KEY, token);
+  else localStorage.removeItem(SESSION_KEY);
+}
+
+/** Authorization: серверный токен (после bootstrap) либо initData (bootstrap/фолбэк). */
+function authHeader(): string {
+  return sessionToken ?? getInitData();
+}
+
 /** Ошибка API с HTTP-статусом и машинным кодом (`detail`) — чтобы ветвить на 403 no_access и т.п. */
 export class ApiError extends Error {
   constructor(
@@ -27,7 +49,7 @@ async function readError(response: Response): Promise<never> {
   throw new ApiError(response.status, code);
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts): Promise<T> {
   // DEV вне Telegram (нет initData) → мок бэкенда, чтобы отлаживать вёрстку в браузере.
   // В прод-сборке import.meta.env.DEV === false → ветка мертва, devMock не бандлится.
   if (import.meta.env.DEV && !getInitData()) {
@@ -38,12 +60,36 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
-      Authorization: getInitData(),
+      Authorization: opts?.auth ?? authHeader(),
       ...(init?.headers ?? {}),
     },
   });
+  // Токен протух / Redis мигнул → сбрасываем сессию, чиним её и повторяем запрос ОДИН раз.
+  // Ре-auth идёт по initData (stateless HMAC), поэтому переживает недоступность Redis.
+  if (response.status === 401 && sessionToken && !opts?.retried) {
+    setSessionToken(null);
+    await refreshSession();
+    return request<T>(path, init, { retried: true });
+  }
   if (!response.ok) return readError(response);
   return (await response.json()) as T;
+}
+
+let refreshing: Promise<Auth> | null = null;
+
+/** Bootstrap/ре-auth по initData: сервер заводит сессию, сохраняем токен (null при Redis-дауне). */
+function refreshSession(): Promise<Auth> {
+  // dedupe: параллельные 401 не должны стрелять несколькими /api/auth. retried:true —
+  // сам bootstrap повторять некуда (иначе рекурсия ре-auth на собственный 401).
+  refreshing ??= request<Auth>("/api/auth", { method: "POST" }, { auth: getInitData(), retried: true })
+    .then((auth) => {
+      setSessionToken(auth.token ?? null);
+      return auth;
+    })
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
 }
 
 // ── DTO (зеркала pydantic-схем бэкенда) ──
@@ -54,6 +100,7 @@ export interface Auth {
   status: UserStatus;
   expires_at: string | null;
   has_access: boolean;
+  token?: string | null; // серверная сессия (Фаза 11.1); null → остаёмся на initData
 }
 
 export interface Movie {
@@ -67,6 +114,12 @@ export interface Movie {
   year: number | null;
   rating: number | null;
   hero_image_url?: string | null; // горизонтальный баннер, если фильм показан на hero
+}
+
+/** Агрегат главного экрана (Фаза 11.2): hero + все фильмы одним ответом. */
+export interface CatalogHome {
+  hero: Movie | null;
+  movies: Movie[];
 }
 
 export interface Tariff {
@@ -95,7 +148,11 @@ export interface ProofAccepted {
 }
 
 export const api = {
-  auth: () => request<Auth>("/api/auth", { method: "POST" }),
+  /** Bootstrap/ре-auth: initData → сессия. Токен кладётся в localStorage автоматически. */
+  auth: () => refreshSession(),
+
+  /** Главный экран одним ответом (hero + фильмы); кэшируется на бэке cache-aside (Фаза 11.2). */
+  home: () => request<CatalogHome>("/api/movies/home"),
 
   movies: (category?: string) =>
     request<Movie[]>(`/api/movies${category ? `?category=${encodeURIComponent(category)}` : ""}`),

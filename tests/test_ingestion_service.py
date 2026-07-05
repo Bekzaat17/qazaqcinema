@@ -43,12 +43,27 @@ class _FakeNotifier:
         self.messages.append(text)
 
 
+class _FakeCache:
+    def __init__(self) -> None:
+        self.invalidated = 0
+
+    async def get(self) -> str | None:
+        return None
+
+    async def set(self, payload: str) -> None:
+        pass
+
+    async def invalidate(self) -> None:
+        self.invalidated += 1
+
+
 async def test_ingest_saves_poster_persists_and_notifies() -> None:
     movies = _FakeMovies()
     posters = _FakePosters()
     images = _FakeImages()
     notifier = _FakeNotifier()
-    service = MovieIngestionService(movies, notifier, posters, images)
+    cache = _FakeCache()
+    service = MovieIngestionService(movies, notifier, posters, images, cache)
 
     movie = await service.ingest(
         title_kk="Арыстан Патша",
@@ -72,6 +87,7 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     assert images.calls == [(b"image-bytes", POSTER)]  # нормализован к 2:3
     assert movies.added[0].title_ru == "Король Лев"
     assert any("Арыстан Патша" in message for message in notifier.messages)
+    assert cache.invalidated == 1                       # кэш главной сброшен → новинка видна
 
 
 async def test_ingest_featured_saves_hero_banner() -> None:
@@ -79,7 +95,7 @@ async def test_ingest_featured_saves_hero_banner() -> None:
     posters = _FakePosters()
     images = _FakeImages()
     notifier = _FakeNotifier()
-    service = MovieIngestionService(movies, notifier, posters, images)
+    service = MovieIngestionService(movies, notifier, posters, images, _FakeCache())
 
     movie = await service.ingest(
         title_kk="Наруто",

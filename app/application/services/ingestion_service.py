@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.images import HERO, POSTER, ImageProcessor
 from app.application.ports.repositories import MovieRepository
 from app.application.ports.storage import PosterStorage
@@ -22,11 +23,13 @@ class MovieIngestionService:
         notifier: TelegramNotifier,
         posters: PosterStorage,
         images: ImageProcessor,
+        catalog_cache: CatalogCache,
     ) -> None:
         self._movies = movies
         self._notifier = notifier
         self._posters = posters
         self._images = images
+        self._cache = catalog_cache
 
     async def ingest(
         self,
@@ -68,6 +71,8 @@ class MovieIngestionService:
             hero_image_url=hero_url,
         )
         saved = await self._movies.add(movie)
+        # Сбрасываем кэш главной, иначе новинка не видна до истечения TTL (Фаза 11.2).
+        await self._cache.invalidate()
         await self._notifier.notify_admins(
             f"✅ Фильм «{saved.title_kk}» добавлен. ID: {saved.id}"
         )

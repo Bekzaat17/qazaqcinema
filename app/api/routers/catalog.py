@@ -5,11 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.api.deps.auth import get_current_user
 from app.api.deps.rate_limit import rate_limit
-from app.api.schemas.movie import MovieOut, PlayOut
+from app.api.schemas.movie import CatalogHomeOut, MovieOut, PlayOut
+from app.application.ports.catalog_cache import CatalogCache
 from app.application.services.catalog_service import CatalogService
 from app.application.services.playback_service import PlaybackOutcome, PlaybackService
 from app.domain.entities.user import User
@@ -58,6 +59,32 @@ async def hero_movie(
     """
     movie = await catalog.get_hero()
     return MovieOut.from_domain(movie) if movie is not None else None
+
+
+@router.get("/home")
+async def catalog_home(
+    cache: FromDishka[CatalogCache],
+    catalog: FromDishka[CatalogService],
+    _user: User = Depends(get_current_user),
+) -> Response:
+    """Главный экран одним ответом (hero + все фильмы), cache-aside (Фаза 11.2).
+
+    Хит — отдаём готовый JSON из Redis; промах — собираем из БД, кладём в кэш (EX 600).
+    Инвалидируется при `/add` (см. MovieIngestionService). Определён ДО `/{movie_id}`.
+    Отдаём сырой `Response`, чтобы на хите не пересериализовывать кэш.
+    """
+    cached = await cache.get()
+    if cached is not None:
+        return Response(content=cached, media_type="application/json")
+    movies = await catalog.list_movies(None)
+    hero = await catalog.get_hero()
+    payload = CatalogHomeOut(
+        hero=MovieOut.from_domain(hero) if hero is not None else None,
+        movies=[MovieOut.from_domain(movie) for movie in movies],
+    )
+    body = payload.model_dump_json()
+    await cache.set(body)
+    return Response(content=body, media_type="application/json")
 
 
 @router.get("/{movie_id}", response_model=MovieOut)

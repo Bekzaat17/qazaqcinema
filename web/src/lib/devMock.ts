@@ -2,7 +2,7 @@
 // и без запущенного API) для отладки вёрстки. В прод-сборку НЕ попадает: вызывается только из
 // ветки `import.meta.env.DEV && !initData` через динамический import (Vite вырезает её в проде).
 
-import type { Auth, Movie, PaymentInit, ProofAccepted, Tariff } from "./api";
+import type { Auth, CatalogHome, Movie, PaymentInit, ProofAccepted, Tariff } from "./api";
 
 const poster = (seed: string) => `https://picsum.photos/seed/${seed}/400/600`;
 
@@ -30,6 +30,7 @@ const AUTH: Auth = {
   status: "active",
   expires_at: new Date(Date.now() + 20 * 86_400_000).toISOString(),
   has_access: true,
+  token: null, // в dev-моке токен-флоу не задействован (request() уходит в мок до fetch)
 };
 
 export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -39,6 +40,7 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   let data: unknown;
   if (p === "/api/auth") data = AUTH;
+  else if (p === "/api/movies/home") data = { hero: HERO_MOVIE, movies: MOVIES } satisfies CatalogHome;
   else if (p === "/api/movies/hero") data = HERO_MOVIE;
   else if (p === "/api/movies/search") {
     const term = (q.get("q") ?? "").toLowerCase();
