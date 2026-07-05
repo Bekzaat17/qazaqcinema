@@ -9,6 +9,19 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Фаза 10 — код/конфиг прода готовы (2026-07-05):** всё параметризовано через env, локаль
+(`./start.sh` = polling + :80) не тронута; живой деплой — по [DEPLOY.md](DEPLOY.md) (домена пока нет).
+**Webhook:** тумблер по `BOT_WEBHOOK_URL` (пусто → polling); aiohttp-сервер вебхука В процессе бота
+(`app/main.py`: `SimpleRequestHandler`+`setup_application`), Nginx проксирует `/tg/`→`bot:8080`, секрет-
+токен валидирует aiogram. **Nginx TLS:** один образ, TLS по env (`WEB_TLS`/`WEB_SERVER_NAME`); entrypoint
+`web/nginx/40-qc-config.sh` выбирает http/https-конфиг, **автофолбэк** `WEB_TLS=true` без серта → HTTP
+(обслуживает ACME → снимает «курица-яйцо»); сервис `certbot` (profile). **Бэкапы:** `./start.sh backup`
+(`pg_dump|gzip`, ротация 14). **CORS/секреты:** `API_CORS_ORIGINS`→домен, `.env.prod.example` дополнен
+(webhook/TLS), `certbot/`+`backups/` в .gitignore. **DEPLOY.md** — пошаговый чеклист. Проверено: ruff +
+mypy(94) + pytest(85) + `nginx -t` (http / tls-с-сертом / tls-без-серта→http-фолбэк) + `compose config`
+(local WEB_TLS=false / prod true) + web-образ собран. Осталось (за пользователем на VPS): DNS, `certbot
+certonly`, живой webhook. Дальше → **Фаза 12** (рассылки + уведомления) — последняя крупная.
+
 **Фаза 11 ЗАВЕРШЕНА — 11.1 сессии + 11.2 кэш каталога (2026-07-05):** добили Redis-фазу (бэк + фронт).
 **11.1 Сессии:** initData → bootstrap (HMAC 1 раз) → серверная сессия `session:<uuid>` (Redis, TTL 24 ч,
 порт `SessionStore`+`RedisSessionStore`, fail-open). `POST /api/auth` отдаёт токен в `AuthOut.token`
@@ -390,15 +403,24 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 - [x] Сборка `npm run build` зелёная (`tsc -b` strict + `vite build`, 71 КБ gzip). Отдача статики
       `web/dist` — за Фазой 10 (Nginx/StaticFiles); в dev — Vite-прокси `/api`+`/posters`.
 
-## Фаза 10 — Прод
-> Прагматичная база готова (2026-07-04, `./start.sh prod`): полный стек в Docker (polling), web
-> собран за nginx (:80, проксирует `/api`+`/posters`), авто-миграции (`migrate`-сервис), `uploads/`-
-> том, `.env.prod` (шаблон `.env.prod.example`). Осталось «настоящее прод-разворачивание» под домен:
-- [ ] aiogram webhook вместо polling; FastAPI-роут вебхука
-- [ ] Nginx: TLS + реальный домен Web App (сейчас nginx на :80 по IP, без TLS)
-- [x] Прод-конфиг compose + отдача статики `web/dist` (nginx): `docker-compose.prod.yml` + `web/Dockerfile`
-- [ ] Секреты (`.env.prod` вне git — шаблон есть) + бэкапы БД (том `pgdata`)
-- [ ] CORS под реальный домен Web App (сейчас `API_CORS_ORIGINS=*`)
+## Фаза 10 — Прод ✅ код/конфиг готовы (2026-07-05); живой деплой — по [DEPLOY.md](DEPLOY.md)
+> База была готова с 2026-07-04. Добито 2026-07-05: всё параметризовано через env, локаль
+> (polling+:80) не тронута. Живые шаги (DNS, certbot, set_webhook) — на VPS по DEPLOY.md.
+- [x] aiogram **webhook вместо polling** — тумблер по `BOT_WEBHOOK_URL` (пусто → polling). Реализация:
+      aiohttp-сервер вебхука В процессе бота (`SimpleRequestHandler`+`setup_application`, `app/main.py`),
+      а НЕ FastAPI-роут — так бот сохраняет владение диспетчером+шедулером, api не трогаем. Nginx
+      проксирует `/tg/` → `bot:8080`. Секрет-токен заголовка валидирует aiogram. Config:
+      `BOT_WEBHOOK_{URL,PATH,SECRET,PORT}`.
+- [x] **Nginx TLS + домен** — один образ, TLS переключается env (`WEB_TLS`/`WEB_SERVER_NAME`);
+      entrypoint-скрипт `web/nginx/40-qc-config.sh` выбирает http.conf (:80) или https.conf.template
+      (:443, envsubst домена). **Автофолбэк**: `WEB_TLS=true` без сертификата → HTTP :80 (обслуживает
+      ACME) — снимает «курица-яйцо». Сервис `certbot` (profile) для выпуска/продления. Проверено
+      `nginx -t`: http / tls-с-сертом / tls-без-серта→http.
+- [x] Прод-конфиг compose + отдача статики `web/dist` (nginx) — единый `docker-compose.yml`.
+- [x] Секреты (`.env.prod` вне git — шаблон дополнен webhook/TLS) + **бэкапы БД** (`./start.sh backup`
+      — `pg_dump|gzip`, ротация 14, cron в DEPLOY.md; `certbot/`+`backups/` в .gitignore).
+- [x] CORS под домен — `API_CORS_ORIGINS` (env; в проде всё равно same-origin за nginx); шаблон → домен.
+- [x] **DEPLOY.md** — пошаговый чеклист вывода в прод (DNS → секреты → certbot → webhook → бэкапы → продление).
 
 ## Фаза 11 — Redis: скорость и устойчивость (сессии, кэш, rate-limit, локи) ✅ (2026-07-05)
 **Цель:** снять нагрузку с БД и защитить API. Redis в стеке (`redis>=5.2`, `redis.asyncio`;

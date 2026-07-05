@@ -9,6 +9,7 @@
 #   ./start.sh prod         # те же контейнеры, env = .env.prod
 #   ./start.sh test         # ruff + mypy + pytest В КОНТЕЙНЕРЕ (env = .env.test, изолированная БД)
 #   ./start.sh migrate      # применить миграции (alembic upgrade head) и выйти
+#   ./start.sh backup       # дамп БД в backups/ (pg_dump|gzip, ротация 14; для cron на VPS)
 #   ./start.sh logs [svc]   # логи всех сервисов или одного (Ctrl-C — выйти)
 #   ./start.sh ps           # статус контейнеров
 #   ./start.sh down         # остановить стек (данные в томах сохраняются)
@@ -97,6 +98,21 @@ case "$MODE" in
     ef="$(default_env)"
     info "Применяю миграции (alembic upgrade head)…"
     dc "$ef" run --rm migrate
+    ;;
+
+  backup)
+    # Дамп рабочей БД из контейнера postgres. Env-файл: .env.prod (прод), иначе default.
+    ef=".env.prod"; [ -f "$ef" ] || ef="$(default_env)"
+    db_user="$(grep -E '^DB_USER=' "$ef" | cut -d= -f2)"; db_user="${db_user:-qazaqcinema}"
+    db_name="$(grep -E '^DB_NAME=' "$ef" | cut -d= -f2)"; db_name="${db_name:-qazaqcinema}"
+    mkdir -p backups
+    out="backups/${db_name}-$(date +%Y%m%d-%H%M%S).sql.gz"
+    info "Бэкап БД '$db_name' → $out"
+    dc "$ef" exec -T postgres pg_dump -U "$db_user" "$db_name" | gzip > "$out"
+    [ -s "$out" ] || { rm -f -- "$out"; die "Пустой дамп — postgres поднят? (./start.sh ps)"; }
+    # ротация: держим последние 14 (без GNU-специфичного xargs -r)
+    ls -1t "backups/${db_name}"-*.sql.gz 2>/dev/null | tail -n +15 | while IFS= read -r old; do rm -f -- "$old"; done
+    info "Готово: $out ($(du -h "$out" | cut -f1))"
     ;;
 
   logs) dc "$(default_env)" logs -f "$@" ;;

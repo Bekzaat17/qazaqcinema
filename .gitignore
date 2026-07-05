@@ -19,6 +19,8 @@ __pycache__/
 *.sqlite3
 # постеры (uploads/posters) и прочая локальная статика (inline-коммент сломал бы паттерн)
 /uploads/
+/certbot/
+/backups/
 
 # --- frontend ---
 web/node_modules/

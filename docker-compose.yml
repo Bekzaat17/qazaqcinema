@@ -92,21 +92,42 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    # polling (dev) или webhook (прод, если задан BOT_WEBHOOK_URL) — выбор в app.main по env.
+    # В webhook-режиме бот слушает :8080 внутри сети compose; nginx (web) проксирует на bot:8080.
     command: python -m app.main
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped
 
-  # Фронт: собран в статику, раздаётся nginx + проксирует /api и /posters на api
-  # (единый origin, CORS не нужен). Один образ и в dev, и в prod.
+  # Фронт: собран в статику, раздаётся nginx + проксирует /api, /posters (и /tg-вебхук в TLS)
+  # на api/bot (единый origin, CORS не нужен). Один образ везде; TLS/домен — через env
+  # (WEB_TLS/WEB_SERVER_NAME), выбор конфига делает entrypoint-скрипт (web/nginx/).
   web:
     build:
       context: ./web
+    # Только эти две переменные (интерполяция из env-файла) — секреты приложения в
+    # nginx-контейнер НЕ пробрасываем. Локально WEB_TLS не задан → false → HTTP :80.
+    environment:
+      WEB_TLS: ${WEB_TLS:-false}
+      WEB_SERVER_NAME: ${WEB_SERVER_NAME:-_}
     depends_on:
       - api
     ports:
       - "80:80"
+      - "443:443"                   # TLS; локально (WEB_TLS=false) nginx на 443 не слушает — хармлесс
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt:ro   # сертификаты Let's Encrypt (пусто, пока не выпущены)
+      - ./certbot/www:/var/www/certbot:ro    # ACME webroot-челлендж
     restart: unless-stopped
+
+  # Выпуск/продление TLS-сертификатов Let's Encrypt. НЕ в обычном up (профиль certbot) —
+  # вызывается явно (команды — в DEPLOY.md). После выпуска/продления: docker compose restart web.
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    profiles: ["certbot"]
 
   # Тесты (профиль test — в обычный up НЕ попадает). Запуск: ./start.sh test.
   # Гоняет ruff+mypy+pytest в контейнере (образ-стадия test) против postgres compose.

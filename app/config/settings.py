@@ -37,7 +37,18 @@ class BotConfig(BaseSettings):
     archive_channel_id: int = 0     # секретный канал-архив с видео
     webapp_url: str = ""            # URL Web App (кнопка 🍿)
 
+    # Вебхук (прод). Пусто → polling (локально/дев). Заполнено → бот слушает webhook.
+    webhook_url: str = ""           # публичный HTTPS base, напр. https://cinema.example (без пути)
+    webhook_path: str = "/tg/webhook"  # путь, куда Telegram POST'ит апдейты (Nginx → bot:port)
+    webhook_secret: SecretStr = SecretStr("")  # секрет-токен заголовка (валидирует aiogram)
+    webhook_port: int = 8080        # внутренний порт aiohttp-сервера вебхука (наружу — через Nginx)
+
     _ids = field_validator("admin_user_ids", mode="before")(_split_csv_ints)
+
+    @property
+    def webhook_full_url(self) -> str:
+        """Полный URL вебхука (base + path) для `set_webhook`."""
+        return self.webhook_url.rstrip("/") + self.webhook_path
 
 
 class DatabaseConfig(BaseSettings):

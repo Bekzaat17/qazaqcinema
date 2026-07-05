@@ -1,0 +1,60 @@
+# Nginx С TLS (:443) + редирект с :80. Активируется, когда WEB_TLS=true И есть сертификат
+# (см. 40-qc-config.sh). ${WEB_SERVER_NAME} подставляет envsubst; nginx-переменные ($host,
+# $uri, …) он НЕ трогает (envsubst вызван с явным списком только WEB_SERVER_NAME).
+server {
+    listen 80;
+    server_name ${WEB_SERVER_NAME};
+
+    # ACME-челлендж (для продления сертификата) — до редиректа.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${WEB_SERVER_NAME};
+
+    ssl_certificate     /etc/letsencrypt/live/${WEB_SERVER_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${WEB_SERVER_NAME}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # SPA
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri /index.html;
+    }
+
+    # API → api-контейнер (тот же origin → CORS не нужен).
+    location /api/ {
+        client_max_body_size 12m;          # чек Kaspi (/api/payments/proof) до 10 МБ
+        proxy_pass http://api:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Постеры (StaticFiles на api).
+    location /posters/ {
+        proxy_pass http://api:8000;
+        proxy_set_header Host $host;
+    }
+
+    # Вебхук Telegram → bot-контейнер (aiohttp). Префикс должен совпадать с BOT_WEBHOOK_PATH
+    # (по умолчанию /tg/webhook → проксируем весь /tg/).
+    location /tg/ {
+        proxy_pass http://bot:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
