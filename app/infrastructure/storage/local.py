@@ -19,8 +19,10 @@ class LocalPosterStorage:
         self._dir = Path(media.root) / "posters"
         self._url_base = media.posters_url_base.rstrip("/")
 
-    async def save(self, data: bytes, ext: str = "jpg") -> str:
-        name = f"{uuid4().hex}.{ext}"
+    async def save(self, data: bytes) -> str:
+        # Постер уже нормализован в JPEG (ImageProcessor) → расширение фиксировано, в имя
+        # не подставляем внешних строк (никакой path-инъекции); uuid — без перечислимости.
+        name = f"{uuid4().hex}.jpg"
         await asyncio.to_thread(self._write, self._dir / name, data)
         return f"{self._url_base}/{name}"
 

@@ -19,10 +19,11 @@ Telegram Stars). Контент наполняет админ через бот-
 - **dishka** — DI-контейнер (composition root)
 - **apscheduler** — фоновые задачи (сброс просроченных подписок)
 - **redis (`redis.asyncio`)** — клиент в DI (APP-scope, graceful close) + health-ping + `GET /api/health`.
-  **Фаза 11 закрыта:** сессии (`SessionStore`), кэш каталога (`CatalogCache`), rate-limit, локи —
-  мелкие порты `application/ports/` + адаптеры `infrastructure/cache/`, все **fail-open** (Redis down
-  ничего не роняет: сессии→initData-фолбэк, кэш→прямая БД, rate-limit/локи→пропускают). Осталась
-  очередь рассылок — Фаза 12.
+  **Фазы 11 и 12 закрыты:** сессии (`SessionStore`), кэш каталога (`CatalogCache`), rate-limit, локи,
+  **очередь рассылок (`BroadcastQueue`, Фаза 12)** — мелкие порты `application/ports/` + адаптеры
+  `infrastructure/cache/`, все **fail-open** (Redis down ничего не роняет: сессии→initData-фолбэк,
+  кэш→прямая БД, rate-limit/локи→пропускают, рассылка→enqueue no-op). Очередь — reliable Redis-list
+  (crash-safe, at-least-once), разбирает отдельный `worker`-процесс (`app/worker.py`).
 - **React 19 + Vite 6 + TypeScript + Tailwind v4** — Web App (`web/`)
 - **UI-кит фронта:** иконки — **`lucide-react`** (открытый ISC-набор; единственный источник иконок,
   эмодзи-заглушки заменены на векторные); шрифт — **Inter** (Google Fonts, покрывает казахскую
@@ -41,10 +42,10 @@ Bot и API — два «presentation»-входа, оба тонкие: дост
 ```
 app/
   bot/            # Presentation #1. ТОЛЬКО здесь импортируется aiogram
-    handlers/     # start, add_movie (визард /add), inline_query (подсказка-кнопка), moderation (✅/❌), stars (оплата)
+    handlers/     # start, add_movie (визард /add), broadcast (/broadcast), inline_query, moderation (✅/❌), stars (оплата)
     keyboards/    # webapp-кнопка, клавиатура модерации
   api/            # Presentation #2. FastAPI
-    routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек), health (redis+БД ping)
+    routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек), me (тумблер рассылок), health
     schemas/      # pydantic DTO — БЕЗ telegram_file_id наружу
     deps/         # auth: get_current_user + require_active_access (initData-гейт)
   domain/         # Ядро. Без внешних зависимостей. POPO + dataclass
@@ -55,16 +56,18 @@ app/
     subscription/ # expiry.compute_expiry (чистый расчёт срока)
     registry.py   # generic Registry[T] (PEP 695) — задел для slug-плагинов
   application/    # Use-cases
-    ports/        # Protocol-интерфейсы: repositories, payments, telegram, security  ← границы DIP/ISP
-    services/     # Auth, Catalog, MovieIngestion, Subscription, Payment — зависят ТОЛЬКО от портов
+    ports/        # Protocol-интерфейсы: repositories, payments, telegram, security, broadcast  ← границы DIP/ISP
+    services/     # Auth, Catalog, MovieIngestion, Subscription, Payment, Broadcast — зависят ТОЛЬКО от портов
   infrastructure/ # Адаптеры (реализации портов)
     db/           # models (ORM) + engine + repositories (мапят ORM↔domain)
     telegram/     # init_data (HMAC-валидатор) + notifier (поверх aiogram Bot)
     payments/     # kaspi (ручная), stars (Telegram Stars) — реализации PaymentProvider
+    cache/        # Redis-адаптеры: session, catalog, lock, rate_limiter, broadcast (все fail-open)
     di/           # providers.py — composition root (dishka)
     scheduler.py  # apscheduler
   config/         # pydantic-settings, load_config()
-  main.py         # сборка контейнера, polling
+  main.py         # сборка контейнера, polling/webhook
+  worker.py       # процесс-worker рассылок (Redis-очередь → Bot API, Фаза 12)
 ```
 
 ## Модель гибкости (понять до правок)
@@ -87,6 +90,7 @@ app/
 | DTO + защита данных | `api/schemas/*` (нет `telegram_file_id`) |
 | Валидатор initData (HMAC) | `infrastructure/telegram/init_data.py` |
 | Generic Registry (PEP 695) | `domain/registry.py` |
+| Reliable-queue (Redis) + worker | `application/ports/broadcast.py` ↔ `infrastructure/cache/broadcast.py`, `app/worker.py` |
 | DI / composition root | `infrastructure/di/providers.py`, `main.py`, `api/app.py` |
 | Миграции БД (async) | `alembic.ini`, `migrations/env.py` |
 
@@ -288,15 +292,64 @@ http.conf (:80) или https.conf.template (:443, envsubst только доме
 `compose config` (local false / prod true) + web-образ собран. ⚠️ Живые шаги (DNS, certbot certonly,
 webhook) — на VPS по DEPLOY.md; домена пока нет.
 
+**Сделано (Фаза 12 — рассылки + уведомления о новинках, 2026-07-06): ПОСЛЕДНЯЯ КРУПНАЯ ФАЗА ЗАКРЫТА.**
+Бэк + фронт. **Библиотека (план флагнул «решить при старте»):** свой минимальный Redis-list reliable-
+queue, БЕЗ новой зависимости (паттерн `infrastructure/cache/`, философия проекта; arq отклонён).
+**Очередь (12.0):** порт `BroadcastQueue` (`ports/broadcast.py`: enqueue/reserve/ack/recover +
+`BroadcastMessage`/`BroadcastJob`) → `RedisBroadcastQueue` — Redis List `broadcast:pending`, **crash-safe**
+(reserve=`LMOVE` в `broadcast:processing`, не теряется до `ack`=`LREM`; `recover` при старте возвращает
+незавершённые → at-least-once), payload `broadcast:msg:<uuid>` EX 24ч, **fail-open** (Redis down →
+enqueue 0, /add не падает). **Worker (`app/worker.py`, сервис `worker` в compose):** `reserve(25)`→шлёт→
+`ack` ПОСЛЕ отправки, `sleep(1)`/пачку (~25 msg/s < лимит TG); `RetryAfter`→пауза+повтор, `Forbidden/
+BadRequest`→`set_notifications(False)`. Порт `TelegramNotifier.send_broadcast` (фото+web_app-кнопка /
+текст; фолбэк на текст, если TG не забрал постер по URL). **Opt-out (12.1):** `User.notifications_enabled`
+(домен+ORM+миграция `c7e8f9a0b1c2`, server_default true→backfill); **инвариант: `upsert` НЕ трогает флаг**
+(не в on_conflict set_) — меняет только `set_notifications` (точечный UPDATE); `list_notifiable()` —
+аудитория; `PATCH /api/me/notifications` + `AuthOut.notifications_enabled`; фронт — тумблер в профиле
+(колокол+switch, оптимистичный, откат при ошибке). **Авто-новинка (12.2):** `MovieIngestionService.ingest`
+→ `BroadcastService.notify_new_movie` в try/except (сбой рассылки не роняет добавление; кэш уже инвалидирован
+11.2). **Ручная (12.3):** бот `/broadcast` (админ-гейт, FSM текст→подтверждение→`broadcast_custom`).
+`BroadcastService` (REQUEST, webapp_url примитивом в DI, как kaspi у провайдера). Тесты (+16): очередь на
+fakeredis (7), сервис (4), нотификатор (3), worker `_deliver` (2), repo-инвариант (2). Зелёное в контейнере:
+**ruff + mypy(100) + pytest(110, 0 скипов)** + web build (71.9 КБ gzip) + браузер-превью (тумблер true↔false).
+⚠️ На живой БД: `alembic upgrade head` (авто в `./start.sh` через `migrate`). **ВСЕ 12 ФАЗ ГОТОВЫ.**
+
+**Сделано (Ревью пост-Фаза 12 — хардненинг перед продом, 2026-07-06):** полное ревью проекта
+(бэк+фронт), глубина «устойчивость+чистота» (без рискового перфа). Код признан здоровым — правки
+точечные. **Устойчивость (P1):** (1) worker `_deliver` — транзиентные сбои (`TelegramNetworkError`/
+`ServerError`, они ⊂ `TelegramAPIError`) больше не теряются: один повтор; ветка после `RetryAfter`
+теперь тоже снимает заблокировавших с рассылок; (2) `/play` при недоступном получателе (не открыл чат
+с ботом) → адаптер ловит Telegram `Forbidden`/«chat not found» → доменное `RecipientUnreachableError`
+→ `PlaybackOutcome.BOT_BLOCKED` → **409 `bot_unreachable`** (не 500), фронт показывает «Алдымен ботпен
+чатты ашыңыз»; (3) инвариант **РОВНО ОДИН worker** зафиксирован в docstring очереди + comment в compose
+(reliable-queue single-consumer: `recover` при 2+ репликах утащит чужие in-flight → дубли). **Чистота
+(P2):** `reserve` резолвит payload один раз на `mid` (не N GET на пачку); `set_notifications` — точечный
+`UPDATE` (без загрузки строки); rate-limit на `PATCH /api/me/notifications` (30/60с); `PosterStorage.save`
+— убран мёртвый/небезопасный `ext` (постер всегда JPEG после `ImageProcessor`); удалён мёртвый фронт-
+экспорт `openBotChat`; освежены устаревшие комментарии. Зелёное в контейнере: **ruff + mypy(100) +
+pytest(114, +4)** + web build (71.9 КБ gzip).
+
+**Сделано (Ревью пост-Фаза 12 — изоляция тест-БД была СЛОМАНА, починена, 2026-07-06):** ревизия вскрыла,
+что «изоляция БД тестов» (заявленная закрытой 2026-07-04) **не работала**: `docker compose run` (путь
+`./start.sh test`) НЕ применяет `env_file`, только `environment:` → в тест-контейнере `DB_NAME` дефолтил
+в рабочую `qazaqcinema`, и `./start.sh test` втихую сносил рабочие данные (этим же conftest-ом я и
+затёр локальную БД в этой сессии). **Фикс в три слоя:** (1) `docker-compose.yml` — `DB_NAME:
+qazaqcinema_test` задан ЯВНО в `environment:` тест-сервиса; (2) `conftest` — предохранитель
+`_require_test_db()`: рушить/чистить только БД на `_test`, иначе тест СКИПается (хостовый `pytest` по
+рабочей БД больше не вайпает — проверено: 9 skip); (3) **убран `drop_all`** (просьба пользователя) —
+`create_all` идемпотентен, данные чистит `TRUNCATE`. ⚠️ При смене схемы пересоздать тест-БД
+(`dropdb qazaqcinema_test` → `./start.sh test`; `create_all` не добавляет колонки в существующие
+таблицы). Проверено: `./start.sh test` = 114 passed по изолированной `_test`-БД, рабочая не тронута.
+
 **Не сделано — по приоритету (детали в PLAN.md):**
 1. Прод (Фаза 10): ✅ **код/конфиг готовы** (webhook-тумблер, nginx TLS по env + автофолбэк, бэкапы,
    CORS, DEPLOY.md). Осталось живое (на VPS, за пользователем): DNS, `certbot certonly`, живой webhook.
 2. Redis (Фаза 11): ✅ **ЗАКРЫТА ВСЯ** — фундамент (11.0) + сессии (11.1) + кэш каталога (11.2) +
    rate-limit (11.3) + локи (11.4). Порты `application/ports/` + адаптеры `infrastructure/cache/`,
    все fail-open. Осталась только живая e2e в Telegram (реальные initData/токен).
-3. Рассылки (Фаза 12): очередь на Redis + worker (~25–30 msg/s, crash-safe, ловит `RetryAfter`),
-   авто-уведомление о новинке на `/add`, юзер-тумблер уведомлений (`notifications_enabled`, по
-   умолчанию ВКЛ + миграция), ручная рассылка админом.
+3. Рассылки (Фаза 12): ✅ **ЗАКРЫТА ВСЯ** — очередь+worker (12.0), opt-out+тумблер (12.1), авто-новинка
+   (12.2), ручной `/broadcast` (12.3). Reliable Redis-list, fail-open, свой worker (без arq). Осталась
+   только живая e2e в Telegram (реальная рассылка на аудитории).
 ⚠️ Чоры (вне фаз): (a) ✅ исправлено (2026-07-04): `./start.sh test` гонит pytest в ИЗОЛИРОВАННОЙ
 `qazaqcinema_test` (env-override `DB_NAME` через `.env.test`) — рабочую БД не трогает; сам `conftest`
 по-прежнему `drop/create` по своей `DatabaseConfig().dsn`, но теперь это тест-БД; (b) ✅ исправлено
@@ -393,6 +446,18 @@ webhook) — на VPS по DEPLOY.md; домена пока нет.
   cache-aside `catalog:main` EX 600 за агрегированным `GET /api/movies/home`, **инвалидация в
   `MovieIngestionService.ingest`** (иначе новинка не видна до TTL). Тесты кэш-адаптеров — на
   **fakeredis** (dev-зависимость), не на живом Redis (тот в `./start.sh test` не поднимается).
+- **Рассылки — свой Redis-list reliable-queue + отдельный worker, БЕЗ arq** (Фаза 12, 2026-07-06):
+  план флагнул «arq vs своё» — выбрали своё (нет новой зависимости, ровно паттерн `infrastructure/
+  cache/` порт+адаптер, философия проекта). Очередь `BroadcastQueue` (`broadcast:pending` List) —
+  **crash-safe**: `reserve`=`LMOVE` в `broadcast:processing` (задание не теряется до `ack`=`LREM`),
+  `recover` при старте возвращает незавершённые (**at-least-once**: `ack` идёт ПОСЛЕ отправки → лучше
+  повтор, чем потеря). Payload — раз на рассылку (`broadcast:msg:<uuid>` EX 24ч), задания хранят лишь
+  `{mid,chat}`. **Fail-open** (Redis down → enqueue no-op, /add не падает). Разбирает **отдельный
+  процесс** `app/worker.py` (сервис `worker` в compose) — глобальный лимит Telegram (~25 msg/s) в ОДНОМ
+  месте, не блокирует бота/API. Реалии TG: `RetryAfter`→пауза+повтор, `Forbidden/BadRequest`→снять с
+  рассылок. **Opt-out `notifications_enabled`** (по умолчанию ВКЛ): инвариант — `upsert` НЕ трогает флаг
+  (не в on_conflict set_), меняет только точечный `set_notifications` (логин/оплата не сбрасывают выбор).
+  Авто-новинка — в `ingest` (try/except, не роняет добавление); ручная — бот `/broadcast` (админ-гейт).
 - **Имена миграций — `yyyymmdd_<slug>`** (через `file_template` в alembic.ini). Случайный hex от
   Alembic — лишь уникальный `revision id` (по нему связи `down_revision`/`alembic_version`), дата в
   имени файла — для людей; id внутри файла при переименовании не трогаем.

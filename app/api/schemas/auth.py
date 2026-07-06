@@ -17,6 +17,8 @@ class AuthOut(BaseModel):
     # Сессионный токен (Фаза 11.1): клиент кладёт его в localStorage и шлёт в Authorization
     # вместо initData. None — Redis недоступен, клиент остаётся на initData (fail-open).
     token: str | None = None
+    # Начальное состояние тумблера рассылок (Фаза 12) — фронт рисует профиль без доп. запроса.
+    notifications_enabled: bool = True
 
     @classmethod
     def from_domain(cls, user: User, now: datetime, token: str | None = None) -> AuthOut:
@@ -26,4 +28,5 @@ class AuthOut(BaseModel):
             expires_at=user.expires_at,
             has_access=user.has_active_access(now),
             token=token,
+            notifications_enabled=user.notifications_enabled,
         )

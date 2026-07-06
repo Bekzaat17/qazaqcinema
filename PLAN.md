@@ -9,6 +9,41 @@
 ---
 
 ## 📍 ТЕКУЩАЯ ПОЗИЦИЯ
+**Ревью пост-Фаза 12 — хардненинг перед продом (2026-07-06):** полное ревью бэк+фронт (глубина
+«устойчивость+чистота», без рискового перфа); код здоров, правки точечные. **P1:** worker не теряет
+сообщения на транзиентных сбоях (1 повтор) + retry-ветка снимает заблокировавших; `/play` при
+недоступном боте → **409 `bot_unreachable`** (доменное `RecipientUnreachableError`, не 500; фронт просит
+открыть бота); инвариант **РОВНО ОДИН worker** задокументирован (очередь single-consumer). **P2:**
+`reserve` дедупит payload по `mid`; `set_notifications` точечным `UPDATE`; rate-limit на
+`/api/me/notifications`; `PosterStorage.save` без `ext` (всегда JPEG); удалён мёртвый `openBotChat`;
+освежены комментарии. Зелёное: **ruff + mypy(100) + pytest(114, +4)** в контейнере + web build (71.9 КБ
+gzip). ⚠️ Грабли: БД-тесты гонять только через `./start.sh test` (прямой pytest бьёт по рабочей БД —
+conftest drop/create). Дальше → живой прод (Фаза 10: DNS/certbot/webhook на VPS) / живая e2e в Telegram.
+
+**Фаза 12 ЗАВЕРШЕНА — рассылки + уведомления о новинках (2026-07-06): ПОСЛЕДНЯЯ КРУПНАЯ ФАЗА
+ЗАКРЫТА.** Бэк + фронт. **Библиотека (план флагнул «решить при старте»):** свой минимальный
+Redis-list reliable-queue, БЕЗ новой зависимости (паттерн `infrastructure/cache/`, философия проекта).
+**12.0 Очередь+worker:** порт `BroadcastQueue` + `RedisBroadcastQueue` (Redis List `broadcast:pending`
+→ LMOVE в `broadcast:processing` → LREM ack → recover; payload `broadcast:msg:<uuid>` EX 24ч; **fail-open**
+— Redis down → enqueue 0, /add не падает). Отдельный процесс `app/worker.py` (сервис `worker` в compose):
+`recover()` при старте, `reserve(25)`→шлёт→`ack` (at-least-once, ack ПОСЛЕ отправки), `sleep(1)`/пачку
+(~25 msg/s < лимит TG). Реалии TG: `RetryAfter`→пауза+повтор; `Forbidden/BadRequest`→снять с рассылок
+(`set_notifications False`). Порт `TelegramNotifier.send_broadcast` (фото+кнопка / текст; фолбэк на текст,
+если TG не забрал постер по URL). **12.1 Opt-out:** `User.notifications_enabled` (домен+ORM+миграция
+`c7e8f9a0b1c2`, server_default true → backfill); **инвариант: upsert НЕ трогает флаг** (не в on_conflict
+set_), меняет только `set_notifications` (точечный UPDATE); `list_notifiable()` — аудитория. `PATCH
+/api/me/notifications` + `AuthOut.notifications_enabled`. Фронт: тумблер в профиле (колокол + switch,
+оптимистично, откат при ошибке). **12.2 Авто-новинка:** `MovieIngestionService.ingest` → `BroadcastService.
+notify_new_movie` (в try/except — сбой рассылки не роняет добавление; кэш уже инвалидирован 11.2).
+**12.3 Ручная:** бот `/broadcast` (админ-гейт, FSM текст→подтверждение→`broadcast_custom`). `BroadcastService`
+(REQUEST, webapp_url примитивом в DI). Тесты (+16): очередь на fakeredis (7, roundtrip/batch/ack-recover/
+payload-expire/fail-open), сервис (4, аудитория/контент/URL/тумблер), нотификатор (3, фото/текст/фолбэк),
+worker `_deliver` (2, успех/пометка заблокированного), repo (2, list_notifiable+инвариант upsert). Зелёное
+в контейнере: **ruff + mypy(100) + pytest(110, 0 скипов)** + web build (71.9 КБ gzip) + браузер-превью
+(тумблер true↔false). ⚠️ На живой БД: `alembic upgrade head` (авто в `./start.sh` через сервис `migrate`).
+Осталась только живая e2e в Telegram. **ВСЕ 12 ФАЗ ГОТОВЫ.** Дальше → добить Фазу 10 (DNS/certbot/webhook
+на VPS) + живой прогон в Telegram (реальные initData/оплата/рассылка) — за пользователем.
+
 **Фаза 10 — код/конфиг прода готовы (2026-07-05):** всё параметризовано через env, локаль
 (`./start.sh` = polling + :80) не тронута; живой деплой — по [DEPLOY.md](DEPLOY.md) (домена пока нет).
 **Webhook:** тумблер по `BOT_WEBHOOK_URL` (пусто → polling); aiohttp-сервер вебхука В процессе бота
@@ -143,13 +178,20 @@ ruff + mypy(strict, `app`, 77) + pytest(40). Осталась ручная e2e. 
 > (сессии/кэш) можно тянуть вместе с Фазой 9; порядок фаз 9–12 гибкий (см. «Когда» в фазах).
 
 ## 🔧 Чоры (вне фаз)
-- [x] **Изоляция БД тестов от рабочей** (footgun, проявился 2026-06-29; закрыто 2026-07-04 через
-      `./start.sh test` + `.env.test`). `tests/conftest.py` делает `drop_all`+`create_all` по
-      `DatabaseConfig().dsn` — раньше это была рабочая БД → прогон `pytest` перешивал рабочую `movies`
-      без GIN-trgm индексов, а `alembic_version` не трогался → дрейф, из-за которого `upgrade head`
-      падал на `ALTER … RENAME title`. Фикс: `./start.sh test` экспортирует `DB_NAME=qazaqcinema_test`
-      (из `.env.test`) перед pytest → conftest шьёт ИЗОЛИРОВАННУЮ тест-БД, рабочую не трогает. (Более
-      строгий вариант — транзакция-rollback на тест — не понадобился.)
+- [x] **Изоляция БД тестов от рабочей** (footgun 2026-06-29; «закрытие» 2026-07-04 оказалось
+      НЕПОЛНЫМ; по-настоящему закрыто 2026-07-06). Суть: `conftest` рушил/чистил БД по
+      `DatabaseConfig().dsn`. Ревизия 2026-07-06 вскрыла, что изоляция НЕ работала: `docker compose
+      run` (путь `./start.sh test`) **не применяет `env_file`**, только `environment:` → в тест-
+      контейнере `DB_NAME` дефолтил в `qazaqcinema` (рабочая!), и `./start.sh test` втихую сносил
+      рабочие данные. **Настоящий фикс (три слоя):** (1) `docker-compose.yml` — `DB_NAME:
+      qazaqcinema_test` задан ЯВНО в `environment:` тест-сервиса (не через env_file); (2) `conftest`
+      — предохранитель `_require_test_db()`: рушить/чистить можно ТОЛЬКО БД на `_test`, иначе тест
+      пропускается (любой хостовый `pytest` по рабочей БД теперь СКИПается, а не вайпает); (3)
+      **убран `drop_all`** (по просьбе пользователя): `create_all` идемпотентен, данные между
+      тестами чистит `TRUNCATE`. ⚠️ Следствие: при смене схемы тест-БД `qazaqcinema_test` надо
+      пересоздать (`dropdb qazaqcinema_test` → `./start.sh test`), т.к. `create_all` не добавляет
+      колонки в существующие таблицы. Проверено: `./start.sh test` = 114 passed по `_test`-БД,
+      рабочая `qazaqcinema` не тронута.
 - [x] **Человекочитаемые имена миграций** (`yyyymmdd_<slug>`). Сделано 2026-06-29: `file_template`
       в `alembic.ini` задан; файлы → `20260625_initial.py` / `20260628_movie_titles_and_search.py`
       (`git mv`, revision id ВНУТРИ файлов не тронут); `alembic history` + offline `upgrade head --sql`
@@ -503,42 +545,54 @@ greenfield. Каждый концерн — через свой порт (`appli
 - [x] Тест: два быстрых `deliver` той же пары → одна отправка (`test_playback_service.py`, реалистичный
       NX-фейк `_OneShotLock`); адаптер — на fakeredis (`test_cache.py`).
 
-## Фаза 12 — Рассылки и уведомления о новинках
+## Фаза 12 — Рассылки и уведомления о новинках ✅ (2026-07-06)
 **Цель:** уведомлять юзеров о новом фильме, не ловя флуд-бан Telegram (~30 msg/s), уважая выбор
 юзера (вкл/выкл уведомлений). Зависит от Redis-фундамента (Фаза 11.0) — очередь на Redis.
+**Решение по библиотеке:** свой минимальный Redis-list reliable-queue, БЕЗ новой зависимости
+(паттерн `infrastructure/cache/` порт+адаптер, философия проекта; arq отклонён).
 
-### 12.0 — Очередь рассылок (фоновый worker, crash-safe)
-- [ ] Порт `BroadcastQueue` (enqueue батча получателей + прогресс) + Redis-адаптер. Хранилище —
-      Redis List/Stream; **устойчивость к падению**: обрабатываемые id не теряются до подтверждения
-      (reliable-queue: Stream + consumer group, либо `LMOVE` в processing-лист). Упал воркер —
-      прогресс остался в Redis.
-- [ ] Отдельный процесс-worker (`app/worker.py` + сервис `worker` в compose): берёт ~25–30 id/с,
-      шлёт через Bot API, `sleep(1)` между пачками (глобальный лимит Telegram).
-- [ ] Библиотека: свой минимальный Redis-List worker (без новых зависимостей) ИЛИ `arq` (async-
-      очередь на Redis, дружит с asyncio/aiogram лучше, чем sync-Celery). **Решить при старте фазы.**
-- [ ] ⚠️ Реалии Telegram: ловить `RetryAfter` (спать `retry_after`), помечать заблокировавших бота
-      (`bot blocked`/`chat not found`) неактивными и не ретраить их вечно.
+### 12.0 — Очередь рассылок (фоновый worker, crash-safe) ✅
+- [x] Порт `BroadcastQueue` (`application/ports/broadcast.py`: enqueue/reserve/ack/recover +
+      `BroadcastMessage`/`BroadcastJob`) + `RedisBroadcastQueue` (`infrastructure/cache/broadcast.py`).
+      Хранилище — Redis List `broadcast:pending`; **crash-safe:** `reserve` = `LMOVE` в
+      `broadcast:processing` (не теряется до `ack`=`LREM`), `recover` при старте возвращает незавершённые
+      (at-least-once). Payload `broadcast:msg:<uuid>` EX 24ч (задания хранят лишь `{mid,chat}`). **Fail-open.**
+- [x] Отдельный процесс-worker `app/worker.py` (+ сервис `worker` в compose): `reserve(25)` → шлёт →
+      `ack` ПОСЛЕ отправки, `sleep(1)`/пачку (~25 msg/s < лимит Telegram).
+- [x] Библиотека: **свой Redis-List worker** (без новых зависимостей) — решено при старте фазы.
+- [x] ⚠️ Реалии Telegram: `RetryAfter` → пауза `retry_after`+1 и повтор; `Forbidden`/`BadRequest`
+      (bot blocked / chat not found) → `set_notifications(False)`, не ретраим вечно. `_deliver` не
+      пробрасывает — иначе «мёртвый» получатель зациклит очередь (crash до ack покрыт recover).
 
-### 12.1 — Настройка уведомлений юзером (opt-out, по умолчанию ВКЛ)
-- [ ] `User.notifications_enabled: bool = True` (домен) + `UserModel` + миграция (default True,
-      backfill существующих в True). Аудитория рассылки = юзеры с `notifications_enabled=True`.
-- [ ] `PATCH /api/me/notifications {enabled: bool}` (гейт `get_current_user`) — правит флаг.
-- [ ] Web App: тумблер в профиле (👤) «Жаңа фильмдер туралы хабарлау» (по умолчанию включён).
+### 12.1 — Настройка уведомлений юзером (opt-out, по умолчанию ВКЛ) ✅
+- [x] `User.notifications_enabled: bool = True` (домен) + `UserModel` + миграция `c7e8f9a0b1c2`
+      (server_default true → backfill). **Инвариант:** `upsert` НЕ трогает флаг (не в on_conflict set_),
+      меняет только `set_notifications` (точечный UPDATE) → логин/activate/expire не сбрасывают opt-out.
+      Аудитория = `list_notifiable()` (telegram_id с флагом True).
+- [x] `PATCH /api/me/notifications {enabled}` (`api/routers/me.py`, гейт `get_current_user`) →
+      `BroadcastService.set_user_notifications`. `AuthOut.notifications_enabled` — фронт без доп. запроса.
+- [x] Web App: тумблер в профиле (👤, колокол `Bell` + switch) «Жаңа фильмдер туралы хабарлау» —
+      оптимистичный, откат при ошибке, синк в `App.auth`. DEV-мок отдаёт `/api/me/notifications`.
 
-### 12.2 — Авто-уведомление о новинке (главный сценарий)
-- [ ] По завершении `/add` (ingest) → поставить в `BroadcastQueue` рассылку по opted-in юзерам:
-      постер + `title_kk` + краткое описание + кнопка «Көру ▸ ботта» (deep-link / Web App).
-- [ ] Перед рассылкой — инвалидация кэша каталога (11.2), чтобы клик из уведомления показал новинку.
-- [ ] Идемпотентность: один фильм не рассылать дважды (флаг «notified» у фильма / ключ в Redis).
+### 12.2 — Авто-уведомление о новинке (главный сценарий) ✅
+- [x] `MovieIngestionService.ingest` → `BroadcastService.notify_new_movie` (постер+`title_kk`+описание
+      + кнопка «🍿 Көру» web_app) по opted-in. В try/except — сбой рассылки НЕ роняет добавление фильма.
+- [x] Инвалидация кэша каталога — уже в ingest (Фаза 11.2), ДО рассылки → клик из уведомления видит новинку.
+- [x] Идемпотентность на уровне вызова: ingest зовёт notify один раз на фильм (persistent-флаг «notified»
+      не понадобился — единственный триггер; отмечено как возможное усиление, если триггеров станет больше).
 
-### 12.3 — Ручная рассылка админом
-- [ ] Триггер: бот-команда `/broadcast` (текст/медиа, только `BOT_ADMIN_USER_IDS`) или кнопка в
-      будущей Mini App админки → кастомная рассылка в очередь.
-- [ ] Подтверждение админу: «поставлено N получателей» + итог (отправлено / заблокировано).
+### 12.3 — Ручная рассылка админом ✅
+- [x] Бот-команда `/broadcast` (`bot/handlers/broadcast.py`, только `BOT_ADMIN_USER_IDS`, FSM
+      текст→предпросмотр→подтверждение) → `BroadcastService.broadcast_custom` → очередь. MVP — текст
+      (медиа-рассылки — задел на будущее, расширить `BroadcastMessage`).
+- [x] Подтверждение админу: «✅ N қолданушыға кезекке қойылды».
 
-### Тесты
-- [ ] `BroadcastQueue` (enqueue/забор/подтверждение) на фейке; батчинг и пропуск заблокированных.
-- [ ] Аудитория = только `notifications_enabled=True`; toggle-эндпоинт.
+### Тесты ✅
+- [x] `BroadcastQueue` на fakeredis (`test_broadcast_queue.py`, 7): roundtrip/batch/ack+recover/
+      payload-expire/empty/fail-open. `_deliver` worker'а (`test_worker.py`, 2): успех + пометка
+      заблокировавшего (`set_notifications False`). Нотификатор (`test_notifier.py`, 3): фото/текст/фолбэк.
+- [x] Аудитория = только `notifications_enabled=True` + инвариант upsert (`test_repositories.py`, 2);
+      сервис (`test_broadcast_service.py`, 4): аудитория/контент/URL/тумблер. Итог в контейнере: pytest 110.
 
 ---
 

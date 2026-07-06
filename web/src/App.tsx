@@ -126,6 +126,8 @@ export default function App() {
           openPaywall(movie); // доступ устарел — сервер источник правды
         } else if (e instanceof ApiError && e.status === 404) {
           setToast("Фильм табылмады");
+        } else if (e instanceof ApiError && e.status === 409) {
+          setToast("Алдымен ботпен чатты ашыңыз"); // видео шлётся в чат — его надо начать
         } else {
           setToast("Қате шықты, қайталап көріңіз");
         }
@@ -204,6 +206,9 @@ export default function App() {
           setProfileOpen(false);
           openPaywall(null);
         }}
+        onNotificationsChange={(enabled) =>
+          setAuth((prev) => (prev ? { ...prev, notifications_enabled: enabled } : prev))
+        }
       />
       <HandoffModal open={handoffOpen} />
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}

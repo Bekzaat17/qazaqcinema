@@ -10,11 +10,30 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from app.application.ports.broadcast import BroadcastMessage
+
+
+class RecipientUnreachableError(Exception):
+    """Получатель недоступен для бота (не открыл чат / заблокировал → «chat not found»).
+
+    Бросает адаптер `send_protected_video`, ловит `PlaybackService` — чтобы отдать
+    понятный ответ («откройте бота»), а не пробросить сырую ошибку Telegram в 500.
+    """
+
 
 class TelegramNotifier(Protocol):
     async def notify_user(self, telegram_id: int, text: str) -> None: ...
 
     async def notify_admins(self, text: str) -> None: ...
+
+    async def send_broadcast(self, chat_id: int, message: BroadcastMessage) -> None:
+        """Отправить одно сообщение рассылки (Фаза 12): фото+подпись или текст, опц. кнопка.
+
+        Ошибки Telegram (RetryAfter/Forbidden) НЕ глушим — их обрабатывает worker
+        (спит на RetryAfter, помечает заблокировавших). Глушим лишь падение отправки
+        фото по URL → фолбэк на текст.
+        """
+        ...
 
     async def send_protected_video(
         self, chat_id: int, file_id: str, caption: str | None = None

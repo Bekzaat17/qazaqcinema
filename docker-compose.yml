@@ -99,6 +99,27 @@ services:
       - uploads:/app/uploads
     restart: unless-stopped
 
+  # Worker рассылок (Фаза 12): забирает задания из Redis-очереди и шлёт через Bot API,
+  # соблюдая лимит Telegram (~30 msg/s) в одном месте. Отдельный процесс — не блокирует
+  # бота/API; очередь crash-safe (recover при старте). Тот же образ/env, что api/bot.
+  # ⚠️ РОВНО ОДИН worker: очередь single-consumer (recover переносит ВСЁ processing→pending),
+  # реплики/масштаб → двойная отправка. Горизонтально — только через Streams+consumer-group.
+  worker:
+    build: *app-build
+    env_file: ${ENV_FILE:-.env}
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: python -m app.worker
+    restart: unless-stopped
+
   # Фронт: собран в статику, раздаётся nginx + проксирует /api, /posters (и /tg-вебхук в TLS)
   # на api/bot (единый origin, CORS не нужен). Один образ везде; TLS/домен — через env
   # (WEB_TLS/WEB_SERVER_NAME), выбор конфига делает entrypoint-скрипт (web/nginx/).
@@ -138,6 +159,9 @@ services:
     env_file: ${ENV_FILE:-.env.test}
     environment:
       DB_HOST: postgres
+      # ЯВНО (не через env_file — `compose run` его не применяет): тесты идут в ИЗОЛИРОВАННУЮ
+      # тест-БД, а не в рабочую. Имя на `_test` — иначе conftest-guard откажется чистить данные.
+      DB_NAME: qazaqcinema_test
       REDIS_HOST: redis
     depends_on:
       postgres:

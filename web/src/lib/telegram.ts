@@ -28,11 +28,6 @@ export function close(): void {
   getWebApp()?.close();
 }
 
-/** Открыть чат бота (напр. после отправки видео) — уводит пользователя к боту. */
-export function openBotChat(username: string): void {
-  getWebApp()?.openTelegramLink(`https://t.me/${username}`);
-}
-
 // ── Тактильная отдача ──
 export const haptic = {
   light: () => getWebApp()?.HapticFeedback?.impactOccurred("light"),

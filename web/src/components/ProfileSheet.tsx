@@ -1,10 +1,12 @@
-// Профиль (👤): аватар + имя + карточка статуса подписки.
+// Профиль (👤): аватар + имя + карточка статуса подписки + тумблер рассылок.
 
-import { BadgeCheck, CalendarClock, Clock, Sparkles } from "lucide-react";
+import { BadgeCheck, Bell, CalendarClock, Clock, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { Auth } from "../lib/api";
+import { api } from "../lib/api";
 import { daysLeft, formatDate, initials } from "../lib/format";
-import { getTelegramUser } from "../lib/telegram";
+import { getTelegramUser, haptic } from "../lib/telegram";
 import Button from "../ui/Button";
 import Sheet from "../ui/Sheet";
 
@@ -13,9 +15,16 @@ interface ProfileSheetProps {
   auth: Auth | null;
   onClose: () => void;
   onSubscribe: () => void;
+  onNotificationsChange: (enabled: boolean) => void;
 }
 
-export default function ProfileSheet({ open, auth, onClose, onSubscribe }: ProfileSheetProps) {
+export default function ProfileSheet({
+  open,
+  auth,
+  onClose,
+  onSubscribe,
+  onNotificationsChange,
+}: ProfileSheetProps) {
   const tgUser = getTelegramUser();
   const name = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") : "Қонақ";
   const handle = tgUser?.username ? `@${tgUser.username}` : "";
@@ -42,8 +51,73 @@ export default function ProfileSheet({ open, auth, onClose, onSubscribe }: Profi
         <div className="mt-5">
           <StatusCard auth={auth} onSubscribe={onSubscribe} />
         </div>
+
+        {auth && (
+          <div className="mt-3">
+            <NotificationsToggle
+              enabled={auth.notifications_enabled}
+              onChange={onNotificationsChange}
+            />
+          </div>
+        )}
       </div>
     </Sheet>
+  );
+}
+
+function NotificationsToggle({
+  enabled,
+  onChange,
+}: {
+  enabled: boolean;
+  onChange: (enabled: boolean) => void;
+}) {
+  // Локальное состояние для оптимистичного переключения; синхронизируем, если auth обновился.
+  const [on, setOn] = useState(enabled);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setOn(enabled), [enabled]);
+
+  async function toggle() {
+    if (saving) return;
+    const next = !on;
+    haptic.select();
+    setOn(next); // оптимистично
+    setSaving(true);
+    try {
+      await api.setNotifications(next);
+      onChange(next); // поднимаем в App, чтобы переоткрытие показало актуальное
+    } catch {
+      setOn(!next); // откат
+      haptic.error();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={toggle}
+      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-elevated p-4 text-left"
+    >
+      <Bell size={20} className="shrink-0 text-brand" />
+      <span className="min-w-0 flex-1 text-sm font-medium text-text">
+        Жаңа фильмдер туралы хабарлау
+      </span>
+      <span
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          on ? "bg-brand" : "bg-border"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+            on ? "translate-x-[22px]" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </button>
   );
 }
 

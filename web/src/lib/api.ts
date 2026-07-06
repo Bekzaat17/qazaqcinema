@@ -101,6 +101,7 @@ export interface Auth {
   expires_at: string | null;
   has_access: boolean;
   token?: string | null; // серверная сессия (Фаза 11.1); null → остаёмся на initData
+  notifications_enabled: boolean; // тумблер рассылок о новинках (Фаза 12)
 }
 
 export interface Movie {
@@ -168,6 +169,14 @@ export const api = {
   /** Триггер защищённой выдачи: бот пришлёт видео в личку (protect_content). 403 → нет доступа. */
   play: (id: number) =>
     request<{ status: "sent" }>(`/api/movies/${id}/play`, { method: "POST" }),
+
+  /** Тумблер рассылок о новинках (Фаза 12): включить/выключить для текущего юзера. */
+  setNotifications: (enabled: boolean) =>
+    request<{ notifications_enabled: boolean }>("/api/me/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
 
   tariffs: () => request<Tariff[]>("/api/payments/tariffs"),
 

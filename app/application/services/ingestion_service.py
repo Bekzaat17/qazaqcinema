@@ -8,12 +8,17 @@
 
 from __future__ import annotations
 
+import logging
+
 from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.images import HERO, POSTER, ImageProcessor
 from app.application.ports.repositories import MovieRepository
 from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
+from app.application.services.broadcast_service import BroadcastService
 from app.domain.entities.movie import Movie
+
+logger = logging.getLogger(__name__)
 
 
 class MovieIngestionService:
@@ -24,12 +29,14 @@ class MovieIngestionService:
         posters: PosterStorage,
         images: ImageProcessor,
         catalog_cache: CatalogCache,
+        broadcast: BroadcastService,
     ) -> None:
         self._movies = movies
         self._notifier = notifier
         self._posters = posters
         self._images = images
         self._cache = catalog_cache
+        self._broadcast = broadcast
 
     async def ingest(
         self,
@@ -76,4 +83,11 @@ class MovieIngestionService:
         await self._notifier.notify_admins(
             f"✅ Фильм «{saved.title_kk}» добавлен. ID: {saved.id}"
         )
+        # Авто-рассылка о новинке (Фаза 12) — в try/except: сбой рассылки НЕ должен
+        # отменять добавление фильма (оно уже в БД). Очередь fail-open сама по себе.
+        try:
+            queued = await self._broadcast.notify_new_movie(saved)
+            logger.info("Рассылка о новинке #%s поставлена: %d адресатов", saved.id, queued)
+        except Exception:
+            logger.exception("Не удалось поставить рассылку о новинке #%s", saved.id)
         return saved

@@ -17,14 +17,15 @@ from enum import Enum, auto
 
 from app.application.ports.lock import Lock
 from app.application.ports.repositories import MovieRepository
-from app.application.ports.telegram import TelegramNotifier
+from app.application.ports.telegram import RecipientUnreachableError, TelegramNotifier
 from app.domain.entities.user import User
 
 
 class PlaybackOutcome(Enum):
-    DELIVERED = auto()   # видео отправлено в личку (protect_content)
-    NO_ACCESS = auto()   # нет активной подписки → фронт показывает пэйволл
-    NOT_FOUND = auto()   # фильма с таким id нет
+    DELIVERED = auto()    # видео отправлено в личку (protect_content)
+    NO_ACCESS = auto()    # нет активной подписки → фронт показывает пэйволл
+    NOT_FOUND = auto()    # фильма с таким id нет
+    BOT_BLOCKED = auto()  # получатель не открыл чат с ботом → фронт просит открыть бота
 
 
 class PlaybackService:
@@ -49,7 +50,12 @@ class PlaybackService:
         lock_key = f"send_video:{user.telegram_id}:{movie_id}"
         if not await self._lock.acquire(lock_key, self._SEND_LOCK_TTL):
             return PlaybackOutcome.DELIVERED
-        await self._notifier.send_protected_video(
-            user.telegram_id, movie.telegram_file_id, caption=movie.title_kk
-        )
+        try:
+            await self._notifier.send_protected_video(
+                user.telegram_id, movie.telegram_file_id, caption=movie.title_kk
+            )
+        except RecipientUnreachableError:
+            # Юзер открыл Mini App, но не начал чат с ботом. Лок (TTL ~3 c) не снимаем:
+            # окно мало, а доступ к боту юзер чинит дольше → ложного «доставлено» не будет.
+            return PlaybackOutcome.BOT_BLOCKED
         return PlaybackOutcome.DELIVERED

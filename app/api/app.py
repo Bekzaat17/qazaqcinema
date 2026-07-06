@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 
-from app.api.routers import auth, catalog, health, payments
+from app.api.routers import auth, catalog, health, me, payments
 from app.config.settings import load_config
 from app.infrastructure.di.providers import build_container
 
@@ -51,6 +51,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(catalog.router)
     app.include_router(payments.router)
+    app.include_router(me.router)
     app.include_router(health.router)
 
     # Постеры — статика на диске (см. LocalPosterStorage). Каталог создаём заранее,

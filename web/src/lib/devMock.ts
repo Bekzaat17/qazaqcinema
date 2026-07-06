@@ -31,6 +31,7 @@ const AUTH: Auth = {
   expires_at: new Date(Date.now() + 20 * 86_400_000).toISOString(),
   has_access: true,
   token: null, // в dev-моке токен-флоу не задействован (request() уходит в мок до fetch)
+  notifications_enabled: true, // тумблер рассылок (Фаза 12)
 };
 
 export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -58,6 +59,10 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
         ? ({ method: "stars", kaspi_number: null, kaspi_name: null, invoice_url: "https://t.me/invoice/mock", payload: "1:1_month" } satisfies PaymentInit)
         : ({ method: "kaspi", kaspi_number: "+7 700 123 4567", kaspi_name: "QazaqCinema", invoice_url: null, payload: null } satisfies PaymentInit);
   } else if (p === "/api/payments/proof") data = { status: "pending_review", request_id: 1 } satisfies ProofAccepted;
+  else if (p === "/api/me/notifications") {
+    const enabled = init?.body ? (JSON.parse(String(init.body)) as { enabled: boolean }).enabled : true;
+    data = { notifications_enabled: enabled };
+  }
 
   return new Promise((resolve) => setTimeout(() => resolve(data as T), 350));
 }

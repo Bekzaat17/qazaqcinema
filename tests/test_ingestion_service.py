@@ -21,9 +21,9 @@ class _FakePosters:
     def __init__(self) -> None:
         self.saved: list[bytes] = []
 
-    async def save(self, data: bytes, ext: str = "jpg") -> str:
+    async def save(self, data: bytes) -> str:
         self.saved.append(data)
-        return f"/posters/fake{len(self.saved)}.{ext}"
+        return f"/posters/fake{len(self.saved)}.jpg"
 
 
 class _FakeImages:
@@ -57,13 +57,23 @@ class _FakeCache:
         self.invalidated += 1
 
 
+class _FakeBroadcast:
+    def __init__(self) -> None:
+        self.notified: list[Movie] = []
+
+    async def notify_new_movie(self, movie: Movie) -> int:
+        self.notified.append(movie)
+        return 0
+
+
 async def test_ingest_saves_poster_persists_and_notifies() -> None:
     movies = _FakeMovies()
     posters = _FakePosters()
     images = _FakeImages()
     notifier = _FakeNotifier()
     cache = _FakeCache()
-    service = MovieIngestionService(movies, notifier, posters, images, cache)
+    broadcast = _FakeBroadcast()
+    service = MovieIngestionService(movies, notifier, posters, images, cache, broadcast)
 
     movie = await service.ingest(
         title_kk="Арыстан Патша",
@@ -88,6 +98,7 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     assert movies.added[0].title_ru == "Король Лев"
     assert any("Арыстан Патша" in message for message in notifier.messages)
     assert cache.invalidated == 1                       # кэш главной сброшен → новинка видна
+    assert broadcast.notified == [movie]                # авто-рассылка о новинке поставлена
 
 
 async def test_ingest_featured_saves_hero_banner() -> None:
@@ -95,7 +106,9 @@ async def test_ingest_featured_saves_hero_banner() -> None:
     posters = _FakePosters()
     images = _FakeImages()
     notifier = _FakeNotifier()
-    service = MovieIngestionService(movies, notifier, posters, images, _FakeCache())
+    service = MovieIngestionService(
+        movies, notifier, posters, images, _FakeCache(), _FakeBroadcast()
+    )
 
     movie = await service.ingest(
         title_kk="Наруто",

@@ -115,4 +115,8 @@ async def play_movie(
         raise HTTPException(status_code=403, detail="no_access")
     if outcome is PlaybackOutcome.NOT_FOUND:
         raise HTTPException(status_code=404, detail="movie not found")
+    if outcome is PlaybackOutcome.BOT_BLOCKED:
+        # Подписчик не открыл чат с ботом → бот не может доставить видео. Не 500 —
+        # понятный код, фронт просит открыть бота и повторить.
+        raise HTTPException(status_code=409, detail="bot_unreachable")
     return PlayOut(status="sent")

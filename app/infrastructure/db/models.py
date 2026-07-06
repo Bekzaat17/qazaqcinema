@@ -24,6 +24,11 @@ class UserModel(Base):
     status: Mapped[str] = mapped_column(String(20), default=UserStatus.NEW.value)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     selected_tariff: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Рассылки о новинках (Фаза 12): opt-out, по умолчанию ВКЛ. server_default → backfill
+    # существующих строк в True при миграции без отдельного UPDATE.
+    notifications_enabled: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("true"), nullable=False
+    )
 
 
 class MovieModel(Base):

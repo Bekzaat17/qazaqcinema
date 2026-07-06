@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+from app.application.ports.telegram import RecipientUnreachableError
 from app.application.services.playback_service import PlaybackOutcome, PlaybackService
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.movie import Movie
@@ -38,12 +39,15 @@ class _FakeMovies:
 
 
 class _FakeNotifier:
-    def __init__(self) -> None:
+    def __init__(self, unreachable: bool = False) -> None:
         self.sent: list[tuple[int, str, str | None]] = []
+        self._unreachable = unreachable
 
     async def send_protected_video(
         self, chat_id: int, file_id: str, caption: str | None = None
     ) -> None:
+        if self._unreachable:  # эмулируем «юзер не открыл чат с ботом»
+            raise RecipientUnreachableError("chat not found")
         self.sent.append((chat_id, file_id, caption))
 
 
@@ -104,6 +108,20 @@ async def test_deliver_not_found_when_movie_missing() -> None:
 
     assert outcome is PlaybackOutcome.NOT_FOUND
     assert notifier.sent == []
+
+
+async def test_deliver_reports_bot_blocked_when_recipient_unreachable() -> None:
+    """Подписчик не открыл чат с ботом → BOT_BLOCKED (роутер отдаст 409, не 500)."""
+    movies = _FakeMovies(_movie())
+    notifier = _FakeNotifier(unreachable=True)
+    service = PlaybackService(movies, notifier, _OneShotLock())
+
+    outcome = await service.deliver(
+        _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=7, now=_NOW
+    )
+
+    assert outcome is PlaybackOutcome.BOT_BLOCKED
+    assert notifier.sent == []  # видео не ушло
 
 
 async def test_deliver_swallows_rapid_duplicate_send() -> None:

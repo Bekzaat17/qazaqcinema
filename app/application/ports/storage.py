@@ -10,6 +10,7 @@ from typing import Protocol
 
 
 class PosterStorage(Protocol):
-    async def save(self, data: bytes, ext: str = "jpg") -> str:
-        """Сохранить постер; вернуть публичный URL/путь (идёт в `MovieOut.poster_url`)."""
+    async def save(self, data: bytes) -> str:
+        """Сохранить постер (всегда JPEG после `ImageProcessor`); вернуть публичный
+        URL/путь (идёт в `MovieOut.poster_url`)."""
         ...

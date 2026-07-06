@@ -107,6 +107,34 @@ async def test_user_upsert_overwrites(session: AsyncSession) -> None:
     assert got.status is UserStatus.ACTIVE
 
 
+async def test_user_notifications_default_and_toggle(session: AsyncSession) -> None:
+    repo = PgUserRepository(session)
+    await repo.upsert(User(telegram_id=1, username="a"))  # notifications_enabled default True
+    await repo.upsert(User(telegram_id=2, username="b"))
+
+    assert set(await repo.list_notifiable()) == {1, 2}  # оба по умолчанию в аудитории
+
+    await repo.set_notifications(1, enabled=False)       # тумблер выключил
+    assert await repo.list_notifiable() == [2]           # ушёл из аудитории
+    got = await repo.get(1)
+    assert got is not None and got.notifications_enabled is False
+
+
+async def test_upsert_preserves_notifications_flag(session: AsyncSession) -> None:
+    # Критичный инвариант: upsert (логин/activate/expire/reject) НЕ сбрасывает opt-out.
+    repo = PgUserRepository(session)
+    await repo.upsert(User(telegram_id=7, username="neo"))
+    await repo.set_notifications(7, enabled=False)  # юзер отписался от рассылок
+
+    # повторный upsert с default-True в объекте (напр. смена статуса при оплате)
+    await repo.upsert(User(telegram_id=7, username="neo", status=UserStatus.ACTIVE))
+
+    got = await repo.get(7)
+    assert got is not None
+    assert got.status is UserStatus.ACTIVE           # статус обновился
+    assert got.notifications_enabled is False        # но выбор по рассылкам сохранён
+
+
 async def test_user_list_expired(session: AsyncSession) -> None:
     repo = PgUserRepository(session)
     now = datetime.now(UTC)

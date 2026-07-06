@@ -3,11 +3,35 @@
 from __future__ import annotations
 
 from aiogram import Bot
-from aiogram.types import BufferedInputFile
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.types import (
+    BufferedInputFile,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    WebAppInfo,
+)
+
+from app.application.ports.broadcast import BroadcastMessage
+from app.application.ports.telegram import RecipientUnreachableError
 
 # Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
 # reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
 from app.bot.keyboards.moderation import moderation_keyboard
+
+
+def _broadcast_keyboard(message: BroadcastMessage) -> InlineKeyboardMarkup | None:
+    """Inline-кнопка «Көру» (открывает Web App в личке). None — если кнопка не задана."""
+    if not (message.button_text and message.button_url):
+        return None
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=message.button_text, web_app=WebAppInfo(url=message.button_url)
+                )
+            ]
+        ]
+    )
 
 
 class AiogramNotifier:
@@ -23,13 +47,36 @@ class AiogramNotifier:
         for admin_id in self._admin_user_ids:
             await self._bot.send_message(admin_id, text)
 
+    async def send_broadcast(self, chat_id: int, message: BroadcastMessage) -> None:
+        keyboard = _broadcast_keyboard(message)
+        if message.photo_url is not None:
+            try:
+                await self._bot.send_photo(
+                    chat_id, message.photo_url, caption=message.text, reply_markup=keyboard
+                )
+                return
+            except TelegramBadRequest:
+                # Telegram не смог забрать постер по URL (или подпись длиннее лимита) →
+                # шлём текстом, чтобы не потерять уведомление. RetryAfter/Forbidden сюда
+                # не попадают (это отдельные классы) — их обрабатывает worker.
+                pass
+        await self._bot.send_message(chat_id, message.text, reply_markup=keyboard)
+
     async def send_protected_video(
         self, chat_id: int, file_id: str, caption: str | None = None
     ) -> None:
         # protect_content=True — ядро безопасности: получатель не может скачать/переслать.
-        await self._bot.send_video(
-            chat_id, file_id, caption=caption, protect_content=True
-        )
+        try:
+            await self._bot.send_video(
+                chat_id, file_id, caption=caption, protect_content=True
+            )
+        except TelegramForbiddenError as exc:
+            # Юзер не открыл чат с ботом / заблокировал → понятный сигнал наверх, не 500.
+            raise RecipientUnreachableError(str(exc)) from exc
+        except TelegramBadRequest as exc:
+            if "chat not found" in str(exc).lower():
+                raise RecipientUnreachableError(str(exc)) from exc
+            raise  # прочий BadRequest (напр. битый file_id) — настоящая ошибка, пусть всплывёт
 
     async def acknowledge_payment_proof(
         self, telegram_id: int, proof: bytes, caption: str

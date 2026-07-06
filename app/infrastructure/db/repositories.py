@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,6 +45,7 @@ def _user_to_domain(model: UserModel) -> User:
         status=UserStatus(model.status),
         expires_at=model.expires_at,
         selected_tariff=model.selected_tariff,
+        notifications_enabled=model.notifications_enabled,
     )
 
 
@@ -156,8 +157,12 @@ class PgUserRepository:
             "status": user.status.value,
             "expires_at": user.expires_at,
             "selected_tariff": user.selected_tariff,
+            "notifications_enabled": user.notifications_enabled,
         }
         stmt = pg_insert(UserModel).values(**values)
+        # notifications_enabled НЕ в set_ намеренно: upsert (логин/activate/expire/reject)
+        # не должен трогать выбор юзера по рассылкам. Менять флаг — только set_notifications
+        # (точечный UPDATE). На INSERT нового юзера значение берётся из values (default True).
         stmt = stmt.on_conflict_do_update(
             index_elements=["telegram_id"],
             set_={
@@ -179,6 +184,31 @@ class PgUserRepository:
         )
         result = await self._session.scalars(stmt)
         return [_user_to_domain(model) for model in result]
+
+    async def list_notifiable(self) -> list[int]:
+        """telegram_id всех, кто согласен на рассылки о новинках (аудитория Фазы 12).
+
+        Отдаём только id (не полные User) — рассылке больше ничего не нужно, а список
+        может быть большим.
+        """
+        stmt = select(UserModel.telegram_id).where(
+            UserModel.notifications_enabled.is_(True)
+        )
+        result = await self._session.scalars(stmt)
+        return list(result)
+
+    async def set_notifications(self, telegram_id: int, enabled: bool) -> None:
+        """Точечно переключить флаг рассылок (тумблер в профиле; worker → False при блоке).
+
+        Единственный путь изменения `notifications_enabled` — upsert его сохраняет (см. выше).
+        Точечный UPDATE без загрузки строки; несуществующий telegram_id → 0 строк (тихий no-op).
+        """
+        await self._session.execute(
+            update(UserModel)
+            .where(UserModel.telegram_id == telegram_id)
+            .values(notifications_enabled=enabled)
+        )
+        await self._session.commit()
 
 
 class PgPaymentRepository:

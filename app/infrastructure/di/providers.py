@@ -16,6 +16,7 @@ from dishka import AsyncContainer, Provider, Scope, make_async_container, provid
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
@@ -31,6 +32,7 @@ from app.application.ports.session import SessionStore
 from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
 from app.application.services.auth_service import AuthService
+from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.moderation_service import PaymentModerationService
@@ -40,6 +42,7 @@ from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
+from app.infrastructure.cache.broadcast import RedisBroadcastQueue
 from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
@@ -108,6 +111,11 @@ class AppProvider(Provider):
         return RedisCatalogCache(redis)
 
     @provide
+    def broadcast_queue(self, redis: Redis) -> BroadcastQueue:
+        # Надёжная очередь рассылок (Фаза 12): worker забирает пачками, соблюдая лимиты TG.
+        return RedisBroadcastQueue(redis)
+
+    @provide
     def verifier(self, config: AppConfig) -> InitDataVerifier:
         return TelegramInitDataVerifier(config.bot.token)
 
@@ -158,6 +166,14 @@ class RequestProvider(Provider):
     payment = provide(PaymentService)
     moderation = provide(PaymentModerationService)
     stars = provide(StarsPaymentService)
+
+    @provide
+    def broadcast(
+        self, queue: BroadcastQueue, users: UserRepository, config: AppConfig
+    ) -> BroadcastService:
+        # webapp_url — примитив (как kaspi_number у провайдера), поэтому явный метод,
+        # а не auto-wire: сервис получает чистую строку, не весь конфиг.
+        return BroadcastService(queue, users, config.bot.webapp_url)
 
 
 def build_container() -> AsyncContainer:

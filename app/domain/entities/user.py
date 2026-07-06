@@ -15,6 +15,7 @@ class User:
     status: UserStatus = UserStatus.NEW
     expires_at: datetime | None = None
     selected_tariff: str | None = None
+    notifications_enabled: bool = True  # рассылки о новинках; opt-out, по умолчанию ВКЛ (Фаза 12)
 
     def has_active_access(self, now: datetime) -> bool:
         """Единственный источник правды о доступе (used: inline-выдача, API-гейт)."""

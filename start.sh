@@ -86,6 +86,10 @@ case "$MODE" in
       sleep 1
     done
     test_db="$(grep -E '^DB_NAME=' .env.test | cut -d= -f2)"
+    case "$test_db" in                        # защита: тесты дропают схему → только в _test-БД
+      *_test) : ;;
+      *) die "DB_NAME='$test_db' в .env.test не оканчивается на _test — отказ (защита рабочей БД).";;
+    esac
     if dc .env.test exec -T postgres createdb -U qazaqcinema "$test_db" >/dev/null 2>&1; then
       info "Создал тест-БД $test_db"
     fi
