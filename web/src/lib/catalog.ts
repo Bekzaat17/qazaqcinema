@@ -9,7 +9,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   film: "Фильмдер",
   serial: "Сериалдар",
   short: "Қысқа метр",
-  documentary: "Деректі",
   otandyq: "Отандық",
   kids: "Балаларға",
   girls: "Қыздарға",

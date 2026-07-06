@@ -23,7 +23,6 @@ CATEGORIES: dict[str, Category] = {
     "film": Category("film", "Фильмы", "Фильмдер"),
     "serial": Category("serial", "Сериалы", "Сериалдар"),
     "short": Category("short", "Короткометражки", "Қысқа метр"),
-    "documentary": Category("documentary", "Документальные", "Деректі"),
     # Происхождение
     "otandyq": Category("otandyq", "Отечественные", "Отандық"),
     # Аудитория
