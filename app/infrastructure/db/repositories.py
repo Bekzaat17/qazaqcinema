@@ -13,6 +13,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.ports.repositories import SortDir, SortField
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
@@ -34,6 +35,7 @@ def _movie_to_domain(model: MovieModel) -> Movie:
         rating=model.rating,
         is_featured=model.is_featured,
         hero_image_url=model.hero_image_url,
+        play_count=model.play_count,
         created_at=model.created_at,
     )
 
@@ -140,6 +142,82 @@ class PgMovieRepository:
         )
         result = await self._session.scalars(stmt)
         return [_movie_to_domain(model) for model in result]
+
+    async def list_recent(self, limit: int) -> list[Movie]:
+        """Последние `limit` фильмов (полка «Жаңа түскен»). Новизна — по убыванию id."""
+        stmt = select(MovieModel).order_by(MovieModel.id.desc()).limit(limit)
+        result = await self._session.scalars(stmt)
+        return [_movie_to_domain(model) for model in result]
+
+    async def list_popular(self, limit: int) -> list[Movie]:
+        """Полка «Танымал»: по просмотрам, затем рейтингу, затем новизне.
+
+        Одним ORDER BY покрываем холодный старт: пока просмотров нет (у всех play_count 0),
+        сортировка проваливается на rating (NULLS LAST — без оценки в конец), затем на id.
+        """
+        stmt = (
+            select(MovieModel)
+            .order_by(
+                MovieModel.play_count.desc(),
+                MovieModel.rating.desc().nulls_last(),
+                MovieModel.id.desc(),
+            )
+            .limit(limit)
+        )
+        result = await self._session.scalars(stmt)
+        return [_movie_to_domain(model) for model in result]
+
+    async def list_page(
+        self,
+        *,
+        categories: list[str],
+        sort: SortField,
+        direction: SortDir,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[Movie], int]:
+        """Страница каталога: фильтр по категориям (мультивыбор) + сортировка + пагинация.
+
+        `categories` пустой → без фильтра. `sort` — белый список колонок (сырой строки в SQL
+        нет). Вторым ключом всегда `id DESC` — стабильный тай-брейк, иначе OFFSET-страницы
+        «плывут». Возвращает (страница, total); total тем же фильтром — для has_more/страниц.
+        """
+        column = {
+            "date": MovieModel.id,
+            "rating": MovieModel.rating,
+            "views": MovieModel.play_count,
+        }[sort]
+        primary = column.asc() if direction == "asc" else column.desc()
+        if sort == "rating":
+            primary = primary.nulls_last()  # без оценки — в конец при любом направлении
+        order_by = [primary] if sort == "date" else [primary, MovieModel.id.desc()]
+
+        stmt = select(MovieModel)
+        count_stmt = select(func.count()).select_from(MovieModel)
+        if categories:
+            stmt = stmt.where(MovieModel.category.in_(categories))
+            count_stmt = count_stmt.where(MovieModel.category.in_(categories))
+        stmt = stmt.order_by(*order_by).limit(limit).offset(offset)
+
+        result = await self._session.scalars(stmt)
+        items = [_movie_to_domain(model) for model in result]
+        total = await self._session.scalar(count_stmt) or 0
+        return items, int(total)
+
+    async def category_counts(self) -> dict[str, int]:
+        """Число фильмов по категориям (для чипов каталога — показываем только непустые)."""
+        stmt = select(MovieModel.category, func.count()).group_by(MovieModel.category)
+        result = await self._session.execute(stmt)
+        return {category: int(count) for category, count in result.all()}
+
+    async def increment_play_count(self, movie_id: int) -> None:
+        """+1 к счётчику просмотров (после успешной выдачи видео). Точечный UPDATE."""
+        await self._session.execute(
+            update(MovieModel)
+            .where(MovieModel.id == movie_id)
+            .values(play_count=MovieModel.play_count + 1)
+        )
+        await self._session.commit()
 
 
 class PgUserRepository:

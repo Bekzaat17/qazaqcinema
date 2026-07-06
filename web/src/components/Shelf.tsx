@@ -1,7 +1,6 @@
 // Горизонтальная полка (scroll-snap, нативная инерция, без JS-каруселей).
 
-import type { Movie } from "../lib/api";
-import type { Shelf as ShelfData } from "../lib/catalog";
+import type { Movie, Shelf as ShelfData } from "../lib/api";
 import PosterCard from "./PosterCard";
 
 export default function Shelf({ shelf, onSelect }: { shelf: ShelfData; onSelect: (m: Movie) => void }) {

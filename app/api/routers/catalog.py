@@ -6,14 +6,34 @@ from datetime import UTC, datetime
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import TypeAdapter
 
 from app.api.deps.auth import get_current_user
 from app.api.deps.rate_limit import rate_limit
-from app.api.schemas.movie import CatalogHomeOut, MovieOut, PlayOut
+from app.api.schemas.movie import (
+    CatalogHomeOut,
+    CategoryCountOut,
+    MovieOut,
+    MoviePageOut,
+    PlayOut,
+    ShelfOut,
+)
 from app.application.ports.catalog_cache import CatalogCache
+from app.application.ports.repositories import SortDir, SortField
 from app.application.services.catalog_service import CatalogService
 from app.application.services.playback_service import PlaybackOutcome, PlaybackService
 from app.domain.entities.user import User
+
+# Казахские подписи полок главной (presentation — сервис отдаёт только ключи fresh/popular).
+_SHELF_TITLES = {"fresh": "Жаңа түскен", "popular": "Танымал"}
+
+# TTL кэша каталога (данные — политика кэша здесь; адаптер лишь исполняет). Главная и чипы
+# меняются только на /add → живут долго; браузинг — много комбинаций и «по просмотрам» дрейфует
+# с play_count → короткий TTL (бьёт и по объёму ключей, и по устареванию сортировки).
+_HOME_TTL = 600
+_CATEGORIES_TTL = 600
+_BROWSE_TTL = 60
+_CATEGORIES_ADAPTER = TypeAdapter(list[CategoryCountOut])
 
 # Rate-limit (данные — крутить здесь): анти-скрейп каталога/поиска/просмотра на IP.
 # Щедро (≈10 rps/IP): останавливает выкачку тысяч id, но не мешает живому юзеру и не
@@ -28,14 +48,41 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=list[MovieOut])
-async def list_movies(
+@router.get("")
+async def browse_movies(
+    cache: FromDishka[CatalogCache],
     catalog: FromDishka[CatalogService],
     _user: User = Depends(get_current_user),
-    category: str | None = None,
-) -> list[MovieOut]:
-    movies = await catalog.list_movies(category)
-    return [MovieOut.from_domain(movie) for movie in movies]
+    categories: str | None = None,
+    sort: SortField = "date",
+    direction: SortDir = "desc",
+    page: int = 1,
+    limit: int = 24,
+) -> Response:
+    """Страница каталога: мультифильтр `?categories=a,b`, сортировка, пагинация (Фаза 13).
+
+    Cache-aside (Redis, короткий TTL): ключ детерминирован по параметрам (категории дедупим и
+    сортируем — порядок не влияет). Хит → сырой JSON; промах → БД + кэш. Клампы page/limit — в
+    сервисе; сорт-поле/направление — Literal (422 на мусор). Корень префикса `/api/movies`.
+    """
+    selected = sorted({c for c in categories.split(",") if c}) if categories else []
+    key = f"browse:{','.join(selected) or 'all'}:{sort}:{direction}:{page}:{limit}"
+    cached = await cache.get(key)
+    if cached is not None:
+        return Response(content=cached, media_type="application/json")
+    result = await catalog.browse(
+        categories=selected, sort=sort, direction=direction, page=page, limit=limit
+    )
+    payload = MoviePageOut(
+        items=[MovieOut.from_domain(movie) for movie in result.items],
+        total=result.total,
+        page=result.page,
+        limit=result.limit,
+        has_more=result.has_more,
+    )
+    body = payload.model_dump_json()
+    await cache.set(key, body, _BROWSE_TTL)
+    return Response(content=body, media_type="application/json")
 
 
 @router.get("/search", response_model=list[MovieOut])
@@ -67,23 +114,48 @@ async def catalog_home(
     catalog: FromDishka[CatalogService],
     _user: User = Depends(get_current_user),
 ) -> Response:
-    """Главный экран одним ответом (hero + все фильмы), cache-aside (Фаза 11.2).
+    """Главный экран одним ответом (hero + готовые полки), cache-aside (Фаза 11.2/13).
 
-    Хит — отдаём готовый JSON из Redis; промах — собираем из БД, кладём в кэш (EX 600).
-    Инвалидируется при `/add` (см. MovieIngestionService). Определён ДО `/{movie_id}`.
+    Хит — отдаём готовый JSON из Redis (ключ `home`); промах — собираем из БД (полки уже
+    ограничены N на бэке), кладём в кэш. Инвалидируется при `/add`. Определён ДО `/{movie_id}`.
     Отдаём сырой `Response`, чтобы на хите не пересериализовывать кэш.
     """
-    cached = await cache.get()
+    cached = await cache.get("home")
     if cached is not None:
         return Response(content=cached, media_type="application/json")
-    movies = await catalog.list_movies(None)
-    hero = await catalog.get_hero()
+    home = await catalog.home()
     payload = CatalogHomeOut(
-        hero=MovieOut.from_domain(hero) if hero is not None else None,
-        movies=[MovieOut.from_domain(movie) for movie in movies],
+        hero=MovieOut.from_domain(home.hero) if home.hero is not None else None,
+        shelves=[
+            ShelfOut(
+                key=shelf.key,
+                title=_SHELF_TITLES.get(shelf.key, shelf.key),
+                movies=[MovieOut.from_domain(movie) for movie in shelf.movies],
+            )
+            for shelf in home.shelves
+        ],
     )
     body = payload.model_dump_json()
-    await cache.set(body)
+    await cache.set("home", body, _HOME_TTL)
+    return Response(content=body, media_type="application/json")
+
+
+@router.get("/categories")
+async def list_categories(
+    cache: FromDishka[CatalogCache],
+    catalog: FromDishka[CatalogService],
+    _user: User = Depends(get_current_user),
+) -> Response:
+    """Непустые категории со счётчиками для чипов (cache-aside). ДО `/{movie_id}`."""
+    cached = await cache.get("categories")
+    if cached is not None:
+        return Response(content=cached, media_type="application/json")
+    items = [
+        CategoryCountOut(slug=slug, count=count)
+        for slug, count in await catalog.category_counts()
+    ]
+    body = _CATEGORIES_ADAPTER.dump_json(items)
+    await cache.set("categories", body.decode(), _CATEGORIES_TTL)
     return Response(content=body, media_type="application/json")
 
 

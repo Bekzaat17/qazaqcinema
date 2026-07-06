@@ -30,6 +30,9 @@ class _BrokenRedis:
     async def delete(self, *args: object, **kwargs: object) -> object:
         raise RedisError("redis down")
 
+    def scan_iter(self, *args: object, **kwargs: object) -> object:
+        raise RedisError("redis down")
+
     def pipeline(self, *args: object, **kwargs: object) -> object:
         raise RedisError("redis down")
 
@@ -100,15 +103,17 @@ async def test_session_fails_open_when_redis_down() -> None:
 
 async def test_catalog_cache_set_get_invalidate() -> None:
     cache = RedisCatalogCache(_redis())
-    assert await cache.get() is None                 # пусто на старте
-    await cache.set('{"movies":[]}')
-    assert await cache.get() == '{"movies":[]}'       # хит
+    assert await cache.get("home") is None                      # пусто на старте
+    await cache.set("home", '{"shelves":[]}', 600)
+    await cache.set("browse:all:date:desc:1:24", "[]", 60)      # другой ключ того же namespace
+    assert await cache.get("home") == '{"shelves":[]}'           # хит
     await cache.invalidate()
-    assert await cache.get() is None                 # после инвалидации — снова промах
+    assert await cache.get("home") is None                      # invalidate чистит ВЕСЬ namespace
+    assert await cache.get("browse:all:date:desc:1:24") is None
 
 
 async def test_catalog_cache_fails_open_when_redis_down() -> None:
     cache = RedisCatalogCache(_BrokenRedis())
-    assert await cache.get() is None                 # промах → эндпоинт соберёт из БД
-    await cache.set('{"movies":[]}')                 # no-op, не бросает
-    await cache.invalidate()                          # no-op, не бросает
+    assert await cache.get("home") is None                      # промах → эндпоинт соберёт из БД
+    await cache.set("home", '{"shelves":[]}', 600)              # no-op, не бросает
+    await cache.invalidate()                                     # no-op, не бросает

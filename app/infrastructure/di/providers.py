@@ -107,7 +107,8 @@ class AppProvider(Provider):
 
     @provide
     def catalog_cache(self, redis: Redis) -> CatalogCache:
-        # Cache-aside главного экрана (Фаза 11.2): catalog:main EX 600, инвалидация на /add.
+        # Cache-aside каталога (Фаза 11.2/13): namespace catalog:* (home/categories/browse),
+        # инвалидация на /add чистит весь namespace.
         return RedisCatalogCache(redis)
 
     @provide

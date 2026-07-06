@@ -2,7 +2,17 @@
 // и без запущенного API) для отладки вёрстки. В прод-сборку НЕ попадает: вызывается только из
 // ветки `import.meta.env.DEV && !initData` через динамический import (Vite вырезает её в проде).
 
-import type { Auth, CatalogHome, Movie, PaymentInit, ProofAccepted, Tariff } from "./api";
+import type {
+  Auth,
+  CatalogHome,
+  CategoryCount,
+  Movie,
+  MoviePage,
+  PaymentInit,
+  ProofAccepted,
+  Shelf,
+  Tariff,
+} from "./api";
 
 const poster = (seed: string) => `https://picsum.photos/seed/${seed}/400/600`;
 
@@ -16,8 +26,15 @@ const MOVIES: Movie[] = [
   { id: 1, title_kk: "Батыл жүрек", title_ru: "Храбрая сердцем", title_original: "Brave", description: "Мерида ханшайым өз тағдырын өзі шешуге бел буады.", category: "disney", poster_url: poster("brave"), year: 2012, rating: 7.1 },
 ];
 
-// Фильм на hero: у первого мока есть горизонтальный баннер 3:2 (проверить широкий hero в браузере).
+// Фильм на hero: у него есть горизонтальный баннер 3:2 (проверить широкий hero в браузере).
 const HERO_MOVIE: Movie = { ...MOVIES[0], hero_image_url: "https://picsum.photos/seed/howl-hero/1200/800" };
+
+// Полки главной (как их собрал бы бэкенд): «Жаңа түскен» без hero + «Танымал» (по рейтингу-прокси).
+const SHELVES: Shelf[] = [
+  { key: "fresh", title: "Жаңа түскен", movies: MOVIES.filter((m) => m.id !== HERO_MOVIE.id) },
+  { key: "popular", title: "Танымал", movies: [...MOVIES].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)) },
+];
+const HOME: CatalogHome = { hero: HERO_MOVIE, shelves: SHELVES };
 
 const TARIFFS: Tariff[] = [
   { slug: "1_day", title_ru: "1 день", title_kk: "1 күн", price_kzt: 349, price_xtr: 50, days: 1, recurring: false },
@@ -34,6 +51,30 @@ const AUTH: Auth = {
   notifications_enabled: true, // тумблер рассылок (Фаза 12)
 };
 
+/** Непустые категории со счётчиками (для чипов каталога). */
+function categoryCounts(): CategoryCount[] {
+  const counts = new Map<string, number>();
+  for (const m of MOVIES) counts.set(m.category, (counts.get(m.category) ?? 0) + 1);
+  return [...counts.entries()].map(([slug, count]) => ({ slug, count }));
+}
+
+/** Пагинированный браузинг: фильтр по категориям + сортировка + срез (мок бэкенда Фазы 13). */
+function browse(q: URLSearchParams): MoviePage {
+  const cats = (q.get("categories") ?? "").split(",").filter(Boolean);
+  const sort = q.get("sort") ?? "date";
+  const dir = q.get("direction") ?? "desc";
+  const page = Number(q.get("page") ?? "1");
+  const limit = Number(q.get("limit") ?? "24");
+
+  const list = cats.length ? MOVIES.filter((m) => cats.includes(m.category)) : [...MOVIES];
+  const key = (m: Movie): number => (sort === "rating" ? (m.rating ?? -1) : m.id); // views нет в моке → id
+  list.sort((a, b) => (dir === "asc" ? key(a) - key(b) : key(b) - key(a)));
+
+  const start = (page - 1) * limit;
+  const items = list.slice(start, start + limit);
+  return { items, total: list.length, page, limit, has_more: start + items.length < list.length };
+}
+
 export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
   const url = new URL(path, "http://mock");
   const p = url.pathname;
@@ -41,15 +82,13 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   let data: unknown;
   if (p === "/api/auth") data = AUTH;
-  else if (p === "/api/movies/home") data = { hero: HERO_MOVIE, movies: MOVIES } satisfies CatalogHome;
-  else if (p === "/api/movies/hero") data = HERO_MOVIE;
+  else if (p === "/api/movies/home") data = HOME;
+  else if (p === "/api/movies/categories") data = categoryCounts();
   else if (p === "/api/movies/search") {
     const term = (q.get("q") ?? "").toLowerCase();
     data = MOVIES.filter((m) => `${m.title_kk} ${m.title_original}`.toLowerCase().includes(term));
-  } else if (p === "/api/movies") {
-    const cat = q.get("category");
-    data = cat ? MOVIES.filter((m) => m.category === cat) : MOVIES;
-  } else if (/^\/api\/movies\/\d+\/play$/.test(p)) data = { status: "sent" };
+  } else if (p === "/api/movies") data = browse(q);
+  else if (/^\/api\/movies\/\d+\/play$/.test(p)) data = { status: "sent" };
   else if (/^\/api\/movies\/\d+$/.test(p)) data = MOVIES.find((m) => m.id === Number(p.split("/")[3]));
   else if (p === "/api/payments/tariffs") data = TARIFFS;
   else if (p === "/api/payments/initiate") {

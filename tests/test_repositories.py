@@ -96,6 +96,93 @@ async def test_movie_get_hero_falls_back_to_newest(session: AsyncSession) -> Non
     assert hero.title_kk == "Жаңа"  # featured нет → самый новый (больший id)
 
 
+def _rated(title_kk: str, file_id: str, rating: float | None) -> Movie:
+    return Movie(
+        title_kk=title_kk,
+        description="d",
+        category="film",
+        poster_url="/p.jpg",
+        telegram_file_id=file_id,
+        rating=rating,
+    )
+
+
+async def test_movie_list_recent_and_popular(session: AsyncSession) -> None:
+    repo = PgMovieRepository(session)
+    a = await repo.add(_movie("A", "disney", "f1"))
+    b = await repo.add(_movie("B", "anime", "f2"))
+    c = await repo.add(_movie("C", "film", "f3"))  # новейший (больший id)
+
+    assert [m.title_kk for m in await repo.list_recent(2)] == ["C", "B"]  # новизна + обрезка
+
+    assert a.id and b.id and c.id
+    await repo.increment_play_count(c.id)
+    await repo.increment_play_count(c.id)
+    await repo.increment_play_count(b.id)
+
+    popular = await repo.list_popular(3)
+    assert [m.title_kk for m in popular] == ["C", "B", "A"]  # по просмотрам (C=2,B=1,A=0)
+    got = await repo.get(c.id)
+    assert got is not None and got.play_count == 2  # счётчик доехал до домена
+
+
+async def test_movie_list_popular_falls_back_to_rating(session: AsyncSession) -> None:
+    repo = PgMovieRepository(session)
+    for title, fid, rating in [("Low", "l", 6.0), ("High", "h", 9.0), ("NoRating", "n", None)]:
+        await repo.add(_rated(title, fid, rating))
+
+    # просмотров нет у всех → сортировка проваливается на rating (NULLS LAST)
+    assert [m.title_kk for m in await repo.list_popular(3)] == ["High", "Low", "NoRating"]
+
+
+async def test_movie_list_page_filters_and_paginates(session: AsyncSession) -> None:
+    repo = PgMovieRepository(session)
+    for i in range(5):
+        await repo.add(_movie(f"D{i}", "disney", f"d{i}"))
+    for i in range(3):
+        await repo.add(_movie(f"A{i}", "anime", f"a{i}"))
+
+    items, total = await repo.list_page(
+        categories=["anime"], sort="date", direction="desc", limit=10, offset=0
+    )
+    assert total == 3
+    assert all(m.category == "anime" for m in items)
+
+    first, total = await repo.list_page(
+        categories=[], sort="date", direction="desc", limit=4, offset=0
+    )
+    assert total == 8 and len(first) == 4
+    second, _ = await repo.list_page(
+        categories=[], sort="date", direction="desc", limit=4, offset=4
+    )
+    assert len(second) == 4
+    assert {m.id for m in first}.isdisjoint({m.id for m in second})  # страницы не пересекаются
+
+
+async def test_movie_list_page_sorts_by_rating_nulls_last(session: AsyncSession) -> None:
+    repo = PgMovieRepository(session)
+    for title, fid, rating in [("R6", "r6", 6.0), ("R9", "r9", 9.0), ("RN", "rn", None)]:
+        await repo.add(_rated(title, fid, rating))
+
+    desc_items, _ = await repo.list_page(
+        categories=[], sort="rating", direction="desc", limit=10, offset=0
+    )
+    assert [m.title_kk for m in desc_items] == ["R9", "R6", "RN"]
+    asc_items, _ = await repo.list_page(
+        categories=[], sort="rating", direction="asc", limit=10, offset=0
+    )
+    assert [m.title_kk for m in asc_items] == ["R6", "R9", "RN"]  # без оценки всё равно в конце
+
+
+async def test_movie_category_counts(session: AsyncSession) -> None:
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("a", "anime", "1"))
+    await repo.add(_movie("b", "anime", "2"))
+    await repo.add(_movie("c", "disney", "3"))
+
+    assert await repo.category_counts() == {"anime": 2, "disney": 1}
+
+
 async def test_user_upsert_overwrites(session: AsyncSession) -> None:
     repo = PgUserRepository(session)
     await repo.upsert(User(telegram_id=10, username="neo"))

@@ -78,7 +78,8 @@ class MovieIngestionService:
             hero_image_url=hero_url,
         )
         saved = await self._movies.add(movie)
-        # Сбрасываем кэш главной, иначе новинка не видна до истечения TTL (Фаза 11.2).
+        # Сбрасываем ВЕСЬ кэш каталога (главная/чипы/страницы браузинга), иначе новинка не
+        # видна до истечения TTL (Фаза 11.2/13; invalidate чистит весь namespace catalog:*).
         await self._cache.invalidate()
         await self._notifier.notify_admins(
             f"✅ Фильм «{saved.title_kk}» добавлен. ID: {saved.id}"

@@ -32,10 +32,14 @@ class _FakeMovies:
     def __init__(self, movie: Movie | None) -> None:
         self._movie = movie
         self.get_calls: list[int] = []
+        self.play_increments: list[int] = []
 
     async def get(self, movie_id: int) -> Movie | None:
         self.get_calls.append(movie_id)
         return self._movie
+
+    async def increment_play_count(self, movie_id: int) -> None:
+        self.play_increments.append(movie_id)
 
 
 class _FakeNotifier:
@@ -81,6 +85,7 @@ async def test_deliver_sends_protected_video_for_active_subscriber() -> None:
 
     assert outcome is PlaybackOutcome.DELIVERED
     assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]
+    assert movies.play_increments == [7]  # реальная доставка → просмотр засчитан
 
 
 async def test_deliver_denies_without_access_and_skips_movie_load() -> None:
@@ -95,6 +100,7 @@ async def test_deliver_denies_without_access_and_skips_movie_load() -> None:
     assert outcome is PlaybackOutcome.NO_ACCESS
     assert notifier.sent == []
     assert movies.get_calls == []  # без доступа фильм не раскрываем
+    assert movies.play_increments == []
 
 
 async def test_deliver_not_found_when_movie_missing() -> None:
@@ -108,6 +114,7 @@ async def test_deliver_not_found_when_movie_missing() -> None:
 
     assert outcome is PlaybackOutcome.NOT_FOUND
     assert notifier.sent == []
+    assert movies.play_increments == []
 
 
 async def test_deliver_reports_bot_blocked_when_recipient_unreachable() -> None:
@@ -122,6 +129,7 @@ async def test_deliver_reports_bot_blocked_when_recipient_unreachable() -> None:
 
     assert outcome is PlaybackOutcome.BOT_BLOCKED
     assert notifier.sent == []  # видео не ушло
+    assert movies.play_increments == []  # блок → просмотр не засчитан
 
 
 async def test_deliver_swallows_rapid_duplicate_send() -> None:
@@ -138,4 +146,5 @@ async def test_deliver_swallows_rapid_duplicate_send() -> None:
     assert first is PlaybackOutcome.DELIVERED
     assert second is PlaybackOutcome.DELIVERED  # повтор не ошибка — та же модалка на фронте
     assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]  # но отправка одна
+    assert movies.play_increments == [7]  # счётчик +1 один раз (повтор — no-op)
     assert lock.keys == ["send_video:42:7", "send_video:42:7"]

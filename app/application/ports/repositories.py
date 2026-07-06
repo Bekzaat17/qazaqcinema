@@ -7,12 +7,17 @@ PaymentRepository. Реализации — в app/infrastructure/db/repositorie
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol
+from typing import Literal, Protocol
 
 from app.domain.entities.enums import PaymentStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
+
+# Сортировка каталога (Фаза 13) — контракт между роутером, сервисом и репозиторием.
+# Значения — белый список: репозиторий маппит их в колонки, сырую строку в SQL не пускаем.
+SortField = Literal["date", "rating", "views"]  # date→id, rating→rating, views→play_count
+SortDir = Literal["asc", "desc"]
 
 
 class MovieRepository(Protocol):
@@ -21,6 +26,19 @@ class MovieRepository(Protocol):
     async def list_all(self, category: str | None = None) -> list[Movie]: ...
     async def search(self, query: str) -> list[Movie]: ...
     async def get_hero(self) -> Movie | None: ...
+    async def list_recent(self, limit: int) -> list[Movie]: ...
+    async def list_popular(self, limit: int) -> list[Movie]: ...
+    async def list_page(
+        self,
+        *,
+        categories: list[str],
+        sort: SortField,
+        direction: SortDir,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[Movie], int]: ...
+    async def category_counts(self) -> dict[str, int]: ...
+    async def increment_play_count(self, movie_id: int) -> None: ...
 
 
 class UserRepository(Protocol):

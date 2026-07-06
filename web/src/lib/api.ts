@@ -117,10 +117,35 @@ export interface Movie {
   hero_image_url?: string | null; // горизонтальный баннер, если фильм показан на hero
 }
 
-/** Агрегат главного экрана (Фаза 11.2): hero + все фильмы одним ответом. */
+/** Полка главной: ключ (fresh/popular), казахская подпись, фильмы (собрано на бэке). */
+export interface Shelf {
+  key: string;
+  title: string;
+  movies: Movie[];
+}
+
+/** Агрегат главного экрана (Фаза 13): hero + готовые полки (ограничены на бэке). */
 export interface CatalogHome {
   hero: Movie | null;
-  movies: Movie[];
+  shelves: Shelf[];
+}
+
+export type SortField = "date" | "rating" | "views";
+export type SortDir = "asc" | "desc";
+
+/** Страница каталога (Фаза 13): срез + метаданные пагинации. */
+export interface MoviePage {
+  items: Movie[];
+  total: number;
+  page: number;
+  limit: number;
+  has_more: boolean;
+}
+
+/** Непустая категория со счётчиком — для чипов-фильтра каталога. */
+export interface CategoryCount {
+  slug: string;
+  count: number;
 }
 
 export interface Tariff {
@@ -152,19 +177,23 @@ export const api = {
   /** Bootstrap/ре-auth: initData → сессия. Токен кладётся в localStorage автоматически. */
   auth: () => refreshSession(),
 
-  /** Главный экран одним ответом (hero + фильмы); кэшируется на бэке cache-aside (Фаза 11.2). */
+  /** Главный экран одним ответом (hero + готовые полки); кэшируется cache-aside (Фаза 11.2/13). */
   home: () => request<CatalogHome>("/api/movies/home"),
 
-  movies: (category?: string) =>
-    request<Movie[]>(`/api/movies${category ? `?category=${encodeURIComponent(category)}` : ""}`),
+  /** Страница каталога: мультифильтр по категориям, сортировка, пагинация (Фаза 13). */
+  browse: (categories: string[], sort: SortField, direction: SortDir, page: number, limit = 24) => {
+    const params = new URLSearchParams({ sort, direction, page: String(page), limit: String(limit) });
+    if (categories.length) params.set("categories", categories.join(","));
+    return request<MoviePage>(`/api/movies?${params.toString()}`);
+  },
+
+  /** Непустые категории со счётчиками — для чипов-фильтра каталога (Фаза 13). */
+  categories: () => request<CategoryCount[]>("/api/movies/categories"),
 
   searchMovies: (q: string) =>
     request<Movie[]>(`/api/movies/search?q=${encodeURIComponent(q)}`),
 
   getMovie: (id: number) => request<Movie>(`/api/movies/${id}`),
-
-  /** Фильм для hero главной — выбор делает бэкенд (featured → новизна). null, если каталог пуст. */
-  hero: () => request<Movie | null>("/api/movies/hero"),
 
   /** Триггер защищённой выдачи: бот пришлёт видео в личку (protect_content). 403 → нет доступа. */
   play: (id: number) =>

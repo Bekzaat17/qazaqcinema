@@ -50,6 +50,9 @@ class MovieModel(Base):
         Boolean, server_default=text("false"), nullable=False
     )
     hero_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Счётчик просмотров (Фаза 13): +1 при успешной выдаче видео; сортировка «Танымал»
+    # и каталога «по просмотрам». server_default 0 → backfill без отдельного UPDATE.
+    play_count: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

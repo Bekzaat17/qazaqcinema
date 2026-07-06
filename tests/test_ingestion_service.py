@@ -47,10 +47,10 @@ class _FakeCache:
     def __init__(self) -> None:
         self.invalidated = 0
 
-    async def get(self) -> str | None:
+    async def get(self, key: str) -> str | None:
         return None
 
-    async def set(self, payload: str) -> None:
+    async def set(self, key: str, payload: str, ttl: int) -> None:
         pass
 
     async def invalidate(self) -> None:

@@ -46,8 +46,37 @@ class PlayOut(BaseModel):
     status: Literal["sent"]
 
 
+class ShelfOut(BaseModel):
+    """Готовая полка главной: ключ, казахская подпись и фильмы (собрано на бэке, Фаза 13)."""
+
+    key: str            # fresh | popular | ...
+    title: str          # казахская подпись полки
+    movies: list[MovieOut]
+
+
 class CatalogHomeOut(BaseModel):
-    """Агрегат главного экрана (Фаза 11.2): hero + все фильмы одним ответом, кэшируется."""
+    """Агрегат главного экрана (Фаза 13): hero + готовые полки. Кэшируется cache-aside.
+
+    Размер ответа = O(полки × N), НЕ O(каталог): сервер режет каждую полку до N (14) —
+    фронт получает ровно то, что рисует, ответ не растёт с ростом каталога.
+    """
 
     hero: MovieOut | None = None
-    movies: list[MovieOut]
+    shelves: list[ShelfOut]
+
+
+class MoviePageOut(BaseModel):
+    """Страница каталога (Фаза 13): срез + метаданные пагинации. file_id так же скрыт."""
+
+    items: list[MovieOut]
+    total: int
+    page: int
+    limit: int
+    has_more: bool
+
+
+class CategoryCountOut(BaseModel):
+    """Непустая категория со счётчиком — для чипов-фильтра каталога (Фаза 13)."""
+
+    slug: str
+    count: int

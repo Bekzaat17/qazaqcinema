@@ -15,8 +15,13 @@
   переслать, записать экран). `telegram_file_id` никогда не уходит на фронтенд; триггер — `POST /play`.
 - **Подписка**: 2 тарифа (1 күн / 1 ай). Kaspi-чеки с ручной модерацией (MVP) + Telegram Stars
   как нативная авто-подписка.
-- **Web App**: тёмный интерфейс — hero-баннер (курируется бэком), полки по категориям, поиск,
-  карточка фильма, пэйволл (Kaspi/Stars).
+- **Web App**: тёмный интерфейс с нижней таб-навигацией (**Басты / Каталог**). Главная —
+  hero-баннер (курируется бэком) + карусели «Жаңа түскен» (новинки) и «Танымал» (по просмотрам).
+  Каталог — фильтр по категориям (мультивыбор) + сортировка (дата/рейтинг/просмотры, asc/desc) +
+  пагинация подгрузкой. Плюс поиск, карточка фильма, пэйволл (Kaspi/Stars). Вся выборка и лимиты — на
+  бэке (ответ главной не растёт с каталогом).
+- **Рассылки**: авто-уведомление о новинке + ручная рассылка админом (`/broadcast`); у пользователя —
+  тумблер отписки. Фоновый worker разбирает надёжную Redis-очередь, соблюдая лимиты Telegram.
 
 ## Стек
 - **Backend**: Python 3.13, **aiogram 3** (бот), **FastAPI** (API), **SQLAlchemy 2.0 async** +
@@ -24,22 +29,24 @@
   (нормализация постеров/hero-баннеров).
 - **Frontend**: React 19 + Vite 6 + TypeScript + Tailwind CSS v4.
 - **Инфраструктура**: Docker Compose — **одна топология** для dev/prod/test (postgres, redis, api,
-  bot, web/nginx), отличие сред только в env-файле; единый запуск `./start.sh`, миграции авто.
-  Redis подключён (клиент в DI + `GET /api/health`); фичи на нём (сессии/кэш/rate-limit) — Фаза 11.
+  bot, web/nginx, worker), отличие сред только в env-файле; единый запуск `./start.sh`, миграции авто.
+  **Redis** несёт сессии, кэш каталога, rate-limit, локи и очередь рассылок — все адаптеры
+  **fail-open** (падение Redis не роняет основной путь). Прод (webhook/TLS) включается через env.
 
 ## Структура
 ```
 app/
-  bot/            # aiogram: handlers (start, add_movie, inline_query, moderation, stars), keyboards, security
-  api/            # FastAPI: routers (auth, catalog, payments, health), schemas (DTO), deps
+  bot/            # aiogram: handlers (start, add_movie, broadcast, inline_query, moderation, stars), keyboards, security
+  api/            # FastAPI: routers (auth, catalog, payments, me, health), schemas (DTO), deps
   domain/         # ядро без внешних зависимостей: entities, tariffs, parsing, catalog, subscription
   application/    # ports (Protocol-интерфейсы) + services (use-cases)
-  infrastructure/ # адаптеры: db (модели/репозитории), telegram, payments, di, scheduler
+  infrastructure/ # адаптеры: db, telegram, payments, cache (Redis), images, di, scheduler
   config/         # pydantic-settings
-  main.py         # запуск бота (polling)
+  main.py         # запуск бота (polling/webhook по env)
+  worker.py       # воркер рассылок (Redis-очередь → Bot API)
 web/              # Web App (React + Vite + TS + Tailwind)
 migrations/       # Alembic
-tests/            # тесты домена (без БД)
+tests/            # тесты домена + интеграционные (репозитории)
 ```
 
 ## Быстрый старт
@@ -65,8 +72,8 @@ Env-файл по режиму: `dev → .env`, `prod → .env.prod` (шабло
 `test → .env.test` (в репо, БД `qazaqcinema_test`). Нет файла — `start.sh` создаёт из шаблона; для
 prod попросит вписать секреты (`BOT_TOKEN`, `DB_PASSWORD`, …).
 
-> Прод сейчас — прагматичный (polling, web за nginx :80, без домена/TLS): запускается на любом VPS.
-> Webhook + Nginx-TLS под домен — Фаза 10 (см. PLAN.md).
+> Прод: webhook + Nginx-TLS включаются через env (`BOT_WEBHOOK_URL`, `WEB_TLS`); без них — polling +
+> nginx :80 на любом VPS. Живой деплой (домен, DNS, сертификат) — по [DEPLOY.md](DEPLOY.md).
 
 <details><summary>Hot-reload на время активной разработки (host-venv поверх Docker-инфры)</summary>
 

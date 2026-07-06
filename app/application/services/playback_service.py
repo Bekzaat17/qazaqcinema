@@ -58,4 +58,7 @@ class PlaybackService:
             # Юзер открыл Mini App, но не начал чат с ботом. Лок (TTL ~3 c) не снимаем:
             # окно мало, а доступ к боту юзер чинит дольше → ложного «доставлено» не будет.
             return PlaybackOutcome.BOT_BLOCKED
+        # Считаем просмотр только на реальной доставке (Фаза 13): повтор-в-окне не дошёл
+        # сюда (лок вернул DELIVERED раньше) → двойной клик не накручивает счётчик.
+        await self._movies.increment_play_count(movie_id)
         return PlaybackOutcome.DELIVERED

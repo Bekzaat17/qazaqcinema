@@ -1,8 +1,9 @@
 // Оркестратор Mini App: загрузка (auth + каталог + тарифы), главный экран, поиск и стек
 // оверлеев (карточка → пэйволл, профиль, хэндофф-модалка). Один экран, навигация — состоянием.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import CatalogView from "./components/CatalogView";
 import Hero from "./components/Hero";
 import HandoffModal from "./components/HandoffModal";
 import HomeSkeleton from "./components/HomeSkeleton";
@@ -12,22 +13,23 @@ import PosterCard from "./components/PosterCard";
 import ProfileSheet from "./components/ProfileSheet";
 import SearchBar from "./components/SearchBar";
 import Shelf from "./components/Shelf";
+import TabBar, { type Tab } from "./components/TabBar";
 import { CatalogEmpty, LoadError, SearchEmpty } from "./components/States";
 import StatusBanner from "./components/StatusBanner";
 import TopBar from "./components/TopBar";
 import Toast from "./components/Toast";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
-import { ApiError, api, type Auth, type Movie, type Tariff } from "./lib/api";
-import { buildShelves } from "./lib/catalog";
+import { ApiError, api, type Auth, type Movie, type Shelf as ShelfData, type Tariff } from "./lib/api";
 import { haptic } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
 
 export default function App() {
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [auth, setAuth] = useState<Auth | null>(null);
-  const [movies, setMovies] = useState<Movie[]>([]);
+  const [shelves, setShelves] = useState<ShelfData[]>([]);
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [hero, setHero] = useState<Movie | null>(null);
+  const [tab, setTab] = useState<Tab>("home");
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Movie[] | null>(null);
@@ -53,7 +55,7 @@ export default function App() {
         api.tariffs(),
       ]);
       setAuth(authRes);
-      setMovies(homeRes.movies);
+      setShelves(homeRes.shelves);
       setTariffs(tariffsRes);
       setHero(homeRes.hero);
       setPhase("ready");
@@ -93,15 +95,17 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Единая нативная кнопка «назад» на весь стек оверлеев (сверху вниз).
+  // Единая нативная кнопка «назад»: закрывает оверлеи (сверху вниз), а на вкладке
+  // «Каталог» без оверлеев — возвращает на «Басты» (таб — не оверлей, но выход логичен).
   const anyOverlay = handoffOpen || paywallOpen || !!selected || profileOpen;
   const onBack = useCallback(() => {
     if (handoffOpen) setHandoffOpen(false);
     else if (paywallOpen) setPaywallOpen(false);
     else if (selected) setSelected(null);
     else if (profileOpen) setProfileOpen(false);
-  }, [handoffOpen, paywallOpen, selected, profileOpen]);
-  useTelegramBackButton(anyOverlay, onBack);
+    else if (tab === "catalog") setTab("home");
+  }, [handoffOpen, paywallOpen, selected, profileOpen, tab]);
+  useTelegramBackButton(anyOverlay || tab === "catalog", onBack);
 
   const openPaywall = useCallback((movie: Movie | null) => {
     setPaywallMovie(movie);
@@ -155,22 +159,21 @@ export default function App() {
     }
   }, []);
 
-  const { shelves } = useMemo(() => buildShelves(movies, hero?.id), [movies, hero]);
-
   return (
-    <div className="min-h-screen bg-bg pb-[calc(28px+var(--safe-bottom))]">
+    <div className="min-h-screen bg-bg pb-[calc(72px+var(--safe-bottom))]">
       <TopBar status={status} onProfile={() => setProfileOpen(true)} />
 
-      {phase === "ready" && <SearchBar value={query} onChange={setQuery} />}
-      {phase === "ready" && status === "pending_review" && <StatusBanner />}
+      {phase === "ready" && tab === "home" && <SearchBar value={query} onChange={setQuery} />}
+      {phase === "ready" && tab === "home" && status === "pending_review" && <StatusBanner />}
 
       {phase === "loading" && <HomeSkeleton />}
       {phase === "error" && <LoadError onRetry={load} />}
 
       {phase === "ready" &&
+        tab === "home" &&
         (results !== null ? (
           <SearchResults query={query} results={results} searching={searching} onSelect={setSelected} />
-        ) : movies.length === 0 ? (
+        ) : shelves.length === 0 && !hero ? (
           <CatalogEmpty />
         ) : (
           <div className="pb-2">
@@ -180,6 +183,10 @@ export default function App() {
             ))}
           </div>
         ))}
+
+      {phase === "ready" && tab === "catalog" && <CatalogView onSelect={setSelected} />}
+
+      {phase === "ready" && <TabBar tab={tab} onChange={setTab} />}
 
       <MovieSheet
         movie={selected}
