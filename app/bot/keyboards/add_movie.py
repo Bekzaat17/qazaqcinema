@@ -25,16 +25,19 @@ def featured_keyboard() -> InlineKeyboardMarkup:
 
 
 def category_keyboard() -> InlineKeyboardMarkup:
-    """Кнопки категорий из справочника (данные → UI; новая категория = +1 запись)."""
-    rows = [
-        [
-            InlineKeyboardButton(
-                text=category.title_ru,
-                callback_data=f"{CATEGORY_PREFIX}{category.slug}",
-            )
-        ]
+    """Кнопки категорий из справочника (данные → UI; новая категория = +1 запись).
+
+    Раскладываем по 2 в ряд: категорий много (~20), одностолбцовый список был бы
+    неудобно длинным.
+    """
+    buttons = [
+        InlineKeyboardButton(
+            text=category.title_ru,
+            callback_data=f"{CATEGORY_PREFIX}{category.slug}",
+        )
         for category in all_categories()
     ]
+    rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

@@ -8,8 +8,19 @@ const CATEGORY_LABELS: Record<string, string> = {
   anime: "Аниме",
   film: "Фильмдер",
   serial: "Сериалдар",
+  short: "Қысқа метр",
+  documentary: "Деректі",
   otandyq: "Отандық",
   kids: "Балаларға",
+  girls: "Қыздарға",
+  boys: "Ұлдарға",
+  family: "Отбасылық",
+  adventure: "Шытырман оқиға",
+  comedy: "Күлкілі",
+  fantasy: "Қиял-ғажайып",
+  fairytale: "Ертегілер",
+  learning: "Білім беру",
+  classic: "Классика",
 };
 
 export function categoryLabel(slug: string): string {

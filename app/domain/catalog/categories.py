@@ -17,12 +17,28 @@ class Category:
 
 
 CATEGORIES: dict[str, Category] = {
+    # Тип / формат
     "disney": Category("disney", "Мультфильмы", "Мультфильмдер"),
     "anime": Category("anime", "Аниме", "Аниме"),
     "film": Category("film", "Фильмы", "Фильмдер"),
     "serial": Category("serial", "Сериалы", "Сериалдар"),
+    "short": Category("short", "Короткометражки", "Қысқа метр"),
+    "documentary": Category("documentary", "Документальные", "Деректі"),
+    # Происхождение
     "otandyq": Category("otandyq", "Отечественные", "Отандық"),
+    # Аудитория
     "kids": Category("kids", "Детские", "Балаларға"),
+    "girls": Category("girls", "Для девочек", "Қыздарға"),
+    "boys": Category("boys", "Для мальчиков", "Ұлдарға"),
+    "family": Category("family", "Семейные", "Отбасылық"),
+    # Жанр
+    "adventure": Category("adventure", "Приключения", "Шытырман оқиға"),
+    "comedy": Category("comedy", "Комедии", "Күлкілі"),
+    "fantasy": Category("fantasy", "Фэнтези", "Қиял-ғажайып"),
+    "fairytale": Category("fairytale", "Сказки", "Ертегілер"),
+    "learning": Category("learning", "Развивающие", "Білім беру"),
+    # Тематические
+    "classic": Category("classic", "Классика", "Классика"),
 }
 
 
