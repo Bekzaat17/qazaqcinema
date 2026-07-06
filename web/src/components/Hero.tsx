@@ -27,7 +27,8 @@ export default function Hero({ movie, onSelect }: { movie: Movie; onSelect: (m: 
       />
       {/* Смешиваем низ постера с фоном страницы */}
       <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-transparent" />
-      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent" />
+      {/* ...и верх — тем же фоном, чтобы поиск и баннер не «слипались» краем */}
+      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-bg via-bg/40 to-transparent" />
 
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 p-5">
         <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 backdrop-blur-sm">

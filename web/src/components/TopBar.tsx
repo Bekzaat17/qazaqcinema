@@ -14,7 +14,13 @@ export default function TopBar({ status, onProfile }: { status: UserStatus; onPr
   const dot = STATUS_DOT[status];
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-bg/80 px-4 py-3 backdrop-blur-xl">
-      <img src="/logo.png" alt="QazaqCinema" className="h-7 w-auto" />
+      <div className="flex items-center gap-2">
+        <img src="/logo-icon.png" alt="" className="h-8 w-8 shrink-0" />
+        <span className="font-display text-lg font-bold leading-none tracking-tight">
+          <span className="text-text">Qazaq</span>
+          <span className="text-brand">Cinema</span>
+        </span>
+      </div>
       <button
         onClick={() => {
           haptic.light();
