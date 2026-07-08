@@ -95,8 +95,8 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
     const method = init?.body ? (JSON.parse(String(init.body)) as { method: string }).method : "kaspi";
     data =
       method === "stars"
-        ? ({ method: "stars", kaspi_number: null, kaspi_name: null, invoice_url: "https://t.me/invoice/mock", payload: "1:1_month" } satisfies PaymentInit)
-        : ({ method: "kaspi", kaspi_number: "+7 700 123 4567", kaspi_name: "QazaqCinema", invoice_url: null, payload: null } satisfies PaymentInit);
+        ? ({ method: "stars", kaspi_number: null, kaspi_name: null, kaspi_link: null, invoice_url: "https://t.me/invoice/mock", payload: "1:1_month" } satisfies PaymentInit)
+        : ({ method: "kaspi", kaspi_number: "+7 700 123 4567", kaspi_name: "QazaqCinema", kaspi_link: "https://pay.kaspi.kz/pay/uxsx2lyw", invoice_url: null, payload: null } satisfies PaymentInit);
   } else if (p === "/api/payments/proof") data = { status: "pending_review", request_id: 1 } satisfies ProofAccepted;
   else if (p === "/api/me/notifications") {
     const enabled = init?.body ? (JSON.parse(String(init.body)) as { enabled: boolean }).enabled : true;

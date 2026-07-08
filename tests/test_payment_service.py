@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 from app.application.ports.payments import PaymentInstruction
+from app.application.ports.telegram import ProofRef
 from app.application.services.payment_service import (
     PaymentService,
     UnknownTariffError,
@@ -57,24 +58,25 @@ class _FakeUsers:
 
 class _FakeNotifier:
     def __init__(self) -> None:
-        self.ack: list[tuple[int, bytes, str]] = []
-        self.admin: list[tuple[int, int, str | None, str, str]] = []
+        self.ack: list[tuple[int, bytes, str, str, str]] = []
+        self.admin: list[tuple[int, int, str | None, str, ProofRef]] = []
 
     async def acknowledge_payment_proof(
-        self, telegram_id: int, proof: bytes, caption: str
-    ) -> str:
-        self.ack.append((telegram_id, proof, caption))
-        return "PROOF_FILE_ID"
+        self, telegram_id: int, proof: bytes, caption: str, *, filename: str, content_type: str
+    ) -> ProofRef:
+        self.ack.append((telegram_id, proof, caption, filename, content_type))
+        return ProofRef("PROOF_FILE_ID", is_document=content_type == "application/pdf")
 
     async def send_payment_proof_to_admins(
         self,
+        *,
         request_id: int,
         user_id: int,
         username: str | None,
         tariff_title: str,
-        proof_file_id: str,
+        proof: ProofRef,
     ) -> None:
-        self.admin.append((request_id, user_id, username, tariff_title, proof_file_id))
+        self.admin.append((request_id, user_id, username, tariff_title, proof))
 
 
 def _service(
@@ -118,7 +120,9 @@ async def test_submit_proof_creates_pending_and_notifies() -> None:
     service, payments, users, notifier = _service()
     user = User(telegram_id=42, username="beka", status=UserStatus.NEW)
 
-    request = await service.submit_proof(user, "1_month", b"jpegbytes")
+    request = await service.submit_proof(
+        user, "1_month", b"jpegbytes", filename="proof.jpg", content_type="image/jpeg"
+    )
 
     # заявка PENDING с file_id, полученным при подтверждении приёма
     assert request.status is PaymentStatus.PENDING
@@ -132,6 +136,21 @@ async def test_submit_proof_creates_pending_and_notifies() -> None:
     assert notifier.admin and notifier.admin[0][0] == request.id
     assert MONTH is not None
     assert notifier.admin[0][3] == MONTH.title_kk
+    # картинка → шлётся как photo (не document)
+    assert notifier.admin[0][4].is_document is False
+
+
+async def test_submit_proof_pdf_is_sent_as_document() -> None:
+    # Kaspi отдаёт чек PDF-файлом → нотификатор должен пометить его документом,
+    # чтобы и юзеру, и админам он ушёл через send_document, а не send_photo.
+    service, _payments, _users, notifier = _service()
+    user = User(telegram_id=42, username="beka", status=UserStatus.NEW)
+
+    await service.submit_proof(
+        user, "1_month", b"%PDF-1.4", filename="kaspi.pdf", content_type="application/pdf"
+    )
+
+    assert notifier.admin and notifier.admin[0][4].is_document is True
 
 
 async def test_submit_proof_unknown_tariff_raises_before_side_effects() -> None:
@@ -139,7 +158,9 @@ async def test_submit_proof_unknown_tariff_raises_before_side_effects() -> None:
     user = User(telegram_id=42, status=UserStatus.NEW)
 
     with pytest.raises(UnknownTariffError):
-        await service.submit_proof(user, "nope", b"x")
+        await service.submit_proof(
+            user, "nope", b"x", filename="proof.jpg", content_type="image/jpeg"
+        )
 
     assert payments.added == []
     assert users.upserted == []

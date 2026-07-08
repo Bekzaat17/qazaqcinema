@@ -12,7 +12,7 @@ from aiogram.types import (
 )
 
 from app.application.ports.broadcast import BroadcastMessage
-from app.application.ports.telegram import RecipientUnreachableError
+from app.application.ports.telegram import ProofRef, RecipientUnreachableError
 
 # Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
 # reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
@@ -79,35 +79,46 @@ class AiogramNotifier:
             raise  # прочий BadRequest (напр. битый file_id) — настоящая ошибка, пусть всплывёт
 
     async def acknowledge_payment_proof(
-        self, telegram_id: int, proof: bytes, caption: str
-    ) -> str:
+        self, telegram_id: int, proof: bytes, caption: str, *, filename: str, content_type: str
+    ) -> ProofRef:
         # Отправляем чек обратно юзеру (подтверждение приёма); ответ Telegram содержит
         # file_id (bot-owned) — его переиспользуем для пересылки чека админам.
-        message = await self._bot.send_photo(
-            telegram_id, BufferedInputFile(proof, "proof.jpg"), caption=caption
-        )
-        if not message.photo:
-            raise RuntimeError("Telegram did not return a photo file_id")
-        return message.photo[-1].file_id
+        # Картинку шлём как photo (инлайн-превью), PDF-чек Kaspi — как document.
+        payload = BufferedInputFile(proof, filename)
+        if content_type.startswith("image/"):
+            message = await self._bot.send_photo(telegram_id, payload, caption=caption)
+            if not message.photo:
+                raise RuntimeError("Telegram did not return a photo file_id")
+            return ProofRef(message.photo[-1].file_id, is_document=False)
+        message = await self._bot.send_document(telegram_id, payload, caption=caption)
+        if message.document is None:
+            raise RuntimeError("Telegram did not return a document file_id")
+        return ProofRef(message.document.file_id, is_document=True)
 
     async def send_payment_proof_to_admins(
         self,
+        *,
         request_id: int,
         user_id: int,
         username: str | None,
         tariff_title: str,
-        proof_file_id: str,
+        proof: ProofRef,
     ) -> None:
         handle = f"@{username}" if username else f"id{user_id}"
+        # «Чек №N» — первой строкой и крупно (номер = request_id, тот же в кнопках ниже):
+        # админ сверяет чек с его кнопками по номеру, не путается в стопке заявок.
         caption = (
-            "🧾 Жаңа төлем чегі\n"
+            f"🧾 Чек №{request_id}\n"
             f"Пайдаланушы: {handle} (id {user_id})\n"
-            f"Тариф: {tariff_title}\n"
-            f"Өтініш #{request_id}"
+            f"Тариф: {tariff_title}"
         )
-        await self._bot.send_photo(
-            self._admin_chat_id,
-            proof_file_id,
-            caption=caption,
-            reply_markup=moderation_keyboard(request_id),
-        )
+        keyboard = moderation_keyboard(request_id)
+        # Тем же способом, что приняли: PDF → document, картинка → photo (file_id'ы разнотипны).
+        if proof.is_document:
+            await self._bot.send_document(
+                self._admin_chat_id, proof.file_id, caption=caption, reply_markup=keyboard
+            )
+        else:
+            await self._bot.send_photo(
+                self._admin_chat_id, proof.file_id, caption=caption, reply_markup=keyboard
+            )

@@ -55,8 +55,11 @@ async def _ensure_admin(callback: CallbackQuery, config: AppConfig) -> bool:
     return True
 
 
-async def _finalize(callback: CallbackQuery, result: ModerationResult) -> None:
-    await callback.answer(_ALERTS[result.outcome])
+async def _finalize(
+    callback: CallbackQuery, result: ModerationResult, request_id: int
+) -> None:
+    # Номер чека — и в тосте, и в правке подписи: подтверждение читается вместе с чеком.
+    await callback.answer(f"№{request_id} · {_ALERTS[result.outcome]}")
     mark = _MARKS.get(result.outcome)
     if mark is not None and isinstance(callback.message, Message):
         base = callback.message.caption or ""
@@ -77,7 +80,7 @@ async def approve(
         await callback.answer("Қате өтініш", show_alert=True)
         return
     result = await moderation.approve(request_id, datetime.now(UTC))
-    await _finalize(callback, result)
+    await _finalize(callback, result, request_id)
 
 
 @router.callback_query(F.data.startswith(REJECT_PREFIX))
@@ -94,4 +97,4 @@ async def reject(
         await callback.answer("Қате өтініш", show_alert=True)
         return
     result = await moderation.reject(request_id, datetime.now(UTC))
-    await _finalize(callback, result)
+    await _finalize(callback, result, request_id)

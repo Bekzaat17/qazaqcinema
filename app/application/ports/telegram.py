@@ -8,9 +8,24 @@ Inline-результаты НЕ умеют protect_content, поэтому ви
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from app.application.ports.broadcast import BroadcastMessage
+
+
+@dataclass(frozen=True, slots=True)
+class ProofRef:
+    """Ссылка на принятый чек в Telegram: file_id + КАК его слать (фото/документ).
+
+    Kaspi отдаёт чек и картинкой, и PDF: картинку шлём как photo (инлайн-превью),
+    PDF — как document. Тип определяем один раз при приёме и несём дальше (в чат
+    админов), т.к. photo-file_id и document-file_id несовместимы — повторная отправка
+    должна идти тем же способом, что и первая.
+    """
+
+    file_id: str
+    is_document: bool
 
 
 class RecipientUnreachableError(Exception):
@@ -42,23 +57,26 @@ class TelegramNotifier(Protocol):
         ...
 
     async def acknowledge_payment_proof(
-        self, telegram_id: int, proof: bytes, caption: str
-    ) -> str:
-        """Отправить пользователю его чек как подтверждение приёма; вернуть telegram file_id.
+        self, telegram_id: int, proof: bytes, caption: str, *, filename: str, content_type: str
+    ) -> ProofRef:
+        """Отправить пользователю его чек как подтверждение приёма; вернуть `ProofRef`.
 
         Двойная роль: даёт юзеру обратную связь «чек получен» и одновременно — так как
         Telegram на любой upload возвращает file_id — отдаёт стабильный bot-owned
         `file_id`, который вызывающий переиспользует для пересылки чека админам.
+        `content_type`/`filename` — чтобы адаптер выбрал photo (картинка) или document
+        (PDF-чек Kaspi) и вернул это в `ProofRef.is_document`.
         """
         ...
 
     async def send_payment_proof_to_admins(
         self,
+        *,
         request_id: int,
         user_id: int,
         username: str | None,
         tariff_title: str,
-        proof_file_id: str,
+        proof: ProofRef,
     ) -> None:
-        """Переслать скриншот чека в чат модерации с кнопками ✅ / ❌."""
+        """Переслать чек (фото или PDF-документ) в чат модерации с кнопками ✅ / ❌."""
         ...

@@ -164,6 +164,7 @@ export interface PaymentInit {
   method: string;
   kaspi_number: string | null;
   kaspi_name: string | null;
+  kaspi_link: string | null;
   invoice_url: string | null;
   payload: string | null;
 }

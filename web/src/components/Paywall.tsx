@@ -1,12 +1,12 @@
 // Пэйволл (bottom sheet): выбор тарифа → способ оплаты. Kaspi первым/акцентным (ручной чек),
 // Telegram Stars вторым (мгновенно). Оплата активирует подписку на бэке (Фазы 6–8).
 
-import { ChevronLeft, CreditCard, Check, Copy, ShieldCheck, Star, Upload } from "lucide-react";
+import { ChevronLeft, CreditCard, Check, Copy, ExternalLink, ShieldCheck, Star, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { ApiError, api, type Movie, type Tariff } from "../lib/api";
 import { perDay, tenge } from "../lib/format";
-import { haptic, openInvoice } from "../lib/telegram";
+import { haptic, openInvoice, openLink } from "../lib/telegram";
 import Button from "../ui/Button";
 import Sheet from "../ui/Sheet";
 
@@ -25,7 +25,7 @@ interface PaywallProps {
 export default function Paywall({ open, movie, tariffs, onClose, onPending, onPaid, onError }: PaywallProps) {
   const [selected, setSelected] = useState<string>("");
   const [step, setStep] = useState<"choose" | "kaspi">("choose");
-  const [kaspi, setKaspi] = useState<{ number: string; name: string } | null>(null);
+  const [kaspiLink, setKaspiLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -39,7 +39,7 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
 
   function reset() {
     setStep("choose");
-    setKaspi(null);
+    setKaspiLink(null);
     setLoading(false);
     setCopied(false);
   }
@@ -54,7 +54,7 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
     setLoading(true);
     try {
       const init = await api.initiatePayment(slug, "kaspi");
-      setKaspi({ number: init.kaspi_number ?? "", name: init.kaspi_name ?? "" });
+      setKaspiLink(init.kaspi_link);
       setStep("kaspi");
     } catch {
       onError("Төлемді бастау мүмкін болмады");
@@ -93,22 +93,25 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
       reset();
       onPending();
     } catch (e) {
-      const msg = e instanceof ApiError && e.status === 413 ? "Файл тым үлкен" : "Чекті жіберу мүмкін болмады";
+      let msg = "Чекті жіберу мүмкін болмады";
+      if (e instanceof ApiError && e.status === 413) msg = "Файл тым үлкен";
+      else if (e instanceof ApiError && e.status === 415) msg = "Тек сурет немесе PDF";
       onError(msg);
     } finally {
       setLoading(false);
     }
   }
 
-  async function copyNumber() {
-    if (!kaspi) return;
+  async function copyAmount() {
+    if (!current) return;
     try {
-      await navigator.clipboard.writeText(kaspi.number.replace(/\s/g, ""));
+      // Копируем «голую» сумму (без ₸/пробелов) — удобно вставить в поле оплаты Kaspi.
+      await navigator.clipboard.writeText(String(current.price_kzt));
       setCopied(true);
       haptic.success();
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      /* clipboard недоступен — номер и так на экране */
+      /* clipboard недоступен — сумма и так на экране */
     }
   }
 
@@ -148,11 +151,11 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
           </>
         ) : (
           <KaspiStep
-            kaspi={kaspi}
+            link={kaspiLink}
             amount={current ? tenge(current.price_kzt) : ""}
             copied={copied}
             loading={loading}
-            onCopy={copyNumber}
+            onCopy={copyAmount}
             onBack={() => setStep("choose")}
             onPick={() => fileRef.current?.click()}
           />
@@ -162,7 +165,7 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf"
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -207,7 +210,7 @@ function TariffCard({ tariff, active, onSelect }: { tariff: Tariff; active: bool
 }
 
 function KaspiStep({
-  kaspi,
+  link,
   amount,
   copied,
   loading,
@@ -215,7 +218,7 @@ function KaspiStep({
   onBack,
   onPick,
 }: {
-  kaspi: { number: string; name: string } | null;
+  link: string | null;
   amount: string;
   copied: boolean;
   loading: boolean;
@@ -229,31 +232,40 @@ function KaspiStep({
         <ChevronLeft size={18} />
         Артқа
       </button>
-      <h2 className="text-xl font-extrabold tracking-tight text-text">Kaspi аудару</h2>
+      <h2 className="text-xl font-extrabold tracking-tight text-text">Kaspi арқылы төлеу</h2>
       <p className="mt-1 text-sm text-muted">
-        Төмендегі нөмірге <span className="font-semibold text-text">{amount}</span> аударыңыз да, чектің
-        скриншотын жүктеңіз.
+        Сілтеме арқылы төлеп, чекті (сурет не PDF) осында жүктеңіз — 10–15 минут ішінде тексереміз.
       </p>
 
+      {/* Сумма крупно + «Көшіру» — удобно вставить в поле оплаты Kaspi. */}
       <div className="mt-4 rounded-2xl border border-border bg-elevated p-4">
-        <p className="text-xs text-faint">Kaspi нөмірі</p>
+        <p className="text-xs text-faint">Төлем сомасы</p>
         <div className="mt-1 flex items-center justify-between gap-3">
-          <span className="text-lg font-bold text-text tabular">{kaspi?.number}</span>
+          <span className="text-3xl font-extrabold text-text tabular">{amount}</span>
           <button
             onClick={onCopy}
-            className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-sm font-medium text-brand active:bg-surface-2"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-sm font-medium text-brand active:bg-surface-2"
           >
             {copied ? <Check size={15} /> : <Copy size={15} />}
             {copied ? "Көшірілді" : "Көшіру"}
           </button>
         </div>
-        {kaspi?.name && (
-          <>
-            <p className="mt-3 text-xs text-faint">Алушы</p>
-            <p className="mt-0.5 font-medium text-text">{kaspi.name}</p>
-          </>
-        )}
       </div>
+
+      {link && (
+        <div className="mt-4">
+          <Button
+            variant="kaspi"
+            onClick={() => {
+              haptic.light();
+              openLink(link);
+            }}
+          >
+            <ExternalLink size={18} />
+            Kaspi-ге өту
+          </Button>
+        </div>
+      )}
 
       <div className="mt-5">
         <Button loading={loading} onClick={onPick}>

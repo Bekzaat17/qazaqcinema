@@ -139,7 +139,9 @@ class AppProvider(Provider):
         # Новый способ = запись в этой карте, без правок PaymentService (OCP).
         return {
             PaymentMethod.KASPI: KaspiManualProvider(
-                config.payments.kaspi_number, config.payments.kaspi_name
+                config.payments.kaspi_number,
+                config.payments.kaspi_name,
+                config.payments.kaspi_link,
             ),
             PaymentMethod.STARS: TelegramStarsProvider(bot),
         }

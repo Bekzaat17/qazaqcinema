@@ -86,6 +86,8 @@ class PaymentsConfig(BaseSettings):
 
     kaspi_number: str = ""
     kaspi_name: str = ""
+    # ссылка Kaspi Pay (pay.kaspi.kz/pay/...) — если задана, фронт ведёт по ней
+    kaspi_link: str = ""
 
 
 class ApiConfig(BaseSettings):

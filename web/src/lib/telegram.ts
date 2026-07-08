@@ -53,6 +53,16 @@ export function showBackButton(onClick: () => void): () => void {
   };
 }
 
+/** Открыть внешнюю ссылку (напр. Kaspi Pay) вне Mini App. Вне Telegram — обычный переход. */
+export function openLink(url: string): void {
+  const wa = getWebApp();
+  if (wa?.openLink) {
+    wa.openLink(url);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
 /** Открыть инвойс Telegram Stars. Резолвится статусом оплаты. */
 export function openInvoice(url: string): Promise<string> {
   return new Promise((resolve) => {

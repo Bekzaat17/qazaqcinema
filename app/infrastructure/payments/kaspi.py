@@ -10,14 +10,16 @@ from app.domain.tariffs.tariff import Tariff
 class KaspiManualProvider:
     method = PaymentMethod.KASPI
 
-    def __init__(self, kaspi_number: str, kaspi_name: str) -> None:
+    def __init__(self, kaspi_number: str, kaspi_name: str, kaspi_link: str = "") -> None:
         self._number = kaspi_number
         self._name = kaspi_name
+        self._link = kaspi_link
 
     async def initiate(self, user_id: int, tariff: Tariff) -> PaymentInstruction:
         return PaymentInstruction(
             method=PaymentMethod.KASPI,
             kaspi_number=self._number,
             kaspi_name=self._name,
+            kaspi_link=self._link or None,
             payload=f"{user_id}:{tariff.slug}",
         )

@@ -137,7 +137,11 @@ async def step_featured(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     if featured:
         await state.set_state(AddMovie.hero)
-        await _reply(callback, "Басты бетке горизонталь баннер (фото) жібер:")
+        await _reply(
+            callback,
+            "⭐ Hero-баннер: басты бетте кең көрсетіледі. Кең (горизонталь) НЕ шаршы сурет "
+            "жібер — 3:2-ге қиылады, әдемі болу үшін (портрет постер емес).",
+        )
     else:
         await state.update_data(hero_file_id=None)
         await state.set_state(AddMovie.category)
@@ -155,7 +159,7 @@ async def step_hero(message: Message, state: FSMContext) -> None:
 
 @router.message(AddMovie.hero)
 async def step_hero_retry(message: Message) -> None:
-    await message.answer("Баннер күтілуде — горизонталь фото жібер немесе /cancel.")
+    await message.answer("Hero-сурет күтілуде — кең не шаршы фото жібер немесе /cancel.")
 
 
 @router.callback_query(AddMovie.category, F.data.startswith(CATEGORY_PREFIX))
@@ -308,7 +312,8 @@ async def _archive_video(bot: Bot, config: AppConfig, video_file_id: str) -> str
 def _summary(data: dict[str, Any]) -> str:
     category = get_category(str(data["category"]))
     category_title = category.title_ru if category is not None else data["category"]
-    featured = "Иә" if data.get("is_featured") else "Жоқ"
+    # Для featured показываем, что баннер уже пришёл (у is_featured всегда есть hero_file_id).
+    featured = "Иә (баннер тіркелді)" if data.get("is_featured") else "Жоқ"
     return "\n".join(
         [
             "Тексер және сақта (проверь и сохрани):",

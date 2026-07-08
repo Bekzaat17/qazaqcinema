@@ -13,7 +13,7 @@ CANCEL = "addmovie:cancel"
 
 
 def featured_keyboard() -> InlineKeyboardMarkup:
-    """«На главную (hero)?» — Иә/Жоқ. Иә → админ пришлёт горизонтальный баннер."""
+    """«На главную (hero)?» — Иә/Жоқ. Иә → админ пришлёт широкий/квадратный hero-баннер."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [

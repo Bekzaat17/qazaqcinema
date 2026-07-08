@@ -1,8 +1,9 @@
 """Оплата: старт (реквизиты/инвойс) и приём чека Kaspi на модерацию.
 
 `initiate` выбирает `PaymentProvider` по способу (Strategy) и отдаёт инструкцию, что
-показать пользователю. `submit_proof` (Kaspi) принимает скриншот чека: подтверждает
-приём пользователю (и тем же send получает telegram `file_id`), заводит
+показать пользователю. `submit_proof` (Kaspi) принимает чек — картинку (скриншот) или
+PDF (чек из Kaspi): подтверждает приём пользователю (и тем же send получает telegram
+`file_id` + тип медиа в `ProofRef`), заводит
 `PaymentRequest(PENDING)`, переводит юзера в `PENDING_REVIEW` и отправляет чек админам
 с кнопками ✅/❌.
 
@@ -65,20 +66,28 @@ class PaymentService:
         return await provider.initiate(user_id, tariff)
 
     async def submit_proof(
-        self, user: User, tariff_slug: str, proof: bytes
+        self,
+        user: User,
+        tariff_slug: str,
+        proof: bytes,
+        *,
+        filename: str,
+        content_type: str,
     ) -> PaymentRequest:
         """Принять чек Kaspi: подтвердить юзеру, завести заявку, уведомить админов.
 
-        Порядок важен: сначала подтверждаем приём (получаем `file_id`) и уведомляем
-        админов, и лишь потом переводим юзера в `PENDING_REVIEW` — чтобы фронтовый
-        баннер «на проверке» не завис, если уведомление админам не прошло.
+        `filename`/`content_type` — чек может быть картинкой (скриншот) или PDF (чек из
+        Kaspi); нотификатор по ним решит, слать photo или document. Порядок важен:
+        сначала подтверждаем приём (получаем `ProofRef`) и уведомляем админов, и лишь
+        потом переводим юзера в `PENDING_REVIEW` — чтобы фронтовый баннер «на проверке»
+        не завис, если уведомление админам не прошло.
         """
         tariff = get_tariff(tariff_slug)
         if tariff is None:
             raise UnknownTariffError(tariff_slug)
 
-        file_id = await self._notifier.acknowledge_payment_proof(
-            user.telegram_id, proof, _PROOF_ACK_KK
+        proof_ref = await self._notifier.acknowledge_payment_proof(
+            user.telegram_id, proof, _PROOF_ACK_KK, filename=filename, content_type=content_type
         )
         request = await self._payments.add(
             PaymentRequest(
@@ -86,7 +95,7 @@ class PaymentService:
                 tariff=tariff.slug,
                 method=PaymentMethod.KASPI,
                 status=PaymentStatus.PENDING,
-                proof_file_id=file_id,
+                proof_file_id=proof_ref.file_id,
             )
         )
         assert request.id is not None  # репозиторий проставляет id при вставке
@@ -95,7 +104,7 @@ class PaymentService:
             user_id=user.telegram_id,
             username=user.username,
             tariff_title=tariff.title_kk,
-            proof_file_id=file_id,
+            proof=proof_ref,
         )
         user.status = UserStatus.PENDING_REVIEW
         await self._users.upsert(user)

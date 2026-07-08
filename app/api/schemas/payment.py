@@ -24,6 +24,7 @@ class PaymentInitOut(BaseModel):
     method: str
     kaspi_number: str | None = None
     kaspi_name: str | None = None
+    kaspi_link: str | None = None
     invoice_url: str | None = None
     payload: str | None = None
 
@@ -33,6 +34,7 @@ class PaymentInitOut(BaseModel):
             method=instruction.method.value,
             kaspi_number=instruction.kaspi_number,
             kaspi_name=instruction.kaspi_name,
+            kaspi_link=instruction.kaspi_link,
             invoice_url=instruction.invoice_url,
             payload=instruction.payload,
         )

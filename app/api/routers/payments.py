@@ -19,7 +19,7 @@ from app.domain.tariffs.catalog import all_tariffs
 
 router = APIRouter(prefix="/api/payments", tags=["payments"], route_class=DishkaRoute)
 
-_MAX_PROOF_BYTES = 10 * 1024 * 1024  # чек — картинка; крупнее 10 МБ не ждём
+_MAX_PROOF_BYTES = 10 * 1024 * 1024  # чек — картинка/PDF; крупнее 10 МБ не ждём
 
 # Rate-limit (данные): платёжные write-ручки тяжёлые (создание инвойса / загрузка чека
 # + уведомление админов) → лимитируем строже каталога. Легальному юзеру этого с запасом.
@@ -58,18 +58,27 @@ async def submit_proof(
 ) -> ProofAccepted:
     """Приём чека Kaspi: файл → PaymentRequest(PENDING) → модерация ✅/❌.
 
-    Видео/активацией не занимается: только регистрирует заявку и уводит юзера в
-    `PENDING_REVIEW`. Подписку включит модератор (см. `PaymentModerationService`).
+    Чек — картинка (скриншот) ИЛИ PDF (Kaspi отдаёт чек файлом). Видео/активацией не
+    занимается: только регистрирует заявку и уводит юзера в `PENDING_REVIEW`. Подписку
+    включит модератор (см. `PaymentModerationService`).
     """
-    if file.content_type is not None and not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=415, detail="image_expected")
+    content_type = file.content_type or "application/octet-stream"
+    if not (content_type.startswith("image/") or content_type == "application/pdf"):
+        raise HTTPException(status_code=415, detail="image_or_pdf_expected")
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="empty_file")
     if len(data) > _MAX_PROOF_BYTES:
         raise HTTPException(status_code=413, detail="file_too_large")
+    default_name = "proof.pdf" if content_type == "application/pdf" else "proof.jpg"
     try:
-        request = await payments.submit_proof(user, tariff, data)
+        request = await payments.submit_proof(
+            user,
+            tariff,
+            data,
+            filename=file.filename or default_name,
+            content_type=content_type,
+        )
     except UnknownTariffError:
         raise HTTPException(status_code=400, detail="unknown_tariff") from None
     assert request.id is not None
