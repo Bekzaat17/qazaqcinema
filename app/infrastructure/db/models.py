@@ -56,6 +56,22 @@ class MovieModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class VideoDeliveryModel(Base):
+    __tablename__ = "video_deliveries"
+
+    # Выданные подписчику видео-сообщения: удаляем их при истечении подписки, чтобы
+    # оплаченный контент не оставался в чате навсегда. chat_id хранится отдельно от
+    # user_id (для лички они равны, но выдача концептуально «в чат»). message_id —
+    # BIGINT: id сообщения Telegram, по нему bot.delete_message.
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id"), index=True
+    )
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    message_id: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class PaymentRequestModel(Base):
     __tablename__ = "payment_requests"
 

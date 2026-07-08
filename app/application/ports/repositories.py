@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Protocol
 
+from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
@@ -55,3 +56,14 @@ class PaymentRepository(Protocol):
     async def set_status(
         self, request_id: int, status: PaymentStatus, reviewed_at: datetime
     ) -> PaymentRequest | None: ...
+
+
+class VideoDeliveryRepository(Protocol):
+    """Учёт выданных видео-сообщений — чтобы удалить их при истечении подписки.
+
+    Мелкий отдельный порт (ISP): к User/Movie/Payment отношения не имеет.
+    """
+
+    async def add(self, user_id: int, chat_id: int, message_id: int) -> None: ...
+    async def list_for_user(self, user_id: int) -> list[VideoDelivery]: ...
+    async def clear_for_user(self, user_id: int) -> None: ...

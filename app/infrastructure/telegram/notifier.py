@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import (
@@ -64,10 +66,10 @@ class AiogramNotifier:
 
     async def send_protected_video(
         self, chat_id: int, file_id: str, caption: str | None = None
-    ) -> None:
+    ) -> int:
         # protect_content=True — ядро безопасности: получатель не может скачать/переслать.
         try:
-            await self._bot.send_video(
+            message = await self._bot.send_video(
                 chat_id, file_id, caption=caption, protect_content=True
             )
         except TelegramForbiddenError as exc:
@@ -77,6 +79,13 @@ class AiogramNotifier:
             if "chat not found" in str(exc).lower():
                 raise RecipientUnreachableError(str(exc)) from exc
             raise  # прочий BadRequest (напр. битый file_id) — настоящая ошибка, пусть всплывёт
+        return message.message_id  # запоминаем выдачу → удалим при истечении подписки
+
+    async def delete_message(self, chat_id: int, message_id: int) -> None:
+        # Best-effort: сообщение могло быть уже удалено, а юзер — заблокировать бота.
+        # Удаление при истечении подписки не должно падать из-за одного «мёртвого» id.
+        with contextlib.suppress(TelegramBadRequest, TelegramForbiddenError):
+            await self._bot.delete_message(chat_id, message_id)
 
     async def acknowledge_payment_proof(
         self, telegram_id: int, proof: bytes, caption: str, *, filename: str, content_type: str

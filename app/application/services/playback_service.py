@@ -16,7 +16,7 @@ from datetime import datetime
 from enum import Enum, auto
 
 from app.application.ports.lock import Lock
-from app.application.ports.repositories import MovieRepository
+from app.application.ports.repositories import MovieRepository, VideoDeliveryRepository
 from app.application.ports.telegram import RecipientUnreachableError, TelegramNotifier
 from app.domain.entities.user import User
 
@@ -32,10 +32,17 @@ class PlaybackService:
     # TTL лока отправки: столько секунд повторные /play той же пары юзер+фильм — no-op.
     _SEND_LOCK_TTL = 3
 
-    def __init__(self, movies: MovieRepository, notifier: TelegramNotifier, lock: Lock) -> None:
+    def __init__(
+        self,
+        movies: MovieRepository,
+        notifier: TelegramNotifier,
+        lock: Lock,
+        deliveries: VideoDeliveryRepository,
+    ) -> None:
         self._movies = movies
         self._notifier = notifier
         self._lock = lock
+        self._deliveries = deliveries
 
     async def deliver(self, user: User, movie_id: int, now: datetime) -> PlaybackOutcome:
         # Доступ проверяем ПЕРВЫМ: без подписки даже не раскрываем, есть ли фильм.
@@ -51,13 +58,16 @@ class PlaybackService:
         if not await self._lock.acquire(lock_key, self._SEND_LOCK_TTL):
             return PlaybackOutcome.DELIVERED
         try:
-            await self._notifier.send_protected_video(
+            message_id = await self._notifier.send_protected_video(
                 user.telegram_id, movie.telegram_file_id, caption=movie.title_kk
             )
         except RecipientUnreachableError:
             # Юзер открыл Mini App, но не начал чат с ботом. Лок (TTL ~3 c) не снимаем:
             # окно мало, а доступ к боту юзер чинит дольше → ложного «доставлено» не будет.
             return PlaybackOutcome.BOT_BLOCKED
+        # Запоминаем выдачу (chat=личка юзера) → удалим это сообщение, когда подписка
+        # истечёт (`SubscriptionService.expire_due`): оплаченное видео не остаётся навсегда.
+        await self._deliveries.add(user.telegram_id, user.telegram_id, message_id)
         # Считаем просмотр только на реальной доставке (Фаза 13): повтор-в-окне не дошёл
         # сюда (лок вернул DELIVERED раньше) → двойной клик не накручивает счётчик.
         await self._movies.increment_play_count(movie_id)

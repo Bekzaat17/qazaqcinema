@@ -26,6 +26,7 @@ from app.application.ports.repositories import (
     MovieRepository,
     PaymentRepository,
     UserRepository,
+    VideoDeliveryRepository,
 )
 from app.application.ports.security import InitDataVerifier
 from app.application.ports.session import SessionStore
@@ -52,6 +53,7 @@ from app.infrastructure.db.repositories import (
     PgMovieRepository,
     PgPaymentRepository,
     PgUserRepository,
+    PgVideoDeliveryRepository,
 )
 from app.infrastructure.images.pillow import PillowImageProcessor
 from app.infrastructure.payments.kaspi import KaspiManualProvider
@@ -160,6 +162,7 @@ class RequestProvider(Provider):
     movies = provide(PgMovieRepository, provides=MovieRepository)
     users = provide(PgUserRepository, provides=UserRepository)
     payments = provide(PgPaymentRepository, provides=PaymentRepository)
+    deliveries = provide(PgVideoDeliveryRepository, provides=VideoDeliveryRepository)
 
     auth = provide(AuthService)
     catalog = provide(CatalogService)

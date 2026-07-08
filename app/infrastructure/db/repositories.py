@@ -9,16 +9,22 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import SortDir, SortField
+from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
-from app.infrastructure.db.models import MovieModel, PaymentRequestModel, UserModel
+from app.infrastructure.db.models import (
+    MovieModel,
+    PaymentRequestModel,
+    UserModel,
+    VideoDeliveryModel,
+)
 
 
 def _movie_to_domain(model: MovieModel) -> Movie:
@@ -322,3 +328,25 @@ class PgPaymentRepository:
         await self._session.commit()
         await self._session.refresh(model)
         return _payment_to_domain(model)
+
+
+class PgVideoDeliveryRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, user_id: int, chat_id: int, message_id: int) -> None:
+        self._session.add(
+            VideoDeliveryModel(user_id=user_id, chat_id=chat_id, message_id=message_id)
+        )
+        await self._session.commit()
+
+    async def list_for_user(self, user_id: int) -> list[VideoDelivery]:
+        stmt = select(VideoDeliveryModel).where(VideoDeliveryModel.user_id == user_id)
+        result = await self._session.scalars(stmt)
+        return [VideoDelivery(chat_id=m.chat_id, message_id=m.message_id) for m in result]
+
+    async def clear_for_user(self, user_id: int) -> None:
+        await self._session.execute(
+            delete(VideoDeliveryModel).where(VideoDeliveryModel.user_id == user_id)
+        )
+        await self._session.commit()

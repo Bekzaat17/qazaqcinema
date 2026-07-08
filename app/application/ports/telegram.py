@@ -52,8 +52,16 @@ class TelegramNotifier(Protocol):
 
     async def send_protected_video(
         self, chat_id: int, file_id: str, caption: str | None = None
-    ) -> None:
-        """Видео в личку с protect_content=True (запрет скачивания/пересылки/записи экрана)."""
+    ) -> int:
+        """Видео в личку с protect_content=True; вернуть message_id отправленного сообщения.
+
+        message_id нужен, чтобы запомнить выдачу (`VideoDeliveryRepository`) и удалить её,
+        когда подписка истечёт (иначе видео осталось бы в чате навсегда).
+        """
+        ...
+
+    async def delete_message(self, chat_id: int, message_id: int) -> None:
+        """Удалить своё сообщение (best-effort). «Уже нет / заблокирован» — молча глотаем."""
         ...
 
     async def acknowledge_payment_proof(

@@ -68,6 +68,15 @@ class _FakeNotifier:
         self.user_messages.append((telegram_id, text))
 
 
+class _NoopDeliveries:
+    """VideoDeliveryRepository-заглушка: approve активирует подписку, выдачи не трогает."""
+
+    async def add(self, user_id: int, chat_id: int, message_id: int) -> None: ...
+    async def list_for_user(self, user_id: int) -> list[object]:
+        return []
+    async def clear_for_user(self, user_id: int) -> None: ...
+
+
 def _pending_request() -> PaymentRequest:
     return PaymentRequest(
         id=1,
@@ -85,7 +94,8 @@ def _build(
     payments = _FakePayments(request)
     users = _FakeUsers(user)
     notifier = _FakeNotifier()
-    subscription = SubscriptionService(users, notifier)  # type: ignore[arg-type]
+    # approve → activate; expire_due (и удаление выдач) тут не задействовано → no-op фейк.
+    subscription = SubscriptionService(users, notifier, _NoopDeliveries())  # type: ignore[arg-type]
     service = PaymentModerationService(payments, users, subscription, notifier)  # type: ignore[arg-type]
     return service, payments, users, notifier
 
