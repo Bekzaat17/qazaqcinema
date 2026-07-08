@@ -54,13 +54,22 @@ class _FakeNotifier:
         self.user_messages.append((telegram_id, text))
 
 
+class _NoopDeliveries:
+    """VideoDeliveryRepository-заглушка: Stars-подтверждение выдачи видео не трогает."""
+
+    async def add(self, user_id: int, chat_id: int, message_id: int) -> None: ...
+    async def list_for_user(self, user_id: int) -> list[object]:
+        return []
+    async def clear_for_user(self, user_id: int) -> None: ...
+
+
 def _build(
     user: User | None,
 ) -> tuple[StarsPaymentService, _FakeUsers, _FakePayments, _FakeNotifier]:
     users = _FakeUsers(user)
     payments = _FakePayments()
     notifier = _FakeNotifier()
-    subscription = SubscriptionService(users, notifier)  # type: ignore[arg-type]
+    subscription = SubscriptionService(users, notifier, _NoopDeliveries())  # type: ignore[arg-type]
     service = StarsPaymentService(users, payments, subscription)  # type: ignore[arg-type]
     return service, users, payments, notifier
 

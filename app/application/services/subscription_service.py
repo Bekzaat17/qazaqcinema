@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from app.application.ports.repositories import UserRepository, VideoDeliveryRepository
@@ -19,6 +20,13 @@ from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 from app.domain.subscription.expiry import compute_expiry
 from app.domain.tariffs.tariff import Tariff
+
+logger = logging.getLogger(__name__)
+
+_EXPIRED_DM_KK = (
+    "⌛️ Жазылым мерзімі аяқталды.\n"
+    "Қайта жалғастыру үшін төмендегі «🎬 Кинотеатр» батырмасынан тариф таңдаңыз."
+)
 
 
 class SubscriptionService:
@@ -53,17 +61,26 @@ class SubscriptionService:
     async def expire_due(self, now: datetime) -> int:
         """Фоновая задача: ACTIVE с истёкшим `expires_at` → EXPIRED. Вернуть кол-во.
 
-        На переходе ACTIVE→EXPIRED также удаляем ВСЕ выданные юзеру видео из чата
-        (`_purge_deliveries`): подписка кончилась → оплаченный контент не остаётся на
-        руках. Удаление best-effort (см. `delete_message`), чтобы «мёртвый» id не сорвал
-        гашение статуса. Продлил подписку — заново жмёт «Көру» и получает видео опять.
+        На переходе ACTIVE→EXPIRED также: (1) уведомляем юзера, что подписка кончилась,
+        и (2) удаляем ВСЕ выданные ему видео из чата (`_purge_deliveries`) — оплаченный
+        контент не остаётся на руках. Побочки best-effort (Telegram может ответить
+        «заблокирован»/«уже нет»), чтобы один сбой не сорвал гашение статуса остальных.
+        Продлил подписку — заново жмёт «Көру» и получает видео опять.
         """
         expired = await self._users.list_expired(now)
         for user in expired:
             user.status = UserStatus.EXPIRED
             await self._users.upsert(user)
+            await self._notify_expired(user.telegram_id)
             await self._purge_deliveries(user.telegram_id)
         return len(expired)
+
+    async def _notify_expired(self, telegram_id: int) -> None:
+        # Best-effort DM: юзер мог заблокировать бота — не роняем фоновую задачу из-за этого.
+        try:
+            await self._notifier.notify_user(telegram_id, _EXPIRED_DM_KK)
+        except Exception:
+            logger.warning("Не удалось уведомить %s об истечении подписки", telegram_id)
 
     async def _purge_deliveries(self, user_id: int) -> None:
         deliveries = await self._deliveries.list_for_user(user_id)

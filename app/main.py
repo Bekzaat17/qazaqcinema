@@ -8,9 +8,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 
 from aiogram import Bot, Dispatcher
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 from dishka import AsyncContainer
@@ -32,6 +34,26 @@ async def _ping_redis(container: AsyncContainer) -> None:
         _log.info("Redis подключён")
     except Exception as exc:
         _log.warning("Redis недоступен на старте (fail-open): %s", exc)
+
+
+async def _setup_menu_button(bot: Bot, config: AppConfig) -> None:
+    """Постоянная кнопка-меню (слева у поля ввода) открывает Mini App.
+
+    Так вход в кинотеатр всегда под рукой — не нужно искать /start-сообщение в истории
+    чата (среди других сообщений/видео оно уезжает вверх). Устанавливаем дефолтную кнопку
+    для всех. Fail-open: Telegram требует HTTPS для web_app — если URL не https (bare
+    localhost), молча пропускаем, чтобы не ронять старт бота.
+    """
+    if not config.bot.webapp_url:
+        return
+    with contextlib.suppress(Exception):
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="🎬 Кинотеатр",
+                web_app=WebAppInfo(url=config.bot.webapp_url),
+            )
+        )
+        _log.info("Кнопка-меню Mini App установлена: %s", config.bot.webapp_url)
 
 
 async def _run_webhook(bot: Bot, dp: Dispatcher, config: AppConfig) -> None:
@@ -66,6 +88,7 @@ async def main() -> None:
     config = await container.get(AppConfig)
     bot = await container.get(Bot)
     await _ping_redis(container)
+    await _setup_menu_button(bot, config)
     dispatcher = build_dispatcher(container)
     scheduler = build_scheduler(container)
     scheduler.start()

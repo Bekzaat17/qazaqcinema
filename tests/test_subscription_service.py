@@ -122,6 +122,8 @@ async def test_expire_due_marks_only_expired_and_returns_count() -> None:
     assert count == 2
     assert all(u.status is UserStatus.EXPIRED for u in users.upserted)
     assert {u.telegram_id for u in users.upserted} == {1, 2}
+    # оба юзера уведомлены об истечении подписки
+    assert {tid for tid, _ in notifier.messages} == {1, 2}
     # видео обоих юзеров удалены из чатов и записи о выдачах вычищены
     assert set(notifier.deleted) == {(1, 101), (1, 102), (2, 201)}
     assert set(deliveries.cleared) == {1, 2}
