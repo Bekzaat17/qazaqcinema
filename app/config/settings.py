@@ -84,10 +84,12 @@ class RedisConfig(BaseSettings):
 class PaymentsConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PAY_", env_file=".env", extra="ignore")
 
-    kaspi_number: str = ""
-    kaspi_name: str = ""
-    # ссылка Kaspi Pay (pay.kaspi.kz/pay/...) — если задана, фронт ведёт по ней
-    kaspi_link: str = ""
+    # Kaspi: способ включается заполненностью (пусто → скрыт на пэйволле). Заданы
+    # оба → доступны оба; только номер → только перевод по номеру; только ссылка →
+    # только оплата по ссылке. Переключение способов = правка env, без кода.
+    kaspi_number: str = ""   # перевод по номеру
+    kaspi_name: str = ""     # имя получателя (рядом с номером)
+    kaspi_link: str = ""     # оплата по ссылке Kaspi Pay (pay.kaspi.kz/pay/...)
 
 
 class ApiConfig(BaseSettings):

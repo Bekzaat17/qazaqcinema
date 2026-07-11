@@ -10,6 +10,9 @@ import { haptic, openInvoice, openLink } from "../lib/telegram";
 import Button from "../ui/Button";
 import Sheet from "../ui/Sheet";
 
+/** Реквизиты Kaspi из /initiate: любое поле может быть null → способ скрыт. */
+type KaspiInit = { number: string | null; name: string | null; link: string | null };
+
 interface PaywallProps {
   open: boolean;
   movie: Movie | null;
@@ -25,9 +28,8 @@ interface PaywallProps {
 export default function Paywall({ open, movie, tariffs, onClose, onPending, onPaid, onError }: PaywallProps) {
   const [selected, setSelected] = useState<string>("");
   const [step, setStep] = useState<"choose" | "kaspi">("choose");
-  const [kaspiLink, setKaspiLink] = useState<string | null>(null);
+  const [kaspi, setKaspi] = useState<KaspiInit | null>(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Тариф по умолчанию — помесячный (recurring), иначе первый.
@@ -39,9 +41,8 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
 
   function reset() {
     setStep("choose");
-    setKaspiLink(null);
+    setKaspi(null);
     setLoading(false);
-    setCopied(false);
   }
 
   function handleClose() {
@@ -54,7 +55,7 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
     setLoading(true);
     try {
       const init = await api.initiatePayment(slug, "kaspi");
-      setKaspiLink(init.kaspi_link);
+      setKaspi({ number: init.kaspi_number, name: init.kaspi_name, link: init.kaspi_link });
       setStep("kaspi");
     } catch {
       onError("Төлемді бастау мүмкін болмады");
@@ -102,19 +103,6 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
     }
   }
 
-  async function copyAmount() {
-    if (!current) return;
-    try {
-      // Копируем «голую» сумму (без ₸/пробелов) — удобно вставить в поле оплаты Kaspi.
-      await navigator.clipboard.writeText(String(current.price_kzt));
-      setCopied(true);
-      haptic.success();
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* clipboard недоступен — сумма и так на экране */
-    }
-  }
-
   return (
     <Sheet open={open} onClose={handleClose} labelledBy="paywall-title">
       <div className="px-5 pb-3 pt-1">
@@ -151,11 +139,12 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
           </>
         ) : (
           <KaspiStep
-            link={kaspiLink}
-            amount={current ? tenge(current.price_kzt) : ""}
-            copied={copied}
+            number={kaspi?.number ?? null}
+            name={kaspi?.name ?? null}
+            link={kaspi?.link ?? null}
+            amountLabel={current ? tenge(current.price_kzt) : ""}
+            amountRaw={current?.price_kzt ?? 0}
             loading={loading}
-            onCopy={copyAmount}
             onBack={() => setStep("choose")}
             onPick={() => fileRef.current?.click()}
           />
@@ -210,22 +199,38 @@ function TariffCard({ tariff, active, onSelect }: { tariff: Tariff; active: bool
 }
 
 function KaspiStep({
+  number,
+  name,
   link,
-  amount,
-  copied,
+  amountLabel,
+  amountRaw,
   loading,
-  onCopy,
   onBack,
   onPick,
 }: {
+  number: string | null;
+  name: string | null;
   link: string | null;
-  amount: string;
-  copied: boolean;
+  amountLabel: string;
+  amountRaw: number;
   loading: boolean;
-  onCopy: () => void;
   onBack: () => void;
   onPick: () => void;
 }) {
+  // Какой из блоков (число/номер) сейчас скопирован — общий индикатор на оба.
+  const [copied, setCopied] = useState<"amount" | "number" | null>(null);
+
+  async function copy(value: string, key: "amount" | "number") {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      haptic.success();
+      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1600);
+    } catch {
+      /* clipboard недоступен — значение и так на экране */
+    }
+  }
+
   return (
     <>
       <button onClick={onBack} className="mb-1 -ml-1 flex items-center gap-1 text-sm text-muted active:text-text">
@@ -234,24 +239,19 @@ function KaspiStep({
       </button>
       <h2 className="text-xl font-extrabold tracking-tight text-text">Kaspi арқылы төлеу</h2>
       <p className="mt-1 text-sm text-muted">
-        Сілтеме арқылы төлеп, чекті (сурет не PDF) осында жүктеңіз — 10–15 минут ішінде тексереміз.
+        Төлеп, чекті (сурет не PDF) осында жүктеңіз — 10–15 минут ішінде тексереміз.
       </p>
 
       {/* Сумма крупно + «Көшіру» — удобно вставить в поле оплаты Kaspi. */}
       <div className="mt-4 rounded-2xl border border-border bg-elevated p-4">
         <p className="text-xs text-faint">Төлем сомасы</p>
         <div className="mt-1 flex items-center justify-between gap-3">
-          <span className="text-3xl font-extrabold text-text tabular">{amount}</span>
-          <button
-            onClick={onCopy}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-sm font-medium text-brand active:bg-surface-2"
-          >
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-            {copied ? "Көшірілді" : "Көшіру"}
-          </button>
+          <span className="text-3xl font-extrabold text-text tabular">{amountLabel}</span>
+          <CopyButton copied={copied === "amount"} onClick={() => copy(String(amountRaw), "amount")} />
         </div>
       </div>
 
+      {/* Оплата по ссылке (Kaspi Pay) — показываем, если задан PAY_KASPI_LINK. */}
       {link && (
         <div className="mt-4">
           <Button
@@ -267,6 +267,27 @@ function KaspiStep({
         </div>
       )}
 
+      {/* «немесе» — только когда доступны оба способа (ссылка и номер). */}
+      {link && number && (
+        <div className="my-4 flex items-center gap-3 text-xs text-faint">
+          <span className="h-px flex-1 bg-border" />
+          немесе
+          <span className="h-px flex-1 bg-border" />
+        </div>
+      )}
+
+      {/* Перевод по номеру — показываем, если задан PAY_KASPI_NUMBER. */}
+      {number && (
+        <div className={`rounded-2xl border border-border bg-elevated p-4 ${link ? "" : "mt-4"}`}>
+          <p className="text-xs text-faint">Аудару нөмірі</p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <span className="text-lg font-bold text-text tabular">{number}</span>
+            <CopyButton copied={copied === "number"} onClick={() => copy(number, "number")} />
+          </div>
+          {name && <p className="mt-1 text-sm text-muted">{name}</p>}
+        </div>
+      )}
+
       <div className="mt-5">
         <Button loading={loading} onClick={onPick}>
           <Upload size={18} />
@@ -274,5 +295,17 @@ function KaspiStep({
         </Button>
       </div>
     </>
+  );
+}
+
+function CopyButton({ copied, onClick }: { copied: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-sm font-medium text-brand active:bg-surface-2"
+    >
+      {copied ? <Check size={15} /> : <Copy size={15} />}
+      {copied ? "Көшірілді" : "Көшіру"}
+    </button>
   );
 }

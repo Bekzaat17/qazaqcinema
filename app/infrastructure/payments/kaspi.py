@@ -1,4 +1,10 @@
-"""Kaspi — ручная оплата: показываем реквизиты, юзер грузит скриншот чека."""
+"""Kaspi — ручная оплата: показываем реквизиты, юзер грузит скриншот чека.
+
+Два способа перевода независимы и включаются ЗАПОЛНЕННОСТЬЮ env («данные», не код):
+PAY_KASPI_NUMBER → перевод по номеру, PAY_KASPI_LINK → оплата по ссылке (Kaspi Pay).
+Пустой параметр → `None` → способ скрыт на пэйволле (см. web `Paywall`). Заданы оба —
+доступны оба; задан один — только он. Переключать способы = править env, без кода.
+"""
 
 from __future__ import annotations
 
@@ -18,8 +24,9 @@ class KaspiManualProvider:
     async def initiate(self, user_id: int, tariff: Tariff) -> PaymentInstruction:
         return PaymentInstruction(
             method=PaymentMethod.KASPI,
-            kaspi_number=self._number,
-            kaspi_name=self._name,
+            # `or None`: пустой env-параметр → соответствующий способ скрыт на фронте.
+            kaspi_number=self._number or None,
+            kaspi_name=self._name or None,
             kaspi_link=self._link or None,
             payload=f"{user_id}:{tariff.slug}",
         )

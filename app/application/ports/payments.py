@@ -20,9 +20,11 @@ from app.domain.tariffs.tariff import Tariff
 @dataclass(slots=True)
 class PaymentInstruction:
     method: PaymentMethod
-    kaspi_number: str | None = None   # Kaspi: куда переводить (фолбэк, если нет ссылки)
-    kaspi_name: str | None = None
-    kaspi_link: str | None = None     # Kaspi Pay: готовая ссылка на оплату (pay.kaspi.kz/pay/...)
+    # Kaspi: номер и ссылка независимы, показываются по заполненности (перевод по
+    # номеру и/или оплата по ссылке) — какой env задан, тот способ и доступен.
+    kaspi_number: str | None = None   # перевод по номеру (None → способ скрыт)
+    kaspi_name: str | None = None     # имя получателя (показывается рядом с номером)
+    kaspi_link: str | None = None     # Kaspi Pay-ссылка на оплату (None → способ скрыт)
     invoice_url: str | None = None    # Stars/фиат: ссылка на инвойс
     payload: str | None = None        # служебный payload для сопоставления платежа
 

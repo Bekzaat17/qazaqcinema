@@ -41,6 +41,13 @@ const TARIFFS: Tariff[] = [
   { slug: "1_month", title_ru: "1 месяц", title_kk: "1 ай", price_kzt: 1899, price_xtr: 250, days: 30, recurring: true },
 ];
 
+// Реквизиты Kaspi для мок-превью берём из Vite-env (web/.env.local), чтобы форма оплаты
+// в браузере показывала те же значения, что реальный бэкенд из своего .env (PAY_KASPI_*).
+// Пустой VITE_PAY_KASPI_LINK → способ «оплата по ссылке» скрыт — как `X or None` на бэке.
+const KASPI_NUMBER: string = import.meta.env.VITE_PAY_KASPI_NUMBER || "+7 700 123 4567";
+const KASPI_NAME: string = import.meta.env.VITE_PAY_KASPI_NAME || "QazaqCinema";
+const KASPI_LINK: string | null = import.meta.env.VITE_PAY_KASPI_LINK || null;
+
 // Поменяй status на "active"/"new"/"pending_review", чтобы посмотреть разные состояния UI в браузере.
 const AUTH: Auth = {
   telegram_id: 1,
@@ -96,7 +103,7 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
     data =
       method === "stars"
         ? ({ method: "stars", kaspi_number: null, kaspi_name: null, kaspi_link: null, invoice_url: "https://t.me/invoice/mock", payload: "1:1_month" } satisfies PaymentInit)
-        : ({ method: "kaspi", kaspi_number: "+7 700 123 4567", kaspi_name: "QazaqCinema", kaspi_link: "https://pay.kaspi.kz/pay/uxsx2lyw", invoice_url: null, payload: null } satisfies PaymentInit);
+        : ({ method: "kaspi", kaspi_number: KASPI_NUMBER, kaspi_name: KASPI_NAME, kaspi_link: KASPI_LINK, invoice_url: null, payload: null } satisfies PaymentInit);
   } else if (p === "/api/payments/proof") data = { status: "pending_review", request_id: 1 } satisfies ProofAccepted;
   else if (p === "/api/me/notifications") {
     const enabled = init?.body ? (JSON.parse(String(init.body)) as { enabled: boolean }).enabled : true;
