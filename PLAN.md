@@ -20,7 +20,7 @@
 | 7 | Оплата Kaspi: ручной чек + модерация (админ-гейт) | ✅ |
 | 8 | Оплата Telegram Stars: авто-подписка (recurring) | ✅ |
 | 9 | Фронтенд Mini App: React 19 + Tailwind v4, тёмный UI | ✅ браузер |
-| 10 | Прод: webhook + Nginx-TLS + бэкапы (всё по env) | ✅ код; деплой — живой |
+| 10 | Прод: webhook + авто-TLS (Caddy) + бэкапы (всё по env) | ✅ код; деплой — живой |
 | 11 | Redis: сессии, кэш каталога, rate-limit, локи (fail-open) | ✅ |
 | 12 | Рассылки: Redis-очередь + worker, opt-out, `/broadcast` | ✅ |
 | 13 | Каталог: браузинг по категориям + сортировка + таб-навигация | ✅ браузер |
@@ -29,8 +29,9 @@
 
 ## Что осталось (живое, не код — за пользователем)
 
-1. **Деплой на VPS** — по [DEPLOY.md](DEPLOY.md): купить домен → DNS → `certbot certonly` (TLS) →
-   включить webhook (`BOT_WEBHOOK_URL`) и `WEB_TLS=true` в `.env.prod`. Код/конфиг готовы, всё по env.
+1. **Деплой на VPS** — по [DEPLOY.md](DEPLOY.md): (под)домен `qazaqcinema.rehubpro.kz` → DNS →
+   вписать `PUBLIC_ORIGIN=https://…` + `ACME_EMAIL` в `.env.prod` → `./start.sh prod`. Caddy сам
+   выпустит TLS, webhook включится схемой https. Код/конфиг готовы, всё от одной переменной.
 2. **Живая e2e в Telegram** — реальные initData/оплата/рассылка/выдача видео на боевом
    @qazaqcinema_bot. Юнит/интеграционные тесты и браузер-превью уже зелёные; остаётся проверка «в бою».
 

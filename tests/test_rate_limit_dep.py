@@ -1,7 +1,7 @@
 """Юнит-тест FastAPI-зависимости `rate_limit`: 429 при превышении, ключ по IP.
 
 Порт RateLimiter — фейк (сам лимитер покрыт в test_cache.py). Здесь проверяем, что
-зависимость: строит ключ по клиенту (предпочитая X-Forwarded-For за Nginx) и
+зависимость: строит ключ по клиенту (предпочитая X-Forwarded-For за reverse-proxy) и
 превращает «лимит исчерпан» в HTTP 429.
 """
 
@@ -72,4 +72,4 @@ async def test_prefers_forwarded_for_over_client() -> None:
 
     await dep(_request(_FakeContainer(limiter), xff="1.2.3.4, 10.0.0.1", client_host="9.9.9.9"))
 
-    assert limiter.keys == ["catalog:1.2.3.4"]  # исходный клиент, не Nginx-прокси
+    assert limiter.keys == ["catalog:1.2.3.4"]  # исходный клиент, не proxy

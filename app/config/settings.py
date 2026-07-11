@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -35,13 +35,15 @@ class BotConfig(BaseSettings):
     # NoDecode: не даём pydantic-settings JSON-декодить env-строку — её разберёт валидатор
     admin_user_ids: Annotated[list[int], NoDecode] = Field(default_factory=list)
     archive_channel_id: int = 0     # секретный канал-архив с видео
-    webapp_url: str = ""            # URL Web App (кнопка 🍿)
 
-    # Вебхук (прод). Пусто → polling (локально/дев). Заполнено → бот слушает webhook.
-    webhook_url: str = ""           # публичный HTTPS base, напр. https://cinema.example (без пути)
-    webhook_path: str = "/tg/webhook"  # путь, куда Telegram POST'ит апдейты (Nginx → bot:port)
+    # webapp_url и webhook_url НЕ задаются напрямую из env — их выводит
+    # AppConfig._derive_from_public_origin из единого PUBLIC_ORIGIN (одна переменная
+    # на весь домен). Здесь поля — лишь хранилище результата.
+    webapp_url: str = ""            # URL Web App (кнопка 🍿); = PUBLIC_ORIGIN + "/"
+    webhook_url: str = ""           # = PUBLIC_ORIGIN при https, иначе "" (polling)
+    webhook_path: str = "/tg/webhook"  # путь, куда Telegram POST'ит апдейты (Caddy → bot:port)
     webhook_secret: SecretStr = SecretStr("")  # секрет-токен заголовка (валидирует aiogram)
-    webhook_port: int = 8080        # внутренний порт aiohttp-сервера вебхука (наружу — через Nginx)
+    webhook_port: int = 8080        # внутренний порт aiohttp-сервера вебхука (наружу — через Caddy)
 
     _ids = field_validator("admin_user_ids", mode="before")(_split_csv_ints)
 
@@ -97,6 +99,8 @@ class ApiConfig(BaseSettings):
 
     host: str = "0.0.0.0"
     port: int = 8000
+    # Перекрывается AppConfig._derive_from_public_origin → [PUBLIC_ORIGIN]. Дефолт/CSV
+    # оставлены как фолбэк, но единственный источник в норме — PUBLIC_ORIGIN.
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
 
     _origins = field_validator("cors_origins", mode="before")(_split_csv_str)
@@ -112,12 +116,38 @@ class MediaConfig(BaseSettings):
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # ── Единый публичный адрес (scheme://host[:port]) — ОДИН источник правды ──────
+    # Из PUBLIC_ORIGIN выводятся ВСЕ домен-зависимые значения: CORS, URL Mini App,
+    # режим бота (webhook/polling). Та же переменная уходит в Caddy как site address
+    # (docker-compose) → и авто-TLS оттуда же. Схема ОБЯЗАТЕЛЬНА и служит флагом среды:
+    #   прод:     https://qazaqcinema.rehubpro.kz   (https ⟹ TLS + webhook)
+    #   локально: http://localhost                  (http  ⟹ без TLS + polling)
+    public_origin: str = "http://localhost"
+
     bot: BotConfig = Field(default_factory=BotConfig)
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     payments: PaymentsConfig = Field(default_factory=PaymentsConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     media: MediaConfig = Field(default_factory=MediaConfig)
+
+    @model_validator(mode="after")
+    def _derive_from_public_origin(self) -> AppConfig:
+        """Выводит домен-зависимые значения из единого public_origin.
+
+        Домен пишется в env ОДИН раз (PUBLIC_ORIGIN) — CORS, Mini App и режим бота
+        больше не рассинхронятся и не дублируются. Отдельные BOT_WEBAPP_URL/
+        BOT_WEBHOOK_URL/API_CORS_ORIGINS не нужны (эти поля — лишь хранилище).
+        """
+        origin = self.public_origin.rstrip("/")
+        secure = origin.startswith("https://")
+        # CORS: ровно этот origin (scheme важен для матчинга; не "*").
+        self.api.cors_origins = [origin]
+        # Mini App: тот же origin. Кнопка в Telegram появится только при https.
+        self.bot.webapp_url = origin + "/"
+        # Бот: Telegram требует HTTPS для webhook → https ⟹ webhook, http ⟹ polling.
+        self.bot.webhook_url = origin if secure else ""
+        return self
 
 
 def load_config() -> AppConfig:

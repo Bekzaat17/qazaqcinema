@@ -29,9 +29,10 @@
   (нормализация постеров/hero-баннеров).
 - **Frontend**: React 19 + Vite 6 + TypeScript + Tailwind CSS v4.
 - **Инфраструктура**: Docker Compose — **одна топология** для dev/prod/test (postgres, redis, api,
-  bot, web/nginx, worker), отличие сред только в env-файле; единый запуск `./start.sh`, миграции авто.
+  bot, web (Caddy), worker), отличие сред только в env-файле; единый запуск `./start.sh`, миграции авто.
   **Redis** несёт сессии, кэш каталога, rate-limit, локи и очередь рассылок — все адаптеры
-  **fail-open** (падение Redis не роняет основной путь). Прод (webhook/TLS) включается через env.
+  **fail-open** (падение Redis не роняет основной путь). Прод (авто-TLS + webhook) — от одной
+  переменной `PUBLIC_ORIGIN` (Caddy сам выпускает/продлевает сертификат Let's Encrypt).
 
 ## Структура
 ```
@@ -52,7 +53,7 @@ tests/            # тесты домена + интеграционные (ре
 ## Быстрый старт
 
 **Одна топология для всех сред** (12-factor): dev и prod — один и тот же стек в Docker
-(postgres, redis, api, bot, web/nginx), отличие **только в env-файле**. Миграции применяются
+(postgres, redis, api, bot, web (Caddy)), отличие **только в env-файле**. Миграции применяются
 автоматически (сервис `migrate` перед стартом api/bot).
 
 ```bash
@@ -72,8 +73,9 @@ Env-файл по режиму: `dev → .env`, `prod → .env.prod` (шабло
 `test → .env.test` (в репо, БД `qazaqcinema_test`). Нет файла — `start.sh` создаёт из шаблона; для
 prod попросит вписать секреты (`BOT_TOKEN`, `DB_PASSWORD`, …).
 
-> Прод: webhook + Nginx-TLS включаются через env (`BOT_WEBHOOK_URL`, `WEB_TLS`); без них — polling +
-> nginx :80 на любом VPS. Живой деплой (домен, DNS, сертификат) — по [DEPLOY.md](DEPLOY.md).
+> Прод: авто-TLS + webhook — от ОДНОЙ переменной `PUBLIC_ORIGIN` (`https://домен` → Caddy сам
+> выпускает сертификат, бот в webhook; `http://localhost` → HTTP :80 + polling). Из неё же выводится
+> CORS. Живой деплой (домен, DNS) — по [DEPLOY.md](DEPLOY.md).
 
 <details><summary>Hot-reload на время активной разработки (host-venv поверх Docker-инфры)</summary>
 

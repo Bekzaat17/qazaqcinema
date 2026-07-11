@@ -56,7 +56,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
 
     # Постеры — статика на диске (см. LocalPosterStorage). Каталог создаём заранее,
     # иначе StaticFiles упадёт при старте, пока постеров ещё нет. В проде эту раздачу
-    # берёт на себя Nginx (Фаза 10).
+    # проксирует Caddy (Фаза 10).
     posters_dir = Path(config.media.root) / "posters"
     posters_dir.mkdir(parents=True, exist_ok=True)
     app.mount(config.media.posters_url_base, StaticFiles(directory=posters_dir), name="posters")

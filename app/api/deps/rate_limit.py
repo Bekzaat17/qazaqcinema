@@ -1,7 +1,7 @@
 """FastAPI-зависимость rate-limit поверх порта `RateLimiter`.
 
 Фабрика `rate_limit(limit, window_seconds, scope)` → зависимость, которую вешают на
-роутер/эндпоинт через `Depends`. Ключ — клиент: за Nginx это реальный IP из
+роутер/эндпоинт через `Depends`. Ключ — клиент: за reverse-proxy (Caddy) это реальный IP из
 `X-Forwarded-For` (первый в списке), в dev — прямой `request.client`. Ключуем по IP
 осознанно: лимит применяется ДО резолва сессии (даже несмотря на сессии 11.1) — так он
 работает и для анонимных/битых запросов, не завися от auth.
@@ -25,7 +25,7 @@ from app.application.ports.rate_limit import RateLimiter
 def _client_key(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        # Nginx кладёт цепочку "client, proxy1, ..."; берём исходный клиентский IP.
+        # Reverse-proxy кладёт цепочку "client, proxy1, ..."; берём исходный клиентский IP.
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 

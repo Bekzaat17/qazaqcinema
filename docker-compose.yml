@@ -8,13 +8,22 @@
 #   ./start.sh test   → ENV_FILE=.env.test  (профиль test: pytest в контейнере)
 #
 # Порты БД/Redis/API публикуются на 127.0.0.1 (доступны хосту для инструментов/host-venv,
-# но не наружу); web (nginx) — на :80. Одинаково во всех средах → «отличие только в env».
+# но не наружу); web (Caddy) — на :80/:443. Одинаково во всех средах → «отличие только в env».
 name: qazaqcinema
 
 # Общий build рантайм-сервисов (api/bot/migrate) — стадия runtime образа.
 x-app-build: &app-build
   context: .
   target: runtime
+
+# Логи ВСЕХ сервисов: json-file с ротацией по РАЗМЕРУ (Docker не умеет ротацию по времени).
+# 10 МБ × 3 файла = ≤30 МБ на сервис. При нашем трафике это перекрывает 3 месяца с запасом,
+# а диск не заполнится в любом случае. Нужно хранить дольше — подними max-file.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   postgres:
@@ -28,6 +37,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 512M      # БД: с запасом под лёгкую нагрузку (shared_buffers по умолчанию 128М)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-qazaqcinema}"]
       interval: 5s
@@ -39,6 +53,11 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
     restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 192M      # сессии/кэш/очередь — крошечные; лимит с большим запасом
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -58,6 +77,11 @@ services:
         condition: service_healthy
     command: alembic upgrade head
     restart: "no"
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M      # одноразовый: alembic, живёт секунды
 
   api:
     build: *app-build
@@ -78,6 +102,11 @@ services:
     volumes:
       - uploads:/app/uploads   # постеры: пишет бот (/add), раздаёт api (StaticFiles)
     restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 384M      # uvicorn+FastAPI+SQLAlchemy; под лёгкой нагрузкой ~150М
 
   bot:
     build: *app-build
@@ -92,12 +121,17 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    # polling (dev) или webhook (прод, если задан BOT_WEBHOOK_URL) — выбор в app.main по env.
-    # В webhook-режиме бот слушает :8080 внутри сети compose; nginx (web) проксирует на bot:8080.
+    # polling (dev) или webhook (прод) — выбор в app.main по схеме PUBLIC_ORIGIN (https ⟹ webhook).
+    # В webhook-режиме бот слушает :8080 внутри сети compose; Caddy (web) проксирует /tg/ на bot:8080.
     command: python -m app.main
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 384M      # aiogram-бот; под лёгкой нагрузкой ~150М
 
   # Worker рассылок (Фаза 12): забирает задания из Redis-очереди и шлёт через Bot API,
   # соблюдая лимит Telegram (~30 msg/s) в одном месте. Отдельный процесс — не блокирует
@@ -119,36 +153,38 @@ services:
         condition: service_completed_successfully
     command: python -m app.worker
     restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M      # воркер рассылок; в простое ~110М
 
-  # Фронт: собран в статику, раздаётся nginx + проксирует /api, /posters (и /tg-вебхук в TLS)
-  # на api/bot (единый origin, CORS не нужен). Один образ везде; TLS/домен — через env
-  # (WEB_TLS/WEB_SERVER_NAME), выбор конфига делает entrypoint-скрипт (web/nginx/).
+  # Фронт + reverse-proxy + АВТО-TLS: Caddy. Собирает SPA (node), раздаёт статику и
+  # проксирует /api, /posters, /tg/ на api/bot (единый origin, CORS не нужен). HTTPS —
+  # автоматический: Caddy сам выпускает и продлевает сертификат Let's Encrypt (никакого
+  # certbot/cron). Дев/прод различаются ТОЛЬКО значением PUBLIC_ORIGIN (та же переменная,
+  # что задаёт CORS/URL Mini App): http://localhost → HTTP :80; https://домен → авто-TLS :443.
   web:
     build:
       context: ./web
-    # Только эти две переменные (интерполяция из env-файла) — секреты приложения в
-    # nginx-контейнер НЕ пробрасываем. Локально WEB_TLS не задан → false → HTTP :80.
+    # Секреты приложения в Caddy НЕ пробрасываем — только публичный адрес и e-mail для ACME.
     environment:
-      WEB_TLS: ${WEB_TLS:-false}
-      WEB_SERVER_NAME: ${WEB_SERVER_NAME:-_}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-test@testmail.com}
     depends_on:
       - api
     ports:
       - "80:80"
-      - "443:443"                   # TLS; локально (WEB_TLS=false) nginx на 443 не слушает — хармлесс
+      - "443:443"                   # TLS; локально (http://localhost) Caddy на 443 не слушает — хармлесс
     volumes:
-      - ./certbot/conf:/etc/letsencrypt:ro   # сертификаты Let's Encrypt (пусто, пока не выпущены)
-      - ./certbot/www:/var/www/certbot:ro    # ACME webroot-челлендж
+      - caddy_data:/data            # сертификаты + ACME-аккаунт (переживают пересборку/git pull)
+      - caddy_config:/config
     restart: unless-stopped
-
-  # Выпуск/продление TLS-сертификатов Let's Encrypt. НЕ в обычном up (профиль certbot) —
-  # вызывается явно (команды — в DEPLOY.md). После выпуска/продления: docker compose restart web.
-  certbot:
-    image: certbot/certbot:latest
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    profiles: ["certbot"]
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 128M      # Caddy: статика + reverse-proxy, ~30М
 
   # Тесты (профиль test — в обычный up НЕ попадает). Запуск: ./start.sh test.
   # Гоняет ruff+mypy+pytest в контейнере (образ-стадия test) против postgres compose.
@@ -172,3 +208,5 @@ services:
 volumes:
   pgdata:
   uploads:
+  caddy_data:      # TLS-сертификаты Let's Encrypt + ACME-аккаунт (авто-выпуск/продление Caddy)
+  caddy_config:

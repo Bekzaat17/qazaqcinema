@@ -1,0 +1,44 @@
+# QazaqCinema — фронт + reverse-proxy + АВТО-TLS (Caddy).
+# HTTPS полностью автоматический: Caddy сам выпускает и продлевает сертификат
+# Let's Encrypt для домена из PUBLIC_ORIGIN. Никакого certbot/cron/скриптов-селекторов.
+#
+# Единственный источник адреса — PUBLIC_ORIGIN (та же переменная, что задаёт CORS и
+# URL Mini App на бэкенде). Схема решает всё:
+#   http://localhost              → чистый HTTP :80, без сертификатов (локально)
+#   https://qazaqcinema.rehubpro.kz → авто-TLS :443 + редирект с :80 (прод)
+{
+	# E-mail для Let's Encrypt (контакт для уведомлений об истечении). Из env ACME_EMAIL:
+	# прод — реальный адрес; dev/test — test@testmail.com (значение не важно, на
+	# http://localhost ACME не запускается). Дефолт страхует запуск без env-переменной.
+	email {$ACME_EMAIL:test@testmail.com}
+}
+
+{$PUBLIC_ORIGIN:http://localhost} {
+	encode gzip
+
+	# API → api-контейнер. handle (не handle_path) СОХРАНЯЕТ префикс: FastAPI слушает
+	# под /api/..., путь резать нельзя. Загрузка чека Kaspi (/api/payments/proof) до 10 МБ.
+	handle /api/* {
+		request_body {
+			max_size 12MB
+		}
+		reverse_proxy api:8000
+	}
+
+	# Постеры (StaticFiles на api).
+	handle /posters/* {
+		reverse_proxy api:8000
+	}
+
+	# Вебхук Telegram → bot-контейнер (aiohttp на :8080). Префикс совпадает с BOT_WEBHOOK_PATH.
+	handle /tg/* {
+		reverse_proxy bot:8080
+	}
+
+	# SPA: всё остальное — статика с клиентским роутингом (any path → index.html).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

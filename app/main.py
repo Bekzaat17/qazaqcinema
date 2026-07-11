@@ -1,8 +1,9 @@
-"""Точка входа бота: polling (локально/дев) или webhook (прод) — выбор по BOT_WEBHOOK_URL.
+"""Точка входа бота: polling (локально/дев) или webhook (прод) — выбор по схеме PUBLIC_ORIGIN.
 
-Пусто → `start_polling` (dev, как раньше). Заполнено → aiohttp-сервер вебхука за Nginx
-(TLS терминирует Nginx; он проксирует BOT_WEBHOOK_PATH на этот процесс). Отличие сред —
-только env (12-factor). API запускается отдельно: `uvicorn app.api.app:app`.
+http (webhook_url пуст) → `start_polling` (dev). https (webhook_url = PUBLIC_ORIGIN) →
+aiohttp-сервер вебхука за Caddy (TLS терминирует Caddy; он проксирует /tg/ → BOT_WEBHOOK_PATH
+на этот процесс). Отличие сред — только env (12-factor). API запускается отдельно:
+`uvicorn app.api.app:app`.
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ async def _setup_menu_button(bot: Bot, config: AppConfig) -> None:
 
 async def _run_webhook(bot: Bot, dp: Dispatcher, config: AppConfig) -> None:
     """Прод: aiohttp-сервер вебхука. Telegram POST'ит апдейты на webhook_full_url;
-    Nginx (TLS) проксирует их на 0.0.0.0:webhook_port. Секрет-токен валидирует aiogram."""
+    Caddy (TLS) проксирует их на 0.0.0.0:webhook_port. Секрет-токен валидирует aiogram."""
     secret = config.bot.webhook_secret.get_secret_value() or None
     app = web.Application()
     SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=secret).register(
