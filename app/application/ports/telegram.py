@@ -9,9 +9,24 @@ Inline-результаты НЕ умеют protect_content, поэтому ви
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Protocol
 
 from app.application.ports.broadcast import BroadcastMessage
+
+
+class DeleteOutcome(StrEnum):
+    """Исход удаления сообщения — три состояния, а не «да/нет».
+
+    Разница между REFUSED и FAILED — вся суть ретраев: повторять есть смысл ТОЛЬКО у
+    временного сбоя. Слепой повтор постоянного отказа лишь жжёт окно и лог.
+    """
+
+    DELETED = "deleted"    # удалено
+    REFUSED = "refused"    # Telegram отказал НАВСЕГДА: >48 ч, сообщения уже нет, бот
+                           # заблокирован. Повтор бессмыслен → строку сносим.
+    FAILED = "failed"      # временный сбой: сеть, 5xx Telegram, неснятый флуд-лимит.
+                           # Строку ОСТАВЛЯЕМ и пробуем в следующий прогон.
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,13 +75,13 @@ class TelegramNotifier(Protocol):
         """
         ...
 
-    async def delete_message(self, chat_id: int, message_id: int) -> bool:
-        """Удалить своё сообщение. True — удалено, False — Telegram отказал.
+    async def delete_message(self, chat_id: int, message_id: int) -> DeleteOutcome:
+        """Удалить своё сообщение; вернуть исход (см. `DeleteOutcome`).
 
-        Отказ (сообщение уже удалено, юзер заблокировал бота, сообщение старше 48 ч)
-        — НЕ исключение: чистка идёт пачками, один мёртвый id не должен ронять остальные.
-        Но и не молчание: адаптер логирует причину, иначе провал удаления невидим.
-        Флуд-лимит адаптер переживает сам (пауза + повтор) — сервисы про Telegram не знают.
+        Исключений НЕ бросает — чистка идёт пачками, один мёртвый id не должен ронять
+        остальные. Классификация ошибки Telegram (постоянная/временная) — забота адаптера:
+        это единственное место, где знают про aiogram. Флуд-лимит адаптер сперва пробует
+        переждать сам (пауза + повтор) и лишь потом отдаёт FAILED.
         """
         ...
 

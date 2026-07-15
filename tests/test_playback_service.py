@@ -69,8 +69,14 @@ class _FakeDeliveries:
     async def list_for_user(self, user_id: int) -> list[VideoDelivery]:
         return [VideoDelivery(c, m) for (u, c, m) in self.added if u == user_id]
 
-    async def clear_for_user(self, user_id: int) -> None:
-        self.added = [t for t in self.added if t[0] != user_id]
+    async def list_due(
+        self, older_than: object, now: object, limit: int
+    ) -> list[VideoDelivery]:
+        return []
+
+    async def delete_many(self, ids: list[int]) -> None: ...
+
+    async def reschedule(self, ids: list[int], next_attempt_at: object) -> None: ...
 
 
 class _OneShotLock:

@@ -71,6 +71,15 @@ def _payment_to_domain(model: PaymentRequestModel) -> PaymentRequest:
     )
 
 
+def _delivery_to_domain(model: VideoDeliveryModel) -> VideoDelivery:
+    return VideoDelivery(
+        chat_id=model.chat_id,
+        message_id=model.message_id,
+        id=model.id,
+        attempts=model.attempts,
+    )
+
+
 class PgMovieRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -343,36 +352,46 @@ class PgVideoDeliveryRepository:
     async def list_for_user(self, user_id: int) -> list[VideoDelivery]:
         stmt = select(VideoDeliveryModel).where(VideoDeliveryModel.user_id == user_id)
         result = await self._session.scalars(stmt)
-        return [
-            VideoDelivery(chat_id=m.chat_id, message_id=m.message_id, id=m.id)
-            for m in result
-        ]
+        return [_delivery_to_domain(m) for m in result]
 
-    async def clear_for_user(self, user_id: int) -> None:
-        await self._session.execute(
-            delete(VideoDeliveryModel).where(VideoDeliveryModel.user_id == user_id)
-        )
-        await self._session.commit()
-
-    async def list_stale(self, older_than: datetime, limit: int) -> list[VideoDelivery]:
-        # ORDER BY id — стабильный порядок: разобранную пачку вызывающий сразу удаляет,
-        # поэтому следующий запрос отдаёт уже другие строки (OFFSET не нужен).
+    async def list_due(
+        self, older_than: datetime, now: datetime, limit: int
+    ) -> list[VideoDelivery]:
+        # next_attempt_at IS NULL — строку ещё не пробовали (обычный случай).
+        # ORDER BY id — стабильный порядок; разобранная строка либо удаляется, либо
+        # получает срок в будущем, поэтому следующий запрос отдаёт другие строки.
         stmt = (
             select(VideoDeliveryModel)
-            .where(VideoDeliveryModel.created_at < older_than)
+            .where(
+                VideoDeliveryModel.created_at < older_than,
+                or_(
+                    VideoDeliveryModel.next_attempt_at.is_(None),
+                    VideoDeliveryModel.next_attempt_at <= now,
+                ),
+            )
             .order_by(VideoDeliveryModel.id)
             .limit(limit)
         )
         result = await self._session.scalars(stmt)
-        return [
-            VideoDelivery(chat_id=m.chat_id, message_id=m.message_id, id=m.id)
-            for m in result
-        ]
+        return [_delivery_to_domain(m) for m in result]
 
     async def delete_many(self, ids: list[int]) -> None:
         if not ids:
             return
         await self._session.execute(
             delete(VideoDeliveryModel).where(VideoDeliveryModel.id.in_(ids))
+        )
+        await self._session.commit()
+
+    async def reschedule(self, ids: list[int], next_attempt_at: datetime) -> None:
+        if not ids:
+            return
+        await self._session.execute(
+            update(VideoDeliveryModel)
+            .where(VideoDeliveryModel.id.in_(ids))
+            .values(
+                attempts=VideoDeliveryModel.attempts + 1,
+                next_attempt_at=next_attempt_at,
+            )
         )
         await self._session.commit()

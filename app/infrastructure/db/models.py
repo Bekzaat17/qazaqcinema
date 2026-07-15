@@ -69,9 +69,17 @@ class VideoDeliveryModel(Base):
     )
     chat_id: Mapped[int] = mapped_column(BigInteger)
     message_id: Mapped[int] = mapped_column(BigInteger)
-    # index — по нему ходит ежечасная чистка (`list_stale`: WHERE created_at < cutoff).
+    # index — по нему ходит ежечасная чистка (`list_due`: WHERE created_at < cutoff).
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    # Ретраи удаления. attempts — сколько раз Telegram отвечал ВРЕМЕННЫМ сбоем (сеть/5xx);
+    # исчерпали лимит → строку сносим. next_attempt_at — когда пробовать снова; NULL = «сразу».
+    # Без next_attempt_at цикл чистки зациклился бы: сбойная строка возвращалась бы тем же
+    # запросом внутри одного прогона. Срок в будущем убирает её из выборки → цикл движется.
+    attempts: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
 

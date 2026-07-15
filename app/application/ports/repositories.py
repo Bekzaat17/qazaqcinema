@@ -66,16 +66,25 @@ class VideoDeliveryRepository(Protocol):
 
     async def add(self, user_id: int, chat_id: int, message_id: int) -> None: ...
     async def list_for_user(self, user_id: int) -> list[VideoDelivery]: ...
-    async def clear_for_user(self, user_id: int) -> None: ...
 
-    async def list_stale(self, older_than: datetime, limit: int) -> list[VideoDelivery]:
-        """Выдачи старше `older_than`, не более `limit` штук (ежечасная чистка).
+    async def list_due(
+        self, older_than: datetime, now: datetime, limit: int
+    ) -> list[VideoDelivery]:
+        """Выдачи старше `older_than`, у которых подошёл срок попытки. Не более `limit`.
 
-        Именно ПАЧКОЙ (limit), а не целиком: таблица растёт с трафиком, а тянуть её в
-        память одним списком незачем — вызывающий крутит цикл, пока пачки не кончатся.
+        Именно ПАЧКОЙ (limit), а не целиком: таблица растёт с трафиком, тянуть её в память
+        одним списком незачем — вызывающий крутит цикл, пока пачки не кончатся.
+
+        `now` фильтрует по `next_attempt_at`: строки, отложенные после сбоя, в выборку не
+        попадают, пока их срок не наступит. Это и не даёт циклу зациклиться на сбойной
+        пачке, и не даёт ей забить голову очереди, вытеснив свежие выдачи.
         """
         ...
 
     async def delete_many(self, ids: list[int]) -> None:
         """Удалить строки разобранной пачки по id."""
+        ...
+
+    async def reschedule(self, ids: list[int], next_attempt_at: datetime) -> None:
+        """Отложить повтор: attempts += 1, next_attempt_at = срок (временный сбой)."""
         ...

@@ -74,7 +74,12 @@ class _NoopDeliveries:
     async def add(self, user_id: int, chat_id: int, message_id: int) -> None: ...
     async def list_for_user(self, user_id: int) -> list[object]:
         return []
-    async def clear_for_user(self, user_id: int) -> None: ...
+    async def list_due(
+        self, older_than: object, now: object, limit: int
+    ) -> list[object]:
+        return []
+    async def delete_many(self, ids: list[int]) -> None: ...
+    async def reschedule(self, ids: list[int], next_attempt_at: object) -> None: ...
 
 
 def _pending_request() -> PaymentRequest:

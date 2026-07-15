@@ -270,7 +270,7 @@ async def _seed_delivery(
     return row.id
 
 
-async def test_delivery_list_stale_respects_cutoff_and_limit(session: AsyncSession) -> None:
+async def test_delivery_list_due_respects_cutoff_and_limit(session: AsyncSession) -> None:
     await PgUserRepository(session).upsert(User(telegram_id=7))
     repo = PgVideoDeliveryRepository(session)
     now = datetime.now(UTC)
@@ -279,13 +279,35 @@ async def test_delivery_list_stale_respects_cutoff_and_limit(session: AsyncSessi
     await _seed_delivery(session, 7, 103, now - timedelta(hours=1))  # свежая — не трогать
 
     cutoff = now - timedelta(hours=40)
-    stale = await repo.list_stale(cutoff, 10)
+    due = await repo.list_due(cutoff, now, 10)
 
-    assert {d.message_id for d in stale} == {101, 102}
-    assert {d.id for d in stale} == {old_a, old_b}
+    assert {d.message_id for d in due} == {101, 102}
+    assert {d.id for d in due} == {old_a, old_b}
+    assert all(d.attempts == 0 for d in due)  # ещё не пробовали
 
     # limit режет пачку (ORDER BY id → стабильно первая)
-    assert [d.id for d in await repo.list_stale(cutoff, 1)] == [old_a]
+    assert [d.id for d in await repo.list_due(cutoff, now, 1)] == [old_a]
+
+
+async def test_delivery_reschedule_hides_row_until_due(session: AsyncSession) -> None:
+    """Ключевой инвариант: отложенная строка выпадает из list_due до наступления срока.
+
+    Именно это не даёт циклу чистки зациклиться на сбойной пачке и забить голову очереди.
+    """
+    await PgUserRepository(session).upsert(User(telegram_id=9))
+    repo = PgVideoDeliveryRepository(session)
+    now = datetime.now(UTC)
+    row = await _seed_delivery(session, 9, 301, now - timedelta(hours=41))
+    cutoff = now - timedelta(hours=40)
+
+    await repo.reschedule([row], now + timedelta(hours=1))
+
+    assert await repo.list_due(cutoff, now, 10) == []          # срок не подошёл — скрыта
+    later = await repo.list_due(cutoff, now + timedelta(hours=2), 10)  # час спустя — видна
+    assert [d.id for d in later] == [row]
+    assert later[0].attempts == 1                              # попытка засчитана
+
+    await repo.reschedule([], now)  # пустой список — no-op, не падаем
 
 
 async def test_delivery_delete_many_removes_only_given_ids(session: AsyncSession) -> None:

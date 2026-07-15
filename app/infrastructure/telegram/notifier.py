@@ -9,7 +9,9 @@ from aiogram import Bot
 from aiogram.exceptions import (
     TelegramBadRequest,
     TelegramForbiddenError,
+    TelegramNetworkError,
     TelegramRetryAfter,
+    TelegramServerError,
 )
 from aiogram.types import (
     BufferedInputFile,
@@ -19,7 +21,11 @@ from aiogram.types import (
 )
 
 from app.application.ports.broadcast import BroadcastMessage
-from app.application.ports.telegram import ProofRef, RecipientUnreachableError
+from app.application.ports.telegram import (
+    DeleteOutcome,
+    ProofRef,
+    RecipientUnreachableError,
+)
 
 # Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
 # reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
@@ -88,31 +94,45 @@ class AiogramNotifier:
             raise  # прочий BadRequest (напр. битый file_id) — настоящая ошибка, пусть всплывёт
         return message.message_id  # запоминаем выдачу → удалим при истечении подписки
 
-    async def delete_message(self, chat_id: int, message_id: int) -> bool:
-        """Удалить своё сообщение. True — удалено, False — Telegram отказал (залогируем).
+    async def delete_message(self, chat_id: int, message_id: int) -> DeleteOutcome:
+        """Удалить своё сообщение; классифицировать отказ (см. `DeleteOutcome`).
 
-        Раньше отказ глушился `suppress` вчистую — и провал удаления был невидим: главный
-        из них, «сообщение старше 48 часов», выглядел как успех. Теперь возвращаем исход и
-        пишем причину в лог. Флуд-лимит переживаем здесь же (пауза + один повтор), чтобы
-        `aiogram` не протёк в application-слой: чистка зовётся пачками, и один RetryAfter
-        не должен обрывать разбор остальных.
+        Раньше отказ глушился `suppress` вчистую — провал был невидим: главный из них,
+        «сообщение старше 48 часов», выглядел как успех. Теперь исход возвращаем наверх, а
+        причину пишем в лог.
+
+        Классификация — здесь, потому что это единственный слой, знающий aiogram:
+          • BadRequest / Forbidden → REFUSED. Постоянно: >48 ч, сообщения уже нет, бот
+            заблокирован. Ретраить нечего — вызывающий сносит строку.
+          • RetryAfter → сначала пробуем переждать сами (пауза + повтор); не помогло → FAILED.
+          • Network / 5xx → FAILED. Раньше НЕ ловились вовсе и роняли весь джоб чистки.
         """
         for attempt in (1, 2):
             try:
                 await self._bot.delete_message(chat_id, message_id)
-                return True
+                return DeleteOutcome.DELETED
             except TelegramRetryAfter as exc:
                 if attempt == 2:
                     logger.warning("Повторный флуд-лимит на удалении в чате %s", chat_id)
-                    return False
+                    return DeleteOutcome.FAILED
                 await asyncio.sleep(exc.retry_after + 1)
             except (TelegramBadRequest, TelegramForbiddenError) as exc:
-                # Сообщения нет / бот заблокирован / старше 48 ч — повторять бессмысленно.
                 logger.warning(
-                    "Не удалил сообщение %s в чате %s: %s", message_id, chat_id, exc
+                    "Отказ удаления сообщения %s в чате %s (не повторяем): %s",
+                    message_id,
+                    chat_id,
+                    exc,
                 )
-                return False
-        return False
+                return DeleteOutcome.REFUSED
+            except (TelegramNetworkError, TelegramServerError) as exc:
+                logger.warning(
+                    "Временный сбой удаления %s в чате %s (повторим позже): %s",
+                    message_id,
+                    chat_id,
+                    exc,
+                )
+                return DeleteOutcome.FAILED
+        return DeleteOutcome.FAILED
 
     async def acknowledge_payment_proof(
         self, telegram_id: int, proof: bytes, caption: str, *, filename: str, content_type: str

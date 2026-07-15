@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+from app.application.ports.telegram import DeleteOutcome
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.entities.delivery import VideoDelivery
@@ -45,9 +46,9 @@ class _FakeNotifier:
     async def notify_user(self, telegram_id: int, text: str) -> None:
         self.messages.append((telegram_id, text))
 
-    async def delete_message(self, chat_id: int, message_id: int) -> bool:
+    async def delete_message(self, chat_id: int, message_id: int) -> DeleteOutcome:
         self.deleted.append((chat_id, message_id))
-        return True
+        return DeleteOutcome.DELETED
 
 
 class _FakeDeliveries:
@@ -55,7 +56,7 @@ class _FakeDeliveries:
 
     def __init__(self, seed: dict[int, list[VideoDelivery]] | None = None) -> None:
         self._by_user: dict[int, list[VideoDelivery]] = seed or {}
-        self.cleared: list[int] = []
+        self.deleted_ids: list[int] = []
 
     async def add(self, user_id: int, chat_id: int, message_id: int) -> None:
         self._by_user.setdefault(user_id, []).append(VideoDelivery(chat_id, message_id))
@@ -63,14 +64,15 @@ class _FakeDeliveries:
     async def list_for_user(self, user_id: int) -> list[VideoDelivery]:
         return list(self._by_user.get(user_id, []))
 
-    async def clear_for_user(self, user_id: int) -> None:
-        self.cleared.append(user_id)
-        self._by_user.pop(user_id, None)
-
-    async def list_stale(self, older_than: datetime, limit: int) -> list[VideoDelivery]:
+    async def list_due(
+        self, older_than: datetime, now: datetime, limit: int
+    ) -> list[VideoDelivery]:
         return []  # чистку по возрасту проверяет test_video_retention_service
 
     async def delete_many(self, ids: list[int]) -> None:
+        self.deleted_ids.extend(ids)
+
+    async def reschedule(self, ids: list[int], next_attempt_at: datetime) -> None:
         return None
 
 
@@ -132,7 +134,10 @@ async def test_expire_due_marks_only_expired_and_returns_count() -> None:
     notifier = _FakeNotifier()
     # У юзера 1 — две выданные видео, у юзера 2 — одна: при истечении их надо удалить.
     deliveries = _FakeDeliveries(
-        {1: [VideoDelivery(1, 101), VideoDelivery(1, 102)], 2: [VideoDelivery(2, 201)]}
+        {
+            1: [VideoDelivery(1, 101, id=1), VideoDelivery(1, 102, id=2)],
+            2: [VideoDelivery(2, 201, id=3)],
+        }
     )
     service = _build(users, notifier, deliveries)
 
@@ -145,7 +150,7 @@ async def test_expire_due_marks_only_expired_and_returns_count() -> None:
     assert {tid for tid, _ in notifier.messages} == {1, 2}
     # видео обоих юзеров удалены из чатов и записи о выдачах вычищены
     assert set(notifier.deleted) == {(1, 101), (1, 102), (2, 201)}
-    assert set(deliveries.cleared) == {1, 2}
+    assert set(deliveries.deleted_ids) == {1, 2, 3}
 
 
 async def test_expire_due_no_expired_users() -> None:
