@@ -114,8 +114,10 @@ case "$MODE" in
     info "Бэкап БД '$db_name' → $out"
     dc "$ef" exec -T postgres pg_dump -U "$db_user" "$db_name" | gzip > "$out"
     [ -s "$out" ] || { rm -f -- "$out"; die "Пустой дамп — postgres поднят? (./start.sh ps)"; }
-    # ротация: держим последние 14 (без GNU-специфичного xargs -r)
-    ls -1t "backups/${db_name}"-*.sql.gz 2>/dev/null | tail -n +15 | while IFS= read -r old; do rm -f -- "$old"; done
+    # Ротация по ВОЗРАСТУ (14 дней), а не по счётчику: ручные дампы перед обновлением
+    # (DEPLOY.md §7) иначе вытесняли бы суточные и оставляли меньше 14 дней истории.
+    # Чистим только после проверки дампа выше → без свежей копии ничего не удаляем.
+    find backups -type f -name "${db_name}-*.sql.gz" -mtime +14 -delete 2>/dev/null || true
     info "Готово: $out ($(du -h "$out" | cut -f1))"
     ;;
 
