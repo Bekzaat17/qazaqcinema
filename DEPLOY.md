@@ -17,7 +17,14 @@
   Весь стек в простое ест ~900 МБ; видео раздаёт Telegram (не VPS) → сервер остаётся лёгким.
   1 ГБ RAM технически заведётся, но три Python-процесса + Postgres впритык и сборка может уйти в OOM.
 - **Домен** (или поддомен), например `qazaqcinema.rehubpro.kz`.
-- Порты **80 и 443** открыты наружу (Caddy берёт по ним ACME-челлендж; firewall/ufw — разреши).
+- Порты **80 и 443** открыты наружу (Caddy берёт по ним ACME-челлендж). ⚠️ Свежий Ubuntu-VPS
+  часто идёт с активным ufw, где разрешён ТОЛЬКО OpenSSH — тогда Let's Encrypt не достучится
+  и сертификат не выпустится. Открой ДО первого `./start.sh prod` (неудачные попытки бьются
+  об rate-limit LE):
+  ```bash
+  ufw status                      # если "Status: active" — разреши порты:
+  ufw allow 80/tcp && ufw allow 443/tcp
+  ```
 - Прод-бот от [@BotFather](https://t.me/BotFather) (отдельный от dev), канал-архив, чат модерации.
 
 ## 1. DNS
@@ -72,11 +79,61 @@ curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"
 грузится, «Көру» шлёт видео.
 
 ## 5. Бэкапы БД (cron)
-Ручной дамп: `./start.sh backup` → `backups/qazaqcinema-YYYYmmdd-HHMMSS.sql.gz` (ротация: 14 последних).
-Ежедневно в 03:30 (crontab на VPS):
-```cron
-30 3 * * * cd /path/to/qazaqcinema && ./start.sh backup >> backups/backup.log 2>&1
+Ручной дамп: `./start.sh backup` → `backups/qazaqcinema-YYYYmmdd-HHMMSS.sql.gz`
+(ротация: **за последние 14 дней**, по возрасту файла — ручные дампы перед обновлением не
+вытесняют суточные). Чистка идёт ТОЛЬКО после успешного нового дампа → сломанный крон
+ничего не удаляет.
+
+Ежедневно в 03:30 (crontab от root на VPS). `start.sh` сам делает `cd` в свой каталог,
+поэтому достаточно абсолютного пути:
+```bash
+crontab -e
 ```
+```cron
+30 3 * * * /root/qazaqcinema/start.sh backup >> /root/qazaqcinema/backups/backup.log 2>&1
+```
+Проверь, что заведётся именно ПОД КРОНОМ (урезанный `PATH`, без TTY — частая причина
+«руками работает, по расписанию молчит»):
+```bash
+env -i PATH=/usr/bin:/bin HOME=/root /bin/sh -c '/root/qazaqcinema/start.sh backup'
+```
+
+## 5.1 Логи: ротация (чтобы не забить диск)
+**Логи контейнеров — уже настроены, делать ничего не нужно.** Якорь `x-logging` в
+`docker-compose.yml`: json-file `max-size 10m` × `max-file 3` = **жёсткий потолок ≤30 МБ
+на сервис** (~180 МБ на весь стек), превысить невозможно при любом трафике.
+⚠️ Docker ротирует по РАЗМЕРУ, а не по времени — «хранить логи 3 месяца» дословно
+недостижимо, и подключать сюда logrotate НЕЛЬЗЯ (драйвер держит свои смещения в файле).
+Нужна именно временнáя отсечка — это смена драйвера на `journald` + `MaxRetentionSec`.
+
+**А вот `backups/backup.log` (лог крона) растёт без ротации** — его закрываем logrotate.
+Создай `/etc/logrotate.d/qazaqcinema`:
+```
+/root/qazaqcinema/backups/backup.log {
+    monthly
+    # 3 архива + текущий → история ~3 месяца
+    rotate 3
+    # страховка по возрасту
+    maxage 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    su root root
+}
+```
+⚠️ **logrotate не понимает комментарии в конце строки директивы** (`rotate 3  # ...` →
+`bad rotation count`, и весь конфиг молча пропускается). Только отдельными строками.
+Проверь конфиг — должно быть `Handling 1 logs` и ни одного `error`:
+```bash
+logrotate -d /etc/logrotate.d/qazaqcinema
+```
+Гоняет системный `logrotate.timer` (`systemctl is-active logrotate.timer`), отдельный
+крон не нужен.
+
+> Крон и logrotate живут в СИСТЕМЕ, а не в репозитории — `git pull` их не принесёт.
+> При переезде на новый сервер оба шага (5 и 5.1) повторить руками.
+
 **Восстановление** (осторожно — перезапишет данные):
 ```bash
 gunzip -c backups/qazaqcinema-ГГГГ.sql.gz | \
