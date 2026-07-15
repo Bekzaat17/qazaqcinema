@@ -14,6 +14,12 @@ def test_prices_match_prd() -> None:
     assert get_tariff("1_month").price_kzt == 1290  # type: ignore[union-attr]
 
 
+def test_star_prices_match_prd() -> None:
+    # Звёзды — премия ~25% к тенге, округлённая вверх до полусотни (курс ≈9.6 ₸/звезда).
+    assert get_tariff("1_day").price_xtr == 50  # type: ignore[union-attr]
+    assert get_tariff("1_month").price_xtr == 200  # type: ignore[union-attr]
+
+
 def test_durations() -> None:
     assert get_tariff("1_day").duration == timedelta(days=1)  # type: ignore[union-attr]
     assert get_tariff("1_month").duration == timedelta(days=30)  # type: ignore[union-attr]

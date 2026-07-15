@@ -38,7 +38,7 @@ const HOME: CatalogHome = { hero: HERO_MOVIE, shelves: SHELVES };
 
 const TARIFFS: Tariff[] = [
   { slug: "1_day", title_ru: "1 день", title_kk: "1 күн", price_kzt: 290, price_xtr: 50, days: 1, recurring: false },
-  { slug: "1_month", title_ru: "1 месяц", title_kk: "1 ай", price_kzt: 1290, price_xtr: 250, days: 30, recurring: true },
+  { slug: "1_month", title_ru: "1 месяц", title_kk: "1 ай", price_kzt: 1290, price_xtr: 200, days: 30, recurring: true },
 ];
 
 // Реквизиты Kaspi для мок-превью берём из Vite-env (web/.env.local), чтобы форма оплаты
