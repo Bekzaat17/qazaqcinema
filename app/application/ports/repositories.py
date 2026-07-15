@@ -59,7 +59,7 @@ class PaymentRepository(Protocol):
 
 
 class VideoDeliveryRepository(Protocol):
-    """Учёт выданных видео-сообщений — чтобы удалить их при истечении подписки.
+    """Учёт выданных видео-сообщений — чтобы удалять их по возрасту и при истечении подписки.
 
     Мелкий отдельный порт (ISP): к User/Movie/Payment отношения не имеет.
     """
@@ -67,3 +67,15 @@ class VideoDeliveryRepository(Protocol):
     async def add(self, user_id: int, chat_id: int, message_id: int) -> None: ...
     async def list_for_user(self, user_id: int) -> list[VideoDelivery]: ...
     async def clear_for_user(self, user_id: int) -> None: ...
+
+    async def list_stale(self, older_than: datetime, limit: int) -> list[VideoDelivery]:
+        """Выдачи старше `older_than`, не более `limit` штук (ежечасная чистка).
+
+        Именно ПАЧКОЙ (limit), а не целиком: таблица растёт с трафиком, а тянуть её в
+        память одним списком незачем — вызывающий крутит цикл, пока пачки не кончатся.
+        """
+        ...
+
+    async def delete_many(self, ids: list[int]) -> None:
+        """Удалить строки разобранной пачки по id."""
+        ...

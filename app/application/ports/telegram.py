@@ -60,8 +60,14 @@ class TelegramNotifier(Protocol):
         """
         ...
 
-    async def delete_message(self, chat_id: int, message_id: int) -> None:
-        """Удалить своё сообщение (best-effort). «Уже нет / заблокирован» — молча глотаем."""
+    async def delete_message(self, chat_id: int, message_id: int) -> bool:
+        """Удалить своё сообщение. True — удалено, False — Telegram отказал.
+
+        Отказ (сообщение уже удалено, юзер заблокировал бота, сообщение старше 48 ч)
+        — НЕ исключение: чистка идёт пачками, один мёртвый id не должен ронять остальные.
+        Но и не молчание: адаптер логирует причину, иначе провал удаления невидим.
+        Флуд-лимит адаптер переживает сам (пауза + повтор) — сервисы про Telegram не знают.
+        """
         ...
 
     async def acknowledge_payment_proof(

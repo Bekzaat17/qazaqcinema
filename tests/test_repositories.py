@@ -6,10 +6,12 @@ from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
+from app.infrastructure.db.models import VideoDeliveryModel
 from app.infrastructure.db.repositories import (
     PgMovieRepository,
     PgPaymentRepository,
     PgUserRepository,
+    PgVideoDeliveryRepository,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -253,3 +255,48 @@ async def test_payment_lifecycle(session: AsyncSession) -> None:
     assert updated is not None
     assert updated.status is PaymentStatus.APPROVED
     assert updated.reviewed_at is not None
+
+
+async def _seed_delivery(
+    session: AsyncSession, user_id: int, message_id: int, created_at: datetime
+) -> int:
+    """Выдача с ЯВНЫМ created_at: обычный `add` ставит now() (server_default) и состарить
+    запись через него нельзя, а чистка по возрасту — ровно про created_at."""
+    row = VideoDeliveryModel(
+        user_id=user_id, chat_id=user_id, message_id=message_id, created_at=created_at
+    )
+    session.add(row)
+    await session.commit()
+    return row.id
+
+
+async def test_delivery_list_stale_respects_cutoff_and_limit(session: AsyncSession) -> None:
+    await PgUserRepository(session).upsert(User(telegram_id=7))
+    repo = PgVideoDeliveryRepository(session)
+    now = datetime.now(UTC)
+    old_a = await _seed_delivery(session, 7, 101, now - timedelta(hours=41))
+    old_b = await _seed_delivery(session, 7, 102, now - timedelta(hours=50))
+    await _seed_delivery(session, 7, 103, now - timedelta(hours=1))  # свежая — не трогать
+
+    cutoff = now - timedelta(hours=40)
+    stale = await repo.list_stale(cutoff, 10)
+
+    assert {d.message_id for d in stale} == {101, 102}
+    assert {d.id for d in stale} == {old_a, old_b}
+
+    # limit режет пачку (ORDER BY id → стабильно первая)
+    assert [d.id for d in await repo.list_stale(cutoff, 1)] == [old_a]
+
+
+async def test_delivery_delete_many_removes_only_given_ids(session: AsyncSession) -> None:
+    await PgUserRepository(session).upsert(User(telegram_id=8))
+    repo = PgVideoDeliveryRepository(session)
+    now = datetime.now(UTC)
+    doomed = await _seed_delivery(session, 8, 201, now - timedelta(hours=41))
+    kept = await _seed_delivery(session, 8, 202, now - timedelta(hours=41))
+
+    await repo.delete_many([doomed])
+
+    assert [d.id for d in await repo.list_for_user(8)] == [kept]
+    await repo.delete_many([])  # пустой список — no-op, не падаем
+    assert len(await repo.list_for_user(8)) == 1

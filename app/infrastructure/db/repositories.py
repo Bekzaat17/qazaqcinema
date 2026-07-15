@@ -343,10 +343,36 @@ class PgVideoDeliveryRepository:
     async def list_for_user(self, user_id: int) -> list[VideoDelivery]:
         stmt = select(VideoDeliveryModel).where(VideoDeliveryModel.user_id == user_id)
         result = await self._session.scalars(stmt)
-        return [VideoDelivery(chat_id=m.chat_id, message_id=m.message_id) for m in result]
+        return [
+            VideoDelivery(chat_id=m.chat_id, message_id=m.message_id, id=m.id)
+            for m in result
+        ]
 
     async def clear_for_user(self, user_id: int) -> None:
         await self._session.execute(
             delete(VideoDeliveryModel).where(VideoDeliveryModel.user_id == user_id)
+        )
+        await self._session.commit()
+
+    async def list_stale(self, older_than: datetime, limit: int) -> list[VideoDelivery]:
+        # ORDER BY id — стабильный порядок: разобранную пачку вызывающий сразу удаляет,
+        # поэтому следующий запрос отдаёт уже другие строки (OFFSET не нужен).
+        stmt = (
+            select(VideoDeliveryModel)
+            .where(VideoDeliveryModel.created_at < older_than)
+            .order_by(VideoDeliveryModel.id)
+            .limit(limit)
+        )
+        result = await self._session.scalars(stmt)
+        return [
+            VideoDelivery(chat_id=m.chat_id, message_id=m.message_id, id=m.id)
+            for m in result
+        ]
+
+    async def delete_many(self, ids: list[int]) -> None:
+        if not ids:
+            return
+        await self._session.execute(
+            delete(VideoDeliveryModel).where(VideoDeliveryModel.id.in_(ids))
         )
         await self._session.commit()

@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from app.application.services.subscription_service import SubscriptionService
+from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
@@ -44,8 +45,9 @@ class _FakeNotifier:
     async def notify_user(self, telegram_id: int, text: str) -> None:
         self.messages.append((telegram_id, text))
 
-    async def delete_message(self, chat_id: int, message_id: int) -> None:
+    async def delete_message(self, chat_id: int, message_id: int) -> bool:
         self.deleted.append((chat_id, message_id))
+        return True
 
 
 class _FakeDeliveries:
@@ -65,11 +67,28 @@ class _FakeDeliveries:
         self.cleared.append(user_id)
         self._by_user.pop(user_id, None)
 
+    async def list_stale(self, older_than: datetime, limit: int) -> list[VideoDelivery]:
+        return []  # чистку по возрасту проверяет test_video_retention_service
+
+    async def delete_many(self, ids: list[int]) -> None:
+        return None
+
+
+def _build(
+    users: _FakeUsers,
+    notifier: _FakeNotifier | None = None,
+    deliveries: _FakeDeliveries | None = None,
+) -> SubscriptionService:
+    """Сборка сервиса: чистку видео он делегирует VideoRetentionService."""
+    notifier = notifier or _FakeNotifier()
+    deliveries = deliveries or _FakeDeliveries()
+    return SubscriptionService(users, notifier, VideoRetentionService(deliveries, notifier))
+
 
 async def test_activate_grants_access_from_now_for_new_user() -> None:
     users = _FakeUsers()
     notifier = _FakeNotifier()
-    service = SubscriptionService(users, notifier, _FakeDeliveries())
+    service = _build(users, notifier)
     user = User(telegram_id=42, status=UserStatus.NEW)
 
     result = await service.activate(user, MONTH, _NOW)
@@ -84,7 +103,7 @@ async def test_activate_grants_access_from_now_for_new_user() -> None:
 
 async def test_activate_extends_running_subscription() -> None:
     users = _FakeUsers()
-    service = SubscriptionService(users, _FakeNotifier(), _FakeDeliveries())
+    service = _build(users)
     current = _NOW + timedelta(days=5)
     user = User(telegram_id=1, status=UserStatus.ACTIVE, expires_at=current)
 
@@ -96,7 +115,7 @@ async def test_activate_extends_running_subscription() -> None:
 
 async def test_activate_counts_from_now_when_expired() -> None:
     users = _FakeUsers()
-    service = SubscriptionService(users, _FakeNotifier(), _FakeDeliveries())
+    service = _build(users)
     past = _NOW - timedelta(days=3)
     user = User(telegram_id=1, status=UserStatus.EXPIRED, expires_at=past)
 
@@ -115,7 +134,7 @@ async def test_expire_due_marks_only_expired_and_returns_count() -> None:
     deliveries = _FakeDeliveries(
         {1: [VideoDelivery(1, 101), VideoDelivery(1, 102)], 2: [VideoDelivery(2, 201)]}
     )
-    service = SubscriptionService(users, notifier, deliveries)
+    service = _build(users, notifier, deliveries)
 
     count = await service.expire_due(_NOW)
 
@@ -131,7 +150,7 @@ async def test_expire_due_marks_only_expired_and_returns_count() -> None:
 
 async def test_expire_due_no_expired_users() -> None:
     users = _FakeUsers(expired=[])
-    service = SubscriptionService(users, _FakeNotifier(), _FakeDeliveries())
+    service = _build(users)
 
     count = await service.expire_due(_NOW)
 

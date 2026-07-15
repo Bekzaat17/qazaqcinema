@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-import contextlib
+import asyncio
+import logging
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramRetryAfter,
+)
 from aiogram.types import (
     BufferedInputFile,
     InlineKeyboardButton,
@@ -19,6 +24,8 @@ from app.application.ports.telegram import ProofRef, RecipientUnreachableError
 # Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
 # reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
 from app.bot.keyboards.moderation import moderation_keyboard
+
+logger = logging.getLogger(__name__)
 
 
 def _broadcast_keyboard(message: BroadcastMessage) -> InlineKeyboardMarkup | None:
@@ -81,11 +88,31 @@ class AiogramNotifier:
             raise  # прочий BadRequest (напр. битый file_id) — настоящая ошибка, пусть всплывёт
         return message.message_id  # запоминаем выдачу → удалим при истечении подписки
 
-    async def delete_message(self, chat_id: int, message_id: int) -> None:
-        # Best-effort: сообщение могло быть уже удалено, а юзер — заблокировать бота.
-        # Удаление при истечении подписки не должно падать из-за одного «мёртвого» id.
-        with contextlib.suppress(TelegramBadRequest, TelegramForbiddenError):
-            await self._bot.delete_message(chat_id, message_id)
+    async def delete_message(self, chat_id: int, message_id: int) -> bool:
+        """Удалить своё сообщение. True — удалено, False — Telegram отказал (залогируем).
+
+        Раньше отказ глушился `suppress` вчистую — и провал удаления был невидим: главный
+        из них, «сообщение старше 48 часов», выглядел как успех. Теперь возвращаем исход и
+        пишем причину в лог. Флуд-лимит переживаем здесь же (пауза + один повтор), чтобы
+        `aiogram` не протёк в application-слой: чистка зовётся пачками, и один RetryAfter
+        не должен обрывать разбор остальных.
+        """
+        for attempt in (1, 2):
+            try:
+                await self._bot.delete_message(chat_id, message_id)
+                return True
+            except TelegramRetryAfter as exc:
+                if attempt == 2:
+                    logger.warning("Повторный флуд-лимит на удалении в чате %s", chat_id)
+                    return False
+                await asyncio.sleep(exc.retry_after + 1)
+            except (TelegramBadRequest, TelegramForbiddenError) as exc:
+                # Сообщения нет / бот заблокирован / старше 48 ч — повторять бессмысленно.
+                logger.warning(
+                    "Не удалил сообщение %s в чате %s: %s", message_id, chat_id, exc
+                )
+                return False
+        return False
 
     async def acknowledge_payment_proof(
         self, telegram_id: int, proof: bytes, caption: str, *, filename: str, content_type: str

@@ -41,6 +41,7 @@ from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
 from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
+from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
 from app.infrastructure.cache.broadcast import RedisBroadcastQueue
@@ -168,6 +169,7 @@ class RequestProvider(Provider):
     catalog = provide(CatalogService)
     ingestion = provide(MovieIngestionService)
     playback = provide(PlaybackService)
+    retention = provide(VideoRetentionService)  # чистка видео: ежечасный джоб + истечение
     subscription = provide(SubscriptionService)
     payment = provide(PaymentService)
     moderation = provide(PaymentModerationService)

@@ -81,9 +81,15 @@ class MovieIngestionService:
         # Сбрасываем ВЕСЬ кэш каталога (главная/чипы/страницы браузинга), иначе новинка не
         # видна до истечения TTL (Фаза 11.2/13; invalidate чистит весь namespace catalog:*).
         await self._cache.invalidate()
-        await self._notifier.notify_admins(
-            f"✅ Фильм «{saved.title_kk}» добавлен. ID: {saved.id}"
-        )
+        # Тоже в try/except: notify_admins шлёт КАЖДОМУ из BOT_ADMIN_USER_IDS, а админ,
+        # не нажавший /start (или заблокировавший бота), даёт 403 — и ронял бы /add уже
+        # ПОСЛЕ сохранения в БД, попутно съедая рассылку ниже. Уведомление второстепенно.
+        try:
+            await self._notifier.notify_admins(
+                f"✅ Фильм «{saved.title_kk}» добавлен. ID: {saved.id}"
+            )
+        except Exception:
+            logger.exception("Не удалось уведомить админов о фильме #%s", saved.id)
         # Авто-рассылка о новинке (Фаза 12) — в try/except: сбой рассылки НЕ должен
         # отменять добавление фильма (оно уже в БД). Очередь fail-open сама по себе.
         try:
