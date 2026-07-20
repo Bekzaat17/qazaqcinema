@@ -1,6 +1,6 @@
 // Пустые/ошибочные состояния.
 
-import { Film, SearchX, WifiOff } from "lucide-react";
+import { Film, SearchX, Send, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
 
 import Button from "../ui/Button";
@@ -22,6 +22,16 @@ export function CatalogEmpty() {
 
 export function SearchEmpty({ query }: { query: string }) {
   return <Wrap icon={<SearchX size={28} />} title="Ештеңе табылмады" hint={`«${query}» бойынша нәтиже жоқ.`} />;
+}
+
+export function NotInTelegram() {
+  return (
+    <Wrap
+      icon={<Send size={28} />}
+      title="Telegram арқылы ашыңыз"
+      hint="Кинотеатр тек Telegram ішінде жұмыс істейді. @qazaqcinema_bot ботын ашып, «🍿 Кинотеатрды ашу» батырмасын басыңыз."
+    />
+  );
 }
 
 export function LoadError({ onRetry }: { onRetry: () => void }) {

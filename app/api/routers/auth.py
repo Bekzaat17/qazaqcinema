@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, HTTPException
 
 from app.api.schemas.auth import AuthOut
+from app.application.ports.security import InitDataError
 from app.application.ports.session import SessionStore
 from app.application.services.auth_service import AuthService
 
@@ -25,6 +26,12 @@ async def authenticate(
     Токен — идентификатор сессии в Redis (TTL 24 ч); клиент дальше шлёт его вместо initData.
     Redis недоступен → `create` вернёт None, клиент останется на initData (fail-open).
     """
-    user = await auth.authenticate(authorization)
+    # Битый/отсутствующий/просроченный initData — это 401 (клиент не в Telegram или
+    # реплей), а НЕ 500: без catch InitDataError всплывал необработанным (Internal Error),
+    # и фронт валился в общий экран ошибки вместо понятного «откройте через Telegram».
+    try:
+        user = await auth.authenticate(authorization)
+    except InitDataError as exc:
+        raise HTTPException(status_code=401, detail="invalid_init_data") from exc
     token = await sessions.create(user.telegram_id, user.username)
     return AuthOut.from_domain(user, datetime.now(UTC), token=token)

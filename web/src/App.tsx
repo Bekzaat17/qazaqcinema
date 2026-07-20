@@ -14,17 +14,17 @@ import ProfileSheet from "./components/ProfileSheet";
 import SearchBar from "./components/SearchBar";
 import Shelf from "./components/Shelf";
 import TabBar, { type Tab } from "./components/TabBar";
-import { CatalogEmpty, LoadError, SearchEmpty } from "./components/States";
+import { CatalogEmpty, LoadError, NotInTelegram, SearchEmpty } from "./components/States";
 import StatusBanner from "./components/StatusBanner";
 import TopBar from "./components/TopBar";
 import Toast from "./components/Toast";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
 import { ApiError, api, type Auth, type Movie, type Shelf as ShelfData, type Tariff } from "./lib/api";
-import { haptic } from "./lib/telegram";
+import { getInitData, haptic } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
 
 export default function App() {
-  const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+  const [phase, setPhase] = useState<"loading" | "ready" | "error" | "no_telegram">("loading");
   const [auth, setAuth] = useState<Auth | null>(null);
   const [shelves, setShelves] = useState<ShelfData[]>([]);
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
@@ -47,6 +47,13 @@ export default function App() {
   const hasAccess = auth?.has_access ?? false;
 
   const load = useCallback(async () => {
+    // Вне Telegram (открыли URL в обычном браузере) initData пуст → авторизация и весь
+    // каталог невозможны. Показываем понятный экран «откройте через Telegram», а не общую
+    // ошибку загрузки. В DEV мок бэкенда работает без initData — там не гейтим.
+    if (!import.meta.env.DEV && !getInitData()) {
+      setPhase("no_telegram");
+      return;
+    }
     setPhase("loading");
     try {
       const [authRes, homeRes, tariffsRes] = await Promise.all([
@@ -168,6 +175,7 @@ export default function App() {
 
       {phase === "loading" && <HomeSkeleton />}
       {phase === "error" && <LoadError onRetry={load} />}
+      {phase === "no_telegram" && <NotInTelegram />}
 
       {phase === "ready" &&
         tab === "home" &&
