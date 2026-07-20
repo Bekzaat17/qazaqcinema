@@ -10,10 +10,12 @@ title_original → год → рейтинг → описание → подтв
 
 from __future__ import annotations
 
+from contextlib import suppress
 from io import BytesIO
 from typing import Any
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -24,6 +26,7 @@ from dishka.integrations.aiogram import inject
 from app.application.services.ingestion_service import MovieIngestionService
 from app.bot.keyboards.add_movie import (
     CANCEL,
+    CATEGORY_DONE,
     CATEGORY_PREFIX,
     CONFIRM,
     FEATURED_PREFIX,
@@ -145,7 +148,11 @@ async def step_featured(callback: CallbackQuery, state: FSMContext) -> None:
     else:
         await state.update_data(hero_file_id=None)
         await state.set_state(AddMovie.category)
-        await _reply(callback, "4/10 — категорияны таңда:", category_keyboard())
+        await _reply(
+            callback,
+            "4/10 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:",
+            category_keyboard(),
+        )
 
 
 @router.message(AddMovie.hero, F.photo)
@@ -154,7 +161,10 @@ async def step_hero(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(hero_file_id=message.photo[-1].file_id)
     await state.set_state(AddMovie.category)
-    await message.answer("4/10 — категорияны таңда:", reply_markup=category_keyboard())
+    await message.answer(
+        "4/10 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:",
+        reply_markup=category_keyboard(),
+    )
 
 
 @router.message(AddMovie.hero)
@@ -162,18 +172,42 @@ async def step_hero_retry(message: Message) -> None:
     await message.answer("Hero-сурет күтілуде — кең не шаршы фото жібер немесе /cancel.")
 
 
+# DONE зарегистрирован ПЕРЕД тумблером: его callback_data тоже начинается с
+# CATEGORY_PREFIX, но точное совпадение должно перехватываться раньше overlap-матча.
+@router.callback_query(AddMovie.category, F.data == CATEGORY_DONE)
+async def step_category_done(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    selected = list(data.get("categories") or [])
+    if not selected:
+        await callback.answer("Кемінде бір категорияны таңда", show_alert=True)
+        return
+    await state.set_state(AddMovie.title_kk)
+    await callback.answer()
+    await _reply(callback, "5/10 — қазақша атауы (название на казахском):")
+
+
 @router.callback_query(AddMovie.category, F.data.startswith(CATEGORY_PREFIX))
-async def step_category(callback: CallbackQuery, state: FSMContext) -> None:
+async def step_category_toggle(callback: CallbackQuery, state: FSMContext) -> None:
     if callback.data is None:
         return
     slug = callback.data.removeprefix(CATEGORY_PREFIX)
     if get_category(slug) is None:
         await callback.answer("Белгісіз категория", show_alert=True)
         return
-    await state.update_data(category=slug)
-    await state.set_state(AddMovie.title_kk)
-    await callback.answer()
-    await _reply(callback, "5/10 — қазақша атауы (название на казахском):")
+    data = await state.get_data()
+    selected = set(data.get("categories") or [])
+    if slug in selected:
+        selected.discard(slug)
+    else:
+        selected.add(slug)
+    await state.update_data(categories=sorted(selected))
+    await callback.answer("✅ қосылды" if slug in selected else "➖ алынды")
+    # Перерисовываем ту же клавиатуру с обновлёнными галочками (не плодим сообщения).
+    if isinstance(callback.message, Message):
+        with suppress(TelegramBadRequest):
+            await callback.message.edit_reply_markup(
+                reply_markup=category_keyboard(selected)
+            )
 
 
 @router.message(AddMovie.title_kk, F.text)
@@ -268,7 +302,7 @@ async def confirm_add(
             title_kk=str(data["title_kk"]),
             title_ru=data.get("title_ru"),
             title_original=data.get("title_original"),
-            category=str(data["category"]),
+            categories=list(data["categories"]),
             description=str(data["description"]),
             year=data.get("year"),
             rating=data.get("rating"),
@@ -310,8 +344,9 @@ async def _archive_video(bot: Bot, config: AppConfig, video_file_id: str) -> str
 
 
 def _summary(data: dict[str, Any]) -> str:
-    category = get_category(str(data["category"]))
-    category_title = category.title_ru if category is not None else data["category"]
+    slugs = list(data.get("categories") or [])
+    titles = [(cat.title_ru if (cat := get_category(s)) is not None else s) for s in slugs]
+    category_title = ", ".join(titles) if titles else "—"
     # Для featured показываем, что баннер уже пришёл (у is_featured всегда есть hero_file_id).
     featured = "Иә (баннер тіркелді)" if data.get("is_featured") else "Жоқ"
     return "\n".join(

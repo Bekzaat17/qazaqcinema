@@ -20,7 +20,7 @@ def _movie() -> Movie:
         title_ru="Король Лев",
         title_original="The Lion King",
         description="сипаттама",
-        category="disney",
+        categories=["disney"],
         poster_url="/posters/abc.jpg",
         telegram_file_id=_SECRET_FILE_ID,
         year=1994,

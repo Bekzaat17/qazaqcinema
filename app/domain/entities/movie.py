@@ -10,7 +10,7 @@ from datetime import datetime
 class Movie:
     title_kk: str          # казахское название — основное (продукт казахоязычный)
     description: str
-    category: str          # slug категории; справочник — domain/catalog/categories.py
+    categories: list[str]  # slug'и категорий (мультивыбор); см. domain/catalog/categories.py
     poster_url: str        # публичный путь к постеру-статике, напр. /posters/<uuid>.jpg
     telegram_file_id: str  # ВНУТРЕННЕЕ: уходит только боту, НИКОГДА на фронтенд
     title_ru: str | None = None        # русское название (для показа и поиска)

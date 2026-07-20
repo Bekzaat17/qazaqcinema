@@ -17,13 +17,13 @@ import type {
 const poster = (seed: string) => `https://picsum.photos/seed/${seed}/400/600`;
 
 const MOVIES: Movie[] = [
-  { id: 7, title_kk: "Аспандағы құлып", title_ru: "Ходячий замок", title_original: "Howl's Moving Castle", description: "Жас қалпақшы қыз сиқыршының қарғысына ұшырап, жүретін құлыптан пана табады.", category: "anime", poster_url: poster("howl"), year: 2004, rating: 8.9 },
-  { id: 6, title_kk: "Арыстан патша", title_ru: "Король Лев", title_original: "The Lion King", description: "Жас арыстан Симбаның патшалыққа жол тартқан тағдыры.", category: "disney", poster_url: poster("lion"), year: 1994, rating: 8.5 },
-  { id: 5, title_kk: "Мұзды өлке", title_ru: "Холодное сердце", title_original: "Frozen", description: "Екі әпкенің махаббаты мен сиқыры туралы жылы ертегі.", category: "disney", poster_url: poster("frozen"), year: 2013, rating: 7.4 },
-  { id: 4, title_kk: "Рухтардың әлемі", title_ru: "Унесённые призраками", title_original: "Spirited Away", description: "Тихиро аруақтар мекеніне тап болып, ата-анасын құтқаруға тырысады.", category: "anime", poster_url: poster("spirited"), year: 2001, rating: 8.6 },
-  { id: 3, title_kk: "ВАЛЛ·И", title_ru: "ВАЛЛ·И", title_original: "WALL·E", description: "Жалғыз робот тастанды Жерде махаббат пен үміт іздейді.", category: "disney", poster_url: poster("walle"), year: 2008, rating: 8.4 },
-  { id: 2, title_kk: "Тоторо", title_ru: "Мой сосед Тоторо", title_original: "My Neighbor Totoro", description: "Апалы-сіңлілі қыздар орман рухы Тоторомен достасады.", category: "anime", poster_url: poster("totoro"), year: 1988, rating: 8.2 },
-  { id: 1, title_kk: "Батыл жүрек", title_ru: "Храбрая сердцем", title_original: "Brave", description: "Мерида ханшайым өз тағдырын өзі шешуге бел буады.", category: "disney", poster_url: poster("brave"), year: 2012, rating: 7.1 },
+  { id: 7, title_kk: "Аспандағы құлып", title_ru: "Ходячий замок", title_original: "Howl's Moving Castle", description: "Жас қалпақшы қыз сиқыршының қарғысына ұшырап, жүретін құлыптан пана табады.", categories: ["anime", "fantasy"], poster_url: poster("howl"), year: 2004, rating: 8.9 },
+  { id: 6, title_kk: "Арыстан патша", title_ru: "Король Лев", title_original: "The Lion King", description: "Жас арыстан Симбаның патшалыққа жол тартқан тағдыры.", categories: ["disney", "family"], poster_url: poster("lion"), year: 1994, rating: 8.5 },
+  { id: 5, title_kk: "Мұзды өлке", title_ru: "Холодное сердце", title_original: "Frozen", description: "Екі әпкенің махаббаты мен сиқыры туралы жылы ертегі.", categories: ["disney", "fantasy", "girls"], poster_url: poster("frozen"), year: 2013, rating: 7.4 },
+  { id: 4, title_kk: "Рухтардың әлемі", title_ru: "Унесённые призраками", title_original: "Spirited Away", description: "Тихиро аруақтар мекеніне тап болып, ата-анасын құтқаруға тырысады.", categories: ["anime", "fantasy"], poster_url: poster("spirited"), year: 2001, rating: 8.6 },
+  { id: 3, title_kk: "ВАЛЛ·И", title_ru: "ВАЛЛ·И", title_original: "WALL·E", description: "Жалғыз робот тастанды Жерде махаббат пен үміт іздейді.", categories: ["disney"], poster_url: poster("walle"), year: 2008, rating: 8.4 },
+  { id: 2, title_kk: "Тоторо", title_ru: "Мой сосед Тоторо", title_original: "My Neighbor Totoro", description: "Апалы-сіңлілі қыздар орман рухы Тоторомен достасады.", categories: ["anime", "kids"], poster_url: poster("totoro"), year: 1988, rating: 8.2 },
+  { id: 1, title_kk: "Батыл жүрек", title_ru: "Храбрая сердцем", title_original: "Brave", description: "Мерида ханшайым өз тағдырын өзі шешуге бел буады.", categories: ["disney", "adventure"], poster_url: poster("brave"), year: 2012, rating: 7.1 },
 ];
 
 // Фильм на hero: у него есть горизонтальный баннер 3:2 (проверить широкий hero в браузере).
@@ -61,7 +61,7 @@ const AUTH: Auth = {
 /** Непустые категории со счётчиками (для чипов каталога). */
 function categoryCounts(): CategoryCount[] {
   const counts = new Map<string, number>();
-  for (const m of MOVIES) counts.set(m.category, (counts.get(m.category) ?? 0) + 1);
+  for (const m of MOVIES) for (const c of m.categories) counts.set(c, (counts.get(c) ?? 0) + 1);
   return [...counts.entries()].map(([slug, count]) => ({ slug, count }));
 }
 
@@ -73,7 +73,7 @@ function browse(q: URLSearchParams): MoviePage {
   const page = Number(q.get("page") ?? "1");
   const limit = Number(q.get("limit") ?? "24");
 
-  const list = cats.length ? MOVIES.filter((m) => cats.includes(m.category)) : [...MOVIES];
+  const list = cats.length ? MOVIES.filter((m) => m.categories.some((c) => cats.includes(c))) : [...MOVIES];
   const key = (m: Movie): number => (sort === "rating" ? (m.rating ?? -1) : m.id); // views нет в моке → id
   list.sort((a, b) => (dir === "asc" ? key(a) - key(b) : key(b) - key(a)));
 

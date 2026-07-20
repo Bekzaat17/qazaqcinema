@@ -32,7 +32,7 @@ def _movie() -> Movie:
     return Movie(
         title_kk="Аладдин",
         description="Ертегі " * 400,  # длинное описание → проверим подрезку подписи
-        category="disney",
+        categories=["disney"],
         poster_url="/posters/x.jpg",
         telegram_file_id="fid",
         year=1992,

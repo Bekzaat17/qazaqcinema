@@ -7,6 +7,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from app.domain.catalog.categories import all_categories
 
 CATEGORY_PREFIX = "addcat:"
+CATEGORY_DONE = "addcat:__done__"
 FEATURED_PREFIX = "addfeat:"
 CONFIRM = "addmovie:confirm"
 CANCEL = "addmovie:cancel"
@@ -24,20 +25,23 @@ def featured_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def category_keyboard() -> InlineKeyboardMarkup:
-    """Кнопки категорий из справочника (данные → UI; новая категория = +1 запись).
+def category_keyboard(selected: set[str] | None = None) -> InlineKeyboardMarkup:
+    """Мультивыбор категорий (чекбоксы): фильм может быть fantasy + мультфильм + …
 
-    Раскладываем по 2 в ряд: категорий много (~20), одностолбцовый список был бы
-    неудобно длинным.
+    Каждая кнопка — тумблер: нажатие добавляет/снимает категорию, выбранные помечены
+    «✅». Внизу — «Дайын» (готово), которая уводит дальше по визарду (нужна ≥1 категория).
+    Данные → UI: новая категория = +1 запись в справочнике. По 2 в ряд (категорий ~20).
     """
+    selected = selected or set()
     buttons = [
         InlineKeyboardButton(
-            text=category.title_ru,
+            text=("✅ " if category.slug in selected else "") + category.title_ru,
             callback_data=f"{CATEGORY_PREFIX}{category.slug}",
         )
         for category in all_categories()
     ]
     rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
+    rows.append([InlineKeyboardButton(text="➡️ Дайын", callback_data=CATEGORY_DONE)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

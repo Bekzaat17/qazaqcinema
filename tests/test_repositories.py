@@ -20,7 +20,7 @@ def _movie(title_kk: str, category: str, file_id: str, title_ru: str | None = No
     return Movie(
         title_kk=title_kk,
         description="описание",
-        category=category,
+        categories=[category],
         poster_url="/posters/x.jpg",
         telegram_file_id=file_id,
         title_ru=title_ru,
@@ -34,7 +34,7 @@ async def test_movie_add_and_get(session: AsyncSession) -> None:
             title_kk="Арыстан Патша",
             title_ru="Король Лев",
             description="d",
-            category="disney",
+            categories=["disney"],
             poster_url="/posters/u.jpg",
             telegram_file_id="fid",
             year=1994,
@@ -75,7 +75,7 @@ async def test_movie_get_hero_prefers_featured(session: AsyncSession) -> None:
         Movie(
             title_kk="Басты",
             description="d",
-            category="disney",
+            categories=["disney"],
             poster_url="/p.jpg",
             telegram_file_id="f1",
             is_featured=True,
@@ -102,7 +102,7 @@ def _rated(title_kk: str, file_id: str, rating: float | None) -> Movie:
     return Movie(
         title_kk=title_kk,
         description="d",
-        category="film",
+        categories=["film"],
         poster_url="/p.jpg",
         telegram_file_id=file_id,
         rating=rating,
@@ -148,7 +148,7 @@ async def test_movie_list_page_filters_and_paginates(session: AsyncSession) -> N
         categories=["anime"], sort="date", direction="desc", limit=10, offset=0
     )
     assert total == 3
-    assert all(m.category == "anime" for m in items)
+    assert all("anime" in m.categories for m in items)
 
     first, total = await repo.list_page(
         categories=[], sort="date", direction="desc", limit=4, offset=0
@@ -183,6 +183,37 @@ async def test_movie_category_counts(session: AsyncSession) -> None:
     await repo.add(_movie("c", "disney", "3"))
 
     assert await repo.category_counts() == {"anime": 2, "disney": 1}
+
+
+async def test_movie_multi_category(session: AsyncSession) -> None:
+    """Фильм в нескольких категориях: находится по любой из них, считается в каждой."""
+    repo = PgMovieRepository(session)
+    await repo.add(
+        Movie(
+            title_kk="Мұзды өлке",
+            description="d",
+            categories=["disney", "fantasy", "girls"],
+            poster_url="/p.jpg",
+            telegram_file_id="f1",
+        )
+    )
+    await repo.add(_movie("Наруто", "anime", "f2"))
+
+    # overlap-фильтр: фильм всплывает по КАЖДОЙ своей категории
+    for slug in ("disney", "fantasy", "girls"):
+        items, total = await repo.list_page(
+            categories=[slug], sort="date", direction="desc", limit=10, offset=0
+        )
+        assert total == 1 and items[0].title_kk == "Мұзды өлке"
+
+    # мультивыбор чипов disney|anime → оба фильма (по одному разу, без дублей)
+    items, total = await repo.list_page(
+        categories=["disney", "anime"], sort="date", direction="desc", limit=10, offset=0
+    )
+    assert total == 2
+
+    # каждая категория мультикатегорийного фильма прибавляет +1 к своему счётчику
+    assert await repo.category_counts() == {"disney": 1, "fantasy": 1, "girls": 1, "anime": 1}
 
 
 async def test_user_upsert_overwrites(session: AsyncSession) -> None:

@@ -110,7 +110,7 @@ export interface Movie {
   title_ru: string | null;
   title_original: string | null;
   description: string;
-  category: string;
+  categories: string[]; // мультикатегории: фильм может относиться к нескольким
   poster_url: string;
   year: number | null;
   rating: number | null;

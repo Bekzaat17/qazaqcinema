@@ -33,9 +33,16 @@ export default function MovieSheet({ movie, hasAccess, status, busy, onWatch, on
             className="h-40 w-[110px] shrink-0 rounded-[var(--radius-card)] object-cover ring-1 ring-white/10"
           />
           <div className="min-w-0 flex-1 pt-1">
-            <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-xs font-medium text-muted">
-              {categoryLabel(movie.category)}
-            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {movie.categories.map((slug) => (
+                <span
+                  key={slug}
+                  className="rounded-full border border-border bg-elevated px-2.5 py-1 text-xs font-medium text-muted"
+                >
+                  {categoryLabel(slug)}
+                </span>
+              ))}
+            </div>
             <h2 id="movie-title" className="mt-2 text-xl font-extrabold leading-tight tracking-tight text-text">
               {movie.title_kk}
             </h2>

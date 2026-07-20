@@ -34,7 +34,7 @@ def _movie_to_domain(model: MovieModel) -> Movie:
         title_ru=model.title_ru,
         title_original=model.title_original,
         description=model.description,
-        category=model.category,
+        categories=list(model.categories),
         poster_url=model.poster_url,
         telegram_file_id=model.telegram_file_id,
         year=model.year,
@@ -90,7 +90,7 @@ class PgMovieRepository:
             title_ru=movie.title_ru,
             title_original=movie.title_original,
             description=movie.description,
-            category=movie.category,
+            categories=movie.categories,
             poster_url=movie.poster_url,
             telegram_file_id=movie.telegram_file_id,
             year=movie.year,
@@ -124,7 +124,7 @@ class PgMovieRepository:
     async def list_all(self, category: str | None = None) -> list[Movie]:
         stmt = select(MovieModel).order_by(MovieModel.id.desc())
         if category is not None:
-            stmt = stmt.where(MovieModel.category == category)
+            stmt = stmt.where(MovieModel.categories.overlap([category]))
         result = await self._session.scalars(stmt)
         return [_movie_to_domain(model) for model in result]
 
@@ -210,8 +210,10 @@ class PgMovieRepository:
         stmt = select(MovieModel)
         count_stmt = select(func.count()).select_from(MovieModel)
         if categories:
-            stmt = stmt.where(MovieModel.category.in_(categories))
-            count_stmt = count_stmt.where(MovieModel.category.in_(categories))
+            # overlap (`categories && ARRAY[...]`): фильм попадает, если относится ХОТЯ БЫ
+            # к одной из выбранных категорий (мультикатегорийность × мультивыбор чипов).
+            stmt = stmt.where(MovieModel.categories.overlap(categories))
+            count_stmt = count_stmt.where(MovieModel.categories.overlap(categories))
         stmt = stmt.order_by(*order_by).limit(limit).offset(offset)
 
         result = await self._session.scalars(stmt)
@@ -220,10 +222,15 @@ class PgMovieRepository:
         return items, int(total)
 
     async def category_counts(self) -> dict[str, int]:
-        """Число фильмов по категориям (для чипов каталога — показываем только непустые)."""
-        stmt = select(MovieModel.category, func.count()).group_by(MovieModel.category)
+        """Число фильмов по категориям (для чипов каталога — показываем только непустые).
+
+        Категории теперь массив → разворачиваем `unnest` в подзапросе и считаем по slug'у:
+        фильм с [fantasy, disney] прибавит по +1 к обеим категориям.
+        """
+        unnested = select(func.unnest(MovieModel.categories).label("slug")).subquery()
+        stmt = select(unnested.c.slug, func.count()).group_by(unnested.c.slug)
         result = await self._session.execute(stmt)
-        return {category: int(count) for category, count in result.all()}
+        return {slug: int(count) for slug, count in result.all()}
 
     async def increment_play_count(self, movie_id: int) -> None:
         """+1 к счётчику просмотров (после успешной выдачи видео). Точечный UPDATE."""

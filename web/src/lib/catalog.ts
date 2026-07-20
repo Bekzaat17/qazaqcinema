@@ -24,3 +24,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 export function categoryLabel(slug: string): string {
   return CATEGORY_LABELS[slug] ?? slug.charAt(0).toUpperCase() + slug.slice(1);
 }
+
+/** Подписи нескольких категорий одной строкой (мультикатегорийность). */
+export function categoryLabels(slugs: string[], separator = " · "): string {
+  return slugs.map(categoryLabel).join(separator);
+}

@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, String, Text, func, text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.entities.enums import PaymentStatus, UserStatus
@@ -41,7 +42,9 @@ class MovieModel(Base):
     title_ru: Mapped[str | None] = mapped_column(String(255), nullable=True)
     title_original: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text)
-    category: Mapped[str] = mapped_column(String(32), index=True)
+    # Мультикатегории: массив slug'ов (film может быть fantasy+disney+…). GIN-индекс для
+    # overlap-запросов (`categories && ARRAY[...]`) создаётся вручную в миграции.
+    categories: Mapped[list[str]] = mapped_column(ARRAY(String(32)))
     poster_url: Mapped[str] = mapped_column(Text)
     telegram_file_id: Mapped[str] = mapped_column(Text)
     year: Mapped[int | None] = mapped_column(nullable=True)

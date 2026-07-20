@@ -15,7 +15,7 @@ class MovieOut(BaseModel):
     title_ru: str | None = None
     title_original: str | None = None
     description: str
-    category: str
+    categories: list[str]
     poster_url: str
     year: int | None = None
     rating: float | None = None
@@ -32,7 +32,7 @@ class MovieOut(BaseModel):
             title_ru=movie.title_ru,
             title_original=movie.title_original,
             description=movie.description,
-            category=movie.category,
+            categories=movie.categories,
             poster_url=movie.poster_url,
             year=movie.year,
             rating=movie.rating,

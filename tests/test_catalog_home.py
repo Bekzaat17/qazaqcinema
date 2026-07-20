@@ -19,7 +19,7 @@ def _movie(mid: int) -> Movie:
         id=mid,
         title_kk=f"Фильм {mid}",
         description="сипаттама",
-        category="disney",
+        categories=["disney"],
         poster_url=f"/posters/{mid}.jpg",
         telegram_file_id="ARCHIVE_FILE_ID",
     )
