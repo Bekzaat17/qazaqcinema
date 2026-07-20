@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 
-from app.api.routers import auth, catalog, health, me, payments
+from app.api.routers import auth, catalog, health, me, payments, public_seo
 from app.config.settings import load_config
 from app.infrastructure.di.providers import build_container
 
@@ -53,6 +53,10 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(payments.router)
     app.include_router(me.router)
     app.include_router(health.router)
+    # Публичные SSR-страницы для SEO (/m/<slug>, /catalog, /sitemap.xml, /robots.txt).
+    # Без /api-префикса и без авторизации — их отдаёт поисковикам сам бэкенд (Caddy
+    # проксирует эти пути на api ДО SPA-фолбэка).
+    app.include_router(public_seo.router)
 
     # Постеры — статика на диске (см. LocalPosterStorage). Каталог создаём заранее,
     # иначе StaticFiles упадёт при старте, пока постеров ещё нет. В проде эту раздачу

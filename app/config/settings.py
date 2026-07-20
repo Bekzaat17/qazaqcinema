@@ -31,6 +31,7 @@ class BotConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BOT_", env_file=".env", extra="ignore")
 
     token: SecretStr = SecretStr("")
+    username: str = "qazaqcinema_bot"  # @-имя бота (без «@») для SEO deep-link t.me/<username>
     admin_chat_id: int = 0          # чат модерации (куда падают чеки)
     # NoDecode: не даём pydantic-settings JSON-декодить env-строку — её разберёт валидатор
     admin_user_ids: Annotated[list[int], NoDecode] = Field(default_factory=list)

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="kk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Қазақша мультфильмдер мен аниме онлайн — QazaqCinema</title>
+    <meta name="description" content="QazaqCinema — қазақ тіліндегі мультфильмдер, аниме және фильмдер каталогы. Барлығын Telegram-да онлайн көріңіз. Мультфильмы и аниме на казахском языке." />
+    <meta name="keywords" content="қазақша мультфильмдер, аниме қазақша, фильмдер қазақша, мультфильмы на казахском, аниме на казахском, казахская озвучка, QazaqCinema" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="{{ site_url }}/catalog" />
+    <meta name="theme-color" content="#09090b" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="QazaqCinema" />
+    <meta property="og:locale" content="kk" />
+    <meta property="og:url" content="{{ site_url }}/catalog" />
+    <meta property="og:title" content="Қазақша мультфильмдер мен аниме онлайн — QazaqCinema" />
+    <meta property="og:description" content="Қазақ тіліндегі мультфильмдер, аниме және фильмдер каталогы. Telegram-да онлайн көріңіз." />
+    <meta property="og:image" content="{{ site_url }}/logo.png" />
+
+    <script type="application/ld+json">{{ jsonld | safe }}</script>
+
+    <style>
+      :root {
+        --bg: #09090b; --card: #131316; --line: #26262b;
+        --fg: #fafafa; --muted: #a1a1aa; --accent: #e11d48;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; text-decoration: none; }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 18px 56px; }
+      header.site { display: flex; align-items: center; gap: 10px; padding: 6px 0 18px; }
+      header.site img { width: 30px; height: 30px; border-radius: 7px; }
+      header.site b { font-weight: 700; }
+      h1 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 6px 0 6px; }
+      .lead { color: var(--muted); margin: 0 0 26px; max-width: 640px; }
+      .grid {
+        display: grid; gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+      .card { display: block; }
+      .card img {
+        width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 12px;
+        border: 1px solid var(--line); background: var(--card); display: block;
+      }
+      .card .t { font-size: 0.9rem; font-weight: 600; margin: 8px 2px 0; line-height: 1.3; }
+      .card .s { font-size: 0.78rem; color: var(--muted); margin: 2px 2px 0; }
+      .empty { color: var(--muted); padding: 40px 0; }
+      footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
+        color: var(--muted); font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <img src="/logo.png" alt="QazaqCinema" />
+        <b>QazaqCinema</b>
+      </header>
+
+      <h1>Қазақша фильмдер, мультфильмдер мен аниме</h1>
+      <p class="lead">
+        Қазақ тіліндегі сирек мультфильмдер мен аниме коллекциясы. Кез келген фильмді таңдап,
+        Telegram-да онлайн көріңіз. — Редкие мультфильмы и аниме с казахской озвучкой.
+      </p>
+
+      {% if items %}
+      <div class="grid">
+        {% for it in items %}
+        <a class="card" href="{{ it.seo.path }}">
+          <img src="{{ site_url }}{{ it.movie.poster_url }}" alt="{{ it.seo.heading }}"
+               width="140" height="210" loading="lazy" />
+          <div class="t">{{ it.seo.heading }}</div>
+          <div class="s">
+            {%- if it.movie.year %}{{ it.movie.year }}{% endif -%}
+            {%- if it.movie.year and it.movie.rating is not none %} · {% endif -%}
+            {%- if it.movie.rating is not none %}★ {{ "%.1f"|format(it.movie.rating) }}{% endif -%}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">Каталог толықтырылып жатыр.</p>
+      {% endif %}
+
+      <footer>© QazaqCinema — қазақша контент · <a href="https://t.me/{{ bot_username }}" rel="nofollow">Telegram-да ашу</a></footer>
+    </div>
+  </body>
+</html>

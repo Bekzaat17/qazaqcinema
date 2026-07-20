@@ -35,6 +35,22 @@
 		reverse_proxy bot:8080
 	}
 
+	# Публичные SSR-страницы для SEO (индексация в Google) → api-контейнер. Должны стоять
+	# ДО SPA-фолбэка, иначе эти пути отдал бы index.html. Пути: страница фильма /m/<slug>,
+	# хаб-каталог /catalog, карта сайта и robots. Их рендерит бэкенд из БД (см. routers/public_seo).
+	handle /m/* {
+		reverse_proxy api:8000
+	}
+	handle /catalog {
+		reverse_proxy api:8000
+	}
+	handle /sitemap.xml {
+		reverse_proxy api:8000
+	}
+	handle /robots.txt {
+		reverse_proxy api:8000
+	}
+
 	# SPA: всё остальное — статика с клиентским роутингом (any path → index.html).
 	handle {
 		root * /srv

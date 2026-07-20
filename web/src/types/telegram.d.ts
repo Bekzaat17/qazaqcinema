@@ -50,7 +50,8 @@ type InvoiceStatus = "paid" | "cancelled" | "failed" | "pending";
 
 interface TelegramWebApp {
   initData: string;
-  initDataUnsafe: { user?: TelegramUser };
+  // start_param — payload из deep-link t.me/<bot>?startapp=<param> (SEO-страница → фильм).
+  initDataUnsafe: { user?: TelegramUser; start_param?: string };
   version: string;
   platform: string;
   colorScheme: "light" | "dark";

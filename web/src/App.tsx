@@ -20,7 +20,7 @@ import TopBar from "./components/TopBar";
 import Toast from "./components/Toast";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
 import { ApiError, api, type Auth, type Movie, type Shelf as ShelfData, type Tariff } from "./lib/api";
-import { getInitData, haptic } from "./lib/telegram";
+import { getInitData, getStartMovieId, haptic } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
 
 export default function App() {
@@ -66,6 +66,15 @@ export default function App() {
       setTariffs(tariffsRes);
       setHero(homeRes.hero);
       setPhase("ready");
+      // Deep-link с SEO-страницы (t.me/<bot>?startapp=m_<id>): сразу открываем карточку
+      // нужного фильма. Сбой (нет такого id) молчаливый — просто остаёмся на главной.
+      const startId = getStartMovieId();
+      if (startId !== null) {
+        api
+          .getMovie(startId)
+          .then((movie) => setSelected(movie))
+          .catch(() => {});
+      }
     } catch {
       setPhase("error");
     }

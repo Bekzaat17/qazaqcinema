@@ -13,6 +13,19 @@ export function getTelegramUser() {
   return window.Telegram?.WebApp?.initDataUnsafe?.user;
 }
 
+/**
+ * ID фильма из deep-link (SEO-страница → «Telegram-да көру»). Источники по приоритету:
+ * `start_param` Mini App (t.me/<bot>?startapp=m_<id>) → хэш URL (#m<id>, фолбэк для /start).
+ * Возвращает число или null. Формат payload: `m_<id>` либо `m<id>`.
+ */
+export function getStartMovieId(): number | null {
+  const raw =
+    window.Telegram?.WebApp?.initDataUnsafe?.start_param ??
+    (window.location.hash ? window.location.hash.slice(1) : "");
+  const match = /^m_?(\d+)$/.exec(raw ?? "");
+  return match ? Number(match[1]) : null;
+}
+
 /** Стартовая инициализация: готовность, разворот на весь экран, брендовые цвета шапки/фона. */
 export function initWebApp(): void {
   const wa = getWebApp();

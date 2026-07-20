@@ -337,3 +337,26 @@ DNS, заполнить `PUBLIC_ORIGIN`=https://домен — Caddy сам вы
   бэкенда `web/src/lib/devMock.ts` (динамический import под `import.meta.env.DEV && !initData` →
   из прод-бандла вырезается) — можно открыть Mini App в браузере без бэка; статус юзера в моке
   переключается константой `AUTH.status`.
+- **SEO — публичные SSR-страницы, НЕ индексируемый SPA** (решение 2026-07-20): Google не видит
+  Mini App (контент рисует JS после initData-гейта → краулер получает пустую оболочку). Поэтому
+  рядом со SPA бэкенд отдаёт НАСТОЯЩИЙ серверный HTML по человекочитаемым URL: `/m/<id>-<slug>`
+  (страница фильма), `/catalog` (хаб с внутренними ссылками), `/sitemap.xml`, `/robots.txt` —
+  `app/api/routers/public_seo.py` (без авторизации, без `/api`-префикса; Caddy проксирует эти пути
+  на api ДО SPA-фолбэка). «Автогенерация при загрузке» = рендер из БД на лету: как только `/add`
+  сохранил фильм, его страница и строка sitemap появляются сразу и всегда свежие (никаких статических
+  файлов, источник правды один — БД). Вся SEO-логика — в `SeoBuilder` (`application/services/seo_service.py`,
+  чистая, зависит лишь от домена + адреса сайта + `BOT_USERNAME`): билингвальный заголовок
+  («Шрек қазақша», рядом ru/original — как просил заказчик «Shrek kazaksha»), meta description
+  (≤160, kk+ru), **широкая генерация ключевых запросов** (≤`_KEYWORDS_MAX`): каждое название
+  (ru/kk/оригинал) × суффиксы `_NAME_SUFFIXES` («қазақша/смотреть на казахском/онлайн/telegram»…) +
+  теги по категориям `_CATEGORY_TAGS` («қазақша disney мультфильмдері», «мультики для детей») +
+  комбинации `_CATEGORY_PATTERNS` + универсальный спрос `_BROAD_TAGS` («фильмы telegram»…) — всё
+  ДАННЫЕ в `seo_service.py`, дополнять без правки логики; курированный видимый блок «Осыны да іздейді»
+  (`seo.tags`, ~12, без переспама). Open Graph + Twitter (og:image = hero→постер, абсолютный),
+  микроразметка **schema.org/Movie** (JSON-LD с `aggregateRating`/`WatchAction`/`keywords`; `<>&`
+  экранированы под встраивание в `<script>`).
+  Slug — `<id>-<translit>` (`domain/seo/slug.py`, транслит kk+ru→латиница); id — единственный
+  источник правды, хвост только для людей → `/m/42` и старый хвост канонично 301-редиректят на
+  актуальный. CTA «Telegram-да көру» → `t.me/<BOT_USERNAME>?startapp=m_<id>`; фронт читает
+  `start_param`/`#m<id>` (`web/lib/telegram.getStartMovieId`) и открывает карточку фильма, бот
+  `/start m_<id>` — фолбэк. Живые шаги (Search Console, BotFather Main Mini App) — за пользователем.

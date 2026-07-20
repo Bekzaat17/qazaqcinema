@@ -115,6 +115,10 @@ class CatalogService:
     async def get_movie(self, movie_id: int) -> Movie | None:
         return await self._movies.get(movie_id)
 
+    async def all_movies(self) -> list[Movie]:
+        """Все фильмы (для публичного sitemap/каталог-хаба SEO). Порядок — как у репозитория."""
+        return await self._movies.list_all()
+
     async def get_hero(self) -> Movie | None:
         """Фильм для hero главной — выбор делает репозиторий (featured, затем новизна)."""
         return await self._movies.get_hero()

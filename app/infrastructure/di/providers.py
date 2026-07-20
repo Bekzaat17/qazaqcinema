@@ -39,6 +39,7 @@ from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
+from app.application.services.seo_service import SeoBuilder
 from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
@@ -118,6 +119,11 @@ class AppProvider(Provider):
     def broadcast_queue(self, redis: Redis) -> BroadcastQueue:
         # Надёжная очередь рассылок (Фаза 12): worker забирает пачками, соблюдая лимиты TG.
         return RedisBroadcastQueue(redis)
+
+    @provide
+    def seo_builder(self, config: AppConfig) -> SeoBuilder:
+        # Стейтлес-сборщик SEO-метаданных публичных страниц (зависит лишь от адреса + @бота).
+        return SeoBuilder(config.public_origin, config.bot.username)
 
     @provide
     def verifier(self, config: AppConfig) -> InitDataVerifier:
