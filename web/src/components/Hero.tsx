@@ -5,7 +5,7 @@
 import { Play } from "lucide-react";
 
 import type { Movie } from "../lib/api";
-import { categoryLabels } from "../lib/catalog";
+import { categoryLabel } from "../lib/catalog";
 import { haptic } from "../lib/telegram";
 import RatingPill from "./RatingPill";
 
@@ -31,9 +31,6 @@ export default function Hero({ movie, onSelect }: { movie: Movie; onSelect: (m: 
       <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-bg via-bg/40 to-transparent" />
 
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 p-5">
-        <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 backdrop-blur-sm">
-          {categoryLabels(movie.categories)}
-        </span>
         <h1 className="text-3xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-lg">
           {movie.title_kk}
         </h1>
@@ -43,6 +40,17 @@ export default function Hero({ movie, onSelect }: { movie: Movie; onSelect: (m: 
         <div className="flex items-center gap-3 text-sm text-white/80">
           {movie.rating != null && <RatingPill rating={movie.rating} />}
           {movie.year != null && <span className="tabular">{movie.year}</span>}
+        </div>
+        {/* Категории — каждая отдельным чипом со своей обводкой, рядом с кнопкой */}
+        <div className="flex flex-wrap gap-1.5">
+          {movie.categories.map((slug) => (
+            <span
+              key={slug}
+              className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/90 backdrop-blur-sm"
+            >
+              {categoryLabel(slug)}
+            </span>
+          ))}
         </div>
         <span className="mt-1 inline-flex items-center gap-2 rounded-2xl bg-brand px-6 py-3 text-[15px] font-semibold text-white shadow-lg shadow-brand/30">
           <Play size={18} className="fill-white" />
