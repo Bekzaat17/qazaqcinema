@@ -78,6 +78,26 @@ curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"
 Должны быть твой URL и `pending_update_count` близко к 0. Открой Web App в Telegram — каталог
 грузится, «Көру» шлёт видео.
 
+### Аварийный обход: `BOT_FORCE_POLLING` (если Telegram не достучится до вебхука)
+Webhook требует, чтобы **Telegram извне** установил TCP-соединение с VPS на :443. Некоторые
+KZ-хостеры/транзиты **режут входящий трафик именно с диапазонов Telegram** (`149.154.160.0/20`,
+`91.108.4.0/22`) — тогда `getWebhookInfo` показывает `last_error_message: "Connection timed out"`
+и растущий `pending_update_count`, хотя сервер доступен со всего остального интернета (проверяется,
+например, через check-host.net) и код/TLS/CORS исправны. Диагностический признак: **таймаут именно
+на TCP-подключении** (не `Wrong response ...`) — запрос не доходит до приложения, значит виноват
+сетевой путь, а не бот.
+
+Исходящий путь (бот → Telegram) при этом обычно работает, поэтому лечится переключением на polling
+(бот сам ходит `getUpdates`). В `.env.prod`:
+```dotenv
+BOT_FORCE_POLLING=1
+```
+и `./start.sh prod`. Флаг перебивает вывод из `PUBLIC_ORIGIN`: `webhook_url` пустеет → бот на старте
+снимает webhook и уходит в polling, **при этом Web App/CORS остаются на https** (`PUBLIC_ORIGIN` не
+трогаем). В логах бота (`./start.sh logs bot`) — `Run polling for bot ...`; `getWebhookInfo` покажет
+пустой `url`. Правильный фикс — попросить хостера разблокировать диапазоны Telegram; когда починят,
+верни `BOT_FORCE_POLLING=0` (webhook-код никуда не делся).
+
 ## 5. Бэкапы БД (cron)
 Ручной дамп: `./start.sh backup` → `backups/qazaqcinema-YYYYmmdd-HHMMSS.sql.gz`
 (ротация: **за последние 14 дней**, по возрасту файла — ручные дампы перед обновлением не
@@ -179,7 +199,9 @@ curl https://qazaqcinema.rehubpro.kz/api/health   # redis+db+status
   в rate-limit Let's Encrypt после многих рестартов с ошибкой (подожди час или используй staging-CA).
 - **Вебхук не приходит** — `getWebhookInfo` (`last_error_message`). Частое: TLS ещё не поднялся
   (бот шлёт `set_webhook`, но Telegram не достучался по HTTPS) — дождись сертификата; либо
-  `PUBLIC_ORIGIN` не совпал с реальным доменом.
+  `PUBLIC_ORIGIN` не совпал с реальным доменом. Если `last_error_message: "Connection timed out"`,
+  а сервер при этом доступен со всего интернета (check-host.net) — хостер/транзит режет входящие с
+  диапазонов Telegram: см. **Аварийный обход `BOT_FORCE_POLLING`** в §4.
 - **«chat not found» при отправке видео** — `BOT_ARCHIVE_CHANNEL_ID` должен быть `-100…`, бот — админ канала.
 - **CORS-ошибки** — в проде всё same-origin (Caddy), CORS не должен срабатывать; если да — проверь,
   что `PUBLIC_ORIGIN` = реальный домен, а фронт не ходит напрямую на `:8000`.

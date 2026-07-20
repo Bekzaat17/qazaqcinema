@@ -97,6 +97,11 @@ async def main() -> None:
         if config.bot.webhook_url:
             await _run_webhook(bot, dispatcher, config)
         else:
+            # Снимаем ранее выставленный webhook, иначе getUpdates отклоняется
+            # («can't use getUpdates while webhook is active»). Заодно чистим
+            # накопленную очередь недоставленных апдейтов, чтобы не проигрывать старьё.
+            await bot.delete_webhook(drop_pending_updates=True)
+            _log.info("Polling: webhook снят, слушаю getUpdates")
             await dispatcher.start_polling(bot)
     finally:
         scheduler.shutdown(wait=False)

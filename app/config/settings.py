@@ -44,6 +44,10 @@ class BotConfig(BaseSettings):
     webhook_path: str = "/tg/webhook"  # путь, куда Telegram POST'ит апдейты (Caddy → bot:port)
     webhook_secret: SecretStr = SecretStr("")  # секрет-токен заголовка (валидирует aiogram)
     webhook_port: int = 8080        # внутренний порт aiohttp-сервера вебхука (наружу — через Caddy)
+    # Аварийный тумблер: заставить polling даже при https PUBLIC_ORIGIN. Нужен, когда
+    # входящий webhook от Telegram недоступен (хостер/транзит режут диапазоны Telegram —
+    # `Connection timed out`), а исходящий getUpdates работает. Web App остаётся на https.
+    force_polling: bool = False
 
     _ids = field_validator("admin_user_ids", mode="before")(_split_csv_ints)
 
@@ -146,7 +150,9 @@ class AppConfig(BaseSettings):
         # Mini App: тот же origin. Кнопка в Telegram появится только при https.
         self.bot.webapp_url = origin + "/"
         # Бот: Telegram требует HTTPS для webhook → https ⟹ webhook, http ⟹ polling.
-        self.bot.webhook_url = origin if secure else ""
+        # force_polling перебивает: webhook_url="" → main.py уходит в polling (обход
+        # блокировки входящего webhook), при этом webapp_url/CORS остаются на https.
+        self.bot.webhook_url = origin if (secure and not self.bot.force_polling) else ""
         return self
 
 
