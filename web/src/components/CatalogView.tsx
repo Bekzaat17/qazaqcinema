@@ -15,7 +15,7 @@ import { LoadError } from "./States";
 const PAGE_SIZE = 24;
 
 const SORTS: { field: SortField; label: string }[] = [
-  { field: "date", label: "Күні" },
+  { field: "year", label: "Жылы" },
   { field: "rating", label: "Рейтинг" },
   { field: "views", label: "Қаралым" },
 ];
@@ -23,7 +23,7 @@ const SORTS: { field: SortField; label: string }[] = [
 export default function CatalogView({ onSelect }: { onSelect: (movie: Movie) => void }) {
   const [cats, setCats] = useState<CategoryCount[]>([]);
   const [selected, setSelected] = useState<string[]>([]); // пусто = все категории
-  const [sort, setSort] = useState<SortField>("date");
+  const [sort, setSort] = useState<SortField>("year");
   const [direction, setDirection] = useState<SortDir>("desc");
 
   const [items, setItems] = useState<Movie[]>([]);

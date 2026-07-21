@@ -8,8 +8,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import ColumnElement, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -198,14 +199,16 @@ class PgMovieRepository:
         «плывут». Возвращает (страница, total); total тем же фильтром — для has_more/страниц.
         """
         column = {
-            "date": MovieModel.id,
+            "year": MovieModel.year,
             "rating": MovieModel.rating,
             "views": MovieModel.play_count,
         }[sort]
         primary = column.asc() if direction == "asc" else column.desc()
-        if sort == "rating":
-            primary = primary.nulls_last()  # без оценки — в конец при любом направлении
-        order_by = [primary] if sort == "date" else [primary, MovieModel.id.desc()]
+        if sort in ("rating", "year"):
+            # год/оценка nullable → фильм без значения уходит в конец при любом направлении.
+            primary = primary.nulls_last()
+        # тай-брейк id DESC — стабильная страница (год/оценка не уникальны).
+        order_by: list[ColumnElement[Any]] = [primary, MovieModel.id.desc()]
 
         stmt = select(MovieModel)
         count_stmt = select(func.count()).select_from(MovieModel)

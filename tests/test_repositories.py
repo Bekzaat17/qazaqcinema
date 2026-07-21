@@ -145,17 +145,17 @@ async def test_movie_list_page_filters_and_paginates(session: AsyncSession) -> N
         await repo.add(_movie(f"A{i}", "anime", f"a{i}"))
 
     items, total = await repo.list_page(
-        categories=["anime"], sort="date", direction="desc", limit=10, offset=0
+        categories=["anime"], sort="year", direction="desc", limit=10, offset=0
     )
     assert total == 3
     assert all("anime" in m.categories for m in items)
 
     first, total = await repo.list_page(
-        categories=[], sort="date", direction="desc", limit=4, offset=0
+        categories=[], sort="year", direction="desc", limit=4, offset=0
     )
     assert total == 8 and len(first) == 4
     second, _ = await repo.list_page(
-        categories=[], sort="date", direction="desc", limit=4, offset=4
+        categories=[], sort="year", direction="desc", limit=4, offset=4
     )
     assert len(second) == 4
     assert {m.id for m in first}.isdisjoint({m.id for m in second})  # страницы не пересекаются
@@ -202,13 +202,13 @@ async def test_movie_multi_category(session: AsyncSession) -> None:
     # overlap-фильтр: фильм всплывает по КАЖДОЙ своей категории
     for slug in ("disney", "fantasy", "girls"):
         items, total = await repo.list_page(
-            categories=[slug], sort="date", direction="desc", limit=10, offset=0
+            categories=[slug], sort="year", direction="desc", limit=10, offset=0
         )
         assert total == 1 and items[0].title_kk == "Мұзды өлке"
 
     # мультивыбор чипов disney|anime → оба фильма (по одному разу, без дублей)
     items, total = await repo.list_page(
-        categories=["disney", "anime"], sort="date", direction="desc", limit=10, offset=0
+        categories=["disney", "anime"], sort="year", direction="desc", limit=10, offset=0
     )
     assert total == 2
 

@@ -87,7 +87,7 @@ async def test_browse_clamps_page_and_limit() -> None:
 async def test_browse_last_page_has_no_more() -> None:
     repo = _FakeMovies(page=([_movie(1)], 30))
     result = await CatalogService(repo).browse(
-        categories=[], sort="date", direction="desc", page=2, limit=24
+        categories=[], sort="year", direction="desc", page=2, limit=24
     )
 
     assert repo.list_page_args["offset"] == 24     # (2-1)*24

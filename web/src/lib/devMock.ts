@@ -68,13 +68,14 @@ function categoryCounts(): CategoryCount[] {
 /** Пагинированный браузинг: фильтр по категориям + сортировка + срез (мок бэкенда Фазы 13). */
 function browse(q: URLSearchParams): MoviePage {
   const cats = (q.get("categories") ?? "").split(",").filter(Boolean);
-  const sort = q.get("sort") ?? "date";
+  const sort = q.get("sort") ?? "year";
   const dir = q.get("direction") ?? "desc";
   const page = Number(q.get("page") ?? "1");
   const limit = Number(q.get("limit") ?? "24");
 
   const list = cats.length ? MOVIES.filter((m) => m.categories.some((c) => cats.includes(c))) : [...MOVIES];
-  const key = (m: Movie): number => (sort === "rating" ? (m.rating ?? -1) : m.id); // views нет в моке → id
+  // views нет в моке → id; year → год выпуска (без года — в конец)
+  const key = (m: Movie): number => (sort === "rating" ? (m.rating ?? -1) : sort === "year" ? (m.year ?? -1) : m.id);
   list.sort((a, b) => (dir === "asc" ? key(a) - key(b) : key(b) - key(a)));
 
   const start = (page - 1) * limit;

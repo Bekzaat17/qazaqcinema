@@ -17,7 +17,7 @@ from app.domain.entities.user import User
 
 # Сортировка каталога (Фаза 13) — контракт между роутером, сервисом и репозиторием.
 # Значения — белый список: репозиторий маппит их в колонки, сырую строку в SQL не пускаем.
-SortField = Literal["date", "rating", "views"]  # date→id, rating→rating, views→play_count
+SortField = Literal["year", "rating", "views"]  # year→год выпуска, rating→rating, views→play_count
 SortDir = Literal["asc", "desc"]
 
 

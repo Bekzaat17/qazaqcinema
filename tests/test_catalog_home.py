@@ -131,7 +131,7 @@ async def test_browse_returns_cached_without_touching_db() -> None:
 
     response = await browse_movies(
         cache=cache, catalog=catalog, _user=_USER,
-        categories="anime", sort="date", direction="desc", page=1, limit=24,
+        categories="anime", sort="year", direction="desc", page=1, limit=24,
     )
 
     assert response.body == b'{"items":[],"total":0,"page":1,"limit":24,"has_more":false}'

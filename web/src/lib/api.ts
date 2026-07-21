@@ -130,7 +130,7 @@ export interface CatalogHome {
   shelves: Shelf[];
 }
 
-export type SortField = "date" | "rating" | "views";
+export type SortField = "year" | "rating" | "views";
 export type SortDir = "asc" | "desc";
 
 /** Страница каталога (Фаза 13): срез + метаданные пагинации. */

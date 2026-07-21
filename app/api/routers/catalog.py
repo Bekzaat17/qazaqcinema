@@ -54,7 +54,7 @@ async def browse_movies(
     catalog: FromDishka[CatalogService],
     _user: User = Depends(get_current_user),
     categories: str | None = None,
-    sort: SortField = "date",
+    sort: SortField = "year",
     direction: SortDir = "desc",
     page: int = 1,
     limit: int = 24,
