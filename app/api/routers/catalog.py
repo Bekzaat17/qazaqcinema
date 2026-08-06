@@ -100,11 +100,11 @@ async def hero_movie(
     catalog: FromDishka[CatalogService],
     _user: User = Depends(get_current_user),
 ) -> MovieOut | None:
-    """Фильм для hero главного экрана (выбор — на бэкенде: featured → новизна).
+    """Фильм для hero главного экрана (выбор — на бэкенде: закреп → ротация дня).
 
     Определён ДО `/{movie_id}`, иначе путь `hero` матчился бы как movie_id.
     """
-    movie = await catalog.get_hero()
+    movie = await catalog.get_hero(datetime.now(UTC))
     return MovieOut.from_domain(movie) if movie is not None else None
 
 
@@ -116,14 +116,20 @@ async def catalog_home(
 ) -> Response:
     """Главный экран одним ответом (hero + готовые полки), cache-aside (Фаза 11.2/13).
 
-    Хит — отдаём готовый JSON из Redis (ключ `home`); промах — собираем из БД (полки уже
-    ограничены N на бэке), кладём в кэш. Инвалидируется при `/add`. Определён ДО `/{movie_id}`.
+    Хит — отдаём готовый JSON из Redis; промах — собираем из БД (полки уже ограничены N
+    на бэке), кладём в кэш. Инвалидируется при `/add`. Определён ДО `/{movie_id}`.
     Отдаём сырой `Response`, чтобы на хите не пересериализовывать кэш.
+
+    В ключе — номер суток: hero ротируется по дням, и без этого смена ждала бы TTL
+    (до 10 минут «вчерашней» главной). Живых ключей от этого максимум два — вчерашний
+    добивает свой TTL и уходит сам.
     """
-    cached = await cache.get("home")
+    now = datetime.now(UTC)
+    key = f"home:{now.date().toordinal()}"
+    cached = await cache.get(key)
     if cached is not None:
         return Response(content=cached, media_type="application/json")
-    home = await catalog.home()
+    home = await catalog.home(now)
     payload = CatalogHomeOut(
         hero=MovieOut.from_domain(home.hero) if home.hero is not None else None,
         shelves=[
@@ -136,7 +142,7 @@ async def catalog_home(
         ],
     )
     body = payload.model_dump_json()
-    await cache.set("home", body, _HOME_TTL)
+    await cache.set(key, body, _HOME_TTL)
     return Response(content=body, media_type="application/json")
 
 

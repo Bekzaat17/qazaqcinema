@@ -122,6 +122,20 @@ class PgMovieRepository:
         model = await self._session.scalar(stmt)
         return _movie_to_domain(model) if model else None
 
+    async def list_hero_banners(self) -> list[Movie]:
+        """Пул ротации hero: у кого есть горизонтальный баннер (непустой hero_image_url).
+
+        Пустую строку отсекаем наравне с NULL — иначе фильм с «баннером» из пустого
+        поля встал бы на главную с дырой вместо картинки.
+        """
+        stmt = (
+            select(MovieModel)
+            .where(MovieModel.hero_image_url.is_not(None), MovieModel.hero_image_url != "")
+            .order_by(MovieModel.id)
+        )
+        result = await self._session.scalars(stmt)
+        return [_movie_to_domain(model) for model in result]
+
     async def list_all(self, category: str | None = None) -> list[Movie]:
         stmt = select(MovieModel).order_by(MovieModel.id.desc())
         if category is not None:

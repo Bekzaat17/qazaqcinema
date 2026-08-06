@@ -1,6 +1,6 @@
-// Профиль (👤): аватар + имя + карточка статуса подписки + тумблер рассылок.
+// Профиль (👤): аватар + имя + карточка статуса подписки + тумблер рассылок + связь с поддержкой.
 
-import { BadgeCheck, Bell, CalendarClock, Clock, Sparkles } from "lucide-react";
+import { BadgeCheck, Bell, CalendarClock, ChevronRight, Clock, LifeBuoy, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { Auth } from "../lib/api";
@@ -15,6 +15,7 @@ interface ProfileSheetProps {
   auth: Auth | null;
   onClose: () => void;
   onSubscribe: () => void;
+  onSupport: () => void;
   onNotificationsChange: (enabled: boolean) => void;
 }
 
@@ -23,6 +24,7 @@ export default function ProfileSheet({
   auth,
   onClose,
   onSubscribe,
+  onSupport,
   onNotificationsChange,
 }: ProfileSheetProps) {
   const tgUser = getTelegramUser();
@@ -60,6 +62,24 @@ export default function ProfileSheet({
             />
           </div>
         )}
+
+        {/* Связь с админами — в профиле: сюда юзер и так идёт с вопросом «где моя подписка». */}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => {
+              haptic.light();
+              onSupport();
+            }}
+            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-elevated p-4 text-left"
+          >
+            <LifeBuoy size={20} className="shrink-0 text-brand" />
+            <span className="min-w-0 flex-1 text-sm font-medium text-text">
+              Қолдау қызметіне жазу
+            </span>
+            <ChevronRight size={18} className="shrink-0 text-faint" />
+          </button>
+        </div>
       </div>
     </Sheet>
   );

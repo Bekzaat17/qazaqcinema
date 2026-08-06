@@ -13,15 +13,22 @@ import PosterCard from "./components/PosterCard";
 import ProfileSheet from "./components/ProfileSheet";
 import SearchBar from "./components/SearchBar";
 import Shelf from "./components/Shelf";
+import SupportSheet from "./components/SupportSheet";
 import TabBar, { type Tab } from "./components/TabBar";
 import { CatalogEmpty, LoadError, NotInTelegram, SearchEmpty } from "./components/States";
 import StatusBanner from "./components/StatusBanner";
 import TopBar from "./components/TopBar";
 import Toast from "./components/Toast";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
-import { ApiError, api, type Auth, type Movie, type Shelf as ShelfData, type Tariff } from "./lib/api";
+import { ApiError, api, type Auth, type Movie, type Shelf as ShelfData, type Tariff, type UserStatus } from "./lib/api";
+import { loadLastPage, saveLastPage } from "./lib/lastPage";
 import { getInitData, getStartMovieId, haptic } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
+
+// Как часто переспрашивать статус, пока чек «на проверке». Решение админа (✅/❌) приходит
+// извне приложения, поэтому фронт узнаёт о нём только опросом. 20 с — незаметно для юзера
+// и всего 3 запроса в минуту (лимит `/api/me` — 120/мин на IP, см. api/routers/me.py).
+const STATUS_POLL_MS = 20_000;
 
 export default function App() {
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "no_telegram">("loading");
@@ -39,6 +46,7 @@ export default function App() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [paywallMovie, setPaywallMovie] = useState<Movie | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [watching, setWatching] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -68,12 +76,24 @@ export default function App() {
       setPhase("ready");
       // Deep-link с SEO-страницы (t.me/<bot>?startapp=m_<id>): сразу открываем карточку
       // нужного фильма. Сбой (нет такого id) молчаливый — просто остаёмся на главной.
+      // Он же главнее сохранённого экрана: юзер пришёл по конкретной ссылке.
       const startId = getStartMovieId();
       if (startId !== null) {
         api
           .getMovie(startId)
           .then((movie) => setSelected(movie))
           .catch(() => {});
+        return;
+      }
+      // Иначе продолжаем с того места, где юзера прервали (если это было недавно).
+      const last = loadLastPage();
+      if (!last) return;
+      setTab(last.tab);
+      if (last.movieId !== null) {
+        api
+          .getMovie(last.movieId)
+          .then((movie) => setSelected(movie))
+          .catch(() => {}); // фильм удалили — просто открываем вкладку
       }
     } catch {
       setPhase("error");
@@ -83,6 +103,65 @@ export default function App() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // ── Свежесть статуса подписки ──
+  // Решение по чеку принимает админ ВНЕ приложения (кнопки ✅/❌ у бота), поэтому фронт
+  // сам ходит за актуальным статусом: пока «на проверке» — по таймеру, и всегда при
+  // возврате на экран. Раньше юзер видел «тексерілуде» до полного перезахода в Mini App.
+  const statusRef = useRef<UserStatus>(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  const refreshAuth = useCallback(async () => {
+    const before = statusRef.current;
+    let fresh: Auth;
+    try {
+      fresh = await api.me();
+    } catch {
+      return; // сеть моргнула — попробуем на следующем тике, экран не трогаем
+    }
+    setAuth(fresh);
+    if (before !== "pending_review" || fresh.status === before) return;
+    // Модератор только что вынес решение — сообщаем прямо сейчас, не молча.
+    if (fresh.has_access) {
+      haptic.success();
+      setToast("Жазылым қосылды! Көруге болады");
+    } else {
+      haptic.error();
+      setToast("Чек расталмады. Қолдауға жазыңыз");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "ready" || status !== "pending_review") return;
+    const timer = setInterval(() => {
+      if (!document.hidden) void refreshAuth(); // свёрнутое приложение не опрашиваем
+    }, STATUS_POLL_MS);
+    return () => clearInterval(timer);
+  }, [phase, status, refreshAuth]);
+
+  useEffect(() => {
+    if (phase !== "ready") return;
+    // Возврат из чата с ботом (там же приходит DM об активации) — самый частый момент,
+    // когда статус уже поменялся, а экран об этом ещё не знает.
+    const onResume = () => {
+      if (!document.hidden) void refreshAuth();
+    };
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("focus", onResume);
+    return () => {
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("focus", onResume);
+    };
+  }, [phase, refreshAuth]);
+
+  // Запоминаем экран (вкладка + открытая карточка) — чтобы вернуть его при заходе в
+  // ближайший час. Пишем на каждое изменение: заход можно и не «закрыть» по-человечески.
+  useEffect(() => {
+    if (phase !== "ready") return;
+    saveLastPage({ tab, movieId: selected?.id ?? null });
+  }, [phase, tab, selected]);
 
   // Поиск с дебаунсом; гонки гасим монотонным reqId.
   const reqId = useRef(0);
@@ -113,14 +192,15 @@ export default function App() {
 
   // Единая нативная кнопка «назад»: закрывает оверлеи (сверху вниз), а на вкладке
   // «Каталог» без оверлеев — возвращает на «Басты» (таб — не оверлей, но выход логичен).
-  const anyOverlay = handoffOpen || paywallOpen || !!selected || profileOpen;
+  const anyOverlay = handoffOpen || paywallOpen || supportOpen || !!selected || profileOpen;
   const onBack = useCallback(() => {
     if (handoffOpen) setHandoffOpen(false);
     else if (paywallOpen) setPaywallOpen(false);
+    else if (supportOpen) setSupportOpen(false);
     else if (selected) setSelected(null);
     else if (profileOpen) setProfileOpen(false);
     else if (tab === "catalog") setTab("home");
-  }, [handoffOpen, paywallOpen, selected, profileOpen, tab]);
+  }, [handoffOpen, paywallOpen, supportOpen, selected, profileOpen, tab]);
   useTelegramBackButton(anyOverlay || tab === "catalog", onBack);
 
   const openPaywall = useCallback((movie: Movie | null) => {
@@ -230,9 +310,19 @@ export default function App() {
           setProfileOpen(false);
           openPaywall(null);
         }}
+        onSupport={() => {
+          setProfileOpen(false); // одна шторка за раз: профиль уступает место обращению
+          setSupportOpen(true);
+        }}
         onNotificationsChange={(enabled) =>
           setAuth((prev) => (prev ? { ...prev, notifications_enabled: enabled } : prev))
         }
+      />
+      <SupportSheet
+        open={supportOpen}
+        onClose={() => setSupportOpen(false)}
+        onSent={setToast}
+        onError={setToast}
       />
       <HandoffModal open={handoffOpen} />
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}

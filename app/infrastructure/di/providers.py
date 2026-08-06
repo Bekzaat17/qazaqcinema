@@ -42,6 +42,7 @@ from app.application.services.playback_service import PlaybackService
 from app.application.services.seo_service import SeoBuilder
 from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
+from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
@@ -179,6 +180,7 @@ class RequestProvider(Provider):
     subscription = provide(SubscriptionService)
     payment = provide(PaymentService)
     moderation = provide(PaymentModerationService)
+    support = provide(SupportService)  # обращения из Mini App → в личку админам
     stars = provide(StarsPaymentService)
 
     @provide

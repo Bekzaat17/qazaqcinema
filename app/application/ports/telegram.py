@@ -51,10 +51,26 @@ class RecipientUnreachableError(Exception):
     """
 
 
+class AdminsUnreachableError(Exception):
+    """Сообщение админам не дошло НИ ДО КОГО (все заблокировали бота либо список пуст).
+
+    Бросает адаптер `notify_admins`. Нужен обращению в поддержку: там недоставка —
+    не мелочь фоном, а повод честно сказать юзеру «не отправилось, попробуйте позже»,
+    вместо бодрого «жіберілді» в пустоту.
+    """
+
+
 class TelegramNotifier(Protocol):
     async def notify_user(self, telegram_id: int, text: str) -> None: ...
 
-    async def notify_admins(self, text: str) -> None: ...
+    async def notify_admins(self, text: str) -> None:
+        """Разослать текст всем админам (`BOT_ADMIN_USER_IDS`); доставка — независимая.
+
+        Админ, не нажавший /start или заблокировавший бота, не должен глушить
+        уведомление остальным, поэтому его ошибка лишь пишется в лог. Наверх летит
+        `AdminsUnreachableError` — и только если не дошло НИ ДО КОГО.
+        """
+        ...
 
     async def send_broadcast(self, chat_id: int, message: BroadcastMessage) -> None:
         """Отправить одно сообщение рассылки (Фаза 12): фото+подпись или текст, опц. кнопка.

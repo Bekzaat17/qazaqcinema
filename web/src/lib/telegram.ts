@@ -1,6 +1,14 @@
 // Тонкая обёртка над Telegram WebApp SDK. Всё опционально: вне Telegram (dev в браузере)
 // методы — no-op, чтобы приложение оставалось рабочим для отладки вёрстки.
 
+/**
+ * @-имя бота — единственное место, где оно зашито на фронте (должно совпадать с
+ * `BOT_USERNAME` бэкенда). Нужно гостю, пришедшему из поиска в обычный браузер: ему
+ * показывают не каталог, а дорогу в Telegram — и она должна быть кликабельной ссылкой.
+ */
+export const BOT_USERNAME: string = import.meta.env.VITE_BOT_USERNAME || "qazaqcinema_bot";
+export const BOT_URL = `https://t.me/${BOT_USERNAME}`;
+
 export function getWebApp() {
   return window.Telegram?.WebApp;
 }

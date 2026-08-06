@@ -8,9 +8,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.application.ports.repositories import MovieRepository, SortDir, SortField
 from app.domain.catalog.categories import CATEGORIES
+from app.domain.catalog.hero import pick_hero
 from app.domain.entities.movie import Movie
 
 # Сколько фильмов на полке главной (последние N; полка «Танымал» — топ N по просмотрам).
@@ -55,13 +57,13 @@ class CatalogService:
     def __init__(self, movies: MovieRepository) -> None:
         self._movies = movies
 
-    async def home(self) -> Home:
+    async def home(self, now: datetime) -> Home:
         """Главная: hero + «Жаңа түскен» (последние N) + «Танымал» (топ N по просмотрам).
 
         Hero исключаем из «Жаңа түскен» (он уже крупно наверху) — берём N+1 и отбрасываем.
         Пустые полки не добавляем (мелкий каталог не рисует пустые ряды).
         """
-        hero = await self._movies.get_hero()
+        hero = await self.get_hero(now)
         hero_id = hero.id if hero is not None else None
         recent = await self._movies.list_recent(HOME_SHELF_LIMIT + 1)
         fresh = [m for m in recent if m.id != hero_id][:HOME_SHELF_LIMIT]
@@ -119,6 +121,13 @@ class CatalogService:
         """Все фильмы (для публичного sitemap/каталог-хаба SEO). Порядок — как у репозитория."""
         return await self._movies.list_all()
 
-    async def get_hero(self) -> Movie | None:
-        """Фильм для hero главной — выбор делает репозиторий (featured, затем новизна)."""
-        return await self._movies.get_hero()
+    async def get_hero(self, now: datetime) -> Movie | None:
+        """Фильм для hero главной: свежий закреплённый, дальше — ежедневная ротация.
+
+        Репозиторий даёт кандидата на закрепление (свежайший featured) и пул баннеров;
+        КОГО показать сегодня решает чистая функция `domain/catalog/hero.pick_hero`
+        (правило — доменное, а не SQL: его надо уметь проверить тестом без БД).
+        """
+        pinned = await self._movies.get_hero()
+        rotation = await self._movies.list_hero_banners()
+        return pick_hero(pinned, rotation, now)

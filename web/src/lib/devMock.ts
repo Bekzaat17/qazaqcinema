@@ -90,6 +90,8 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   let data: unknown;
   if (p === "/api/auth") data = AUTH;
+  else if (p === "/api/me") data = AUTH; // опрос статуса: в моке он не меняется
+  else if (p === "/api/support") data = { status: "sent" };
   else if (p === "/api/movies/home") data = HOME;
   else if (p === "/api/movies/categories") data = categoryCounts();
   else if (p === "/api/movies/search") {

@@ -45,19 +45,20 @@ app/
     handlers/     # start, add_movie (визард /add), broadcast (/broadcast), inline_query, moderation (✅/❌), stars (оплата)
     keyboards/    # webapp-кнопка, клавиатура модерации
   api/            # Presentation #2. FastAPI
-    routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек), me (тумблер рассылок), health
+    routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек), me (статус + тумблер рассылок),
+                  # support (письмо админам), public_seo (SSR-страницы), health
     schemas/      # pydantic DTO — БЕЗ telegram_file_id наружу
     deps/         # auth: get_current_user + require_active_access (initData-гейт)
   domain/         # Ядро. Без внешних зависимостей. POPO + dataclass
     entities/     # Movie, User (+ has_active_access), PaymentRequest, enums
     tariffs/      # Tariff (VO) + catalog.py (тарифная сетка как данные)
     parsing/      # caption_parser (чистая функция #title… → ParsedMovie)
-    catalog/      # справочник категорий (данные, не enum)
+    catalog/      # справочник категорий (данные, не enum) + hero.pick_hero (правило витрины)
     subscription/ # expiry.compute_expiry (чистый расчёт срока)
     registry.py   # generic Registry[T] (PEP 695) — задел для slug-плагинов
   application/    # Use-cases
     ports/        # Protocol-интерфейсы: repositories, payments, telegram, security, broadcast  ← границы DIP/ISP
-    services/     # Auth, Catalog, MovieIngestion, Subscription, Payment, Broadcast — зависят ТОЛЬКО от портов
+    services/     # Auth, Catalog, MovieIngestion, Subscription, Payment, Broadcast, Support — только порты
   infrastructure/ # Адаптеры (реализации портов)
     db/           # models (ORM) + engine + repositories (мапят ORM↔domain)
     telegram/     # init_data (HMAC-валидатор) + notifier (поверх aiogram Bot)
@@ -360,3 +361,41 @@ DNS, заполнить `PUBLIC_ORIGIN`=https://домен — Caddy сам вы
   актуальный. CTA «Telegram-да көру» → `t.me/<BOT_USERNAME>?startapp=m_<id>`; фронт читает
   `start_param`/`#m<id>` (`web/lib/telegram.getStartMovieId`) и открывает карточку фильма, бот
   `/start m_<id>` — фолбэк. Живые шаги (Search Console, BotFather Main Mini App) — за пользователем.
+- **Hero главной ротируется по дням** (решение 2026-08-06, дополняет «hero курируется»): свежий
+  баннер закреплён `PIN_DAYS=3` суток от `created_at` (новинка обязана «отвисеть» своё), дальше
+  каждый день на hero встаёт другой фильм ИЗ ТЕХ, У КОГО ЕСТЬ `hero_image_url` (без баннера hero
+  растянул бы вертикальный постер). Правило — **чистая функция** `domain/catalog/hero.pick_hero`
+  (не SQL: его надо проверять тестом без БД), пул даёт `MovieRepository.list_hero_banners`.
+  Выбор **детерминированный по дню**, а не `random` на запрос: главная кэшируется и одна на всех —
+  случайность «на запрос» давала бы разным юзерам разный hero, а F5 менял бы картинку под рукой.
+  Внутри круга — перестановка (`Random(cycle).shuffle`), поэтому за круг каждый баннер выходит
+  ровно раз (повтор «три дня подряд» невозможен). Ключ кэша главной стал `home:<день>` — иначе
+  смена ждала бы TTL; живых ключей максимум два, вчерашний уходит сам.
+- **Поддержка внутри Mini App — сообщение, а не тикет** (решение 2026-08-06): `POST /api/support`
+  → `SupportService` → `notify_admins` в личку админам. **Таблицы намеренно нет**: у обращения ни
+  статуса, ни жизненного цикла, ни денег (в отличие от `payment_requests`) — переписка живёт в
+  Telegram, админ жмёт на `@username` из карточки и отвечает. Появятся тикеты со статусами —
+  появится и таблица. Побочно поправлен `notify_admins`: доставка теперь **независимая по админам**
+  (раньше первый же 403 от админа, не нажавшего /start, обрывал цикл и глушил остальных), а наверх
+  летит `AdminsUnreachableError` только если не дошло НИ ДО КОГО → роутер отдаёт 502, и юзер видит
+  правду вместо ложного «жіберілді». Лимит 5/10 мин на IP: ручка дешёвая для клиента и дорогая для
+  чужой лички. Вход — в профиле (туда и так идут с вопросом «где моя подписка»).
+- **Статус подписки фронт обновляет сам** (решение 2026-08-06): решение модератора (✅/❌) приходит
+  ИЗВНЕ приложения, поэтому Mini App опрашивает `GET /api/me` каждые 20 с, пока статус
+  `pending_review`, и всегда при возврате на экран (`visibilitychange`/`focus` — самый частый момент,
+  когда статус уже сменился). Раньше «тексерілуде» висело до полного перезахода. Ручка **отдельная
+  от `POST /api/auth`**: тот на каждый вызов заводит новую сессию в Redis — опрос засыпал бы его
+  мусором с TTL 24 ч. Лимит у неё свой и **щедрый (120/мин)**: ключ лимитера — IP, а мобильные юзеры
+  сидят за общим CGNAT, и скромные 30/мин ловили бы 429 на десятке человек с одной вышки.
+- **Последний экран запоминается на 60 минут** (решение 2026-08-06, `web/lib/lastPage.ts`): вкладка
+  + открытая карточка пишутся в localStorage на каждое изменение и восстанавливаются при входе, если
+  прошло меньше `LAST_PAGE_TTL_MS`. Mini App живёт короткими заходами (свернул → ушёл в чат с ботом
+  за видео → вернулся), и каждый раз начинать с главной значило долистывать заново. Deep-link
+  (`startapp=m_<id>`) **главнее** сохранённого экрана: по ссылке пришли за конкретным фильмом.
+- **Гостю из поиска — кнопка, а не инструкция** (решение 2026-08-06): корень домена отдаёт SPA, и
+  вне Telegram юзер видел только текст «найдите бота @…» — тупик. Теперь экран `NotInTelegram` — это
+  прежде всего ссылка `t.me/<bot>?start=web` (payload `web` отличает такие заходы; `/start` его
+  игнорирует и просто здоровается) плюс запасной путь в SSR-`/catalog`. `BOT_USERNAME` на фронте —
+  одно место (`web/lib/telegram`), значение по умолчанию совпадает с бэком. В `sitemap.xml`
+  **приоритет 1.0 у `/catalog`**, а не у корня: корень для краулера почти пуст (SPA), а `/catalog` —
+  настоящая серверная страница с контентом и перелинковкой на карточки фильмов.

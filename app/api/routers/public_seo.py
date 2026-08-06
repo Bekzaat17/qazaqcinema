@@ -110,9 +110,12 @@ async def sitemap(
     site = config.public_origin.rstrip("/")
     movies = await catalog.all_movies()
 
+    # Приоритет 1.0 — у каталога, а не у корня (решение 2026-08-06): корень отдаёт SPA
+    # Mini App (краулеру там показывать нечего, кроме «откройте в Telegram»), а /catalog —
+    # настоящая серверная страница со всем контентом и перелинковкой на карточки фильмов.
     urls: list[str] = [
-        _url_entry(f"{site}/", priority="1.0", changefreq="daily"),
-        _url_entry(f"{site}/catalog", priority="0.9", changefreq="daily"),
+        _url_entry(f"{site}/catalog", priority="1.0", changefreq="daily"),
+        _url_entry(f"{site}/", priority="0.9", changefreq="daily"),
     ]
     for movie in movies:
         if movie.id is None:

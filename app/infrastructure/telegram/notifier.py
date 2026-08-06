@@ -7,6 +7,7 @@ import logging
 
 from aiogram import Bot
 from aiogram.exceptions import (
+    TelegramAPIError,
     TelegramBadRequest,
     TelegramForbiddenError,
     TelegramNetworkError,
@@ -22,6 +23,7 @@ from aiogram.types import (
 
 from app.application.ports.broadcast import BroadcastMessage
 from app.application.ports.telegram import (
+    AdminsUnreachableError,
     DeleteOutcome,
     ProofRef,
     RecipientUnreachableError,
@@ -59,8 +61,20 @@ class AiogramNotifier:
         await self._bot.send_message(telegram_id, text)
 
     async def notify_admins(self, text: str) -> None:
+        # Каждому админу — независимо: один заблокировавший бота не должен лишать
+        # уведомления остальных (раньше первый же 403 обрывал цикл). Молчим, только
+        # если не дошло ни до кого — тогда вызывающий вправе сказать это юзеру.
+        delivered = 0
         for admin_id in self._admin_user_ids:
-            await self._bot.send_message(admin_id, text)
+            try:
+                await self._bot.send_message(admin_id, text)
+                delivered += 1
+            except TelegramAPIError:
+                logger.warning("Не доставлено админу %s", admin_id, exc_info=True)
+        if delivered == 0:
+            raise AdminsUnreachableError(
+                f"Ни один из {len(self._admin_user_ids)} админов не получил сообщение"
+            )
 
     async def send_broadcast(self, chat_id: int, message: BroadcastMessage) -> None:
         keyboard = _broadcast_keyboard(message)

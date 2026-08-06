@@ -42,7 +42,7 @@ class _FakeCatalog:
         self.browse_calls = 0
         self.counts_calls = 0
 
-    async def home(self) -> Home:
+    async def home(self, now: object) -> Home:
         self.home_calls += 1
         return self._home
 
@@ -119,7 +119,8 @@ async def test_home_builds_from_db_and_caches_on_miss() -> None:
     assert payload["shelves"][0]["key"] == "fresh"
     assert payload["shelves"][0]["title"] == "Жаңа түскен"  # ключ → казахская подпись на бэке
     assert [m["id"] for m in payload["shelves"][0]["movies"]] == [2, 1]
-    assert cache.store["home"] is not None                   # результат положен в кэш под "home"
+    # ключ главной несёт номер суток — hero ротируется по дням (см. роутер)
+    assert any(key.startswith("home:") for key in cache.store)
     assert "telegram_file_id" not in response.body.decode()  # DTO не утекает file_id
 
 

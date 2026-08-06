@@ -178,6 +178,9 @@ export const api = {
   /** Bootstrap/ре-auth: initData → сессия. Токен кладётся в localStorage автоматически. */
   auth: () => refreshSession(),
 
+  /** Свежий статус доступа (опрос, пока чек «на проверке»). Новую сессию НЕ заводит. */
+  me: () => request<Auth>("/api/me"),
+
   /** Главный экран одним ответом (hero + готовые полки); кэшируется cache-aside (Фаза 11.2/13). */
   home: () => request<CatalogHome>("/api/movies/home"),
 
@@ -206,6 +209,14 @@ export const api = {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),
+    }),
+
+  /** Написать админам/техподдержке из Mini App: сообщение уходит им в личку Telegram. */
+  sendSupport: (text: string) =>
+    request<{ status: string }>("/api/support", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
     }),
 
   tariffs: () => request<Tariff[]>("/api/payments/tariffs"),

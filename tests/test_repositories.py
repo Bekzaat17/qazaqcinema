@@ -88,6 +88,22 @@ async def test_movie_get_hero_prefers_featured(session: AsyncSession) -> None:
     assert hero.title_kk == "Басты"  # featured побеждает более новый
 
 
+async def test_movie_list_hero_banners_only_with_banner(session: AsyncSession) -> None:
+    """Пул ежедневной ротации hero: только фильмы с непустым горизонтальным баннером."""
+    repo = PgMovieRepository(session)
+    with_banner = _movie("Баннері бар", "disney", "f1")
+    with_banner.hero_image_url = "/posters/hero1.jpg"
+    empty_banner = _movie("Бос баннер", "anime", "f2")
+    empty_banner.hero_image_url = ""  # пустая строка — такая же «нет картинки», как NULL
+    await repo.add(with_banner)
+    await repo.add(empty_banner)
+    await repo.add(_movie("Баннерсіз", "anime", "f3"))  # hero_image_url = NULL
+
+    banners = await repo.list_hero_banners()
+
+    assert [m.title_kk for m in banners] == ["Баннері бар"]
+
+
 async def test_movie_get_hero_falls_back_to_newest(session: AsyncSession) -> None:
     repo = PgMovieRepository(session)
     await repo.add(_movie("Ескі", "disney", "f1"))
