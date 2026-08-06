@@ -35,6 +35,14 @@ _CATEGORIES_TTL = 600
 _BROWSE_TTL = 60
 _CATEGORIES_ADAPTER = TypeAdapter(list[CategoryCountOut])
 
+# Три кэширующих роута ниже отдают сырой `Response` (готовый JSON из Redis — чтобы на хите
+# не пересериализовывать). У таких роутов `response_model` НАДО задавать явно: без него
+# FastAPI выводит модель ответа из возвращаемого типа, а `from __future__ import annotations`
+# + обёртка DishkaRoute оставляют его строкой `'Response'`, которую pydantic развернуть уже
+# не может → падала генерация схемы (`/openapi.json` и `/docs` отдавали 500, сам API работал).
+# Явная модель этот вывод отключает и заодно документирует, что реально приходит клиенту.
+# На рантайм не влияет: FastAPI возвращает готовый `Response` как есть, без валидации.
+
 # Rate-limit (данные — крутить здесь): анти-скрейп каталога/поиска/просмотра на IP.
 # Щедро (≈10 rps/IP): останавливает выкачку тысяч id, но не мешает живому юзеру и не
 # бьёт по общему CGNAT-IP мобильной сети. Покрывает и /play (лежит в этом роутере).
@@ -48,7 +56,7 @@ router = APIRouter(
 )
 
 
-@router.get("")
+@router.get("", response_model=MoviePageOut)
 async def browse_movies(
     cache: FromDishka[CatalogCache],
     catalog: FromDishka[CatalogService],
@@ -108,7 +116,7 @@ async def hero_movie(
     return MovieOut.from_domain(movie) if movie is not None else None
 
 
-@router.get("/home")
+@router.get("/home", response_model=CatalogHomeOut)
 async def catalog_home(
     cache: FromDishka[CatalogCache],
     catalog: FromDishka[CatalogService],
@@ -146,7 +154,7 @@ async def catalog_home(
     return Response(content=body, media_type="application/json")
 
 
-@router.get("/categories")
+@router.get("/categories", response_model=list[CategoryCountOut])
 async def list_categories(
     cache: FromDishka[CatalogCache],
     catalog: FromDishka[CatalogService],
