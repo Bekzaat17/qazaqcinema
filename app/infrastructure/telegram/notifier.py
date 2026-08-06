@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from html import escape
 
 from aiogram import Bot
 from aiogram.exceptions import (
@@ -32,6 +33,7 @@ from app.application.ports.telegram import (
 # Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
 # reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
 from app.bot.keyboards.moderation import moderation_keyboard
+from app.domain.mention import mention_html
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,9 @@ class AiogramNotifier:
         delivered = 0
         for admin_id in self._admin_user_ids:
             try:
-                await self._bot.send_message(admin_id, text)
+                # HTML — карточки админа содержат ссылку-хэндл (`domain/mention.py`);
+                # подставляемые данные экранирует вызывающий (порт это оговаривает).
+                await self._bot.send_message(admin_id, text, parse_mode="HTML")
                 delivered += 1
             except TelegramAPIError:
                 logger.warning("Не доставлено админу %s", admin_id, exc_info=True)
@@ -174,21 +178,30 @@ class AiogramNotifier:
         tariff_title: str,
         proof: ProofRef,
     ) -> None:
-        handle = f"@{username}" if username else f"id{user_id}"
         # «Чек №N» — первой строкой и крупно (номер = request_id, тот же в кнопках ниже):
         # админ сверяет чек с его кнопками по номеру, не путается в стопке заявок.
+        # Хэндл — ссылкой (HTML), чтобы написать автору чека в один тап; тариф наш, но
+        # экранируем и его — подпись целиком идёт как HTML.
         caption = (
             f"🧾 Чек №{request_id}\n"
-            f"Пайдаланушы: {handle} (id {user_id})\n"
-            f"Тариф: {tariff_title}"
+            f"Пайдаланушы: {mention_html(user_id, username)} (id {user_id})\n"
+            f"Тариф: {escape(tariff_title)}"
         )
         keyboard = moderation_keyboard(request_id)
         # Тем же способом, что приняли: PDF → document, картинка → photo (file_id'ы разнотипны).
         if proof.is_document:
             await self._bot.send_document(
-                self._admin_chat_id, proof.file_id, caption=caption, reply_markup=keyboard
+                self._admin_chat_id,
+                proof.file_id,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard,
             )
         else:
             await self._bot.send_photo(
-                self._admin_chat_id, proof.file_id, caption=caption, reply_markup=keyboard
+                self._admin_chat_id,
+                proof.file_id,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard,
             )

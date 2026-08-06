@@ -22,11 +22,17 @@ class AuthService:
         tg_user = self._verifier.verify(init_data)
         user = await self._users.get(tg_user.id)
         if user is None:
-            user = await self._users.upsert(
+            return await self._users.upsert(
                 User(
                     telegram_id=tg_user.id,
                     username=tg_user.username,
                     status=UserStatus.NEW,
                 )
             )
+        # Хэндл мог появиться или смениться после первого входа, а он — единственный
+        # способ админа ответить на чек/обращение (см. domain/mention.py). Пишем только
+        # при расхождении: логин частый, лишний UPDATE ни к чему.
+        if tg_user.username is not None and tg_user.username != user.username:
+            user.username = tg_user.username
+            await self._users.upsert(user)
         return user

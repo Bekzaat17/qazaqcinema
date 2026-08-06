@@ -13,21 +13,29 @@ from typing import Any
 import pytest
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from app.application.ports.broadcast import BroadcastMessage
-from app.application.ports.telegram import AdminsUnreachableError
+from app.application.ports.telegram import AdminsUnreachableError, ProofRef
 from app.infrastructure.telegram.notifier import AiogramNotifier
 
 
 class _FakeBot:
     def __init__(self, photo_fails: bool = False, blocked_chats: set[int] | None = None) -> None:
         self.photo_calls: list[dict[str, Any]] = []
+        self.document_calls: list[dict[str, Any]] = []
         self.message_calls: list[dict[str, Any]] = []
         self._photo_fails = photo_fails
         self._blocked = blocked_chats or set()
 
     async def send_photo(
-        self, chat_id: int, photo: str, caption: str | None = None, reply_markup: Any = None
+        self,
+        chat_id: int,
+        photo: str,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        reply_markup: Any = None,
     ) -> object:
-        self.photo_calls.append({"caption": caption, "markup": reply_markup})
+        self.photo_calls.append(
+            {"caption": caption, "parse_mode": parse_mode, "markup": reply_markup}
+        )
         if self._photo_fails:
             raise TelegramBadRequest(
                 method=None,  # type: ignore[arg-type]
@@ -35,13 +43,30 @@ class _FakeBot:
             )
         return object()
 
-    async def send_message(self, chat_id: int, text: str, reply_markup: Any = None) -> object:
+    async def send_document(
+        self,
+        chat_id: int,
+        document: str,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        reply_markup: Any = None,
+    ) -> object:
+        self.document_calls.append(
+            {"caption": caption, "parse_mode": parse_mode, "markup": reply_markup}
+        )
+        return object()
+
+    async def send_message(
+        self, chat_id: int, text: str, parse_mode: str | None = None, reply_markup: Any = None
+    ) -> object:
         if chat_id in self._blocked:
             raise TelegramForbiddenError(
                 method=None,  # type: ignore[arg-type]
                 message="Forbidden: bot was blocked by the user",
             )
-        self.message_calls.append({"chat_id": chat_id, "text": text, "markup": reply_markup})
+        self.message_calls.append(
+            {"chat_id": chat_id, "text": text, "parse_mode": parse_mode, "markup": reply_markup}
+        )
         return object()
 
 
@@ -96,3 +121,50 @@ async def test_notify_admins_raises_when_nobody_got_it() -> None:
 
     with pytest.raises(AdminsUnreachableError):
         await notifier.notify_admins("сәлем")
+
+
+async def test_notify_admins_sends_html() -> None:
+    """Карточки админа содержат ссылку-хэндл → уходят как HTML (см. domain/mention.py)."""
+    bot = _FakeBot()
+    notifier = AiogramNotifier(bot, admin_chat_id=0, admin_user_ids=[1])  # type: ignore[arg-type]
+
+    await notifier.notify_admins("сәлем")
+
+    assert bot.message_calls[0]["parse_mode"] == "HTML"
+
+
+# --- карточка чека: хэндл ссылкой ----------------------------------------
+
+async def test_payment_proof_caption_links_the_handle() -> None:
+    bot = _FakeBot()
+    notifier = AiogramNotifier(bot, admin_chat_id=99, admin_user_ids=[])  # type: ignore[arg-type]
+
+    await notifier.send_payment_proof_to_admins(
+        request_id=5,
+        user_id=42,
+        username="beka",
+        tariff_title="1 ай",
+        proof=ProofRef("file-1", is_document=False),
+    )
+
+    (call,) = bot.photo_calls
+    assert '<a href="https://t.me/beka">@beka</a>' in call["caption"]
+    assert call["parse_mode"] == "HTML"
+    assert call["markup"] is not None  # кнопки ✅/❌ на месте
+
+
+async def test_payment_proof_document_keeps_link_for_user_without_username() -> None:
+    bot = _FakeBot()
+    notifier = AiogramNotifier(bot, admin_chat_id=99, admin_user_ids=[])  # type: ignore[arg-type]
+
+    await notifier.send_payment_proof_to_admins(
+        request_id=5,
+        user_id=42,
+        username=None,
+        tariff_title="1 ай",
+        proof=ProofRef("file-1", is_document=True),
+    )
+
+    (call,) = bot.document_calls
+    assert '<a href="tg://user?id=42">id 42</a>' in call["caption"]
+    assert call["parse_mode"] == "HTML"

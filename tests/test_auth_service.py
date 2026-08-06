@@ -55,6 +55,30 @@ async def test_returns_existing_user() -> None:
     assert user.status is UserStatus.ACTIVE
 
 
+async def test_refreshes_username_when_it_changed() -> None:
+    """Хэндл мог появиться/смениться после первого входа — админам нужен свежий."""
+    repo = _FakeUserRepo()
+    repo.store[7] = User(telegram_id=7, username=None, status=UserStatus.ACTIVE)
+    service = AuthService(_FakeVerifier(TelegramUser(id=7, username="neo")), repo)
+
+    user = await service.authenticate("valid")
+
+    assert user.username == "neo"
+    assert repo.store[7].username == "neo"
+    assert user.status is UserStatus.ACTIVE  # прочие поля не тронуты
+
+
+async def test_keeps_stored_username_when_telegram_sends_none() -> None:
+    """initData без username (юзер скрыл хэндл) не должен затирать известный нам."""
+    repo = _FakeUserRepo()
+    repo.store[7] = User(telegram_id=7, username="neo", status=UserStatus.ACTIVE)
+    service = AuthService(_FakeVerifier(TelegramUser(id=7)), repo)
+
+    user = await service.authenticate("valid")
+
+    assert user.username == "neo"
+
+
 async def test_rejects_invalid_init_data() -> None:
     service = AuthService(_FakeVerifier(TelegramUser(id=7)), _FakeUserRepo())
 

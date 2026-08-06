@@ -31,7 +31,8 @@ async def test_submit_sends_card_with_handle_and_text() -> None:
     await SupportService(notifier).submit(user, "  Видео келмей жатыр  ")
 
     (sent,) = notifier.messages
-    assert "@aibek" in sent          # хэндл — чтобы админ ответил в один тап
+    # Хэндл — ССЫЛКОЙ (как в карточке чека): админ отвечает в один тап.
+    assert '<a href="https://t.me/aibek">@aibek</a>' in sent
     assert "id 42" in sent
     assert "active" in sent
     assert "Видео келмей жатыр" in sent  # текст обрезан по краям, но не изменён
@@ -42,7 +43,17 @@ async def test_submit_falls_back_to_id_without_username() -> None:
 
     await SupportService(notifier).submit(User(telegram_id=7), "сұрақ бар")
 
-    assert "id 7" in notifier.messages[0]
+    assert '<a href="tg://user?id=7">id 7</a>' in notifier.messages[0]
+
+
+async def test_submit_escapes_user_text() -> None:
+    """Текст юзера идёт в HTML-сообщение → «<» экранируем, иначе оно не дойдёт вовсе."""
+    notifier = _FakeNotifier()
+
+    await SupportService(notifier).submit(User(telegram_id=7), "5 < 6 <b>bold</b>")
+
+    assert "<b>" not in notifier.messages[0]
+    assert "&lt;b&gt;bold&lt;/b&gt;" in notifier.messages[0]
 
 
 async def test_submit_rejects_blank_message() -> None:

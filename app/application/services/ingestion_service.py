@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+from html import escape
 
 from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.images import HERO, POSTER, ImageProcessor
@@ -85,8 +86,9 @@ class MovieIngestionService:
         # не нажавший /start (или заблокировавший бота), даёт 403 — и ронял бы /add уже
         # ПОСЛЕ сохранения в БД, попутно съедая рассылку ниже. Уведомление второстепенно.
         try:
+            # Название экранируем: notify_admins шлёт HTML (см. порт).
             await self._notifier.notify_admins(
-                f"✅ Фильм «{saved.title_kk}» добавлен. ID: {saved.id}"
+                f"✅ Фильм «{escape(saved.title_kk)}» добавлен. ID: {saved.id}"
             )
         except Exception:
             logger.exception("Не удалось уведомить админов о фильме #%s", saved.id)

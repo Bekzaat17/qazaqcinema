@@ -10,8 +10,11 @@
 
 from __future__ import annotations
 
+from html import escape
+
 from app.application.ports.telegram import TelegramNotifier
 from app.domain.entities.user import User
+from app.domain.mention import mention_html
 
 # Сколько символов сообщения доносим до админа (данные). Лимит подписи Telegram — 4096
 # на сообщение; берём с запасом под шапку с реквизитами отправителя.
@@ -39,14 +42,18 @@ class SupportService:
 
     @staticmethod
     def _format(user: User, message: str) -> str:
-        """Карточка обращения: кто написал (для ответа) + текст, отделённый чертой."""
-        # @username Telegram подсвечивает сам — админу достаточно тапнуть по нему, чтобы
-        # открыть чат и ответить. Без username остаётся числовой id (по нему ищут в БД).
-        handle = f"@{user.username}" if user.username else f"id {user.telegram_id}"
+        """Карточка обращения: кто написал (для ответа) + текст, отделённый чертой.
+
+        Формат — тот же, что у карточки чека (`send_payment_proof_to_admins`): хэндл
+        ссылкой (`mention_html`), в один тап открывающей чат с автором. Разметка HTML,
+        поэтому текст юзера экранируем — иначе `<` в сообщении сломал бы парсинг и
+        обращение вовсе не дошло бы.
+        """
         return (
             "🆘 Қолдау сұрауы\n"
-            f"Пайдаланушы: {handle} (id {user.telegram_id})\n"
+            f"Пайдаланушы: {mention_html(user.telegram_id, user.username)} "
+            f"(id {user.telegram_id})\n"
             f"Статус: {user.status.value}\n"
             "———\n"
-            f"{message}"
+            f"{escape(message)}"
         )
