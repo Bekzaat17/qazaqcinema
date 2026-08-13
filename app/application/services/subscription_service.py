@@ -14,9 +14,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from app.application.ports.repositories import UserRepository
+from app.application.ports.repositories import UserEventRepository, UserRepository
 from app.application.ports.telegram import TelegramNotifier
 from app.application.services.video_retention_service import VideoRetentionService
+from app.domain.analytics.events import EventKind
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 from app.domain.subscription.expiry import compute_expiry
@@ -36,10 +37,12 @@ class SubscriptionService:
         users: UserRepository,
         notifier: TelegramNotifier,
         retention: VideoRetentionService,
+        events: UserEventRepository,
     ) -> None:
         self._users = users
         self._notifier = notifier
         self._retention = retention
+        self._events = events
 
     async def activate(self, user: User, tariff: Tariff, now: datetime) -> User:
         """Грант подписки: рассчитать срок, перевести юзера в ACTIVE, сохранить, уведомить.
@@ -51,6 +54,9 @@ class SubscriptionService:
         user.status = UserStatus.ACTIVE
         user.selected_tariff = tariff.slug
         saved = await self._users.upsert(user)
+        # Активация/продление — самое значимое изменение состояния: пишем его в историю
+        # здесь, в единой точке гранта, а не в каждом платёжном хендлере (Kaspi/Stars).
+        await self._events.add(user.telegram_id, EventKind.SUBSCRIBE, meta=tariff.slug)
         await self._notifier.notify_user(
             user.telegram_id,
             "✅ Жазылым белсендірілді!\n"
@@ -79,6 +85,7 @@ class SubscriptionService:
         for user in expired:
             user.status = UserStatus.EXPIRED
             await self._users.upsert(user)
+            await self._events.add(user.telegram_id, EventKind.EXPIRE)
             await self._notify_expired(user.telegram_id)
             await self._purge_deliveries(user.telegram_id)
         return len(expired)

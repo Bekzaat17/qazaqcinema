@@ -55,17 +55,20 @@ app/
     parsing/      # caption_parser (чистая функция #title… → ParsedMovie)
     catalog/      # справочник категорий (данные, не enum) + hero.pick_hero (правило витрины)
     subscription/ # expiry.compute_expiry (чистый расчёт срока)
+    analytics/    # виды значимых событий (данные) + DailyReport/render_report (чистый отчёт)
     registry.py   # generic Registry[T] (PEP 695) — задел для slug-плагинов
   application/    # Use-cases
     ports/        # Protocol-интерфейсы: repositories, payments, telegram, security, broadcast  ← границы DIP/ISP
-    services/     # Auth, Catalog, MovieIngestion, Subscription, Payment, Broadcast, Support — только порты
+    services/     # Auth, Catalog, MovieIngestion, Subscription, Payment, Broadcast, Support,
+                  # UserActivity (/start → юзер в БД), Analytics (цифры отчёта) — только порты
   infrastructure/ # Адаптеры (реализации портов)
     db/           # models (ORM) + engine + repositories (мапят ORM↔domain)
     telegram/     # init_data (HMAC-валидатор) + notifier (поверх aiogram Bot)
     payments/     # kaspi (ручная), stars (Telegram Stars) — реализации PaymentProvider
     cache/        # Redis-адаптеры: session, catalog, lock, rate_limiter, broadcast (все fail-open)
+    analytics/    # admin_filter: декоратор журнала событий, отсекающий действия админов
     di/           # providers.py — composition root (dishka)
-    scheduler.py  # apscheduler
+    scheduler.py  # apscheduler (истечение подписок, чистка видео, отчёт админам в 23:00)
   config/         # pydantic-settings, load_config()
   main.py         # сборка контейнера, polling/webhook
   worker.py       # процесс-worker рассылок (Redis-очередь → Bot API, Фаза 12)
@@ -399,3 +402,37 @@ DNS, заполнить `PUBLIC_ORIGIN`=https://домен — Caddy сам вы
   одно место (`web/lib/telegram`), значение по умолчанию совпадает с бэком. В `sitemap.xml`
   **приоритет 1.0 у `/catalog`**, а не у корня: корень для краулера почти пуст (SPA), а `/catalog` —
   настоящая серверная страница с контентом и перелинковкой на карточки фильмов.
+- **Фундамент аналитики: юзер фиксируется на `/start`, событий — пять** (решение 2026-08-13):
+  до этого юзер попадал в БД только открыв Mini App (`AuthService`), а нажавшие `/start` (в т.ч.
+  пришедшие из SEO) не существовали ни в статистике, ни как аудитория рассылок — теперь `/start`
+  заводит строку через `UserActivityService` (хендлер остаётся тонким; вызов под try/except —
+  недоступная БД не должна оставлять человека без приветствия). Появились `users.created_at` и
+  таблица `user_events`. Пишем **не полную историю поведения, а пять значимых фактов**:
+  `start / open / play / subscribe / expire` (`domain/analytics/events.EventKind`, VARCHAR в БД —
+  новый вид без миграции; `meta` — свободная привязка: id фильма у play, slug тарифа у subscribe).
+  Клики по каталогу намеренно НЕ пишем: на вопросы, ради которых заведена таблица, они не отвечают,
+  а объёма дали бы на порядок больше. Запись **fail-open в адаптере** (как у Redis-адаптеров):
+  сбой журнала не имеет права уронить выдачу видео или активацию подписки, `rollback` обязателен —
+  иначе аварийная транзакция уронила бы следующий запрос в той же сессии.
+  `open` пишется в `AuthService.bootstrap` (только `POST /api/auth`), а НЕ в `authenticate`: ту
+  дёргает `get_current_user` на initData-фолбэке, то есть на каждом запросе при лежащем Redis —
+  метрика превратилась бы в счётчик HTTP-запросов.
+- **Действия админов в статистику не попадают** (решение 2026-08-13): админ ходит по кинотеатру
+  служебно (проверяет новинки, тестирует выдачу) и на малых числах полностью искажал бы картину.
+  Отсекаем **на записи** — декоратор `AdminBlindEventRepository` поверх порта (`infrastructure/
+  analytics/`), а не флаг внутри Pg-адаптера и не вычитание при подсчёте: админский шум не копится
+  в таблице вообще, и любой будущий запрос к истории (воронка, когорты, рефералка) чист без риска
+  забыть фильтр. В `users` строки админов нужны (доступ), поэтому счётчики людей исключают их явно —
+  `exclude` в `count_all/count_created_since/count_active`. Источник правды — `BOT_ADMIN_USER_IDS`.
+- **Ежевечерний отчёт админам в 23:00 по Алматы** (решение 2026-08-13): короткая сводка в личку —
+  всего юзеров (+сколько сегодня), активных подписок, открытий кинотеатра (уникальных/всего),
+  выданных видео, активаций и истечений. Считает БД (`COUNT` по индексам), наружу идут только
+  числа — стоимость отчёта не растёт с базой. **Часовой пояс задан явно** (`REPORT_TZ =
+  ZoneInfo("Asia/Almaty")` в `scheduler.py`): контейнеры живут в UTC, и «23:00» ушло бы в 4 утра
+  по Казахстану; границы суток считает чистая функция `day_window` (тестируется без БД).
+  `misfire_grace_time=3600 + coalesce` — перезапуск бота в 23:05 не съедает отчёт и не шлёт его
+  дважды. Планировщик поднимает только процесс бота, поэтому отчёт уходит один раз.
+  Активные подписки считаются по факту `expires_at > now`, а не по колонке статуса: джоб гашения
+  ходит раз в 15 минут, а сводка обязана быть правдой на момент отправки.
+  Активность считается **уникальными людьми**: `/api/auth` вызывается ещё и при 401-ре-авторизации,
+  поэтому `opens_total` может слегка завышать число заходов, а `opens_unique` — нет.

@@ -18,6 +18,8 @@ from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
 
+from tests.fakes import FakeEvents
+
 _NOW = datetime(2026, 7, 2, tzinfo=UTC)
 
 
@@ -100,7 +102,9 @@ def _build(
     users = _FakeUsers(user)
     notifier = _FakeNotifier()
     # approve → activate; expire_due (и удаление выдач) тут не задействовано → no-op фейк.
-    subscription = SubscriptionService(users, notifier, _NoopDeliveries())  # type: ignore[arg-type]
+    subscription = SubscriptionService(
+        users, notifier, _NoopDeliveries(), FakeEvents()  # type: ignore[arg-type]
+    )
     service = PaymentModerationService(payments, users, subscription, notifier)  # type: ignore[arg-type]
     return service, payments, users, notifier
 

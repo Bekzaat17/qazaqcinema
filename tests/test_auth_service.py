@@ -8,6 +8,8 @@ from app.application.services.auth_service import AuthService
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 
+from tests.fakes import FakeEvents
+
 
 class _FakeVerifier:
     def __init__(self, user: TelegramUser) -> None:
@@ -36,7 +38,7 @@ class _FakeUserRepo:
 
 async def test_creates_new_user_on_first_auth() -> None:
     repo = _FakeUserRepo()
-    service = AuthService(_FakeVerifier(TelegramUser(id=7, username="neo")), repo)
+    service = AuthService(_FakeVerifier(TelegramUser(id=7, username="neo")), repo, FakeEvents())
 
     user = await service.authenticate("valid")
 
@@ -48,7 +50,7 @@ async def test_creates_new_user_on_first_auth() -> None:
 async def test_returns_existing_user() -> None:
     repo = _FakeUserRepo()
     repo.store[7] = User(telegram_id=7, username="neo", status=UserStatus.ACTIVE)
-    service = AuthService(_FakeVerifier(TelegramUser(id=7, username="neo")), repo)
+    service = AuthService(_FakeVerifier(TelegramUser(id=7, username="neo")), repo, FakeEvents())
 
     user = await service.authenticate("valid")
 
@@ -59,7 +61,7 @@ async def test_refreshes_username_when_it_changed() -> None:
     """Хэндл мог появиться/смениться после первого входа — админам нужен свежий."""
     repo = _FakeUserRepo()
     repo.store[7] = User(telegram_id=7, username=None, status=UserStatus.ACTIVE)
-    service = AuthService(_FakeVerifier(TelegramUser(id=7, username="neo")), repo)
+    service = AuthService(_FakeVerifier(TelegramUser(id=7, username="neo")), repo, FakeEvents())
 
     user = await service.authenticate("valid")
 
@@ -72,7 +74,7 @@ async def test_keeps_stored_username_when_telegram_sends_none() -> None:
     """initData без username (юзер скрыл хэндл) не должен затирать известный нам."""
     repo = _FakeUserRepo()
     repo.store[7] = User(telegram_id=7, username="neo", status=UserStatus.ACTIVE)
-    service = AuthService(_FakeVerifier(TelegramUser(id=7)), repo)
+    service = AuthService(_FakeVerifier(TelegramUser(id=7)), repo, FakeEvents())
 
     user = await service.authenticate("valid")
 
@@ -80,7 +82,7 @@ async def test_keeps_stored_username_when_telegram_sends_none() -> None:
 
 
 async def test_rejects_invalid_init_data() -> None:
-    service = AuthService(_FakeVerifier(TelegramUser(id=7)), _FakeUserRepo())
+    service = AuthService(_FakeVerifier(TelegramUser(id=7)), _FakeUserRepo(), FakeEvents())
 
     with pytest.raises(InitDataError):
         await service.authenticate("bad")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+from app.domain.analytics.events import EventKind
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
@@ -10,6 +11,7 @@ from app.infrastructure.db.models import VideoDeliveryModel
 from app.infrastructure.db.repositories import (
     PgMovieRepository,
     PgPaymentRepository,
+    PgUserEventRepository,
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
@@ -369,3 +371,48 @@ async def test_delivery_delete_many_removes_only_given_ids(session: AsyncSession
     assert [d.id for d in await repo.list_for_user(8)] == [kept]
     await repo.delete_many([])  # пустой список — no-op, не падаем
     assert len(await repo.list_for_user(8)) == 1
+
+
+# ── Журнал событий и счётчики отчёта (Фаза «фундамент аналитики») ──────────────
+
+
+async def test_user_counters_ignore_excluded_ids(session: AsyncSession) -> None:
+    """Счётчики отчёта: активные — по факту `expires_at > now`, админы — мимо кассы."""
+    users = PgUserRepository(session)
+    now = datetime.now(UTC)
+    await users.upsert(User(telegram_id=1))  # админ
+    await users.upsert(
+        User(telegram_id=2, status=UserStatus.ACTIVE, expires_at=now + timedelta(days=1))
+    )
+    # Статус ACTIVE, но срок уже вышел: джоб гашения ходит раз в 15 минут, а отчёт
+    # обязан показывать правду на момент отправки — такой юзер активным не считается.
+    await users.upsert(
+        User(telegram_id=3, status=UserStatus.ACTIVE, expires_at=now - timedelta(minutes=1))
+    )
+
+    assert await users.count_all() == 3
+    assert await users.count_all(exclude=[1]) == 2
+    assert await users.count_active(now) == 1
+    assert await users.count_created_since(now - timedelta(minutes=5)) == 3
+    assert await users.count_created_since(now + timedelta(minutes=5)) == 0
+
+
+async def test_user_event_counts_by_kind_and_window(session: AsyncSession) -> None:
+    users = PgUserRepository(session)
+    await users.upsert(User(telegram_id=1))
+    await users.upsert(User(telegram_id=2))
+    events = PgUserEventRepository(session)
+    now = datetime.now(UTC)
+
+    await events.add(1, EventKind.OPEN)
+    await events.add(1, EventKind.OPEN)  # тот же человек — уникальных всё ещё один
+    await events.add(2, EventKind.OPEN)
+    await events.add(2, EventKind.PLAY, meta="7")
+
+    window = (now - timedelta(minutes=5), now + timedelta(minutes=5))
+    assert await events.count(EventKind.OPEN, *window) == 3
+    assert await events.count_unique_users(EventKind.OPEN, *window) == 2
+    assert await events.count(EventKind.PLAY, *window) == 1
+    # За пределами окна не считаем ничего.
+    future = (now + timedelta(minutes=5), now + timedelta(hours=1))
+    assert await events.count(EventKind.OPEN, *future) == 0

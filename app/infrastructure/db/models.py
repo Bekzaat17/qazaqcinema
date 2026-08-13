@@ -9,7 +9,18 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, String, Text, func, text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -30,6 +41,38 @@ class UserModel(Base):
     notifications_enabled: Mapped[bool] = mapped_column(
         Boolean, server_default=text("true"), nullable=False
     )
+    # Когда юзер появился. Нужен для «сколько новых за сегодня» в ежедневном отчёте и
+    # как база любой когортной аналитики. server_default → старые строки заполняются
+    # моментом миграции (точной даты для них взять неоткуда).
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class UserEventModel(Base):
+    """Значимые действия пользователя (см. `domain/analytics/events.EventKind`).
+
+    Не полный лог поведения, а срез из пяти событий: start / open / play / subscribe /
+    expire. По нему считается ежевечерний отчёт и, при желании, любая ретро-аналитика
+    (когда человек пришёл, вернулся ли, дошёл ли до оплаты).
+
+    kind — VARCHAR (не PG-ENUM): новый вид события не требует миграции типа.
+    meta — свободная привязка «к чему относится» (id фильма у play, slug тарифа у
+    subscribe); отдельные колонки под каждый вид завели бы разреженную таблицу.
+    """
+
+    __tablename__ = "user_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), index=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    meta: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Составной индекс под запросы отчёта: «событий вида X за период» (kind → created_at).
+    __table_args__ = (Index("ix_user_events_kind_created_at", "kind", "created_at"),)
 
 
 class MovieModel(Base):

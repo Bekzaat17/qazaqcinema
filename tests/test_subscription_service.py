@@ -16,6 +16,8 @@ from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 from app.domain.tariffs.catalog import get_tariff
 
+from tests.fakes import FakeEvents
+
 _NOW = datetime(2026, 6, 29, tzinfo=UTC)
 DAY = get_tariff("1_day")
 MONTH = get_tariff("1_month")
@@ -84,7 +86,9 @@ def _build(
     """Сборка сервиса: чистку видео он делегирует VideoRetentionService."""
     notifier = notifier or _FakeNotifier()
     deliveries = deliveries or _FakeDeliveries()
-    return SubscriptionService(users, notifier, VideoRetentionService(deliveries, notifier))
+    return SubscriptionService(
+        users, notifier, VideoRetentionService(deliveries, notifier), FakeEvents()
+    )
 
 
 async def test_activate_grants_access_from_now_for_new_user() -> None:

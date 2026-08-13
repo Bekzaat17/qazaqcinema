@@ -25,6 +25,7 @@ from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
     MovieRepository,
     PaymentRepository,
+    UserEventRepository,
     UserRepository,
     VideoDeliveryRepository,
 )
@@ -32,6 +33,8 @@ from app.application.ports.security import InitDataVerifier
 from app.application.ports.session import SessionStore
 from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
+from app.application.services.activity_service import UserActivityService
+from app.application.services.analytics_service import AnalyticsService
 from app.application.services.auth_service import AuthService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
@@ -46,6 +49,7 @@ from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
+from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
 from app.infrastructure.cache.broadcast import RedisBroadcastQueue
 from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.lock import RedisLock
@@ -55,6 +59,7 @@ from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
     PgMovieRepository,
     PgPaymentRepository,
+    PgUserEventRepository,
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
@@ -172,6 +177,15 @@ class RequestProvider(Provider):
     payments = provide(PgPaymentRepository, provides=PaymentRepository)
     deliveries = provide(PgVideoDeliveryRepository, provides=VideoDeliveryRepository)
 
+    @provide
+    def events(self, session: AsyncSession, config: AppConfig) -> UserEventRepository:
+        # Pg-адаптер в декораторе: события админов в журнал не попадают (служебные заходы
+        # не должны выглядеть живой аудиторией). Фильтр — снаружи, чтобы запись отсекалась
+        # до БД, а не вычиталась потом при подсчёте.
+        return AdminBlindEventRepository(
+            PgUserEventRepository(session), config.bot.admin_user_ids
+        )
+
     auth = provide(AuthService)
     catalog = provide(CatalogService)
     ingestion = provide(MovieIngestionService)
@@ -182,6 +196,15 @@ class RequestProvider(Provider):
     moderation = provide(PaymentModerationService)
     support = provide(SupportService)  # обращения из Mini App → в личку админам
     stars = provide(StarsPaymentService)
+    activity = provide(UserActivityService)  # /start → юзер в БД + событие «пришёл»
+
+    @provide
+    def analytics(
+        self, users: UserRepository, events: UserEventRepository, config: AppConfig
+    ) -> AnalyticsService:
+        # admin_ids — примитив из конфига (как webapp_url у рассылок), поэтому явный
+        # метод: сервис получает список id, а не весь AppConfig.
+        return AnalyticsService(users, events, config.bot.admin_user_ids)
 
     @provide
     def broadcast(

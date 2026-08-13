@@ -7,14 +7,18 @@
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Collection
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, delete, func, or_, select, update
+from sqlalchemy import ColumnElement, delete, distinct, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import SortDir, SortField
+from app.domain.analytics.events import EventKind
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
@@ -23,9 +27,12 @@ from app.domain.entities.user import User
 from app.infrastructure.db.models import (
     MovieModel,
     PaymentRequestModel,
+    UserEventModel,
     UserModel,
     VideoDeliveryModel,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _movie_to_domain(model: MovieModel) -> Movie:
@@ -314,6 +321,37 @@ class PgUserRepository:
         result = await self._session.scalars(stmt)
         return list(result)
 
+    async def count_all(self, exclude: Collection[int] = ()) -> int:
+        stmt = select(func.count()).select_from(UserModel).where(*_not_in(exclude))
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def count_created_since(self, since: datetime, exclude: Collection[int] = ()) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(UserModel)
+            .where(UserModel.created_at >= since, *_not_in(exclude))
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def count_active(self, now: datetime, exclude: Collection[int] = ()) -> int:
+        """Активные подписки ПО ФАКТУ (`expires_at > now`), а не по колонке статуса.
+
+        Статус гасит фоновый джоб раз в 15 минут, поэтому между прогонами ACTIVE-строк
+        чуть больше, чем реально доступов. Отчёт должен показывать правду на момент
+        отправки — тот же критерий, что и `User.has_active_access`.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(UserModel)
+            .where(
+                UserModel.status == UserStatus.ACTIVE.value,
+                UserModel.expires_at.is_not(None),
+                UserModel.expires_at > now,
+                *_not_in(exclude),
+            )
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
     async def set_notifications(self, telegram_id: int, enabled: bool) -> None:
         """Точечно переключить флаг рассылок (тумблер в профиле; worker → False при блоке).
 
@@ -326,6 +364,59 @@ class PgUserRepository:
             .values(notifications_enabled=enabled)
         )
         await self._session.commit()
+
+
+class PgUserEventRepository:
+    """Журнал значимых действий. Запись — **fail-open** (деградация в адаптере, как у Redis)."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, user_id: int, kind: EventKind, meta: str | None = None) -> None:
+        try:
+            self._session.add(UserEventModel(user_id=user_id, kind=kind.value, meta=meta))
+            await self._session.commit()
+        except SQLAlchemyError:
+            # Статистика не вправе ронять основной сценарий: выданное видео и активная
+            # подписка важнее строчки в отчёте. rollback обязателен — после сбоя
+            # транзакция Postgres «аварийная», и без него упал бы следующий запрос
+            # в этой же сессии, уже по делу.
+            logger.warning("Событие %s юзера %s не записано", kind, user_id, exc_info=True)
+            await self._session.rollback()
+
+    async def count(self, kind: EventKind, since: datetime, until: datetime) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(UserEventModel)
+            .where(*_event_window(kind, since, until))
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def count_unique_users(self, kind: EventKind, since: datetime, until: datetime) -> int:
+        stmt = select(func.count(distinct(UserEventModel.user_id))).where(
+            *_event_window(kind, since, until)
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+
+def _not_in(ids: Collection[int]) -> tuple[ColumnElement[bool], ...]:
+    """Условие «кроме этих telegram_id» — пустой список не добавляет WHERE вовсе.
+
+    Пустой `NOT IN ()` в SQL невалиден, а `NOT IN (NULL)` вернул бы 0 строк — поэтому
+    именно кортеж условий, который разворачивается в `.where(*…)`.
+    """
+    return (UserModel.telegram_id.notin_(ids),) if ids else ()
+
+
+def _event_window(
+    kind: EventKind, since: datetime, until: datetime
+) -> tuple[ColumnElement[bool], ...]:
+    """Условие «событие вида kind в полуинтервале [since, until)» — под составной индекс."""
+    return (
+        UserEventModel.kind == kind.value,
+        UserEventModel.created_at >= since,
+        UserEventModel.created_at < until,
+    )
 
 
 class PgPaymentRepository:

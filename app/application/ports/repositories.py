@@ -6,9 +6,11 @@ PaymentRepository. Реализации — в app/infrastructure/db/repositorie
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from datetime import datetime
 from typing import Literal, Protocol
 
+from app.domain.analytics.events import EventKind
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentStatus
 from app.domain.entities.movie import Movie
@@ -57,6 +59,36 @@ class UserRepository(Protocol):
     async def list_expired(self, now: datetime) -> list[User]: ...
     async def list_notifiable(self) -> list[int]: ...
     async def set_notifications(self, telegram_id: int, enabled: bool) -> None: ...
+
+    # ── Счётчики для ежедневного отчёта (агрегаты считает БД, строки наружу не тащим) ──
+    # `exclude` — кого не учитывать (админы: они пользуются кинотеатром служебно, и в
+    # отчёте их присутствие завышало бы аудиторию; см. `AdminBlindEventRepository`).
+    async def count_all(self, exclude: Collection[int] = ()) -> int: ...
+    async def count_created_since(self, since: datetime, exclude: Collection[int] = ()) -> int: ...
+    async def count_active(self, now: datetime, exclude: Collection[int] = ()) -> int: ...
+
+
+class UserEventRepository(Protocol):
+    """Значимые действия пользователей (`domain/analytics/events.EventKind`).
+
+    Порт отдельный от `UserRepository` (ISP): здесь только запись факта и агрегаты,
+    ничего про профиль и доступ.
+    """
+
+    async def add(self, user_id: int, kind: EventKind, meta: str | None = None) -> None:
+        """Записать событие. **Fail-open**: сбой записи не должен ронять основной сценарий.
+
+        Аналитика — побочная запись: не выданное видео или не заведённая подписка
+        куда хуже, чем дырка в статистике. Деградация — в адаптере (тот же принцип,
+        что у Redis-адаптеров), поэтому вызывающему не нужен try/except.
+        """
+        ...
+
+    async def count(self, kind: EventKind, since: datetime, until: datetime) -> int: ...
+
+    async def count_unique_users(self, kind: EventKind, since: datetime, until: datetime) -> int:
+        """Сколько РАЗНЫХ людей сделали это за период (открытия кинотеатра «по головам»)."""
+        ...
 
 
 class PaymentRepository(Protocol):

@@ -15,6 +15,8 @@ from app.domain.entities.enums import UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.user import User
 
+from tests.fakes import FakeEvents
+
 _NOW = datetime(2026, 6, 29, tzinfo=UTC)
 
 
@@ -102,7 +104,7 @@ async def test_deliver_sends_protected_video_for_active_subscriber() -> None:
     movies = _FakeMovies(_movie())
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries)
+    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
 
     outcome = await service.deliver(
         _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=7, now=_NOW
@@ -119,7 +121,7 @@ async def test_deliver_denies_without_access_and_skips_movie_load() -> None:
     movies = _FakeMovies(_movie())
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries)
+    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
 
     outcome = await service.deliver(
         _user(UserStatus.EXPIRED, _NOW - timedelta(days=1)), movie_id=7, now=_NOW
@@ -136,7 +138,7 @@ async def test_deliver_not_found_when_movie_missing() -> None:
     movies = _FakeMovies(None)
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries)
+    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
 
     outcome = await service.deliver(
         _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=99, now=_NOW
@@ -153,7 +155,7 @@ async def test_deliver_reports_bot_blocked_when_recipient_unreachable() -> None:
     movies = _FakeMovies(_movie())
     notifier = _FakeNotifier(unreachable=True)
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries)
+    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
 
     outcome = await service.deliver(
         _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=7, now=_NOW
@@ -171,7 +173,7 @@ async def test_deliver_swallows_rapid_duplicate_send() -> None:
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
     lock = _OneShotLock()
-    service = PlaybackService(movies, notifier, lock, deliveries)
+    service = PlaybackService(movies, notifier, lock, deliveries, FakeEvents())
     active = _user(UserStatus.ACTIVE, _NOW + timedelta(days=1))
 
     first = await service.deliver(active, movie_id=7, now=_NOW)

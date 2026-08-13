@@ -16,12 +16,12 @@ from fastapi import HTTPException
 
 
 class _RaisingAuth:
-    async def authenticate(self, init_data: str) -> User:
+    async def bootstrap(self, init_data: str) -> User:
         raise InitDataError("нет поля hash")
 
 
 class _OkAuth:
-    async def authenticate(self, init_data: str) -> User:
+    async def bootstrap(self, init_data: str) -> User:
         return User(telegram_id=42, status=UserStatus.ACTIVE)
 
 

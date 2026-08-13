@@ -16,8 +16,13 @@ from datetime import datetime
 from enum import Enum, auto
 
 from app.application.ports.lock import Lock
-from app.application.ports.repositories import MovieRepository, VideoDeliveryRepository
+from app.application.ports.repositories import (
+    MovieRepository,
+    UserEventRepository,
+    VideoDeliveryRepository,
+)
 from app.application.ports.telegram import RecipientUnreachableError, TelegramNotifier
+from app.domain.analytics.events import EventKind
 from app.domain.entities.user import User
 
 
@@ -38,11 +43,13 @@ class PlaybackService:
         notifier: TelegramNotifier,
         lock: Lock,
         deliveries: VideoDeliveryRepository,
+        events: UserEventRepository,
     ) -> None:
         self._movies = movies
         self._notifier = notifier
         self._lock = lock
         self._deliveries = deliveries
+        self._events = events
 
     async def deliver(self, user: User, movie_id: int, now: datetime) -> PlaybackOutcome:
         # Доступ проверяем ПЕРВЫМ: без подписки даже не раскрываем, есть ли фильм.
@@ -71,4 +78,7 @@ class PlaybackService:
         # Считаем просмотр только на реальной доставке (Фаза 13): повтор-в-окне не дошёл
         # сюда (лок вернул DELIVERED раньше) → двойной клик не накручивает счётчик.
         await self._movies.increment_play_count(movie_id)
+        # Просмотр в истории юзера (кто и что смотрел) — там же, где счётчик фильма:
+        # повтор-в-окне сюда не доходит, значит двойной клик не задваивает и событие.
+        await self._events.add(user.telegram_id, EventKind.PLAY, meta=str(movie_id))
         return PlaybackOutcome.DELIVERED

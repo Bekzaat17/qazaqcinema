@@ -30,7 +30,7 @@ async def authenticate(
     # реплей), а НЕ 500: без catch InitDataError всплывал необработанным (Internal Error),
     # и фронт валился в общий экран ошибки вместо понятного «откройте через Telegram».
     try:
-        user = await auth.authenticate(authorization)
+        user = await auth.bootstrap(authorization)
     except InitDataError as exc:
         raise HTTPException(status_code=401, detail="invalid_init_data") from exc
     token = await sessions.create(user.telegram_id, user.username)

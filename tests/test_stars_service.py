@@ -15,6 +15,8 @@ from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
 
+from tests.fakes import FakeEvents
+
 _NOW = datetime(2026, 7, 2, tzinfo=UTC)
 
 
@@ -74,7 +76,9 @@ def _build(
     users = _FakeUsers(user)
     payments = _FakePayments()
     notifier = _FakeNotifier()
-    subscription = SubscriptionService(users, notifier, _NoopDeliveries())  # type: ignore[arg-type]
+    subscription = SubscriptionService(
+        users, notifier, _NoopDeliveries(), FakeEvents()  # type: ignore[arg-type]
+    )
     service = StarsPaymentService(users, payments, subscription)  # type: ignore[arg-type]
     return service, users, payments, notifier
 
