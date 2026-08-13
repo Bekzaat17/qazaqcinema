@@ -102,7 +102,9 @@ export default function CatalogView({ onSelect }: { onSelect: (movie: Movie) => 
   return (
     <div className="pb-4">
       <div className="sticky top-[57px] z-20 border-b border-white/5 bg-bg/90 backdrop-blur-xl">
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-3">
+        {/* Чипы переносятся на несколько строк (не горизонтальный скролл): выбранные
+            категории должны быть видны все сразу, а не прятаться за краем экрана. */}
+        <div className="flex flex-wrap gap-1.5 px-4 py-2.5">
           <Chip
             active={selected.length === 0}
             onClick={() => {
@@ -172,7 +174,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+      className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium transition-colors ${
         active ? "bg-brand text-white" : "border border-border bg-surface text-muted active:text-text"
       }`}
     >
