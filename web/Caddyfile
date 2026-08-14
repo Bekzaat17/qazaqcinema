@@ -44,6 +44,11 @@
 	handle /catalog {
 		reverse_proxy api:8000
 	}
+	# Посадочные страницы разделов (/catalog/kids, /catalog/anime…). Отдельным блоком,
+	# а не `handle /catalog*`: тот подхватил бы и посторонние пути вроде /catalogue.
+	handle /catalog/* {
+		reverse_proxy api:8000
+	}
 	handle /sitemap.xml {
 		reverse_proxy api:8000
 	}

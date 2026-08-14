@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="kk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{{ seo.title_tag }}</title>
+    <meta name="description" content="{{ seo.description }}" />
+    <meta name="keywords" content="{{ seo.keywords }}" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="{{ seo.canonical_url }}" />
+    <meta name="theme-color" content="#09090b" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="QazaqCinema" />
+    <meta property="og:locale" content="kk" />
+    <meta property="og:locale:alternate" content="ru" />
+    <meta property="og:url" content="{{ seo.canonical_url }}" />
+    <meta property="og:title" content="{{ seo.heading }} — {{ seo.heading_ru }}" />
+    <meta property="og:description" content="{{ seo.description }}" />
+    <meta property="og:image" content="{{ site_url }}/logo.png" />
+
+    <script type="application/ld+json">{{ jsonld | safe }}</script>
+    <script type="application/ld+json">{{ seo.crumbs_jsonld | safe }}</script>
+    <script type="application/ld+json">{{ site_jsonld | safe }}</script>
+
+    <style>
+      :root {
+        --bg: #09090b; --card: #131316; --line: #26262b;
+        --fg: #fafafa; --muted: #a1a1aa; --accent: #e11d48;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.55; -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; text-decoration: none; }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 18px 56px; }
+      header.site { display: flex; align-items: center; gap: 10px; padding: 6px 0 14px; }
+      header.site img { width: 30px; height: 30px; border-radius: 7px; }
+      header.site b { font-weight: 700; }
+      nav.crumbs { font-size: 0.84rem; color: var(--muted); margin: 0 0 14px; }
+      nav.crumbs a { text-decoration: underline; text-underline-offset: 2px; }
+      nav.crumbs span + span::before { content: " / "; color: var(--line); }
+      h1 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 6px 0 4px; }
+      .h1ru { color: var(--muted); font-size: 1.02rem; margin: 0 0 10px; }
+      .lead { color: var(--muted); margin: 0 0 22px; max-width: 680px; }
+      .sections { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
+      .sec {
+        font-size: 0.85rem; padding: 6px 12px; border-radius: 999px;
+        background: var(--card); border: 1px solid var(--line); color: var(--fg);
+      }
+      .sec b { color: var(--muted); font-weight: 500; }
+      .grid {
+        display: grid; gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+      .card { display: block; }
+      .card img {
+        width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 12px;
+        border: 1px solid var(--line); background: var(--card); display: block;
+      }
+      .card .t { font-size: 0.9rem; font-weight: 600; margin: 8px 2px 0; line-height: 1.3; }
+      .card .s { font-size: 0.78rem; color: var(--muted); margin: 2px 2px 0; }
+      .tags { margin: 30px 0 0; }
+      .tags h2 { font-size: 1.02rem; margin: 0 0 10px; }
+      .taglist { display: flex; flex-wrap: wrap; gap: 8px; }
+      .tag {
+        font-size: 0.82rem; color: var(--muted); padding: 5px 11px; border-radius: 999px;
+        background: var(--card); border: 1px solid var(--line);
+      }
+      footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
+        color: var(--muted); font-size: 0.85rem; display: flex; gap: 16px; flex-wrap: wrap; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <a href="/catalog"><img src="/logo.png" alt="QazaqCinema" /></a>
+        <b>QazaqCinema</b>
+      </header>
+
+      <nav class="crumbs">
+        {% for c in seo.crumbs %}
+        <span>{% if c.path %}<a href="{{ c.path }}">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %}</span>
+        {% endfor %}
+      </nav>
+
+      <h1>{{ seo.heading }}</h1>
+      <p class="h1ru">{{ seo.heading_ru }} — {{ items|length }} фильм</p>
+      <p class="lead">{{ seo.intro }}</p>
+
+      <div class="grid">
+        {% for it in items %}
+        <a class="card" href="{{ it.seo.path }}">
+          <img src="{{ site_url }}{{ it.movie.poster_url }}" alt="{{ it.seo.heading }}"
+               width="140" height="210" loading="lazy" />
+          <div class="t">{{ it.seo.heading }}</div>
+          <div class="s">
+            {%- if it.movie.year %}{{ it.movie.year }}{% endif -%}
+            {%- if it.movie.year and it.movie.rating is not none %} · {% endif -%}
+            {%- if it.movie.rating is not none %}★ {{ "%.1f"|format(it.movie.rating) }}{% endif -%}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+
+      {% if siblings %}
+      <section class="tags">
+        <h2>Басқа бөлімдер</h2>
+        <div class="sections">
+          {% for c in siblings %}
+          <a class="sec" href="{{ c.path }}">{{ c.category.title_kk }} <b>{{ c.count }}</b></a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if seo.tags %}
+      <section class="tags">
+        <h2>Осыны да іздейді</h2>
+        <div class="taglist">
+          {% for tag in seo.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <footer>
+        <a href="/catalog">Барлық фильмдер</a>
+        <a href="https://t.me/{{ bot_username }}" rel="nofollow">Telegram-да ашу</a>
+        <span>© QazaqCinema — қазақша мультфильмдер мен аниме</span>
+      </footer>
+    </div>
+  </body>
+</html>

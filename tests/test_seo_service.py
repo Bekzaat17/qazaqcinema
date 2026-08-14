@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 from app.application.services.seo_service import SeoBuilder
+from app.domain.catalog.categories import CATEGORIES, Category, get_category
 from app.domain.entities.movie import Movie
 from app.domain.seo.slug import movie_slug, slugify, transliterate
 
@@ -173,3 +174,125 @@ def test_rating_absent_omits_aggregate_rating() -> None:
     meta = _seo().movie_seo(_movie(rating=None))
     raw = meta.jsonld.replace("\\u003c", "<").replace("\\u003e", ">").replace("\\u0026", "&")
     assert "aggregateRating" not in json.loads(raw)
+
+
+# ── посадочные страницы разделов ──────────────────────────────────────────────
+def test_category_seo_targets_broad_query_in_both_languages() -> None:
+    """H1 — казахский, русская формулировка того же спроса обязана быть на странице.
+
+    Смысл раздела: по «мультики для детей на казахском» карточка фильма ранжироваться
+    не может, нужна страница, чей заголовок и текст — про этот запрос.
+    """
+    meta = _seo().category_seo(get_category("kids"), count=12)  # type: ignore[arg-type]
+
+    assert meta.path == "/catalog/kids"
+    assert meta.canonical_url == "https://qazaqcinema.rehubpro.kz/catalog/kids"
+    assert meta.heading == "Балаларға арналған мультфильмдер"
+    assert meta.heading_ru == "Мультики для детей на казахском языке"
+    assert "мультики для детей" in meta.description.lower()
+    assert "12" in meta.description  # размер раздела попадает в сниппет
+
+
+def test_category_seo_falls_back_for_category_without_landing_text() -> None:
+    """Новая категория в справочнике не должна оставаться без посадочного текста."""
+    fresh = Category("horror", "Ужасы", "Қорқынышты")
+    meta = _seo().category_seo(fresh)
+
+    assert meta.heading == "Қорқынышты қазақша"
+    assert meta.heading_ru == "Ужасы на казахском языке"
+    assert meta.intro  # лид собран, а не пустой
+    assert "QazaqCinema" in meta.keywords
+
+
+def test_category_seo_description_fits_google_snippet() -> None:
+    for slug in CATEGORIES:
+        meta = _seo().category_seo(CATEGORIES[slug], count=5)
+        assert len(meta.description) <= 160, slug
+        assert len(meta.title_tag) <= 65, slug
+
+
+# ── хлебные крошки ────────────────────────────────────────────────────────────
+def test_movie_crumbs_lead_through_its_category() -> None:
+    """Путь «Каталог → Раздел → Фильм»: у страницы появляется место в структуре сайта."""
+    meta = _seo().movie_seo(_movie())
+
+    assert [c.name for c in meta.crumbs] == ["Каталог", "Мультфильмдер", "Шрек қазақша"]
+    assert [c.path for c in meta.crumbs] == ["/catalog", "/catalog/disney", ""]
+
+
+def test_movie_without_categories_still_has_crumbs() -> None:
+    meta = _seo().movie_seo(_movie(categories=[]))
+
+    assert [c.name for c in meta.crumbs] == ["Каталог", "Шрек қазақша"]
+
+
+def test_crumbs_jsonld_is_valid_breadcrumblist() -> None:
+    meta = _seo().movie_seo(_movie())
+    data = json.loads(meta.crumbs_jsonld)
+
+    assert data["@type"] == "BreadcrumbList"
+    items = data["itemListElement"]
+    assert [i["position"] for i in items] == [1, 2, 3]
+    assert items[1]["item"] == "https://qazaqcinema.rehubpro.kz/catalog/disney"
+    # У последнего звена (текущая страница) ссылки нет — так требует schema.org.
+    assert "item" not in items[-1]
+
+
+def test_crumbs_jsonld_escaped_for_script_tag() -> None:
+    """Название с «<» не имеет права разорвать <script> на странице."""
+    meta = _seo().movie_seo(_movie(title_ru="A </script> B", title_kk="A", title_original=None))
+
+    assert "</script>" not in meta.crumbs_jsonld
+    assert "\\u003c" in meta.crumbs_jsonld
+
+
+# ── живые (человеческие) написания запросов ───────────────────────────────────
+def test_keywords_include_layout_friendly_spelling() -> None:
+    """«казакша» без ә/қ — не опечатка, а набор с русской раскладки. Должен быть покрыт."""
+    meta = _seo().movie_seo(_movie())
+    kw = meta.keywords.lower()
+
+    assert "шрек казакша" in kw
+    assert "шрек қазақша" in kw  # грамотный вариант никуда не делся
+    assert "казакша мультик" in kw
+    assert "мультик каз" in kw
+
+
+def test_visible_tags_show_human_spelling_of_the_title() -> None:
+    """Видимый блок — единственное место, где живое написание реально читается Google'ом."""
+    tags = _seo().movie_seo(_movie()).tags
+
+    assert "Шрек казакша" in tags
+    assert "Шрек қазақша" in tags
+    assert len(tags) <= 14
+
+
+def test_headings_stay_correctly_spelled() -> None:
+    """H1/title/description остаются грамотными: ошибки живут только в тегах и keywords."""
+    meta = _seo().movie_seo(_movie())
+
+    assert "казакша" not in meta.heading.lower()
+    assert "казакша" not in meta.title_tag.lower()
+    assert "казакша" not in meta.description.lower()
+
+
+# ── разметка сайта: варианты написания бренда ─────────────────────────────────
+def test_site_jsonld_declares_brand_aliases() -> None:
+    data = json.loads(_seo().site_jsonld())
+    org, site = data["@graph"]
+
+    assert org["@type"] == "Organization"
+    assert site["@type"] == "WebSite"
+    for node in (org, site):
+        assert node["name"] == "QazaqCinema"
+        assert "казак синема" in node["alternateName"]
+        assert "Qazaq Cinema" in node["alternateName"]
+        assert "казакша кино" in node["alternateName"]
+
+
+def test_site_jsonld_links_website_to_its_publisher() -> None:
+    """@id-связка: Google должен понять, что WebSite и Organization — одно и то же."""
+    org, site = json.loads(_seo().site_jsonld())["@graph"]
+
+    assert site["publisher"]["@id"] == org["@id"]
+    assert org["sameAs"] == ["https://t.me/qazaqcinema_bot"]
