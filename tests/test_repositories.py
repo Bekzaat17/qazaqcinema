@@ -71,6 +71,61 @@ async def test_movie_list_and_search(session: AsyncSession) -> None:
     assert [m.title_kk for m in by_partial] == ["Наруто"]
 
 
+async def test_movie_search_tolerates_typo_in_short_title(session: AsyncSession) -> None:
+    """«шрик» обязан находить «Шрек».
+
+    Триграммной похожести здесь не хватает: similarity('шрек','шрик') = 0.25 при пороге
+    0.3 — на коротком слове одна опечатка выбивает сразу два общих триграмма. Ловит
+    levenshtein по началу названия.
+    """
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("Шрек", "disney", "f1", title_ru="Шрек"))
+    await repo.add(_movie("Наруто", "anime", "f2"))
+
+    assert [m.title_kk for m in await repo.search("шрик")] == ["Шрек"]
+
+
+async def test_movie_search_typo_works_regardless_of_case(session: AsyncSession) -> None:
+    """levenshtein регистр НЕ приводит сам (в отличие от similarity) — снимаем его явно."""
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("Шрек", "disney", "f1", title_ru="Шрек"))
+
+    assert [m.title_kk for m in await repo.search("ШРИК")] == ["Шрек"]
+
+
+async def test_movie_search_typo_matches_prefix(session: AsyncSession) -> None:
+    """Сравниваем НАЧАЛО названия: «шрик» против всей строки «Шрек 2» дало бы 3 правки."""
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("Шрек 2", "disney", "f1", title_ru="Шрек 2"))
+
+    assert [m.title_kk for m in await repo.search("шрик")] == ["Шрек 2"]
+
+
+async def test_movie_search_ignores_typos_in_very_short_queries(session: AsyncSession) -> None:
+    """На 1–3 буквах допуск не работает: «кот» иначе притащил бы «кит», «код» и «рот»."""
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("Кит", "disney", "f1", title_ru="Кит"))
+
+    assert await repo.search("кот") == []
+
+
+async def test_movie_search_puts_exact_match_above_fuzzy(session: AsyncSession) -> None:
+    """Точно набранное — выше исправленного: иначе опечатка перебивала бы прямое попадание."""
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("Шрик", "disney", "f1", title_ru="Шрик"))   # ровно то, что ввели
+    await repo.add(_movie("Шрек", "disney", "f2", title_ru="Шрек"))   # найдено по опечатке
+
+    assert [m.title_kk for m in await repo.search("шрик")] == ["Шрик", "Шрек"]
+
+
+async def test_movie_search_still_finds_long_title_typos(session: AsyncSession) -> None:
+    """Регрессия: старый путь через similarity никуда не делся."""
+    repo = PgMovieRepository(session)
+    await repo.add(_movie("Гарфилд", "disney", "f1", title_ru="Гарфилд"))
+
+    assert [m.title_kk for m in await repo.search("гарфилт")] == ["Гарфилд"]
+
+
 async def test_movie_get_hero_prefers_featured(session: AsyncSession) -> None:
     repo = PgMovieRepository(session)
     await repo.add(

@@ -12,7 +12,7 @@ from collections.abc import Collection
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, delete, distinct, func, or_, select, update
+from sqlalchemy import ColumnElement, delete, distinct, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -150,32 +150,66 @@ class PgMovieRepository:
         result = await self._session.scalars(stmt)
         return [_movie_to_domain(model) for model in result]
 
+    # Ниже этой длины опечатки не ищем: на 1–3 буквах «одна правка» превращает запрос
+    # почти в любое название (по «кот» с допуском нашлись бы «кит», «код», «рот»).
+    _FUZZY_MIN_LEN = 4
+    # Допуск в буквах. Ровно 1: две правки на коротком слове снова дают кашу.
+    _FUZZY_MAX_EDITS = 1
+
     async def search(self, query: str) -> list[Movie]:
         """Поиск по названиям (kk/ru/original) и описанию.
 
-        Нечувствителен к регистру и диакритике (`f_unaccent`), ловит подстроку и
-        опечатки (pg_trgm). Подстрочное совпадение по `f_unaccent(col) ILIKE %q%`
-        ускоряется GIN-trgm индексом; опечатки добирает `similarity()`. Ранжирование —
-        по максимальной похожести среди названий (описание в ранг не входит — шумит).
+        Три уровня, от точного к терпимому — каждый добирает то, что не поймал прошлый:
+        1. подстрока (`ILIKE %q%`, ускоряется GIN-trgm индексом) — обычный ввод;
+        2. триграммная похожесть (`similarity > 0.3`) — опечатки в ДЛИННЫХ названиях;
+        3. расстояние Левенштейна по началу названия — опечатки в КОРОТКИХ.
+
+        Третий уровень нужен, потому что триграммы на коротких словах бессильны:
+        similarity('шрек','шрик') = 0.25, то есть ниже порога — «шрик» не находил
+        «Шрека» вообще. Сравниваем не всё название с запросом (у «Шрек 2» против
+        «шрик» вышло бы 3 правки), а НАЧАЛО названия длиной с запрос: люди набирают
+        первые буквы, а не целиком.
+
+        Регистр и диакритика сняты (`lower` + `f_unaccent`): `similarity` приводит
+        регистр сам, а `levenshtein` — нет, для него это разные буквы.
         """
         normalized = func.f_unaccent(query)
         pattern = func.concat("%", normalized, "%")
-        searchable = (
-            MovieModel.title_kk,
-            MovieModel.title_ru,
-            MovieModel.title_original,
-            MovieModel.description,
-        )
+        titles = (MovieModel.title_kk, MovieModel.title_ru, MovieModel.title_original)
+        searchable = (*titles, MovieModel.description)
+
         substring_match = or_(*(func.f_unaccent(col).ilike(pattern) for col in searchable))
         relevance = func.greatest(
-            func.similarity(func.f_unaccent(MovieModel.title_kk), normalized),
-            func.similarity(func.f_unaccent(MovieModel.title_ru), normalized),
-            func.similarity(func.f_unaccent(MovieModel.title_original), normalized),
+            *(func.similarity(func.f_unaccent(col), normalized) for col in titles)
         )
+
+        conditions = [substring_match, relevance > 0.3]
+        if len(query) >= self._FUZZY_MIN_LEN:
+            folded = func.lower(normalized)
+            head = func.least(
+                *(
+                    func.levenshtein(
+                        func.left(func.lower(func.f_unaccent(col)), func.char_length(folded)),
+                        folded,
+                    )
+                    for col in titles
+                )
+            )
+            conditions.append(head <= self._FUZZY_MAX_EDITS)
+
         stmt = (
             select(MovieModel)
-            .where(or_(substring_match, relevance > 0.3))
-            .order_by(func.coalesce(relevance, 0.0).desc(), MovieModel.id.desc())
+            .where(or_(*conditions))
+            # Точно набранное — всегда выше найденного «по похожести»: иначе исправление
+            # опечатки перемешивалось бы с прямым попаданием.
+            # ⚠️ coalesce обязателен: `title_original` бывает NULL, а `FALSE OR NULL` в SQL
+            # даёт NULL (не FALSE) — и `ORDER BY ... DESC` поднял бы такие строки НАВЕРХ,
+            # ровно перед точным совпадением. NULL здесь значит «не совпало» → false.
+            .order_by(
+                func.coalesce(substring_match, false()).desc(),
+                func.coalesce(relevance, 0.0).desc(),
+                MovieModel.id.desc(),
+            )
         )
         result = await self._session.scalars(stmt)
         return [_movie_to_domain(model) for model in result]

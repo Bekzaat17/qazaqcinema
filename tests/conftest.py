@@ -53,6 +53,8 @@ async def session() -> AsyncIterator[AsyncSession]:
             # PgMovieRepository.search упадёт — нет f_unaccent/similarity).
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
+            # levenshtein — поиск с опечатками в коротких названиях (PgMovieRepository.search)
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
             await conn.execute(
                 text(
                     "CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text "
