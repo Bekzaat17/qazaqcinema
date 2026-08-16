@@ -78,6 +78,17 @@ case "$MODE" in
 
   test)
     [ -f .env.test ] || die "Нет .env.test (должен лежать в репозитории)."
+    # Пароль БД для тест-контейнера берём из НЕотслеживаемого env-файла: postgres здесь
+    # один на все среды, его пароль зафиксирован при создании тома и в репозиторий попасть
+    # не должен. Экспорт в окружение — compose при интерполяции ${DB_PASSWORD} предпочтёт
+    # переменную оболочки значению из --env-file .env.test (там намеренно заглушка).
+    # Нет боевого файла (чистая машина) — работает заглушка: postgres поднимется с ней же.
+    for _envf in .env.prod .env; do
+      [ -f "$_envf" ] || continue
+      _pw="$(grep -E '^DB_PASSWORD=' "$_envf" | head -1 | cut -d= -f2- | tr -d '\r')"
+      [ -n "$_pw" ] && export DB_PASSWORD="$_pw"
+      break
+    done
     info "TEST: поднимаю postgres (изолированная тест-БД)…"
     dc .env.test up -d postgres
     info "Жду готовности БД…"

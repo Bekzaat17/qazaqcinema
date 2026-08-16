@@ -11,7 +11,7 @@ from app.infrastructure.db.engine import create_engine
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-_TABLES = "users, movies, payment_requests, user_events"
+_TABLES = "users, movies, payment_requests, user_events, favorites"
 
 
 def _require_test_db() -> None:
@@ -62,9 +62,18 @@ async def session() -> AsyncIterator[AsyncSession]:
                     "AS $$ SELECT public.unaccent('public.unaccent', $1) $$"
                 )
             )
-    except Exception:
+    except OSError as exc:
+        # ТОЛЬКО сетевая недоступность (БД не поднята) — законный повод пропустить:
+        # юнит-тесты домена от Postgres не зависят и должны идти на голой машине.
         await engine.dispose()
-        pytest.skip("PostgreSQL недоступен — интеграционные тесты репозиториев пропущены")
+        pytest.skip(f"PostgreSQL недоступен ({exc}) — интеграционные тесты пропущены")
+    except Exception:
+        # Всё остальное — НЕ повод молчать: неверный пароль, нет прав, битая схема. Раньше
+        # сюда попадал рассинхрон DB_PASSWORD между .env.test и поднятым контейнером, и
+        # 27 интеграционных тестов repositories «проходили», ни разу не коснувшись БД.
+        # Прогон при этом бодро писал «All checks passed!». Пусть падает громко.
+        await engine.dispose()
+        raise
 
     maker = async_sessionmaker(engine, expire_on_commit=False)
     try:
