@@ -1,15 +1,21 @@
-"""Модерация чеков Kaspi в админ-чате: ✅ одобрить / ❌ отклонить.
+"""Модерация чеков Kaspi: ✅ одобрить / ❌ отклонить.
 
 Хендлер тонкий: парсит `request_id` из callback_data и делегирует
 `PaymentModerationService` (approve → активация подписки через Фазу 6; reject → отказ).
 После обработки правит подпись сообщения-чека и снимает кнопки.
+
+Чек приходит копией каждому админу (см. `send_payment_proof_to_admins`), поэтому решение
+принимает тот, кто нажал первым: остальные копии на нажатие получают `ALREADY_HANDLED` и
+гасятся пометкой. Двойной выдачи подписки не будет — идемпотентность в сервисе.
 """
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
@@ -34,6 +40,9 @@ _ALERTS = {
 _MARKS = {
     ModerationOutcome.APPROVED: "✅ Расталды",
     ModerationOutcome.REJECTED: "❌ Бас тартылды",
+    # Чек уходит копией каждому админу, поэтому у остальных кнопки остаются живыми после
+    # чужого решения. Помечаем и снимаем их — иначе копия висит «непрочитанной заявкой».
+    ModerationOutcome.ALREADY_HANDLED: "☑️ Басқа әкімші өңдеген",
 }
 
 
@@ -63,7 +72,10 @@ async def _finalize(
     mark = _MARKS.get(result.outcome)
     if mark is not None and isinstance(callback.message, Message):
         base = callback.message.caption or ""
-        await callback.message.edit_caption(caption=f"{base}\n\n{mark}", reply_markup=None)
+        # Правка подписи — косметика поверх уже принятого решения: если Telegram откажет
+        # (сообщение слишком старое, подпись не изменилась), решение всё равно в силе.
+        with suppress(TelegramBadRequest):
+            await callback.message.edit_caption(caption=f"{base}\n\n{mark}", reply_markup=None)
 
 
 @router.callback_query(F.data.startswith(APPROVE_PREFIX))

@@ -62,6 +62,21 @@ class AiogramNotifier:
     async def notify_user(self, telegram_id: int, text: str) -> None:
         await self._bot.send_message(telegram_id, text)
 
+    def _admin_recipients(self) -> list[int]:
+        """Кому уходит карточка чека: чат модерации + личка КАЖДОГО админа, без повторов.
+
+        Дедупликация обязательна: в проде `BOT_ADMIN_CHAT_ID` — это личка одного из
+        админов, то есть он же есть и в `BOT_ADMIN_USER_IDS`; без сверки он получал бы
+        два одинаковых чека с двумя парами кнопок. Порядок сохраняем (чат модерации
+        первым) — так номера чеков в основном чате идут ровной лентой.
+        """
+        recipients: list[int] = []
+        for chat_id in (self._admin_chat_id, *self._admin_user_ids):
+            # 0 — «чат модерации не задан» (дефолт конфига, .env.test): не адресат.
+            if chat_id and chat_id not in recipients:
+                recipients.append(chat_id)
+        return recipients
+
     async def notify_admins(self, text: str) -> None:
         # Каждому админу — независимо: один заблокировавший бота не должен лишать
         # уведомления остальных (раньше первый же 403 обрывал цикл). Молчим, только
@@ -188,20 +203,35 @@ class AiogramNotifier:
             f"Тариф: {escape(tariff_title)}"
         )
         keyboard = moderation_keyboard(request_id)
-        # Тем же способом, что приняли: PDF → document, картинка → photo (file_id'ы разнотипны).
-        if proof.is_document:
-            await self._bot.send_document(
-                self._admin_chat_id,
-                proof.file_id,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=keyboard,
-            )
-        else:
-            await self._bot.send_photo(
-                self._admin_chat_id,
-                proof.file_id,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=keyboard,
-            )
+        # Копия — каждому админу, доставка независимая (как в `notify_admins`): админ, не
+        # нажавший /start или заблокировавший бота, не должен оставить остальных без чека.
+        # Одобрение идемпотентно (`PaymentModerationService` отдаёт ALREADY_HANDLED), так
+        # что несколько живых копий с кнопками подписку дважды не выдадут.
+        delivered = 0
+        for chat_id in self._admin_recipients():
+            try:
+                # Тем же способом, что приняли: PDF → document, картинка → photo
+                # (photo-file_id и document-file_id несовместимы).
+                if proof.is_document:
+                    await self._bot.send_document(
+                        chat_id,
+                        proof.file_id,
+                        caption=caption,
+                        parse_mode="HTML",
+                        reply_markup=keyboard,
+                    )
+                else:
+                    await self._bot.send_photo(
+                        chat_id,
+                        proof.file_id,
+                        caption=caption,
+                        parse_mode="HTML",
+                        reply_markup=keyboard,
+                    )
+                delivered += 1
+            except TelegramAPIError:
+                logger.warning("Чек №%s не доставлен в чат %s", request_id, chat_id, exc_info=True)
+        if delivered == 0:
+            # Молчать нельзя: юзер уже получил «чек принят», а модерировать его некому.
+            # Ошибка наверх → статус PENDING_REVIEW не проставится (см. `PaymentService`).
+            raise AdminsUnreachableError(f"Чек №{request_id} не дошёл ни до одного админа")

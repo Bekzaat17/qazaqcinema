@@ -33,8 +33,14 @@ class _FakeBot:
         parse_mode: str | None = None,
         reply_markup: Any = None,
     ) -> object:
+        if chat_id in self._blocked:
+            raise TelegramForbiddenError(
+                method=None,  # type: ignore[arg-type]
+                message="Forbidden: bot was blocked by the user",
+            )
         self.photo_calls.append(
-            {"caption": caption, "parse_mode": parse_mode, "markup": reply_markup}
+            {"chat_id": chat_id, "caption": caption, "parse_mode": parse_mode,
+             "markup": reply_markup}
         )
         if self._photo_fails:
             raise TelegramBadRequest(
@@ -51,8 +57,14 @@ class _FakeBot:
         parse_mode: str | None = None,
         reply_markup: Any = None,
     ) -> object:
+        if chat_id in self._blocked:
+            raise TelegramForbiddenError(
+                method=None,  # type: ignore[arg-type]
+                message="Forbidden: bot was blocked by the user",
+            )
         self.document_calls.append(
-            {"caption": caption, "parse_mode": parse_mode, "markup": reply_markup}
+            {"chat_id": chat_id, "caption": caption, "parse_mode": parse_mode,
+             "markup": reply_markup}
         )
         return object()
 
@@ -168,3 +180,62 @@ async def test_payment_proof_document_keeps_link_for_user_without_username() -> 
     (call,) = bot.document_calls
     assert '<a href="tg://user?id=42">id 42</a>' in call["caption"]
     assert call["parse_mode"] == "HTML"
+
+
+# --- карточка чека: копия каждому админу ----------------------------------
+
+
+async def _send_proof(notifier: AiogramNotifier, *, is_document: bool = False) -> None:
+    await notifier.send_payment_proof_to_admins(
+        request_id=7,
+        user_id=42,
+        username="beka",
+        tariff_title="1 ай",
+        proof=ProofRef("file-1", is_document=is_document),
+    )
+
+
+async def test_payment_proof_goes_to_every_admin() -> None:
+    bot = _FakeBot()
+    notifier = AiogramNotifier(bot, admin_chat_id=0, admin_user_ids=[1, 2])  # type: ignore[arg-type]
+
+    await _send_proof(notifier)
+
+    assert [call["chat_id"] for call in bot.photo_calls] == [1, 2]
+    assert all(call["markup"] is not None for call in bot.photo_calls)
+
+
+async def test_payment_proof_is_not_duplicated_for_the_moderation_chat() -> None:
+    """Прод-конфиг: `BOT_ADMIN_CHAT_ID` — личка админа, он же в `BOT_ADMIN_USER_IDS`."""
+    bot = _FakeBot()
+    notifier = AiogramNotifier(bot, admin_chat_id=1, admin_user_ids=[1, 2])  # type: ignore[arg-type]
+
+    await _send_proof(notifier)
+
+    assert [call["chat_id"] for call in bot.photo_calls] == [1, 2]
+
+
+async def test_payment_proof_document_goes_to_every_admin() -> None:
+    bot = _FakeBot()
+    notifier = AiogramNotifier(bot, admin_chat_id=99, admin_user_ids=[1])  # type: ignore[arg-type]
+
+    await _send_proof(notifier, is_document=True)
+
+    assert [call["chat_id"] for call in bot.document_calls] == [99, 1]
+
+
+async def test_payment_proof_skips_blocked_admin_and_reaches_the_rest() -> None:
+    bot = _FakeBot(blocked_chats={1})
+    notifier = AiogramNotifier(bot, admin_chat_id=0, admin_user_ids=[1, 2])  # type: ignore[arg-type]
+
+    await _send_proof(notifier)
+
+    assert [call["chat_id"] for call in bot.photo_calls] == [2]
+
+
+async def test_payment_proof_raises_when_nobody_got_it() -> None:
+    bot = _FakeBot(blocked_chats={1, 2})
+    notifier = AiogramNotifier(bot, admin_chat_id=0, admin_user_ids=[1, 2])  # type: ignore[arg-type]
+
+    with pytest.raises(AdminsUnreachableError):
+        await _send_proof(notifier)
