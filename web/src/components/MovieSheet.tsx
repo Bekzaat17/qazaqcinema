@@ -2,12 +2,13 @@
 // Гейт подписки — замок на кнопке (подсказка по has_access), но настоящий гейт — на сервере
 // (App: если доступа нет → пэйволл; есть → POST /play → хэндофф-модалка).
 
-import { Lock, Play, ShieldCheck } from "lucide-react";
+import { Gift, Lock, Play, ShieldCheck } from "lucide-react";
 
 import type { Movie, UserStatus } from "../lib/api";
 import { categoryLabel } from "../lib/catalog";
 import Button from "../ui/Button";
 import Sheet from "../ui/Sheet";
+import FavoriteButton from "./FavoriteButton";
 import RatingPill from "./RatingPill";
 
 interface MovieSheetProps {
@@ -15,13 +16,29 @@ interface MovieSheetProps {
   hasAccess: boolean;
   status: UserStatus;
   busy: boolean;
+  /** Подарок ещё цел → на кнопке зовём смотреть бесплатно, а не показываем замок. */
+  freeViewAvailable: boolean;
+  /** Этот фильм уже подарен → он открыт навсегда, даже без подписки. */
+  gifted: boolean;
   onWatch: (movie: Movie) => void;
   onClose: () => void;
 }
 
-export default function MovieSheet({ movie, hasAccess, status, busy, onWatch, onClose }: MovieSheetProps) {
+export default function MovieSheet({
+  movie,
+  hasAccess,
+  status,
+  busy,
+  freeViewAvailable,
+  gifted,
+  onWatch,
+  onClose,
+}: MovieSheetProps) {
   if (!movie) return null;
   const pending = status === "pending_review";
+  // Замок — только там, где смотреть действительно нельзя. У человека с целым подарком
+  // или на уже подаренном фильме замок был бы враньём и гасил бы весь смысл воронки.
+  const unlocked = hasAccess || gifted || freeViewAvailable;
 
   return (
     <Sheet open onClose={onClose} labelledBy="movie-title">
@@ -58,16 +75,28 @@ export default function MovieSheet({ movie, hasAccess, status, busy, onWatch, on
           <p className="mt-4 text-[15px] leading-relaxed text-muted">{movie.description}</p>
         )}
 
+        {gifted && (
+          // Человек вернулся к своему подаренному фильму (видео из чата мы сносим через
+          // ~40 ч). Без этой строки повторная бесплатная выдача выглядела бы сбоем.
+          <p className="mt-4 flex items-center gap-2 rounded-2xl border border-brand/30 bg-brand/10 px-3.5 py-2.5 text-[13px] font-medium text-brand">
+            <Gift size={15} className="shrink-0" />
+            Сыйлық фильміңіз — әрқашан қолжетімді
+          </p>
+        )}
+
         <div className="mt-5">
           {pending ? (
             <Button variant="surface" disabled>
               Чек тексерілуде…
             </Button>
           ) : (
-            <Button loading={busy} onClick={() => onWatch(movie)}>
-              {hasAccess ? <Play size={18} className="fill-white" /> : <Lock size={17} />}
-              Көру
-            </Button>
+            <div className="flex items-stretch gap-2.5">
+              <Button loading={busy} onClick={() => onWatch(movie)}>
+                {unlocked ? <Play size={18} className="fill-white" /> : <Lock size={17} />}
+                Көру
+              </Button>
+              <FavoriteButton movieId={movie.id} variant="inline" />
+            </div>
           )}
           <p className="mt-2.5 flex items-center justify-center gap-1.5 text-xs text-faint">
             <ShieldCheck size={13} />

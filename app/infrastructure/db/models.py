@@ -47,6 +47,44 @@ class UserModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # Подарочный первый фильм. NULL = подарок не потрачен; заполняется атомарно
+    # (`claim_free_view`: UPDATE ... WHERE free_view_used_at IS NULL), иначе два
+    # параллельных тапа на плохом инете раздали бы два бесплатных фильма.
+    free_view_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Какой именно фильм подарен: он остаётся бесплатным и после того, как чистка снесёт
+    # видео из чата (~40 ч). FK нет намеренно — удаление фильма из каталога не должно
+    # ронять историю подарка, а сравнение идёт по id.
+    free_view_movie_id: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class FavoriteModel(Base):
+    """Избранное («Таңдаулы»): личный список фильмов, ничем не связанный с доступом.
+
+    Составной первичный ключ (user_id, movie_id) сам по себе гарантирует «одна звезда на
+    фильм» — отдельный уникальный индекс и проверка «уже в избранном?» перед вставкой не
+    нужны. `created_at` хранится не для показа, а как база рекомендаций: по нему видно,
+    что и когда людям нравилось.
+
+    ON DELETE CASCADE у movie_id: снятый с каталога фильм не должен оставлять висячие
+    строки в чужих списках.
+    """
+
+    __tablename__ = "favorites"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id"), primary_key=True, autoincrement=False
+    )
+    movie_id: Mapped[int] = mapped_column(
+        ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True, autoincrement=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Индекс под «избранное юзера, свежие сверху» — основной запрос вкладки.
+    __table_args__ = (Index("ix_favorites_user_created_at", "user_id", "created_at"),)
 
 
 class UserEventModel(Base):
@@ -99,6 +137,12 @@ class MovieModel(Base):
     # Счётчик просмотров (Фаза 13): +1 при успешной выдаче видео; сортировка «Танымал»
     # и каталога «по просмотрам». server_default 0 → backfill без отдельного UPDATE.
     play_count: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    # Счётчик избранного — денормализация, как и play_count: сортировка «Танымал» идёт по
+    # формуле из обоих счётчиков (`domain/catalog/popularity.py`), и считать её джойном с
+    # `favorites` на каждой странице каталога было бы дороже без всякой пользы.
+    favorites_count: Mapped[int] = mapped_column(
+        BigInteger, server_default=text("0"), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -72,6 +72,9 @@ async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts):
     return request<T>(path, init, { retried: true });
   }
   if (!response.ok) return readError(response);
+  // 204 No Content (тумблер звезды) — тела нет, и `.json()` на пустом ответе бросил бы
+  // SyntaxError. Такие ручки типизированы как void, поэтому отдаём undefined.
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
@@ -102,6 +105,11 @@ export interface Auth {
   has_access: boolean;
   token?: string | null; // серверная сессия (Фаза 11.1); null → остаёмся на initData
   notifications_enabled: boolean; // тумблер рассылок о новинках (Фаза 12)
+  // Подарочный первый фильм. `free_view_available` — подарок ещё цел (показываем
+  // приглашение вместо пэйволла); `free_view_movie_id` — какой фильм уже подарен
+  // (на нём рисуем бейдж «Сыйлық» и не зовём платить).
+  free_view_available: boolean;
+  free_view_movie_id: number | null;
 }
 
 export interface Movie {
@@ -199,9 +207,35 @@ export const api = {
 
   getMovie: (id: number) => request<Movie>(`/api/movies/${id}`),
 
-  /** Триггер защищённой выдачи: бот пришлёт видео в личку (protect_content). 403 → нет доступа. */
-  play: (id: number) =>
-    request<{ status: "sent" }>(`/api/movies/${id}/play`, { method: "POST" }),
+  /** Триггер защищённой выдачи: бот пришлёт видео в личку (protect_content). 403 → нет доступа.
+   *
+   * `useFreeView` — согласие потратить подарочный первый фильм. Без него сервер подарок
+   * не тратит: иначе он сгорал бы от случайного перехода по ссылке на фильм.
+   * `gift` в ответе — видео ушло именно за счёт подарка (фронт покажет это явно).
+   */
+  play: (id: number, useFreeView = false) =>
+    request<{ status: "sent"; gift: boolean }>(
+      `/api/movies/${id}/play${useFreeView ? "?use_free_view=true" : ""}`,
+      { method: "POST" },
+    ),
+
+  /** Избранное («Таңдаулы») текущего юзера — содержимое третьей вкладки. */
+  favorites: () => request<Movie[]>("/api/favorites"),
+
+  /** Только id избранного: ими фронт закрашивает звёзды в полках и каталоге.
+   *
+   * Отдельно от карточек фильма, потому что ответы каталога кэшируются одни на всех —
+   * персональный флаг внутри них показал бы одному юзеру избранное другого.
+   */
+  favoriteIds: () => request<{ ids: number[] }>("/api/favorites/ids"),
+
+  /** Поставить звезду (идемпотентно — повтор ничего не меняет). */
+  addFavorite: (id: number) =>
+    request<void>(`/api/favorites/${id}`, { method: "PUT" }),
+
+  /** Снять звезду (тоже идемпотентно). */
+  removeFavorite: (id: number) =>
+    request<void>(`/api/favorites/${id}`, { method: "DELETE" }),
 
   /** Тумблер рассылок о новинках (Фаза 12): включить/выключить для текущего юзера. */
   setNotifications: (enabled: boolean) =>

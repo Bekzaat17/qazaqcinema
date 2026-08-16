@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.application.ports.telegram import RecipientUnreachableError
 from app.application.services.playback_service import PlaybackOutcome, PlaybackService
+from app.domain.analytics.events import EventKind
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.movie import Movie
@@ -96,15 +97,75 @@ class _OneShotLock:
         return True
 
 
+class _FakeUsers:
+    """Фейк `UserRepository` в части подарочного фильма.
+
+    Держит состояние подарка у себя и повторяет главное свойство настоящего адаптера:
+    `claim_free_view` — атомарная проверка-и-запись, поэтому второй захват возвращает
+    False, даже если вызывающий держит устаревшую копию `User`.
+    """
+
+    def __init__(self, user: User | None = None) -> None:
+        self.user = user
+        self.claims: list[tuple[int, int]] = []
+        self.releases: list[tuple[int, int]] = []
+
+    async def get(self, telegram_id: int) -> User | None:
+        return self.user
+
+    async def claim_free_view(self, telegram_id: int, movie_id: int, now: datetime) -> bool:
+        self.claims.append((telegram_id, movie_id))
+        if self.user is None or self.user.free_view_used_at is not None:
+            return False
+        self.user.free_view_used_at = now
+        self.user.free_view_movie_id = movie_id
+        return True
+
+    async def release_free_view(self, telegram_id: int, movie_id: int) -> None:
+        self.releases.append((telegram_id, movie_id))
+        if self.user is not None and self.user.free_view_movie_id == movie_id:
+            self.user.free_view_used_at = None
+            self.user.free_view_movie_id = None
+
+
+def _service(
+    movies: _FakeMovies,
+    notifier: _FakeNotifier,
+    deliveries: _FakeDeliveries,
+    *,
+    lock: _OneShotLock | None = None,
+    users: _FakeUsers | None = None,
+    events: FakeEvents | None = None,
+) -> PlaybackService:
+    return PlaybackService(
+        movies,  # type: ignore[arg-type]
+        notifier,  # type: ignore[arg-type]
+        lock or _OneShotLock(),  # type: ignore[arg-type]
+        deliveries,  # type: ignore[arg-type]
+        events or FakeEvents(),  # type: ignore[arg-type]
+        users or _FakeUsers(),  # type: ignore[arg-type]
+    )
+
+
 def _user(status: UserStatus, expires_at: datetime | None) -> User:
     return User(telegram_id=42, status=status, expires_at=expires_at)
+
+
+def _guest(free_view_movie_id: int | None = None) -> User:
+    """Без подписки. `free_view_movie_id` задан → подарок уже потрачен на этот фильм."""
+    return User(
+        telegram_id=42,
+        status=UserStatus.NEW,
+        free_view_used_at=_NOW - timedelta(days=1) if free_view_movie_id else None,
+        free_view_movie_id=free_view_movie_id,
+    )
 
 
 async def test_deliver_sends_protected_video_for_active_subscriber() -> None:
     movies = _FakeMovies(_movie())
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
+    service = _service(movies, notifier, deliveries)
 
     outcome = await service.deliver(
         _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=7, now=_NOW
@@ -121,7 +182,7 @@ async def test_deliver_denies_without_access_and_skips_movie_load() -> None:
     movies = _FakeMovies(_movie())
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
+    service = _service(movies, notifier, deliveries)
 
     outcome = await service.deliver(
         _user(UserStatus.EXPIRED, _NOW - timedelta(days=1)), movie_id=7, now=_NOW
@@ -138,7 +199,7 @@ async def test_deliver_not_found_when_movie_missing() -> None:
     movies = _FakeMovies(None)
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
+    service = _service(movies, notifier, deliveries)
 
     outcome = await service.deliver(
         _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=99, now=_NOW
@@ -155,7 +216,7 @@ async def test_deliver_reports_bot_blocked_when_recipient_unreachable() -> None:
     movies = _FakeMovies(_movie())
     notifier = _FakeNotifier(unreachable=True)
     deliveries = _FakeDeliveries()
-    service = PlaybackService(movies, notifier, _OneShotLock(), deliveries, FakeEvents())
+    service = _service(movies, notifier, deliveries)
 
     outcome = await service.deliver(
         _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=7, now=_NOW
@@ -173,7 +234,7 @@ async def test_deliver_swallows_rapid_duplicate_send() -> None:
     notifier = _FakeNotifier()
     deliveries = _FakeDeliveries()
     lock = _OneShotLock()
-    service = PlaybackService(movies, notifier, lock, deliveries, FakeEvents())
+    service = _service(movies, notifier, deliveries, lock=lock)
     active = _user(UserStatus.ACTIVE, _NOW + timedelta(days=1))
 
     first = await service.deliver(active, movie_id=7, now=_NOW)
@@ -185,3 +246,122 @@ async def test_deliver_swallows_rapid_duplicate_send() -> None:
     assert movies.play_increments == [7]  # счётчик +1 один раз (повтор — no-op)
     assert deliveries.added == [(42, 42, 1001)]  # запись выдачи тоже одна (повтор — no-op)
     assert lock.keys == ["send_video:42:7", "send_video:42:7"]
+
+
+# --- подарочный первый фильм ------------------------------------------------------
+
+
+async def test_gift_is_delivered_on_explicit_consent() -> None:
+    """Без подписки, но подарок цел и юзер согласился → фильм уходит бесплатно."""
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    guest = _guest()
+    users, events = _FakeUsers(guest), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
+
+    assert outcome is PlaybackOutcome.GIFT_DELIVERED
+    assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]
+    assert users.claims == [(42, 7)]
+    # Бесплатный просмотр — отдельное событие, иначе он смешался бы с оплаченными и
+    # цифра «сколько людей попробовали продукт» пропала бы.
+    assert events.kinds_for(42) == [EventKind.FREE_PLAY]
+
+
+async def test_gift_is_not_spent_without_explicit_consent() -> None:
+    """Тот же юзер, но флага согласия нет → пэйволл, право осталось нетронутым.
+
+    Так подарок не сгорает от случайного перехода по deep-link на фильм.
+    """
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    guest = _guest()
+    users, events = _FakeUsers(guest), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW)
+
+    assert outcome is PlaybackOutcome.NO_ACCESS
+    assert notifier.sent == []
+    assert users.claims == []
+    assert guest.can_use_free_view()  # подарок цел
+    assert events.kinds_for(42) == [EventKind.PAYWALL]
+
+
+async def test_gift_covers_only_one_movie() -> None:
+    """Подарок потрачен на фильм 7 → другой фильм упирается в пэйволл."""
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    guest = _guest(free_view_movie_id=7)
+    users, events = _FakeUsers(guest), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(guest, movie_id=8, now=_NOW, use_free_view=True)
+
+    assert outcome is PlaybackOutcome.NO_ACCESS
+    assert notifier.sent == []
+    assert events.kinds_for(42) == [EventKind.PAYWALL]
+
+
+async def test_gifted_movie_is_redelivered_after_retention_cleanup() -> None:
+    """Своё подаренное кино можно запросить снова — мы же сами сносим видео через ~40 ч.
+
+    Согласия тут не требуется: тратить уже нечего, право израсходовано раньше.
+    """
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    guest = _guest(free_view_movie_id=7)
+    users, events = _FakeUsers(guest), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW)
+
+    assert outcome is PlaybackOutcome.GIFT_DELIVERED
+    assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]
+    assert users.claims == []  # повторно право не забираем
+    assert events.kinds_for(42) == [EventKind.FREE_PLAY]
+
+
+async def test_gift_is_returned_when_delivery_fails() -> None:
+    """Юзер не открыл чат с ботом → подарок возвращаем: он его так и не увидел."""
+    movies = _FakeMovies(_movie())
+    notifier, deliveries = _FakeNotifier(unreachable=True), _FakeDeliveries()
+    guest = _guest()
+    users = _FakeUsers(guest)
+    service = _service(movies, notifier, deliveries, users=users)
+
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
+
+    assert outcome is PlaybackOutcome.BOT_BLOCKED
+    assert users.releases == [(42, 7)]
+    assert guest.can_use_free_view()  # право снова доступно
+
+
+async def test_lost_claim_race_on_same_movie_is_not_a_paywall() -> None:
+    """Гонка двойного тапа: захват проиграл, но подарен ИМЕННО этот фильм → отдаём.
+
+    Так второй тап по кнопке не показывает пэйволл человеку, которому подарок ровно
+    сейчас выдали, и не портит метрику воронки ложным отказом.
+    """
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    # Копия у вызывающего устарела (подарок ещё «цел»), а в хранилище он уже потрачен.
+    stale = _guest()
+    users, events = _FakeUsers(_guest(free_view_movie_id=7)), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(stale, movie_id=7, now=_NOW, use_free_view=True)
+
+    assert outcome is PlaybackOutcome.GIFT_DELIVERED
+    assert events.kinds_for(42) == [EventKind.FREE_PLAY]  # пэйволла не было
+
+
+async def test_subscriber_does_not_spend_the_gift() -> None:
+    """У подписчика подарок остаётся нетронутым — пригодится, когда подписка кончится."""
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    active = _user(UserStatus.ACTIVE, _NOW + timedelta(days=1))
+    users, events = _FakeUsers(active), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(active, movie_id=7, now=_NOW, use_free_view=True)
+
+    assert outcome is PlaybackOutcome.DELIVERED
+    assert users.claims == []
+    assert active.can_use_free_view()
+    assert events.kinds_for(42) == [EventKind.PLAY]

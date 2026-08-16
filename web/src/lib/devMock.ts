@@ -56,7 +56,14 @@ const AUTH: Auth = {
   has_access: true,
   token: null, // в dev-моке токен-флоу не задействован (request() уходит в мок до fetch)
   notifications_enabled: true, // тумблер рассылок (Фаза 12)
+  // Поставь status:"new"/has_access:false, чтобы посмотреть воронку подарка в браузере.
+  free_view_available: true,
+  free_view_movie_id: null,
 };
+
+// Избранное живёт в памяти вкладки: в моке нет бэкенда, но тумблер звезды должен
+// вести себя как настоящий (поставил → появилось в «Таңдаулы», снял → исчезло).
+const FAVORITE_IDS = new Set<number>([5]);
 
 /** Непустые категории со счётчиками (для чипов каталога). */
 function categoryCounts(): CategoryCount[] {
@@ -98,7 +105,16 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
     const term = (q.get("q") ?? "").toLowerCase();
     data = MOVIES.filter((m) => `${m.title_kk} ${m.title_original}`.toLowerCase().includes(term));
   } else if (p === "/api/movies") data = browse(q);
-  else if (/^\/api\/movies\/\d+\/play$/.test(p)) data = { status: "sent" };
+  else if (/^\/api\/movies\/\d+\/play$/.test(p))
+    data = { status: "sent", gift: q.get("use_free_view") === "true" };
+  else if (p === "/api/favorites") data = MOVIES.filter((m) => FAVORITE_IDS.has(m.id));
+  else if (p === "/api/favorites/ids") data = { ids: [...FAVORITE_IDS] };
+  else if (/^\/api\/favorites\/\d+$/.test(p)) {
+    const id = Number(p.split("/")[3]);
+    if (init?.method === "DELETE") FAVORITE_IDS.delete(id);
+    else FAVORITE_IDS.add(id);
+    data = undefined; // 204 No Content — как у настоящей ручки
+  }
   else if (/^\/api\/movies\/\d+$/.test(p)) data = MOVIES.find((m) => m.id === Number(p.split("/")[3]));
   else if (p === "/api/payments/tariffs") data = TARIFFS;
   else if (p === "/api/payments/initiate") {

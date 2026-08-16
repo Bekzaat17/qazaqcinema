@@ -10,21 +10,34 @@ from __future__ import annotations
 import logging
 from collections.abc import Collection
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import ColumnElement, delete, distinct, false, func, or_, select, update
+from sqlalchemy import (
+    ColumnElement,
+    CursorResult,
+    Executable,
+    delete,
+    distinct,
+    false,
+    func,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import SortDir, SortField
 from app.domain.analytics.events import EventKind
+from app.domain.catalog.popularity import FAVORITE_WEIGHT, PLAY_WEIGHT
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
 from app.infrastructure.db.models import (
+    FavoriteModel,
     MovieModel,
     PaymentRequestModel,
     UserEventModel,
@@ -33,6 +46,21 @@ from app.infrastructure.db.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def _rowcount(session: AsyncSession, stmt: Executable) -> int:
+    """Сколько строк реально задел UPDATE/DELETE/INSERT.
+
+    На этом числе держатся идемпотентность звезды и защита подарка от двойной раздачи:
+    «изменили ли мы что-то» — единственный честный ответ от БД, и получить его надо ИЗ
+    того же запроса, что менял данные (отдельный SELECT снова открыл бы гонку).
+
+    Приведение типа — здесь, в одном месте: `AsyncSession.execute` объявлен как
+    `Result[Any]`, у которого `rowcount` нет; для DML приходит `CursorResult`, у которого
+    он есть. Иначе `type: ignore` расползлись бы по всем вызовам.
+    """
+    result = await session.execute(stmt)
+    return cast("CursorResult[Any]", result).rowcount
 
 
 def _movie_to_domain(model: MovieModel) -> Movie:
@@ -50,6 +78,7 @@ def _movie_to_domain(model: MovieModel) -> Movie:
         is_featured=model.is_featured,
         hero_image_url=model.hero_image_url,
         play_count=model.play_count,
+        favorites_count=model.favorites_count,
         created_at=model.created_at,
     )
 
@@ -62,6 +91,8 @@ def _user_to_domain(model: UserModel) -> User:
         expires_at=model.expires_at,
         selected_tariff=model.selected_tariff,
         notifications_enabled=model.notifications_enabled,
+        free_view_used_at=model.free_view_used_at,
+        free_view_movie_id=model.free_view_movie_id,
     )
 
 
@@ -221,15 +252,23 @@ class PgMovieRepository:
         return [_movie_to_domain(model) for model in result]
 
     async def list_popular(self, limit: int) -> list[Movie]:
-        """Полка «Танымал»: по просмотрам, затем рейтингу, затем новизне.
+        """Полка «Танымал»: по баллу популярности, затем рейтингу, затем новизне.
 
-        Одним ORDER BY покрываем холодный старт: пока просмотров нет (у всех play_count 0),
-        сортировка проваливается на rating (NULLS LAST — без оценки в конец), затем на id.
+        Балл — просмотры И избранное с весами из `domain/catalog/popularity.py`: просмотр
+        доступен только подписчику, поэтому по одним просмотрам полка молчала бы про
+        интерес большинства, которое пока не заплатило. Выражение здесь буквально
+        повторяет чистую функцию `popularity_score` (она же покрыта тестом без БД).
+
+        Одним ORDER BY покрываем холодный старт: пока оба счётчика по нулям, сортировка
+        проваливается на rating (NULLS LAST — без оценки в конец), затем на id.
         """
+        score = (
+            MovieModel.play_count * PLAY_WEIGHT + MovieModel.favorites_count * FAVORITE_WEIGHT
+        )
         stmt = (
             select(MovieModel)
             .order_by(
-                MovieModel.play_count.desc(),
+                score.desc(),
                 MovieModel.rating.desc().nulls_last(),
                 MovieModel.id.desc(),
             )
@@ -253,6 +292,9 @@ class PgMovieRepository:
         нет). Вторым ключом всегда `id DESC` — стабильный тай-брейк, иначе OFFSET-страницы
         «плывут». Возвращает (страница, total); total тем же фильтром — для has_more/страниц.
         """
+        # «views» — честный счётчик просмотров, а НЕ балл популярности: чип в каталоге
+        # подписан «Қаралым», и подмешивать туда избранное значило бы врать подписи.
+        # Комбинированный балл живёт только на полке «Танымал» (`list_popular`).
         column = {
             "year": MovieModel.year,
             "rating": MovieModel.rating,
@@ -321,6 +363,9 @@ class PgUserRepository:
         # notifications_enabled НЕ в set_ намеренно: upsert (логин/activate/expire/reject)
         # не должен трогать выбор юзера по рассылкам. Менять флаг — только set_notifications
         # (точечный UPDATE). На INSERT нового юзера значение берётся из values (default True).
+        # Поля подарка (free_view_*) — по той же причине НЕ здесь ни в values, ни в set_:
+        # их проставляет только атомарный `claim_free_view`. Попади они в upsert — активация
+        # подписки или отказ модератора обнулили бы уже потраченный подарок, раздав второй.
         stmt = stmt.on_conflict_do_update(
             index_elements=["telegram_id"],
             set_={
@@ -342,6 +387,39 @@ class PgUserRepository:
         )
         result = await self._session.scalars(stmt)
         return [_user_to_domain(model) for model in result]
+
+    async def claim_free_view(self, telegram_id: int, movie_id: int, now: datetime) -> bool:
+        """Забрать право на подарочный фильм. True — забрали именно мы, False — уже потрачено.
+
+        Ядро защиты от раздачи двух бесплатных фильмов. Проверка и запись — ОДИН
+        `UPDATE ... WHERE free_view_used_at IS NULL`: сама СУБД сериализует конкурентов,
+        и второй запрос увидит 0 строк. Схема «сначала SELECT, потом UPDATE» здесь не
+        годится — два тапа по кнопке на плохой связи прошли бы проверку одновременно.
+        """
+        stmt = (
+            update(UserModel)
+            .where(UserModel.telegram_id == telegram_id, UserModel.free_view_used_at.is_(None))
+            .values(free_view_used_at=now, free_view_movie_id=movie_id)
+        )
+        claimed = await _rowcount(self._session, stmt) == 1
+        await self._session.commit()
+        return claimed
+
+    async def release_free_view(self, telegram_id: int, movie_id: int) -> None:
+        """Вернуть право, если подаренное видео так и не дошло (юзер не открыл чат с ботом).
+
+        Без возврата человек терял бы подарок, ни разу его не увидев, — и упирался бы в
+        пэйволл, так и не поняв, за что платит. Сверка по `movie_id` обязательна: за время
+        неудачной отправки юзер мог успеть забрать подарок другим фильмом, и слепой сброс
+        стёр бы уже состоявшийся подарок.
+        """
+        stmt = (
+            update(UserModel)
+            .where(UserModel.telegram_id == telegram_id, UserModel.free_view_movie_id == movie_id)
+            .values(free_view_used_at=None, free_view_movie_id=None)
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()
 
     async def list_notifiable(self) -> list[int]:
         """telegram_id всех, кто согласен на рассылки о новинках (аудитория Фазы 12).
@@ -398,6 +476,78 @@ class PgUserRepository:
             .values(notifications_enabled=enabled)
         )
         await self._session.commit()
+
+
+class PgFavoriteRepository:
+    """Избранное + поддержание денормализованного `movies.favorites_count`.
+
+    Счётчик двигается ТОЛЬКО когда строка реально появилась/исчезла (сверяем `rowcount`):
+    повторное нажатие звезды — не «ещё +1», а no-op, иначе один человек накрутил бы
+    популярность фильма серией тапов.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, user_id: int, movie_id: int) -> bool:
+        """Добавить в избранное. True — добавили сейчас, False — уже было (идемпотентно)."""
+        stmt = (
+            pg_insert(FavoriteModel)
+            .values(user_id=user_id, movie_id=movie_id)
+            # Гонка двойного тапа разрешается самой БД: PK (user_id, movie_id) не даст
+            # вставить дубль, а do_nothing превращает это в тихий no-op вместо 500.
+            .on_conflict_do_nothing(index_elements=["user_id", "movie_id"])
+        )
+        added = await _rowcount(self._session, stmt) == 1
+        if added:
+            await self._session.execute(
+                update(MovieModel)
+                .where(MovieModel.id == movie_id)
+                .values(favorites_count=MovieModel.favorites_count + 1)
+            )
+        await self._session.commit()
+        return added
+
+    async def remove(self, user_id: int, movie_id: int) -> bool:
+        """Убрать из избранного. True — убрали сейчас, False — и не было."""
+        removed = await _rowcount(
+            self._session,
+            delete(FavoriteModel).where(
+                FavoriteModel.user_id == user_id, FavoriteModel.movie_id == movie_id
+            ),
+        ) == 1
+        if removed:
+            await self._session.execute(
+                update(MovieModel)
+                .where(MovieModel.id == movie_id)
+                # greatest(...,0) — страховка от ухода счётчика в минус, если строки
+                # избранного когда-нибудь удалят мимо этого метода (каскад, ручной SQL).
+                .values(favorites_count=func.greatest(MovieModel.favorites_count - 1, 0))
+            )
+        await self._session.commit()
+        return removed
+
+    async def list_for_user(self, user_id: int) -> list[Movie]:
+        """Избранное юзера, свежедобавленные сверху (порядок вкладки «Таңдаулы»)."""
+        stmt = (
+            select(MovieModel)
+            .join(FavoriteModel, FavoriteModel.movie_id == MovieModel.id)
+            .where(FavoriteModel.user_id == user_id)
+            .order_by(FavoriteModel.created_at.desc(), MovieModel.id.desc())
+        )
+        result = await self._session.scalars(stmt)
+        return [_movie_to_domain(model) for model in result]
+
+    async def list_ids(self, user_id: int) -> list[int]:
+        """Только id избранного — чтобы фронт закрасил звёзды в лентах и каталоге.
+
+        Отдельная лёгкая ручка вместо поля `is_favorite` в карточке фильма: ответы
+        каталога кэшируются в Redis ОДНИ НА ВСЕХ, и персональный флаг внутри них показал
+        бы одному юзеру избранное другого.
+        """
+        stmt = select(FavoriteModel.movie_id).where(FavoriteModel.user_id == user_id)
+        result = await self._session.scalars(stmt)
+        return list(result)
 
 
 class PgUserEventRepository:

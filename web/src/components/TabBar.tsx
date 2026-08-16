@@ -1,16 +1,19 @@
-// Нижняя навигация: ФИКСИРОВАННЫЙ таб-бар (Басты | Каталог), всегда виден при скролле.
-// Оверлеи (карточка/пэйволл/профиль) перекрывают его своим бэкдропом (z выше). Профиль —
-// отдельной иконкой в топбаре (это аккаунт, а не раздел-витрина).
+// Нижняя навигация: ФИКСИРОВАННЫЙ таб-бар (Басты | Каталог | Таңдаулы), всегда виден при
+// скролле. Оверлеи (карточка/пэйволл/профиль) перекрывают его своим бэкдропом (z выше).
+// Профиль — отдельной иконкой в топбаре (это аккаунт, а не раздел-витрина).
 
-import { Home, LayoutGrid, type LucideIcon } from "lucide-react";
+import { Home, LayoutGrid, Star, type LucideIcon } from "lucide-react";
 
 import { haptic } from "../lib/telegram";
 
-export type Tab = "home" | "catalog";
+export type Tab = "home" | "catalog" | "favorites";
 
 const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
   { id: "home", label: "Басты", Icon: Home },
   { id: "catalog", label: "Каталог", Icon: LayoutGrid },
+  // Избранное — равноправная вкладка, а не пункт профиля: это витрина, в которую
+  // возвращаются так же часто, как в каталог.
+  { id: "favorites", label: "Таңдаулы", Icon: Star },
 ];
 
 export default function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {

@@ -40,6 +40,8 @@ class AnalyticsService:
             opens_total=await self._events.count(EventKind.OPEN, since, until),
             opens_unique=await self._events.count_unique_users(EventKind.OPEN, since, until),
             plays=await self._events.count(EventKind.PLAY, since, until),
+            free_plays=await self._events.count(EventKind.FREE_PLAY, since, until),
+            paywalls=await self._events.count(EventKind.PAYWALL, since, until),
             subscribes=await self._events.count(EventKind.SUBSCRIBE, since, until),
             expires=await self._events.count(EventKind.EXPIRE, since, until),
         )

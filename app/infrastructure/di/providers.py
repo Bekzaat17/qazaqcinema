@@ -23,6 +23,7 @@ from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
 from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
+    FavoriteRepository,
     MovieRepository,
     PaymentRepository,
     UserEventRepository,
@@ -38,6 +39,7 @@ from app.application.services.analytics_service import AnalyticsService
 from app.application.services.auth_service import AuthService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
+from app.application.services.favorite_service import FavoriteService
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
@@ -57,6 +59,7 @@ from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
 from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
+    PgFavoriteRepository,
     PgMovieRepository,
     PgPaymentRepository,
     PgUserEventRepository,
@@ -175,6 +178,9 @@ class RequestProvider(Provider):
     movies = provide(PgMovieRepository, provides=MovieRepository)
     users = provide(PgUserRepository, provides=UserRepository)
     payments = provide(PgPaymentRepository, provides=PaymentRepository)
+    # Имя атрибута обязано быть уникальным в пределах класса: одноимённый провайдер ниже
+    # (FavoriteService) просто затёр бы этот, и репозиторий из контейнера пропал бы.
+    favorite_repo = provide(PgFavoriteRepository, provides=FavoriteRepository)
     deliveries = provide(PgVideoDeliveryRepository, provides=VideoDeliveryRepository)
 
     @provide
@@ -188,6 +194,7 @@ class RequestProvider(Provider):
 
     auth = provide(AuthService)
     catalog = provide(CatalogService)
+    favorites = provide(FavoriteService)  # избранное («Таңдаулы»), без гейта подписки
     ingestion = provide(MovieIngestionService)
     playback = provide(PlaybackService)
     retention = provide(VideoRetentionService)  # чистка видео: ежечасный джоб + истечение

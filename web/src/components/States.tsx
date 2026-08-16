@@ -1,6 +1,6 @@
 // Пустые/ошибочные состояния.
 
-import { Film, LayoutGrid, SearchX, Send, WifiOff } from "lucide-react";
+import { Film, LayoutGrid, SearchX, Send, Star, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { BOT_USERNAME, BOT_URL } from "../lib/telegram";
@@ -19,6 +19,17 @@ function Wrap({ icon, title, hint, children }: { icon: ReactNode; title: string;
 
 export function CatalogEmpty() {
   return <Wrap icon={<Film size={28} />} title="Каталог толтырылып жатыр" hint="Жақында жаңа фильмдер мен аниме қосылады." />;
+}
+
+/** Пустая вкладка «Таңдаулы»: объясняем, ГДЕ взять звезду, иначе экран выглядит поломкой. */
+export function FavoritesEmpty() {
+  return (
+    <Wrap
+      icon={<Star size={28} />}
+      title="Таңдаулы бос"
+      hint="Ұнаған фильмнің жұлдызшасын басыңыз — ол осында жиналады."
+    />
+  );
 }
 
 export function SearchEmpty({ query }: { query: string }) {

@@ -48,6 +48,8 @@ def test_render_report_contains_all_numbers() -> None:
         opens_total=41,
         opens_unique=27,
         plays=63,
+        free_plays=12,
+        paywalls=19,
         subscribes=3,
         expires=1,
     )
@@ -59,3 +61,6 @@ def test_render_report_contains_all_numbers() -> None:
     assert "34" in text
     assert "27 адам (41 рет)" in text
     assert "63" in text
+    # Воронка: подарочные просмотры и упоры в пэйволл — обе цифры должны быть на виду,
+    # иначе события пишутся в БД, но никто их не читает.
+    assert "12" in text and "19" in text

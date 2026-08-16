@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import TypeAdapter
 
 from app.api.deps.auth import get_current_user
@@ -189,14 +189,24 @@ async def get_movie(
 async def play_movie(
     movie_id: int,
     playback: FromDishka[PlaybackService],
+    use_free_view: bool = Query(
+        False,
+        description="Потратить подарочный первый фильм (юзер подтвердил в модалке)",
+    ),
     user: User = Depends(get_current_user),
 ) -> PlayOut:
-    """Отправить защищённое видео подписчику в личку с ботом (protect_content).
+    """Отправить защищённое видео в личку с ботом (protect_content).
 
     Видео уходит в Telegram-чат пользователя, НЕ через HTTP: API лишь триггерит отправку
     после initData-гейта. `telegram_file_id` наружу не отдаётся.
+
+    `use_free_view` — явное согласие потратить подарочный первый фильм. Флаг обязателен
+    именно потому, что подарок одноразовый: без него он сгорал бы от случайного перехода
+    (deep-link на фильм), и человек узнал бы о подарке, только потеряв его.
     """
-    outcome = await playback.deliver(user, movie_id, datetime.now(UTC))
+    outcome = await playback.deliver(
+        user, movie_id, datetime.now(UTC), use_free_view=use_free_view
+    )
     if outcome is PlaybackOutcome.NO_ACCESS:
         raise HTTPException(status_code=403, detail="no_access")
     if outcome is PlaybackOutcome.NOT_FOUND:
@@ -205,4 +215,4 @@ async def play_movie(
         # Подписчик не открыл чат с ботом → бот не может доставить видео. Не 500 —
         # понятный код, фронт просит открыть бота и повторить.
         raise HTTPException(status_code=409, detail="bot_unreachable")
-    return PlayOut(status="sent")
+    return PlayOut(status="sent", gift=outcome is PlaybackOutcome.GIFT_DELIVERED)

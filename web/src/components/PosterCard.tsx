@@ -3,6 +3,7 @@
 
 import type { Movie } from "../lib/api";
 import { haptic } from "../lib/telegram";
+import FavoriteButton from "./FavoriteButton";
 import RatingPill from "./RatingPill";
 
 interface PosterCardProps {
@@ -14,14 +15,15 @@ interface PosterCardProps {
 
 export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCardProps) {
   return (
+    // Звезда — СОСЕД кнопки-карточки, а не её содержимое: <button> внутри <button> —
+    // невалидная разметка, и тап по звезде заодно открывал бы карточку.
+    <div className={`relative ${inShelf ? "w-[132px] shrink-0 snap-start" : "w-full"}`}>
     <button
       onClick={() => {
         haptic.light();
         onSelect(movie);
       }}
-      className={`group flex flex-col text-left ${
-        inShelf ? "w-[132px] shrink-0 snap-start" : "w-full"
-      }`}
+      className="group flex w-full flex-col text-left"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-[var(--radius-card)] bg-surface-2 ring-1 ring-white/5 transition-transform duration-200 group-active:scale-[0.97]">
         <img
@@ -36,5 +38,7 @@ export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCa
       <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-tight text-text">{movie.title_kk}</p>
       {movie.year != null && <p className="mt-0.5 text-xs text-faint tabular">{movie.year}</p>}
     </button>
+      <FavoriteButton movieId={movie.id} />
+    </div>
   );
 }

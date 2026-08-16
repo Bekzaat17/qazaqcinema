@@ -23,7 +23,9 @@ class DailyReport:
     subs_active: int      # активных подписок прямо сейчас
     opens_total: int      # открытий Mini App за день
     opens_unique: int     # ...из них уникальных людей (главная метрика живой аудитории)
-    plays: int            # выданных видео за день
+    plays: int            # выданных видео за день (по подписке)
+    free_plays: int       # ...и отдельно подарочных первых фильмов
+    paywalls: int         # упоров в пэйволл: хотел смотреть, но платить пока не стал
     subscribes: int       # активаций/продлений подписки за день
     expires: int          # истёкших подписок за день
 
@@ -50,6 +52,10 @@ def render_report(report: DailyReport) -> str:
         "———\n"
         f"📱 Кинотеатрды ашты: {report.opens_unique} адам ({report.opens_total} рет)\n"
         f"▶️ Жіберілген видео: {report.plays}\n"
+        # Воронка «сначала ценность, потом оплата» — две цифры рядом читаются как
+        # соотношение: сколько людей попробовали продукт и сколько упёрлись в оплату.
+        f"🎁 Сыйлық фильм: {report.free_plays}\n"
+        f"🔒 Пэйволл көрді: {report.paywalls}\n"
         f"💳 Жазылым қосылды: {report.subscribes}\n"
         f"⌛️ Мерзімі бітті: {report.expires}"
     )

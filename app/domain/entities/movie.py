@@ -19,6 +19,7 @@ class Movie:
     rating: float | None = None
     is_featured: bool = False          # показывать на hero главной (курируется админом в /add)
     hero_image_url: str | None = None  # горизонтальный баннер 3:2 для hero (None → фолбэк постер)
-    play_count: int = 0                # число просмотров (Фаза 13); сортировка «Танымал»
+    play_count: int = 0                # число просмотров (Фаза 13); входит в «Танымал»
+    favorites_count: int = 0           # сколько раз добавлен в избранное; тоже в «Танымал»
     created_at: datetime | None = None  # проставляет БД (server_default); None до вставки
     id: int | None = None  # None до вставки в БД

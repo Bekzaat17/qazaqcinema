@@ -60,12 +60,48 @@ class UserRepository(Protocol):
     async def list_notifiable(self) -> list[int]: ...
     async def set_notifications(self, telegram_id: int, enabled: bool) -> None: ...
 
+    async def claim_free_view(self, telegram_id: int, movie_id: int, now: datetime) -> bool:
+        """Забрать право на подарочный первый фильм; True — забрали именно мы.
+
+        Обязана быть АТОМАРНОЙ (условный UPDATE, а не SELECT+UPDATE): два параллельных
+        тапа по «Көру» иначе прошли бы проверку одновременно и раздали два подарка.
+        """
+        ...
+
+    async def release_free_view(self, telegram_id: int, movie_id: int) -> None:
+        """Вернуть право, если подаренное видео не доставлено (юзер не открыл чат с ботом).
+
+        Сверять `movie_id`: за время неудачной отправки подарок мог уйти другим фильмом.
+        """
+        ...
+
     # ── Счётчики для ежедневного отчёта (агрегаты считает БД, строки наружу не тащим) ──
     # `exclude` — кого не учитывать (админы: они пользуются кинотеатром служебно, и в
     # отчёте их присутствие завышало бы аудиторию; см. `AdminBlindEventRepository`).
     async def count_all(self, exclude: Collection[int] = ()) -> int: ...
     async def count_created_since(self, since: datetime, exclude: Collection[int] = ()) -> int: ...
     async def count_active(self, now: datetime, exclude: Collection[int] = ()) -> int: ...
+
+
+class FavoriteRepository(Protocol):
+    """Избранное («Таңдаулы») — личный список, к правам доступа отношения не имеет.
+
+    `add`/`remove` идемпотентны и возвращают, изменилось ли состояние: по этому же
+    признаку двигается денормализованный `movies.favorites_count`, который участвует в
+    сортировке «Танымал» (`domain/catalog/popularity.py`).
+    """
+
+    async def add(self, user_id: int, movie_id: int) -> bool: ...
+    async def remove(self, user_id: int, movie_id: int) -> bool: ...
+    async def list_for_user(self, user_id: int) -> list[Movie]: ...
+
+    async def list_ids(self, user_id: int) -> list[int]:
+        """Только id — фронт красит ими звёзды в лентах и каталоге.
+
+        Отдельно от карточек фильма намеренно: ответы каталога кэшируются в Redis одни на
+        всех, персональный флаг внутри них утёк бы между пользователями.
+        """
+        ...
 
 
 class UserEventRepository(Protocol):

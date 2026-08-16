@@ -13,7 +13,7 @@ export const LAST_PAGE_TTL_MS = 60 * 60 * 1000; // 60 минут
 
 const KEY = "qc_last_page";
 
-export type LastTab = "home" | "catalog";
+export type LastTab = "home" | "catalog" | "favorites";
 
 export interface LastPage {
   tab: LastTab;
@@ -45,7 +45,10 @@ export function loadLastPage(): LastPage | null {
   try {
     const stored = JSON.parse(raw) as Partial<StoredPage>;
     if (typeof stored.ts !== "number" || Date.now() - stored.ts > LAST_PAGE_TTL_MS) return null;
-    const tab: LastTab = stored.tab === "catalog" ? "catalog" : "home";
+    // Белый список, а не приведение типа: в ключе может лежать что угодно (старый формат,
+    // чужая запись), и «home» — безопасный фолбэк для любого неизвестного значения.
+    const known: LastTab[] = ["home", "catalog", "favorites"];
+    const tab: LastTab = known.find((t) => t === stored.tab) ?? "home";
     const movieId = typeof stored.movieId === "number" ? stored.movieId : null;
     return { tab, movieId };
   } catch {

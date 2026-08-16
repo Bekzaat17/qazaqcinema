@@ -14,7 +14,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 
-from app.api.routers import auth, catalog, health, me, payments, public_seo, support
+from app.api.routers import (
+    auth,
+    catalog,
+    favorites,
+    health,
+    me,
+    payments,
+    public_seo,
+    support,
+)
 from app.config.settings import load_config
 from app.infrastructure.di.providers import build_container
 
@@ -52,6 +61,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(catalog.router)
     app.include_router(payments.router)
     app.include_router(me.router)
+    app.include_router(favorites.router)
     app.include_router(support.router)
     app.include_router(health.router)
     # Публичные SSR-страницы для SEO (/m/<slug>, /catalog, /sitemap.xml, /robots.txt).
