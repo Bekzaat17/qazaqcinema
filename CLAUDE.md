@@ -227,7 +227,7 @@ DNS, заполнить `PUBLIC_ORIGIN`=https://домен — Caddy сам вы
   закрыт). Hot-reload — не в контейнере (dev==prod), а host-venv поверх Docker-инфры (README).
 - **Единый `PUBLIC_ORIGIN` — ОДИН источник правды для домена** (решение 2026-07-11, замена россыпи
   `BOT_WEBAPP_URL`/`BOT_WEBHOOK_URL`/`API_CORS_ORIGINS`/`WEB_SERVER_NAME`): в env домен пишется РАЗ,
-  со схемой (`https://qazaqcinema.rehubpro.kz` прод / `http://localhost` локально). Из него
+  со схемой (`https://qazaqcinema.kz` прод / `http://localhost` локально). Из него
   `AppConfig._derive_from_public_origin` (валидатор pydantic, `settings.py`) выводит: `api.cors_origins`
   (= [origin]), `bot.webapp_url` (= origin+"/"), `bot.webhook_url` (= origin при https, иначе "").
   Схема — флаг среды: **https ⟹ TLS + webhook**, http ⟹ без TLS + polling (Telegram и так требует HTTPS

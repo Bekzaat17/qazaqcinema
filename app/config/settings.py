@@ -125,7 +125,7 @@ class AppConfig(BaseSettings):
     # Из PUBLIC_ORIGIN выводятся ВСЕ домен-зависимые значения: CORS, URL Mini App,
     # режим бота (webhook/polling). Та же переменная уходит в Caddy как site address
     # (docker-compose) → и авто-TLS оттуда же. Схема ОБЯЗАТЕЛЬНА и служит флагом среды:
-    #   прод:     https://qazaqcinema.rehubpro.kz   (https ⟹ TLS + webhook)
+    #   прод:     https://qazaqcinema.kz   (https ⟹ TLS + webhook)
     #   локально: http://localhost                  (http  ⟹ без TLS + polling)
     public_origin: str = "http://localhost"
 

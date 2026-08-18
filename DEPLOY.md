@@ -16,7 +16,7 @@
   Рекомендация: **2 ГБ RAM, 1–2 vCPU, ~40 ГБ SSD** (+ желательно 2 ГБ swap на время сборки образов).
   Весь стек в простое ест ~900 МБ; видео раздаёт Telegram (не VPS) → сервер остаётся лёгким.
   1 ГБ RAM технически заведётся, но три Python-процесса + Postgres впритык и сборка может уйти в OOM.
-- **Домен** (или поддомен), например `qazaqcinema.rehubpro.kz`.
+- **Домен** (или поддомен), например `qazaqcinema.kz`.
 - Порты **80 и 443** открыты наружу (Caddy берёт по ним ACME-челлендж). ⚠️ Свежий Ubuntu-VPS
   часто идёт с активным ufw, где разрешён ТОЛЬКО OpenSSH — тогда Let's Encrypt не достучится
   и сертификат не выпустится. Открой ДО первого `./start.sh prod` (неудачные попытки бьются
@@ -30,9 +30,9 @@
 ## 1. DNS
 Заведи **A-запись** (под)домена на IP VPS:
 ```
-qazaqcinema.rehubpro.kz.  A  <IP_VPS>
+qazaqcinema.kz.  A  <IP_VPS>
 ```
-Проверь: `dig +short qazaqcinema.rehubpro.kz` → должен вернуть IP VPS. Это условие авто-выпуска
+Проверь: `dig +short qazaqcinema.kz` → должен вернуть IP VPS. Это условие авто-выпуска
 сертификата — без корректного DNS Caddy не получит TLS.
 
 ## 2. Код и секреты
@@ -41,7 +41,7 @@ git clone <repo> qazaqcinema && cd qazaqcinema
 cp .env.prod.example .env.prod
 ```
 Заполни `.env.prod` РЕАЛЬНЫМИ значениями (файл в git не коммитится — секреты):
-- **`PUBLIC_ORIGIN=https://qazaqcinema.rehubpro.kz`** — ЕДИНЫЙ адрес. Из него выводятся авто-TLS,
+- **`PUBLIC_ORIGIN=https://qazaqcinema.kz`** — ЕДИНЫЙ адрес. Из него выводятся авто-TLS,
   CORS, URL Mini App и режим бота (webhook). Схема `https://` обязательна — это и есть флаг прода.
 - **`ACME_EMAIL=you@example.com`** — твой e-mail для Let's Encrypt (контакт/уведомления).
 - `BOT_TOKEN` — прод-токен от @BotFather.
@@ -62,15 +62,15 @@ Caddy на старте увидит `https://`-домен, сходит в Let'
 
 Проверь:
 ```bash
-curl https://qazaqcinema.rehubpro.kz/api/health   # {"status":"ok",...}
-curl -I http://qazaqcinema.rehubpro.kz            # 308 redirect → https
+curl https://qazaqcinema.kz/api/health   # {"status":"ok",...}
+curl -I http://qazaqcinema.kz            # 308 redirect → https
 ```
 Если сертификат не выпустился — смотри логи Caddy: `./start.sh logs web` (частые причины —
 DNS ещё не распространился или закрыт порт 80/443; см. Траблшутинг).
 
 ## 4. Вебхук
 Схема `https://` в `PUBLIC_ORIGIN` включает webhook-режим: бот-контейнер сам вызывает `set_webhook`
-на старте (`app/main.py`), Caddy проксирует `https://qazaqcinema.rehubpro.kz/tg/webhook` → `bot:8080`.
+на старте (`app/main.py`), Caddy проксирует `https://qazaqcinema.kz/tg/webhook` → `bot:8080`.
 Проверь регистрацию:
 ```bash
 curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"
@@ -190,7 +190,7 @@ git pull
 ./start.sh logs bot           # логи бота (webhook/ошибки)
 ./start.sh logs web           # логи Caddy (выпуск сертификата, TLS, проксирование)
 ./start.sh down               # остановить (тома с БД/постерами/сертификатами сохраняются)
-curl https://qazaqcinema.rehubpro.kz/api/health   # redis+db+status
+curl https://qazaqcinema.kz/api/health   # redis+db+status
 ```
 
 ## Траблшутинг

@@ -30,7 +30,7 @@
 
 ## Деплой — сделан (2026-07-15)
 
-Прод живёт на `https://qazaqcinema.rehubpro.kz`: авто-TLS (Caddy/Let's Encrypt), webhook,
+Прод живёт на `https://qazaqcinema.kz`: авто-TLS (Caddy/Let's Encrypt), webhook,
 крон бэкапов (03:30, хранение 14 дней), logrotate для `backup.log`. Авто-восстановление
 проверено вживую: краш процесса → контейнер сам за ~2 c; рестарт демона Docker → все 6
 сервисов сами (политика `unless-stopped` + `docker`/`containerd` enabled в systemd).
@@ -44,7 +44,7 @@
 вечно), **узнаем об этом от пользователей**. Что нужно:
 
 - **Крон на ХОСТЕ** (не в контейнере — он должен пережить падение всего стека), раз в 5 мин:
-  `curl -fsS https://qazaqcinema.rehubpro.kz/api/health` → проверить `status == ok`
+  `curl -fsS https://qazaqcinema.kz/api/health` → проверить `status == ok`
   (эндпоинт уже есть, пингует Redis+БД).
 - **Алерт слать напрямую в `api.telegram.org`** (curl + `BOT_TOKEN` из `.env.prod`), а НЕ через
   свой бот: он и есть та штука, которая могла лечь. Telegram API внешний — достучимся всегда.

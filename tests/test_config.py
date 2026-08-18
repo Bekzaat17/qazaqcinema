@@ -18,14 +18,14 @@ def test_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_public_origin_drives_cors_webapp_and_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
     """Единый PUBLIC_ORIGIN (https) → CORS, URL Mini App и webhook берутся из него."""
-    monkeypatch.setenv("PUBLIC_ORIGIN", "https://qazaqcinema.rehubpro.kz")
+    monkeypatch.setenv("PUBLIC_ORIGIN", "https://qazaqcinema.kz")
 
     config = load_config()
 
-    assert config.api.cors_origins == ["https://qazaqcinema.rehubpro.kz"]
-    assert config.bot.webapp_url == "https://qazaqcinema.rehubpro.kz/"
-    assert config.bot.webhook_url == "https://qazaqcinema.rehubpro.kz"
-    assert config.bot.webhook_full_url == "https://qazaqcinema.rehubpro.kz/tg/webhook"
+    assert config.api.cors_origins == ["https://qazaqcinema.kz"]
+    assert config.bot.webapp_url == "https://qazaqcinema.kz/"
+    assert config.bot.webhook_url == "https://qazaqcinema.kz"
+    assert config.bot.webhook_full_url == "https://qazaqcinema.kz/tg/webhook"
 
 
 def test_public_origin_trailing_slash_is_normalized(monkeypatch: pytest.MonkeyPatch) -> None:

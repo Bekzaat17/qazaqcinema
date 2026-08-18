@@ -32,7 +32,7 @@ def _movie(**kw: object) -> Movie:
 
 
 def _seo() -> SeoBuilder:
-    return SeoBuilder("https://qazaqcinema.rehubpro.kz/", "qazaqcinema_bot")
+    return SeoBuilder("https://qazaqcinema.kz/", "qazaqcinema_bot")
 
 
 # ── транслитерация / slug ─────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ def test_movie_seo_path_and_canonical() -> None:
     meta = _seo().movie_seo(_movie())
     assert meta.slug == "7-shrek"
     assert meta.path == "/m/7-shrek"
-    assert meta.canonical_url == "https://qazaqcinema.rehubpro.kz/m/7-shrek"
+    assert meta.canonical_url == "https://qazaqcinema.kz/m/7-shrek"
 
 
 def test_heading_pairs_name_with_kazaksha() -> None:
@@ -76,12 +76,12 @@ def test_telegram_deeplink_uses_startapp() -> None:
 
 def test_og_image_prefers_hero_and_is_absolute() -> None:
     meta = _seo().movie_seo(_movie(hero_image_url="/posters/hero.jpg"))
-    assert meta.og_image == "https://qazaqcinema.rehubpro.kz/posters/hero.jpg"
+    assert meta.og_image == "https://qazaqcinema.kz/posters/hero.jpg"
 
 
 def test_og_image_falls_back_to_poster() -> None:
     meta = _seo().movie_seo(_movie(hero_image_url=None))
-    assert meta.og_image == "https://qazaqcinema.rehubpro.kz/posters/abc.jpg"
+    assert meta.og_image == "https://qazaqcinema.kz/posters/abc.jpg"
 
 
 def test_description_within_limit_and_multilingual() -> None:
@@ -186,7 +186,7 @@ def test_category_seo_targets_broad_query_in_both_languages() -> None:
     meta = _seo().category_seo(get_category("kids"), count=12)  # type: ignore[arg-type]
 
     assert meta.path == "/catalog/kids"
-    assert meta.canonical_url == "https://qazaqcinema.rehubpro.kz/catalog/kids"
+    assert meta.canonical_url == "https://qazaqcinema.kz/catalog/kids"
     assert meta.heading == "Балаларға арналған мультфильмдер"
     assert meta.heading_ru == "Мультики для детей на казахском языке"
     assert "мультики для детей" in meta.description.lower()
@@ -233,7 +233,7 @@ def test_crumbs_jsonld_is_valid_breadcrumblist() -> None:
     assert data["@type"] == "BreadcrumbList"
     items = data["itemListElement"]
     assert [i["position"] for i in items] == [1, 2, 3]
-    assert items[1]["item"] == "https://qazaqcinema.rehubpro.kz/catalog/disney"
+    assert items[1]["item"] == "https://qazaqcinema.kz/catalog/disney"
     # У последнего звена (текущая страница) ссылки нет — так требует schema.org.
     assert "item" not in items[-1]
 

@@ -171,6 +171,8 @@ services:
     environment:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost}
       ACME_EMAIL: ${ACME_EMAIL:-test@testmail.com}
+      # Старые адреса, с которых Caddy отдаёт 301 на PUBLIC_ORIGIN (см. web/Caddyfile).
+      LEGACY_ORIGINS: ${LEGACY_ORIGINS:-http://legacy.invalid}
     depends_on:
       - api
     ports:
