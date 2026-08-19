@@ -11,8 +11,9 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.application.ports.repositories import MovieRepository, SortDir, SortField
+from app.application.services.daily_service import DailyMovieService
 from app.domain.catalog.categories import CATEGORIES
-from app.domain.catalog.hero import pick_hero
+from app.domain.catalog.daily import free_until
 from app.domain.entities.movie import Movie
 
 # Сколько фильмов на полке главной (последние N; полка «Танымал» — топ N по просмотрам).
@@ -32,9 +33,15 @@ class HomeShelf:
 
 @dataclass(frozen=True, slots=True)
 class Home:
-    """Содержимое главного экрана: hero + полки (собрано и ограничено на бэке)."""
+    """Содержимое главного экрана: фильм дня (hero) + полки (собрано и ограничено на бэке).
+
+    `free_until` — до какого момента hero бесплатен (ближайшая местная полночь). Момент
+    считает бэк, а не фронт: правило суток живёт в `domain/catalog/daily`, и обратный
+    отсчёт на экране обязан сходиться с тем, что реально пустит `PlaybackService`.
+    """
 
     hero: Movie | None
+    free_until: datetime | None
     shelves: list[HomeShelf]
 
 
@@ -54,11 +61,12 @@ class BrowsePage:
 
 
 class CatalogService:
-    def __init__(self, movies: MovieRepository) -> None:
+    def __init__(self, movies: MovieRepository, daily: DailyMovieService) -> None:
         self._movies = movies
+        self._daily = daily
 
     async def home(self, now: datetime) -> Home:
-        """Главная: hero + «Жаңа түскен» (последние N) + «Танымал» (топ N по просмотрам).
+        """Главная: фильм дня + «Жаңа түскен» (последние N) + «Танымал» (топ N по просмотрам).
 
         Hero исключаем из «Жаңа түскен» (он уже крупно наверху) — берём N+1 и отбрасываем.
         Пустые полки не добавляем (мелкий каталог не рисует пустые ряды).
@@ -74,7 +82,11 @@ class CatalogService:
             shelves.append(HomeShelf(key="fresh", movies=fresh))
         if popular:
             shelves.append(HomeShelf(key="popular", movies=popular))
-        return Home(hero=hero, shelves=shelves)
+        return Home(
+            hero=hero,
+            free_until=None if hero is None else free_until(now),
+            shelves=shelves,
+        )
 
     async def browse(
         self,
@@ -122,12 +134,11 @@ class CatalogService:
         return await self._movies.list_all()
 
     async def get_hero(self, now: datetime) -> Movie | None:
-        """Фильм для hero главной: свежий закреплённый, дальше — ежедневная ротация.
+        """Hero главной = фильм дня (решение 2026-08-19).
 
-        Репозиторий даёт кандидата на закрепление (свежайший featured) и пул баннеров;
-        КОГО показать сегодня решает чистая функция `domain/catalog/hero.pick_hero`
-        (правило — доменное, а не SQL: его надо уметь проверить тестом без БД).
+        Курирования тут больше нет: раньше наверху висел свежайший `is_featured`, и это
+        была просто красивая карточка, которая упиралась в пэйволл. Теперь первый экран
+        показывает то, что сегодня можно посмотреть бесплатно, — и потому источник
+        правды один на витрину и на выдачу (`DailyMovieService`).
         """
-        pinned = await self._movies.get_hero()
-        rotation = await self._movies.list_hero_banners()
-        return pick_hero(pinned, rotation, now)
+        return await self._daily.today(now)

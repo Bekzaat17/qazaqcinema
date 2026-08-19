@@ -20,6 +20,8 @@ interface MovieSheetProps {
   freeViewAvailable: boolean;
   /** Этот фильм уже подарен → он открыт навсегда, даже без подписки. */
   gifted: boolean;
+  /** Это сегодняшний бесплатный фильм дня (hero главной) — замка и пэйволла тут нет. */
+  freeToday: boolean;
   onWatch: (movie: Movie) => void;
   onClose: () => void;
 }
@@ -31,6 +33,7 @@ export default function MovieSheet({
   busy,
   freeViewAvailable,
   gifted,
+  freeToday,
   onWatch,
   onClose,
 }: MovieSheetProps) {
@@ -38,7 +41,7 @@ export default function MovieSheet({
   const pending = status === "pending_review";
   // Замок — только там, где смотреть действительно нельзя. У человека с целым подарком
   // или на уже подаренном фильме замок был бы враньём и гасил бы весь смысл воронки.
-  const unlocked = hasAccess || gifted || freeViewAvailable;
+  const unlocked = hasAccess || freeToday || gifted || freeViewAvailable;
 
   return (
     <Sheet open onClose={onClose} labelledBy="movie-title">
@@ -75,7 +78,16 @@ export default function MovieSheet({
           <p className="mt-4 text-[15px] leading-relaxed text-muted">{movie.description}</p>
         )}
 
-        {gifted && (
+        {freeToday && (
+          // Человек открыл карточку фильма дня из полки/поиска, а не с hero: без этой
+          // строки он не догадался бы, что именно это кино сегодня ничего не стоит.
+          <p className="mt-4 flex items-center gap-2 rounded-2xl border border-brand/30 bg-brand/10 px-3.5 py-2.5 text-[13px] font-medium text-brand">
+            <Gift size={15} className="shrink-0" />
+            Бүгінгі тегін фильм — түн ортасына дейін
+          </p>
+        )}
+
+        {!freeToday && gifted && (
           // Человек вернулся к своему подаренному фильму (видео из чата мы сносим через
           // ~40 ч). Без этой строки повторная бесплатная выдача выглядела бы сбоем.
           <p className="mt-4 flex items-center gap-2 rounded-2xl border border-brand/30 bg-brand/10 px-3.5 py-2.5 text-[13px] font-medium text-brand">
@@ -93,7 +105,7 @@ export default function MovieSheet({
             <div className="flex items-stretch gap-2.5">
               <Button loading={busy} onClick={() => onWatch(movie)}>
                 {unlocked ? <Play size={18} className="fill-white" /> : <Lock size={17} />}
-                Көру
+                {freeToday ? "Тегін көру" : "Көру"}
               </Button>
               <FavoriteButton movieId={movie.id} variant="inline" />
             </div>

@@ -1,9 +1,14 @@
 """Бот-визард `/add` — пошаговое добавление фильма (только для админов).
 
-Поток (FSM): видео → постер → на главную?(+баннер) → категория → title_kk → title_ru →
-title_original → год → рейтинг → описание → подтверждение. По подтверждению видео уходит
-копией в канал-архив (`protect_content`); постер (и горизонтальный hero-баннер, если фильм
-на главной) скачиваются, нормализуются и сохраняются `MovieIngestionService`.
+Поток (FSM): видео → постер → hero-баннер → категория → title_kk → title_ru →
+title_original → год → рейтинг → описание → рассылка? → подтверждение. По подтверждению видео уходит
+копией в канал-архив (`protect_content`); постер и горизонтальный hero-баннер скачиваются,
+нормализуются и сохраняются `MovieIngestionService`.
+
+Вопроса «показывать на главной?» больше нет (решение 2026-08-19): hero — это фильм дня,
+и туда по очереди попадает ВЕСЬ каталог, поэтому выбирать нечего. Баннер спрашиваем у
+каждого фильма как обычный шаг: с ним hero выглядит кинематографично, без него фронт
+строит фон из размытого постера — поэтому шаг пропускаемый (/skip), а не обязательный.
 
 Навигация — данные, а не разветвлённые хендлеры: порядок шагов задан `_ORDER`, у каждого шага
 свой текст (`_PROMPTS`), поэтому «⬅️ Артқа» (шаг назад), «➡️ Әрі қарай» (оставить как есть) и
@@ -38,12 +43,12 @@ from app.bot.keyboards.add_movie import (
     EDIT,
     EDIT_BACK,
     EDIT_PREFIX,
-    FEATURED_PREFIX,
     NEXT,
+    NOTIFY_PREFIX,
     category_keyboard,
     confirm_keyboard,
     edit_keyboard,
-    featured_keyboard,
+    notify_keyboard,
     step_keyboard,
 )
 from app.bot.security import is_admin
@@ -58,7 +63,6 @@ _SKIP = "/skip"
 class AddMovie(StatesGroup):
     video = State()
     poster = State()
-    featured = State()
     hero = State()
     category = State()
     title_kk = State()
@@ -67,16 +71,17 @@ class AddMovie(StatesGroup):
     year = State()
     rating = State()
     description = State()
+    notify = State()
     confirm = State()
 
 
 # --- шаги как данные --------------------------------------------------------
 
-# Порядок шагов. Отсюда считаются «назад»/«вперёд»: hero пропускается, если фильм не на главной.
+# Порядок шагов. Отсюда считаются «назад»/«вперёд» — условных шагов больше нет, все
+# показываются всем (ветка «hero только у featured» ушла вместе с курированием главной).
 _ORDER: tuple[State, ...] = (
     AddMovie.video,
     AddMovie.poster,
-    AddMovie.featured,
     AddMovie.hero,
     AddMovie.category,
     AddMovie.title_kk,
@@ -85,26 +90,32 @@ _ORDER: tuple[State, ...] = (
     AddMovie.year,
     AddMovie.rating,
     AddMovie.description,
+    AddMovie.notify,
     AddMovie.confirm,
 )
 
 _PROMPTS: dict[str | None, str] = {
-    AddMovie.video.state: "🎬 1/10 — видеоны жібер (видео, не файл). /cancel — болдырмау.",
-    AddMovie.poster.state: "2/10 — постерді сурет (фото) ретінде жібер.",
-    AddMovie.featured.state: "3/10 — басты бетте (hero) көрсету керек пе?",
+    AddMovie.video.state: "🎬 1/11 — видеоны жібер (видео, не файл). /cancel — болдырмау.",
+    AddMovie.poster.state: "2/11 — постерді сурет (фото) ретінде жібер.",
     AddMovie.hero.state: (
-        "⭐ Hero-баннер: басты бетте кең көрсетіледі. Кең (горизонталь) НЕ шаршы сурет "
-        "жібер — 3:2-ге қиылады, әдемі болу үшін (портрет постер емес)."
+        "3/11 — hero-баннер: басты бетте кең көрсетіледі. Кең (горизонталь) НЕ шаршы "
+        "сурет жібер — 3:2-ге қиылады (портрет постер емес).\n\n"
+        "Баннер жоқ па? /skip — басты бетте постердің өзі әдемі бұлыңғыр фон болады."
     ),
     AddMovie.category.state: (
-        "4/10 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:"
+        "4/11 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:"
     ),
-    AddMovie.title_kk.state: "5/10 — қазақша атауы (название на казахском):",
-    AddMovie.title_ru.state: "6/10 — название на русском (или /skip):",
-    AddMovie.title_original.state: "7/10 — оригинальное название / English (или /skip):",
-    AddMovie.year.state: "8/10 — год выпуска (напр. 1994) или /skip:",
-    AddMovie.rating.state: "9/10 — рейтинг 0–10 (напр. 8.5) или /skip:",
-    AddMovie.description.state: "10/10 — описание (сипаттама):",
+    AddMovie.title_kk.state: "5/11 — қазақша атауы (название на казахском):",
+    AddMovie.title_ru.state: "6/11 — название на русском (или /skip):",
+    AddMovie.title_original.state: "7/11 — оригинальное название / English (или /skip):",
+    AddMovie.year.state: "8/11 — год выпуска (напр. 1994) или /skip:",
+    AddMovie.rating.state: "9/11 — рейтинг 0–10 (напр. 8.5) или /skip:",
+    AddMovie.description.state: "10/11 — описание (сипаттама):",
+    AddMovie.notify.state: (
+        "11/11 — жазылушыларға жаңа фильм туралы хабарлама жіберу керек пе?\n\n"
+        "Хабарлама тек хабарландыруды ҚОСҚАНДАРҒА барады. Каталогты топтап толтырып "
+        "жатсаң — «🔕 Жоқ» (әйтпесе бір күнде ондаған хабарлама кетеді)."
+    ),
 }
 
 _INDEX: dict[str | None, int] = {step.state: i for i, step in enumerate(_ORDER)}
@@ -117,30 +128,31 @@ def _name(step: State) -> str:
     return (step.state or "").split(":")[-1]
 
 
-def _seek(index: int, data: dict[str, Any], direction: int) -> State | None:
-    """Ближайший видимый шаг от `index` в сторону `direction` (hero — только у featured)."""
-    while 0 <= index < len(_ORDER):
-        step = _ORDER[index]
-        if step is not AddMovie.hero or data.get("is_featured"):
-            return step
-        index += direction
-    return None
+def _step_at(index: int) -> State | None:
+    """Шаг по индексу или None за краями списка (первый «назад», последний «вперёд»)."""
+    return _ORDER[index] if 0 <= index < len(_ORDER) else None
 
 
 def _next(step: State, data: dict[str, Any]) -> State | None:
-    return _seek(_INDEX[step.state] + 1, data, 1)
+    return _step_at(_INDEX[step.state] + 1)
 
 
 def _previous(step: State, data: dict[str, Any]) -> State | None:
-    return _seek(_INDEX[step.state] - 1, data, -1)
+    return _step_at(_INDEX[step.state] - 1)
 
 
 def _value(step: State, data: dict[str, Any]) -> str | None:
     """Что уже введено на шаге — показываем при возврате, чтобы было видно, что правим."""
-    if step in (AddMovie.video, AddMovie.poster, AddMovie.hero):
+    if step in (AddMovie.video, AddMovie.poster):
         return "тіркелген ✅" if data.get(f"{_name(step)}_file_id") else None
-    if step is AddMovie.featured:
-        return None if "is_featured" not in data else ("Иә" if data["is_featured"] else "Жоқ")
+    if step is AddMovie.hero:
+        # Отличаем «ещё не спрашивали» от «сознательно пропустил»: у первого кнопки
+        # «Әрі қарай» быть не должно, у второго — должна.
+        if data.get("hero_file_id"):
+            return "тіркелген ✅"
+        return "— (өткізілген)" if "hero_file_id" in data else None
+    if step is AddMovie.notify:
+        return None if "notify" not in data else ("Иә" if data["notify"] else "Жоқ")
     if step is AddMovie.category:
         return _category_titles(data) if data.get("categories") else None
     key = _name(step)
@@ -168,8 +180,8 @@ def _screen(step: State, data: dict[str, Any]) -> tuple[str, InlineKeyboardMarku
         text += f"\n\nҚазір: {current}"
         if forward:
             text += "\n«➡️ Әрі қарай» — өзгеріссіз қалдыру."
-    if step is AddMovie.featured:
-        return text, featured_keyboard(back=back, forward=forward)
+    if step is AddMovie.notify:
+        return text, notify_keyboard(back=back, forward=forward)
     if step is AddMovie.category:
         return text, category_keyboard(set(data.get("categories") or []), back=back)
     return text, step_keyboard(back=back, forward=forward)
@@ -208,10 +220,6 @@ async def _advance(target: Message | CallbackQuery, state: FSMContext) -> None:
         return
     data = await state.get_data()
     if data.get("edit"):
-        # Правка «Жоқ → Иә» требует баннера: сначала добираем его, потом уже сводка.
-        if step is AddMovie.featured and data.get("is_featured") and not data.get("hero_file_id"):
-            await _show(target, state, AddMovie.hero)
-            return
         await state.update_data(edit=False)
         await _show(target, state, AddMovie.confirm)
         return
@@ -306,14 +314,11 @@ async def step_poster_retry(message: Message) -> None:
     await message.answer("Постер күтілуде — фото жібер немесе /cancel.")
 
 
-@router.callback_query(AddMovie.featured, F.data.startswith(FEATURED_PREFIX))
-async def step_featured(callback: CallbackQuery, state: FSMContext) -> None:
+@router.callback_query(AddMovie.notify, F.data.startswith(NOTIFY_PREFIX))
+async def step_notify(callback: CallbackQuery, state: FSMContext) -> None:
     if callback.data is None:
         return
-    featured = callback.data.removeprefix(FEATURED_PREFIX) == "1"
-    await state.update_data(is_featured=featured)
-    if not featured:
-        await state.update_data(hero_file_id=None)
+    await state.update_data(notify=callback.data.removeprefix(NOTIFY_PREFIX) == "1")
     await callback.answer()
     await _advance(callback, state)
 
@@ -326,9 +331,19 @@ async def step_hero(message: Message, state: FSMContext) -> None:
     await _advance(message, state)
 
 
+@router.message(AddMovie.hero, F.text)
+async def step_hero_skip(message: Message, state: FSMContext) -> None:
+    """Баннера нет — /skip. Фон hero фронт соберёт из постера (размытый + увеличенный)."""
+    if (message.text or "").strip() != _SKIP:
+        await message.answer("Кең сурет жібер немесе /skip (постерден фон жасаймыз).")
+        return
+    await state.update_data(hero_file_id=None)
+    await _advance(message, state)
+
+
 @router.message(AddMovie.hero)
 async def step_hero_retry(message: Message) -> None:
-    await message.answer("Hero-сурет күтілуде — кең не шаршы фото жібер немесе /cancel.")
+    await message.answer("Hero-сурет күтілуде — кең фото жібер, /skip немесе /cancel.")
 
 
 # DONE зарегистрирован ПЕРЕД тумблером: его callback_data тоже начинается с
@@ -441,13 +456,10 @@ async def edit_menu_close(callback: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(AddMovie.confirm, F.data == EDIT)
 async def edit_menu_open(callback: CallbackQuery, state: FSMContext) -> None:
     """Меню правки прямо на сводке — чтобы не идти «назад» через все шаги ради одного поля."""
-    data = await state.get_data()
     await callback.answer()
     if isinstance(callback.message, Message):
         with suppress(TelegramBadRequest):
-            await callback.message.edit_reply_markup(
-                reply_markup=edit_keyboard(is_featured=bool(data.get("is_featured")))
-            )
+            await callback.message.edit_reply_markup(reply_markup=edit_keyboard())
 
 
 @router.callback_query(AddMovie.confirm, F.data.startswith(EDIT_PREFIX))
@@ -492,7 +504,7 @@ async def confirm_add(
             description=str(data["description"]),
             year=data.get("year"),
             rating=data.get("rating"),
-            is_featured=bool(data.get("is_featured")),
+            notify=bool(data.get("notify")),
             video_file_id=archive_file_id,
             poster_bytes=poster_bytes,
             hero_bytes=hero_bytes,
@@ -537,8 +549,7 @@ def _category_titles(data: dict[str, Any]) -> str:
 
 
 def _summary(data: dict[str, Any]) -> str:
-    # Для featured показываем, что баннер уже пришёл (у is_featured всегда есть hero_file_id).
-    featured = "Иә (баннер тіркелді)" if data.get("is_featured") else "Жоқ"
+    banner = "Иә" if data.get("hero_file_id") else "Жоқ (постерден фон)"
     return "\n".join(
         [
             "Тексер және сақта (проверь и сохрани):",
@@ -546,10 +557,11 @@ def _summary(data: dict[str, Any]) -> str:
             f"🇷🇺 RU: {data.get('title_ru') or '—'}",
             f"🌐 Ориг.: {data.get('title_original') or '—'}",
             f"🗂 Категория: {_category_titles(data)}",
-            f"📌 Басты бетте (hero): {featured}",
+            f"🖼 Hero-баннер: {banner}",
             f"📅 Год: {data.get('year') or '—'}",
             f"⭐ Рейтинг: {data.get('rating') or '—'}",
             f"📝 {data.get('description') or '—'}",
+            f"🔔 Хабарлама: {'Иә' if data.get('notify') else 'Жоқ'}",
             "",
             "«✏️ Түзету» — жеке өрісті түзету.",
         ]

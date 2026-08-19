@@ -126,49 +126,22 @@ async def test_movie_search_still_finds_long_title_typos(session: AsyncSession) 
     assert [m.title_kk for m in await repo.search("гарфилт")] == ["Гарфилд"]
 
 
-async def test_movie_get_hero_prefers_featured(session: AsyncSession) -> None:
-    repo = PgMovieRepository(session)
-    await repo.add(
-        Movie(
-            title_kk="Басты",
-            description="d",
-            categories=["disney"],
-            poster_url="/p.jpg",
-            telegram_file_id="f1",
-            is_featured=True,
-        )
-    )
-    await repo.add(_movie("Жаңарақ", "anime", "f2"))  # новее (больший id), но НЕ featured
+async def test_movie_rotation_pool_is_the_whole_catalog_in_stable_order(
+    session: AsyncSession,
+) -> None:
+    """Пул фильма дня — ВЕСЬ каталог, отсортированный по id.
 
-    hero = await repo.get_hero()
-    assert hero is not None
-    assert hero.title_kk == "Басты"  # featured побеждает более новый
-
-
-async def test_movie_list_hero_banners_only_with_banner(session: AsyncSession) -> None:
-    """Пул ежедневной ротации hero: только фильмы с непустым горизонтальным баннером."""
+    Фильтра по баннеру тут нет намеренно: hero строится и из постера, а отбор «только с
+    баннером» урезал бы пул втрое. Порядок обязан быть стабильным — перестановка круга
+    детерминирована, и «плавающая» сортировка меняла бы фильм дня между запросами.
+    """
     repo = PgMovieRepository(session)
     with_banner = _movie("Баннері бар", "disney", "f1")
     with_banner.hero_image_url = "/posters/hero1.jpg"
-    empty_banner = _movie("Бос баннер", "anime", "f2")
-    empty_banner.hero_image_url = ""  # пустая строка — такая же «нет картинки», как NULL
-    await repo.add(with_banner)
-    await repo.add(empty_banner)
-    await repo.add(_movie("Баннерсіз", "anime", "f3"))  # hero_image_url = NULL
+    first = await repo.add(with_banner)
+    second = await repo.add(_movie("Баннерсіз", "anime", "f2"))  # hero_image_url = NULL
 
-    banners = await repo.list_hero_banners()
-
-    assert [m.title_kk for m in banners] == ["Баннері бар"]
-
-
-async def test_movie_get_hero_falls_back_to_newest(session: AsyncSession) -> None:
-    repo = PgMovieRepository(session)
-    await repo.add(_movie("Ескі", "disney", "f1"))
-    await repo.add(_movie("Жаңа", "anime", "f2"))
-
-    hero = await repo.get_hero()
-    assert hero is not None
-    assert hero.title_kk == "Жаңа"  # featured нет → самый новый (больший id)
+    assert await repo.list_rotation_ids() == [first.id, second.id]
 
 
 def _rated(title_kk: str, file_id: str, rating: float | None) -> Movie:

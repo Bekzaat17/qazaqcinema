@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import UTC, datetime
 
 from aiogram import Router
 from aiogram.filters import CommandObject, CommandStart
@@ -44,7 +45,9 @@ async def handle_start(
     # новинок в `MovieIngestionService.ingest`).
     if message.from_user is not None:
         try:
-            await activity.register_start(message.from_user.id, message.from_user.username)
+            await activity.register_start(
+                message.from_user.id, message.from_user.username, datetime.now(UTC)
+            )
         except Exception:
             logger.exception("Не удалось зафиксировать /start юзера %s", message.from_user.id)
     # payload после /start (t.me/<bot>?start=m_<id>). Совпало — добавляем #m<id> к URL Web App,

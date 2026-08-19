@@ -75,7 +75,6 @@ def _movie_to_domain(model: MovieModel) -> Movie:
         telegram_file_id=model.telegram_file_id,
         year=model.year,
         rating=model.rating,
-        is_featured=model.is_featured,
         hero_image_url=model.hero_image_url,
         play_count=model.play_count,
         favorites_count=model.favorites_count,
@@ -91,6 +90,7 @@ def _user_to_domain(model: UserModel) -> User:
         expires_at=model.expires_at,
         selected_tariff=model.selected_tariff,
         notifications_enabled=model.notifications_enabled,
+        bot_started_at=model.bot_started_at,
         free_view_used_at=model.free_view_used_at,
         free_view_movie_id=model.free_view_movie_id,
     )
@@ -134,7 +134,6 @@ class PgMovieRepository:
             telegram_file_id=movie.telegram_file_id,
             year=movie.year,
             rating=movie.rating,
-            is_featured=movie.is_featured,
             hero_image_url=movie.hero_image_url,
         )
         self._session.add(model)
@@ -146,33 +145,22 @@ class PgMovieRepository:
         model = await self._session.get(MovieModel, movie_id)
         return _movie_to_domain(model) if model else None
 
-    async def get_hero(self) -> Movie | None:
-        """Фильм для hero главной: свежайший featured; если featured нет — самый новый.
+    async def list_rotation_ids(self) -> list[int]:
+        """Пул фильма дня: id ВСЕХ фильмов каталога в стабильном порядке.
 
-        Одним запросом: `is_featured DESC` поднимает помеченные наверх, `id DESC` берёт
-        среди них новейший (или новейший вообще, когда помеченных нет).
+        Только id, а не строки целиком: выбирать из пула — работа чистой функции
+        (`domain/catalog/daily.pick_daily_id`), а карточка нужна ровно одна, и её
+        достаёт `get`. На каталоге в тысячи фильмов это по-прежнему один индексный скан
+        по первичному ключу, а не выгрузка витрины в память.
+
+        Порядок по id обязателен: перестановка круга детерминирована, и достаточно
+        одной «плавающей» сортировки, чтобы фильм дня менялся между запросами внутри
+        одних суток. Фильтра по баннеру тут НЕТ намеренно — фильм дня показывается
+        и без него (фронт строит фон из постера), иначе каталог в пуле урезался бы втрое.
         """
-        stmt = (
-            select(MovieModel)
-            .order_by(MovieModel.is_featured.desc(), MovieModel.id.desc())
-            .limit(1)
-        )
-        model = await self._session.scalar(stmt)
-        return _movie_to_domain(model) if model else None
-
-    async def list_hero_banners(self) -> list[Movie]:
-        """Пул ротации hero: у кого есть горизонтальный баннер (непустой hero_image_url).
-
-        Пустую строку отсекаем наравне с NULL — иначе фильм с «баннером» из пустого
-        поля встал бы на главную с дырой вместо картинки.
-        """
-        stmt = (
-            select(MovieModel)
-            .where(MovieModel.hero_image_url.is_not(None), MovieModel.hero_image_url != "")
-            .order_by(MovieModel.id)
-        )
+        stmt = select(MovieModel.id).order_by(MovieModel.id)
         result = await self._session.scalars(stmt)
-        return [_movie_to_domain(model) for model in result]
+        return list(result)
 
     async def list_all(self, category: str | None = None) -> list[Movie]:
         stmt = select(MovieModel).order_by(MovieModel.id.desc())
@@ -363,6 +351,9 @@ class PgUserRepository:
         # notifications_enabled НЕ в set_ намеренно: upsert (логин/activate/expire/reject)
         # не должен трогать выбор юзера по рассылкам. Менять флаг — только set_notifications
         # (точечный UPDATE). На INSERT нового юзера значение берётся из values (default True).
+        # `bot_started_at` — тоже НЕ здесь: это внешний факт (нажал /start / заблокировал
+        # бота), а не часть карточки юзера. Попади он в upsert — вход в Mini App затирал бы
+        # открытый чат в NULL, и человек снова видел бы кнопку «Ботты ашу».
         # Поля подарка (free_view_*) — по той же причине НЕ здесь ни в values, ни в set_:
         # их проставляет только атомарный `claim_free_view`. Попади они в upsert — активация
         # подписки или отказ модератора обнулили бы уже потраченный подарок, раздав второй.
@@ -387,6 +378,21 @@ class PgUserRepository:
         )
         result = await self._session.scalars(stmt)
         return [_user_to_domain(model) for model in result]
+
+    async def set_bot_started(self, telegram_id: int, at: datetime | None) -> None:
+        """Отметить, что чат с ботом открыт (`/start`), либо снять факт при недоставке.
+
+        Одна ручка на оба случая: факт ровно один — «бот может писать этому человеку», —
+        и меняют его две стороны, /start и провалившаяся отправка. Точечный UPDATE, а не
+        upsert: остальные поля юзера тут ни при чём.
+        """
+        stmt = (
+            update(UserModel)
+            .where(UserModel.telegram_id == telegram_id)
+            .values(bot_started_at=at)
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()
 
     async def claim_free_view(self, telegram_id: int, movie_id: int, now: datetime) -> bool:
         """Забрать право на подарочный фильм. True — забрали именно мы, False — уже потрачено.

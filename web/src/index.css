@@ -87,6 +87,21 @@ body {
   100% { transform: translateX(100%); }
 }
 
+/* Пульс вокруг CTA фильма дня: кольцо расходится и гаснет — единственный «живой»
+   элемент экрана, поэтому и заметен. Тень, а не рамка: не сдвигает вёрстку. */
+@keyframes qc-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgb(61 139 255 / 0.55); }
+  70%  { box-shadow: 0 0 0 16px rgb(61 139 255 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(61 139 255 / 0); }
+}
+/* Медленное «дыхание» фона hero: картинка чуть наплывает, экран перестаёт быть
+   мёртвой картинкой. Долгий цикл и малая амплитуда — чтобы не отвлекало от текста. */
+@keyframes qc-breathe {
+  from { transform: scale(1.08); }
+  to   { transform: scale(1.16); }
+}
+.anim-pulse-ring { animation: qc-pulse-ring 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+.anim-breathe { animation: qc-breathe 22s ease-in-out infinite alternate; }
 .anim-fade { animation: qc-fade 0.2s ease-out both; }
 .anim-sheet { animation: qc-sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .anim-pop { animation: qc-pop 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -115,6 +130,8 @@ body {
   .anim-fade,
   .anim-sheet,
   .anim-pop,
+  .anim-pulse-ring,
+  .anim-breathe,
   .skeleton::after {
     animation: none;
   }

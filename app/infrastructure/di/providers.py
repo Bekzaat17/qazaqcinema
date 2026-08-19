@@ -39,6 +39,7 @@ from app.application.services.analytics_service import AnalyticsService
 from app.application.services.auth_service import AuthService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
+from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.moderation_service import PaymentModerationService
@@ -193,6 +194,10 @@ class RequestProvider(Provider):
         )
 
     auth = provide(AuthService)
+    # Фильм дня — общий источник правды витрины (hero) и выдачи (PlaybackService):
+    # оба обязаны считать «сегодня бесплатен» одинаково, иначе кнопка «Тегін көру»
+    # приводила бы к 403.
+    daily = provide(DailyMovieService)
     catalog = provide(CatalogService)
     favorites = provide(FavoriteService)  # избранное («Таңдаулы»), без гейта подписки
     ingestion = provide(MovieIngestionService)

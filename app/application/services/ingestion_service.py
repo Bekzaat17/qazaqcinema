@@ -49,7 +49,7 @@ class MovieIngestionService:
         description: str,
         year: int | None,
         rating: float | None,
-        is_featured: bool,
+        notify: bool,
         video_file_id: str,
         poster_bytes: bytes,
         hero_bytes: bytes | None,
@@ -58,8 +58,14 @@ class MovieIngestionService:
 
         `video_file_id` — file_id видео в канале-архиве (отдаётся ТОЛЬКО боту).
         `poster_bytes` — постер → нормализуется к 2:3 → `PosterStorage` → публичный URL.
-        `hero_bytes` — горизонтальный баннер (только когда `is_featured`); None → hero берёт
-        постер как фолбэк. Битую картинку `ImageProcessor` отклонит (ValueError).
+        `hero_bytes` — горизонтальный баннер; None (админ нажал /skip) → фронт строит фон
+        hero из размытого постера. Битую картинку `ImageProcessor` отклонит (ValueError).
+
+        `notify` — рассылать ли новинку. Решение принимает админ на каждом фильме (шаг
+        визарда), а не код: каталог заливают пачками по десятку-другому за вечер, и
+        безусловная рассылка превращала это в десятки пушей за день каждому подписчику —
+        верный путь в блок. Кому именно уйдёт, решает не этот флаг, а тумблер в профиле
+        (`BroadcastService.notify_new_movie` берёт только согласившихся).
         """
         poster_url = await self._posters.save(await self._images.normalize(poster_bytes, POSTER))
         hero_url: str | None = None
@@ -75,7 +81,6 @@ class MovieIngestionService:
             telegram_file_id=video_file_id,
             year=year,
             rating=rating,
-            is_featured=is_featured,
             hero_image_url=hero_url,
         )
         saved = await self._movies.add(movie)
@@ -92,8 +97,10 @@ class MovieIngestionService:
             )
         except Exception:
             logger.exception("Не удалось уведомить админов о фильме #%s", saved.id)
-        # Авто-рассылка о новинке (Фаза 12) — в try/except: сбой рассылки НЕ должен
+        # Рассылка о новинке (Фаза 12) — в try/except: сбой рассылки НЕ должен
         # отменять добавление фильма (оно уже в БД). Очередь fail-open сама по себе.
+        if not notify:
+            return saved
         try:
             queued = await self._broadcast.notify_new_movie(saved)
             logger.info("Рассылка о новинке #%s поставлена: %d адресатов", saved.id, queued)

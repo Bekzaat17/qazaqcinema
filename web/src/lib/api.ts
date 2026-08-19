@@ -110,6 +110,10 @@ export interface Auth {
   // (на нём рисуем бейдж «Сыйлық» и не зовём платить).
   free_view_available: boolean;
   free_view_movie_id: number | null;
+  // Открыт ли чат с ботом. Видео уходит ТОЛЬКО в личку, а написать первым бот не вправе —
+  // зашедшему по ссылке (из браузера/поиска) «Көру» физически не сработает. false → зовём
+  // в бота ДО того, как он потратит подарок, вместо ошибки после.
+  bot_started: boolean;
 }
 
 export interface Movie {
@@ -134,7 +138,11 @@ export interface Shelf {
 
 /** Агрегат главного экрана (Фаза 13): hero + готовые полки (ограничены на бэке). */
 export interface CatalogHome {
+  // Hero = фильм дня: то, что сегодня можно посмотреть бесплатно.
   hero: Movie | null;
+  // До какого момента hero бесплатен (ISO, ближайшая местная полночь). Считает бэк —
+  // отсчёт на экране обязан сходиться с тем, что реально пустит выдача видео.
+  hero_free_until: string | null;
   shelves: Shelf[];
 }
 
@@ -214,7 +222,7 @@ export const api = {
    * `gift` в ответе — видео ушло именно за счёт подарка (фронт покажет это явно).
    */
   play: (id: number, useFreeView = false) =>
-    request<{ status: "sent"; gift: boolean }>(
+    request<{ status: "sent"; gift: boolean; daily: boolean }>(
       `/api/movies/${id}/play${useFreeView ? "?use_free_view=true" : ""}`,
       { method: "POST" },
     ),

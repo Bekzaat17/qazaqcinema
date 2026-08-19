@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import BotStartSheet from "./components/BotStartSheet";
 import CatalogView from "./components/CatalogView";
 import FavoritesView from "./components/FavoritesView";
 import GiftSheet from "./components/GiftSheet";
@@ -45,6 +46,9 @@ export default function App() {
   const [shelves, setShelves] = useState<ShelfData[]>([]);
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [hero, setHero] = useState<Movie | null>(null);
+  // До какого момента hero (он же фильм дня) бесплатен. null → каталог пуст либо бэк
+  // старой версии: hero тогда обычная витрина, без бейджа и таймера.
+  const [heroFreeUntil, setHeroFreeUntil] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("home");
 
   const [query, setQuery] = useState("");
@@ -58,7 +62,9 @@ export default function App() {
   const [supportOpen, setSupportOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [handoffGift, setHandoffGift] = useState(false);
+  const [handoffDaily, setHandoffDaily] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [botStartOpen, setBotStartOpen] = useState(false);
   const [giftMovie, setGiftMovie] = useState<Movie | null>(null);
   const [watching, setWatching] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -68,7 +74,13 @@ export default function App() {
   // ошибка времени выполнения (временная мёртвая зона), а не просто нестройность.
   const updateReady = useAppVersion();
   const anyOverlay =
-    handoffOpen || paywallOpen || giftOpen || supportOpen || !!selected || profileOpen;
+    handoffOpen ||
+    paywallOpen ||
+    giftOpen ||
+    botStartOpen ||
+    supportOpen ||
+    !!selected ||
+    profileOpen;
 
   const status = auth?.status ?? "new";
   const hasAccess = auth?.has_access ?? false;
@@ -76,6 +88,13 @@ export default function App() {
   // ложное приглашение с последующим 403 хуже, чем пэйволл, который сервер подтвердит.
   const freeViewAvailable = auth?.free_view_available ?? false;
   const giftedMovieId = auth?.free_view_movie_id ?? null;
+  // Фильм дня: бесплатен сегодня всем и подарка НЕ тратит. Признак берём из hero — тот
+  // же источник, что и у выдачи (бэк сверяет id сам), поэтому «Тегін көру» не может
+  // привести к 403.
+  const dailyMovieId = heroFreeUntil !== null ? (hero?.id ?? null) : null;
+  // Чат с ботом. Пока авторизация не доехала — считаем, что он есть: ложная шторка
+  // «откройте бота» тем, у кого всё в порядке, хуже, чем один честный 409 от сервера.
+  const botStarted = auth?.bot_started ?? true;
 
   const load = useCallback(async () => {
     // Вне Telegram (открыли URL в обычном браузере) initData пуст → авторизация и весь
@@ -96,6 +115,7 @@ export default function App() {
       setShelves(homeRes.shelves);
       setTariffs(tariffsRes);
       setHero(homeRes.hero);
+      setHeroFreeUntil(homeRes.hero_free_until ?? null);
       contentAt.current = Date.now(); // каталог только что свежий — не тянуть его повторно
       setPhase("ready");
       // Deep-link с SEO-страницы (t.me/<bot>?startapp=m_<id>): сразу открываем карточку
@@ -175,6 +195,7 @@ export default function App() {
       const fresh = await api.home();
       setShelves(fresh.shelves);
       setHero(fresh.hero);
+      setHeroFreeUntil(fresh.hero_free_until ?? null);
     } catch {
       /* не достучались — оставляем то, что уже показано */
     }
@@ -247,9 +268,10 @@ export default function App() {
     else if (giftOpen) setGiftOpen(false);
     else if (supportOpen) setSupportOpen(false);
     else if (selected) setSelected(null);
+    else if (botStartOpen) setBotStartOpen(false);
     else if (profileOpen) setProfileOpen(false);
     else if (tab !== "home") setTab("home");
-  }, [handoffOpen, paywallOpen, giftOpen, supportOpen, selected, profileOpen, tab]);
+  }, [handoffOpen, paywallOpen, giftOpen, botStartOpen, supportOpen, selected, profileOpen, tab]);
   useTelegramBackButton(anyOverlay || tab !== "home", onBack);
 
   const openPaywall = useCallback((movie: Movie | null) => {
@@ -267,6 +289,7 @@ export default function App() {
         setSelected(null);
         setGiftOpen(false);
         setHandoffGift(res.gift);
+        setHandoffDaily(res.daily);
         setHandoffOpen(true);
         // Подарок потрачен — состояние живёт на сервере, поэтому забираем его свежим:
         // от этого зависит, что покажут остальные фильмы (приглашение или пэйволл).
@@ -278,7 +301,11 @@ export default function App() {
         } else if (e instanceof ApiError && e.status === 404) {
           setToast("Фильм табылмады");
         } else if (e instanceof ApiError && e.status === 409) {
-          setToast("Алдымен ботпен чатты ашыңыз"); // видео шлётся в чат — его надо начать
+          // Сервер не достучался до лички: чат закрыт или бот заблокирован. Он уже снял
+          // признак у себя — снимаем и локально, чтобы следующее «Көру» вело в бота сразу.
+          setGiftOpen(false);
+          setAuth((prev) => (prev ? { ...prev, bot_started: false } : prev));
+          setBotStartOpen(true);
         } else {
           setToast("Қате шықты, қайталап көріңіз");
         }
@@ -291,10 +318,19 @@ export default function App() {
 
   const handleWatch = useCallback(
     async (movie: Movie) => {
-      // Порядок ветвей = порядок воронки: подписка → свой подаренный фильм → приглашение
-      // к подарку → пэйволл. Платить просим ПОСЛЕДНИМ и только когда предложить больше
-      // нечего — в этом весь смысл «сначала ценность, потом оплата».
-      if (hasAccess || movie.id === giftedMovieId) {
+      // Чат с ботом — ПЕРЕД всеми ветвями: без него ни подписка, ни подарок не доедут
+      // (видео уходит только в личку). Иначе человек тратит подарок и получает ошибку.
+      if (!botStarted) {
+        haptic.warning();
+        setBotStartOpen(true);
+        return;
+      }
+      // Дальше порядок ветвей = порядок воронки: подписка → фильм дня → свой подаренный
+      // фильм → приглашение к подарку → пэйволл. Платить просим ПОСЛЕДНИМ и только когда
+      // предложить больше нечего — в этом весь смысл «сначала ценность, потом оплата».
+      // Фильм дня идёт до подарка: он бесплатен сам по себе, и тратить на него подарок
+      // (или показывать шторку «потратить сыйлық?») было бы обманом.
+      if (hasAccess || movie.id === dailyMovieId || movie.id === giftedMovieId) {
         await requestPlay(movie, false);
         return;
       }
@@ -309,7 +345,15 @@ export default function App() {
       haptic.warning();
       openPaywall(movie);
     },
-    [hasAccess, giftedMovieId, freeViewAvailable, requestPlay, openPaywall],
+    [
+      botStarted,
+      hasAccess,
+      dailyMovieId,
+      giftedMovieId,
+      freeViewAvailable,
+      requestPlay,
+      openPaywall,
+    ],
   );
 
   const handlePending = useCallback(() => {
@@ -351,7 +395,15 @@ export default function App() {
           <CatalogEmpty />
         ) : (
           <div className="pb-2">
-            {hero && <Hero movie={hero} onSelect={setSelected} />}
+            {hero && (
+              <Hero
+                movie={hero}
+                freeUntil={heroFreeUntil}
+                busy={watching}
+                onSelect={setSelected}
+                onWatch={handleWatch}
+              />
+            )}
             {shelves.map((shelf) => (
               <Shelf key={shelf.key} shelf={shelf} onSelect={setSelected} />
             ))}
@@ -370,6 +422,7 @@ export default function App() {
         busy={watching}
         freeViewAvailable={freeViewAvailable}
         gifted={selected?.id === giftedMovieId}
+        freeToday={selected?.id === dailyMovieId}
         onWatch={handleWatch}
         onClose={() => setSelected(null)}
       />
@@ -380,6 +433,7 @@ export default function App() {
         onAccept={(movie) => void requestPlay(movie, true)}
         onClose={() => setGiftOpen(false)}
       />
+      <BotStartSheet open={botStartOpen} onClose={() => setBotStartOpen(false)} />
       <Paywall
         open={paywallOpen}
         movie={paywallMovie}
@@ -411,7 +465,7 @@ export default function App() {
         onSent={setToast}
         onError={setToast}
       />
-      <HandoffModal open={handoffOpen} gift={handoffGift} />
+      <HandoffModal open={handoffOpen} gift={handoffGift} daily={handoffDaily} />
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
     </FavoritesProvider>

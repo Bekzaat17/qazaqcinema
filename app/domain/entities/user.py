@@ -16,6 +16,11 @@ class User:
     expires_at: datetime | None = None
     selected_tariff: str | None = None
     notifications_enabled: bool = True  # рассылки о новинках; opt-out, по умолчанию ВКЛ (Фаза 12)
+    # Открыт ли чат с ботом. Telegram не даёт боту написать первым, а всё видео уходит
+    # именно в чат — значит без этого факта человек физически не может получить фильм,
+    # хотя каталог в Mini App ему виден (зашёл по ссылке/из браузера, /start не нажимал).
+    # Проставляется на /start, снимается на недоставке (бот заблокирован) — см. порт.
+    bot_started_at: datetime | None = None
     # Подарочный первый фильм: человек должен увидеть продукт ДО пэйволла. Оба поля
     # проставляются один раз, атомарно (`UserRepository.claim_free_view`).
     free_view_used_at: datetime | None = None  # None → подарок ещё не потрачен
@@ -28,6 +33,10 @@ class User:
             and self.expires_at is not None
             and self.expires_at > now
         )
+
+    def has_bot_chat(self) -> bool:
+        """Может ли бот вообще прислать этому человеку видео (чат открыт и не заблокирован)."""
+        return self.bot_started_at is not None
 
     def can_use_free_view(self) -> bool:
         """Подарок ещё не потрачен → человек вправе открыть ОДИН любой фильм бесплатно."""

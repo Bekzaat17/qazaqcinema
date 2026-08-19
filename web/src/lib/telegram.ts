@@ -84,6 +84,18 @@ export function openLink(url: string): void {
   }
 }
 
+/**
+ * Открыть чат с ботом ВНУТРИ Telegram (Mini App сворачивается, сверху встаёт чат).
+ * Именно `openTelegramLink`, а не `openLink`: последний уводит t.me во внешний браузер,
+ * и человек оказывался бы на веб-странице вместо чата, который ему как раз и нужен.
+ */
+export function openBotChat(payload = "web"): void {
+  const url = `${BOT_URL}?start=${payload}`;
+  const wa = getWebApp();
+  if (wa?.openTelegramLink) wa.openTelegramLink(url);
+  else openLink(url);
+}
+
 /** Открыть инвойс Telegram Stars. Резолвится статусом оплаты. */
 export function openInvoice(url: string): Promise<string> {
   return new Promise((resolve) => {

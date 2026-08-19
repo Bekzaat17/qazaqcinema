@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -48,6 +49,10 @@ class PlayOut(BaseModel):
     # обычную «видео жіберілді». Отдельное поле, а не второй `status`: доставка состоялась
     # в обоих случаях, различается лишь основание.
     gift: bool = False
+    # Видео ушло как бесплатный фильм дня. От `gift` отличается принципиально: подарок
+    # одноразовый и потрачен, а тут не потрачено ничего — фронт не должен ни перечитывать
+    # состояние подарка, ни говорить «сыйлық жұмсалды».
+    daily: bool = False
 
 
 class ShelfOut(BaseModel):
@@ -65,7 +70,13 @@ class CatalogHomeOut(BaseModel):
     фронт получает ровно то, что рисует, ответ не растёт с ростом каталога.
     """
 
+    # Hero = фильм дня (решение 2026-08-19): первый экран показывает то, что сегодня
+    # можно посмотреть бесплатно, а не просто красивую карточку.
     hero: MovieOut | None = None
+    # До какого момента hero бесплатен — ближайшая местная полночь (Asia/Almaty). Считает
+    # бэк: правило суток живёт в `domain/catalog/daily`, и отсчёт на экране обязан
+    # сходиться с тем, что реально пустит `PlaybackService`.
+    hero_free_until: datetime | None = None
     shelves: list[ShelfOut]
 
 

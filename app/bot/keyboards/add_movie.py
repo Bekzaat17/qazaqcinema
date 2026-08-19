@@ -8,7 +8,7 @@ from app.domain.catalog.categories import all_categories
 
 CATEGORY_PREFIX = "addcat:"
 CATEGORY_DONE = "addcat:__done__"
-FEATURED_PREFIX = "addfeat:"
+NOTIFY_PREFIX = "addnotify:"
 CONFIRM = "addmovie:confirm"
 CANCEL = "addmovie:cancel"
 BACK = "addmovie:back"
@@ -25,7 +25,6 @@ _NEXT_TEXT = "➡️ Әрі қарай"
 EDIT_FIELDS: tuple[tuple[str, str], ...] = (
     ("video", "🎬 Видео"),
     ("poster", "🖼 Постер"),
-    ("featured", "📌 Басты бет"),
     ("hero", "⭐ Hero-баннер"),
     ("category", "🗂 Категориялар"),
     ("title_kk", "🇰🇿 Атауы (KK)"),
@@ -34,6 +33,7 @@ EDIT_FIELDS: tuple[tuple[str, str], ...] = (
     ("year", "📅 Жыл"),
     ("rating", "⭐ Рейтинг"),
     ("description", "📝 Сипаттама"),
+    ("notify", "🔔 Хабарлама"),
 )
 
 
@@ -61,13 +61,19 @@ def step_keyboard(*, back: bool, forward: bool) -> InlineKeyboardMarkup | None:
     return _with_nav([], back=back, forward=forward)
 
 
-def featured_keyboard(*, back: bool = True, forward: bool = False) -> InlineKeyboardMarkup:
-    """«На главную (hero)?» — Иә/Жоқ. Иә → админ пришлёт широкий/квадратный hero-баннер."""
+def notify_keyboard(*, back: bool = True, forward: bool = False) -> InlineKeyboardMarkup:
+    """«Жазылушыларға хабарлау керек пе?» — Иә/Жоқ.
+
+    Отдельный вопрос на каждый фильм, а не глобальная настройка: каталог заливают
+    пачками (десятки фильмов за вечер), и авто-рассылка на каждый превращалась в
+    десятки пушей за день — за такое бота блокируют. Массовую заливку админ проводит
+    с «Жоқ», а точечную новинку — с «Иә».
+    """
     return _with_nav(
         [
             [
-                InlineKeyboardButton(text="⭐ Иә", callback_data=f"{FEATURED_PREFIX}1"),
-                InlineKeyboardButton(text="Жоқ", callback_data=f"{FEATURED_PREFIX}0"),
+                InlineKeyboardButton(text="🔔 Иә, хабарла", callback_data=f"{NOTIFY_PREFIX}1"),
+                InlineKeyboardButton(text="🔕 Жоқ", callback_data=f"{NOTIFY_PREFIX}0"),
             ]
         ],
         back=back,
@@ -111,15 +117,15 @@ def confirm_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def edit_keyboard(*, is_featured: bool) -> InlineKeyboardMarkup:
+def edit_keyboard() -> InlineKeyboardMarkup:
     """Меню правки: прыжок к одному полю (после ввода — сразу обратно к сводке).
 
-    Hero-баннер показываем только у featured-фильма: у остальных его просто нет.
+    Условных полей больше нет: hero-баннер спрашивают у каждого фильма, поэтому и
+    поправить его можно всегда (в т.ч. добавить там, где сначала нажали /skip).
     """
     buttons = [
         InlineKeyboardButton(text=title, callback_data=f"{EDIT_PREFIX}{field}")
         for field, title in EDIT_FIELDS
-        if field != "hero" or is_featured
     ]
     rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
     rows.append([InlineKeyboardButton(text=_BACK_TEXT, callback_data=EDIT_BACK)])

@@ -13,6 +13,8 @@ from app.application.services.catalog_service import (
     HOME_SHELF_LIMIT,
     CatalogService,
 )
+from app.application.services.daily_service import DailyMovieService
+from app.domain.catalog.daily import day_index, free_until
 from app.domain.entities.movie import Movie
 
 _NOW = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
@@ -37,25 +39,24 @@ class _FakeMovies:
         self,
         *,
         hero: Movie | None = None,
-        banners: list[Movie] | None = None,
+        pool: list[Movie] | None = None,
         recent: list[Movie] | None = None,
         popular: list[Movie] | None = None,
         page: tuple[list[Movie], int] = ([], 0),
         counts: dict[str, int] | None = None,
     ) -> None:
-        self._hero = hero
-        self._banners = banners or []
+        self._pool = pool or ([hero] if hero is not None else [])
         self._recent = recent or []
         self._popular = popular or []
         self._page = page
         self._counts = counts or {}
         self.list_page_args: dict[str, object] = {}
 
-    async def get_hero(self) -> Movie | None:
-        return self._hero
+    async def list_rotation_ids(self) -> list[int]:
+        return [movie.id for movie in self._pool if movie.id is not None]
 
-    async def list_hero_banners(self) -> list[Movie]:
-        return self._banners
+    async def get(self, movie_id: int) -> Movie | None:
+        return next((m for m in self._pool if m.id == movie_id), None)
 
     async def list_recent(self, limit: int) -> list[Movie]:
         return self._recent[:limit]
@@ -79,9 +80,18 @@ class _FakeMovies:
         return self._counts
 
 
+def _service(repo: _FakeMovies) -> CatalogService:
+    """Каталог с настоящим `DailyMovieService` поверх того же фейка репозитория.
+
+    Подменять выбор фильма дня заглушкой нельзя: витрина и выдача обязаны сходиться,
+    и тест должен ломаться ровно тогда, когда они разъедутся.
+    """
+    return CatalogService(repo, DailyMovieService(repo))  # type: ignore[arg-type]
+
+
 async def test_browse_clamps_page_and_limit() -> None:
     repo = _FakeMovies(page=([_movie(1)], 100))
-    result = await CatalogService(repo).browse(
+    result = await _service(repo).browse(
         categories=["anime"], sort="rating", direction="asc", page=0, limit=999
     )
 
@@ -96,7 +106,7 @@ async def test_browse_clamps_page_and_limit() -> None:
 
 async def test_browse_last_page_has_no_more() -> None:
     repo = _FakeMovies(page=([_movie(1)], 30))
-    result = await CatalogService(repo).browse(
+    result = await _service(repo).browse(
         categories=[], sort="year", direction="desc", page=2, limit=24
     )
 
@@ -112,7 +122,7 @@ async def test_home_excludes_hero_from_fresh_and_caps() -> None:
         popular=[_movie(5), _movie(6)],
     )
 
-    home = await CatalogService(repo).home(_NOW)
+    home = await _service(repo).home(_NOW)
 
     assert home.hero is not None and home.hero.id == 20
     fresh, popular = home.shelves
@@ -123,51 +133,46 @@ async def test_home_excludes_hero_from_fresh_and_caps() -> None:
 
 
 async def test_home_skips_empty_shelves() -> None:
-    home = await CatalogService(_FakeMovies()).home(_NOW)
+    home = await _service(_FakeMovies()).home(_NOW)
     assert home.hero is None
     assert home.shelves == []                               # пустые полки не добавляем
 
 
-# --- hero: закрепление свежего и ежедневная ротация ----------------------
+# --- hero = фильм дня ----------------------------------------------------
 
-async def test_get_hero_keeps_fresh_pinned_banner() -> None:
-    """Баннер моложе 3 суток держится на главной — ротация его не сдвигает."""
-    pinned = _movie(9, created_at=_NOW - timedelta(days=2, hours=23))
-    repo = _FakeMovies(hero=pinned, banners=[_movie(1), _movie(2), _movie(3)])
-
-    hero = await CatalogService(repo).get_hero(_NOW)
-
-    assert hero is not None and hero.id == 9
-
-
-async def test_get_hero_rotates_daily_after_pin_window() -> None:
-    """После 3 суток hero берётся из пула баннеров и меняется день ото дня."""
-    pinned = _movie(9, created_at=_NOW - timedelta(days=4))
-    banners = [_movie(mid) for mid in (1, 2, 3, 4)]
-    service = CatalogService(_FakeMovies(hero=pinned, banners=banners))
-    # с начала круга — иначе окно из 4 дней попадёт на стык двух перестановок
-    start = _NOW + timedelta(days=-_NOW.date().toordinal() % len(banners))
+async def test_hero_is_the_daily_movie_from_the_whole_catalog() -> None:
+    """Пул — весь каталог, а не только фильмы с баннером: hero живёт и на постере."""
+    pool = [_movie(mid) for mid in (1, 2, 3, 4)]
+    service = _service(_FakeMovies(pool=pool))
+    start = _NOW + timedelta(days=-day_index(_NOW) % len(pool))
 
     picks = [await service.get_hero(start + timedelta(days=offset)) for offset in range(4)]
     ids = [movie.id for movie in picks if movie is not None]
 
-    assert set(ids) == {1, 2, 3, 4}  # за круг каждый баннер выходит ровно раз
+    assert set(ids) == {1, 2, 3, 4}  # за круг каждый фильм выходит ровно раз
     # тот же день → тот же выбор (главная кэшируется и одна на всех)
     again = await service.get_hero(start)
     assert again is not None and again.id == ids[0]
 
 
-async def test_get_hero_without_banners_stays_on_pinned() -> None:
-    """Пул ротации пуст → остаёмся на выборе репозитория, главная не пустеет."""
-    pinned = _movie(9, created_at=_NOW - timedelta(days=100))
-    hero = await CatalogService(_FakeMovies(hero=pinned)).get_hero(_NOW)
+async def test_home_reports_until_when_the_free_film_changes() -> None:
+    """Витрина отдаёт срок бесплатности — фронту незачем считать часовой пояс самому."""
+    home = await _service(_FakeMovies(pool=[_movie(1)])).home(_NOW)
 
-    assert hero is not None and hero.id == 9
+    assert home.hero is not None
+    assert home.free_until == free_until(_NOW)
+
+
+async def test_empty_catalog_has_no_hero_and_no_deadline() -> None:
+    home = await _service(_FakeMovies()).home(_NOW)
+
+    assert home.hero is None
+    assert home.free_until is None  # нечего показывать → нечему и истекать
 
 
 async def test_category_counts_orders_canonically() -> None:
     repo = _FakeMovies(counts={"anime": 3, "disney": 5, "zzz_unknown": 2})
-    result = await CatalogService(repo).category_counts()
+    result = await _service(repo).category_counts()
 
     # disney раньше anime в справочнике; незнакомая категория — в конец.
     assert result == [("disney", 5), ("anime", 3), ("zzz_unknown", 2)]

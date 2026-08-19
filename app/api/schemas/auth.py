@@ -25,6 +25,10 @@ class AuthOut(BaseModel):
     # — состояние подарка меняется на сервере и должно доезжать без перезахода.
     free_view_available: bool = True
     free_view_movie_id: int | None = None
+    # Открыт ли чат с ботом. Видео уходит ТОЛЬКО туда, а написать первым бот не вправе —
+    # значит для зашедшего по ссылке (из браузера/поиска) «Көру» физически не сработает.
+    # Фронт по этому полю зовёт в бота ЗАРАНЕЕ, вместо ошибки после потраченного подарка.
+    bot_started: bool = True
 
     @classmethod
     def from_domain(cls, user: User, now: datetime, token: str | None = None) -> AuthOut:
@@ -37,4 +41,5 @@ class AuthOut(BaseModel):
             notifications_enabled=user.notifications_enabled,
             free_view_available=user.can_use_free_view(),
             free_view_movie_id=user.free_view_movie_id,
+            bot_started=user.has_bot_chat(),
         )

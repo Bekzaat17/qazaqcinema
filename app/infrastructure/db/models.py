@@ -41,6 +41,12 @@ class UserModel(Base):
     notifications_enabled: Mapped[bool] = mapped_column(
         Boolean, server_default=text("true"), nullable=False
     )
+    # Когда человек открыл чат с ботом (нажал /start). NULL — чата нет, бот не имеет
+    # права написать первым, и «Көру» для него не сработает. server_default НЕ ставим:
+    # умолчание тут именно NULL, а старым строкам факт проставляет миграция по журналу.
+    bot_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Когда юзер появился. Нужен для «сколько новых за сегодня» в ежедневном отчёте и
     # как база любой когортной аналитики. server_default → старые строки заполняются
     # моментом миграции (точной даты для них взять неоткуда).
@@ -130,6 +136,9 @@ class MovieModel(Base):
     telegram_file_id: Mapped[str] = mapped_column(Text)
     year: Mapped[int | None] = mapped_column(nullable=True)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Наследие курируемого hero (до 2026-08-19). Читателей больше нет — hero стал
+    # фильмом дня и берёт весь каталог по очереди. Колонку не сносим: она с
+    # server_default, вставкам не мешает, а миграция ради мёртвого флага — лишний риск.
     is_featured: Mapped[bool] = mapped_column(
         Boolean, server_default=text("false"), nullable=False
     )

@@ -28,13 +28,11 @@ class MovieRepository(Protocol):
     async def get(self, movie_id: int) -> Movie | None: ...
     async def list_all(self, category: str | None = None) -> list[Movie]: ...
     async def search(self, query: str) -> list[Movie]: ...
-    async def get_hero(self) -> Movie | None: ...
+    async def list_rotation_ids(self) -> list[int]:
+        """id всех фильмов (стабильный порядок) — пул выбора фильма дня.
 
-    async def list_hero_banners(self) -> list[Movie]:
-        """Фильмы с горизонтальным баннером — пул ежедневной ротации hero.
-
-        Только они и годятся на hero: без `hero_image_url` пришлось бы растягивать
-        вертикальный постер. Выборка мелкая (баннер есть у единиц), поэтому целиком.
+        Только id: кого показать сегодня, решает чистая функция `daily.pick_daily_id`,
+        а карточку победителя достаёт `get`.
         """
         ...
 
@@ -59,6 +57,14 @@ class UserRepository(Protocol):
     async def list_expired(self, now: datetime) -> list[User]: ...
     async def list_notifiable(self) -> list[int]: ...
     async def set_notifications(self, telegram_id: int, enabled: bool) -> None: ...
+
+    async def set_bot_started(self, telegram_id: int, at: datetime | None) -> None:
+        """Отметить открытый чат с ботом (`at`=время /start) либо снять факт (`at`=None).
+
+        Без открытого чата бот не вправе написать первым — значит видео не дойдёт, и
+        фронт обязан позвать человека в бота ДО того, как тот потратит подарок.
+        """
+        ...
 
     async def claim_free_view(self, telegram_id: int, movie_id: int, now: datetime) -> bool:
         """Забрать право на подарочный первый фильм; True — забрали именно мы.

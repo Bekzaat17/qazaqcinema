@@ -17,7 +17,6 @@ class Movie:
     title_original: str | None = None  # оригинал/EN (для поиска: «Frozen», «Naruto»)
     year: int | None = None
     rating: float | None = None
-    is_featured: bool = False          # показывать на hero главной (курируется админом в /add)
     hero_image_url: str | None = None  # горизонтальный баннер 3:2 для hero (None → фолбэк постер)
     play_count: int = 0                # число просмотров (Фаза 13); входит в «Танымал»
     favorites_count: int = 0           # сколько раз добавлен в избранное; тоже в «Танымал»

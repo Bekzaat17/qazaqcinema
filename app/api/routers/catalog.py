@@ -22,6 +22,7 @@ from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.repositories import SortDir, SortField
 from app.application.services.catalog_service import CatalogService
 from app.application.services.playback_service import PlaybackOutcome, PlaybackService
+from app.domain.catalog.daily import day_index
 from app.domain.entities.user import User
 
 # Казахские подписи полок главной (presentation — сервис отдаёт только ключи fresh/popular).
@@ -108,7 +109,7 @@ async def hero_movie(
     catalog: FromDishka[CatalogService],
     _user: User = Depends(get_current_user),
 ) -> MovieOut | None:
-    """Фильм для hero главного экрана (выбор — на бэкенде: закреп → ротация дня).
+    """Фильм дня — он же hero главного экрана (выбор на бэкенде, см. domain/catalog/daily).
 
     Определён ДО `/{movie_id}`, иначе путь `hero` матчился бы как movie_id.
     """
@@ -128,18 +129,21 @@ async def catalog_home(
     на бэке), кладём в кэш. Инвалидируется при `/add`. Определён ДО `/{movie_id}`.
     Отдаём сырой `Response`, чтобы на хите не пересериализовывать кэш.
 
-    В ключе — номер суток: hero ротируется по дням, и без этого смена ждала бы TTL
-    (до 10 минут «вчерашней» главной). Живых ключей от этого максимум два — вчерашний
+    В ключе — номер МЕСТНЫХ суток (`daily.day_index`, Asia/Almaty): hero = фильм дня и
+    меняется в местную полночь, а без этого смена ждала бы TTL (до 10 минут «вчерашней»
+    главной). Считать день по UTC нельзя — ключ переключался бы в 05:00 по Казахстану,
+    расходясь с тем, что пускает `PlaybackService`. Живых ключей максимум два — вчерашний
     добивает свой TTL и уходит сам.
     """
     now = datetime.now(UTC)
-    key = f"home:{now.date().toordinal()}"
+    key = f"home:{day_index(now)}"
     cached = await cache.get(key)
     if cached is not None:
         return Response(content=cached, media_type="application/json")
     home = await catalog.home(now)
     payload = CatalogHomeOut(
         hero=MovieOut.from_domain(home.hero) if home.hero is not None else None,
+        hero_free_until=home.free_until,
         shelves=[
             ShelfOut(
                 key=shelf.key,
@@ -215,4 +219,8 @@ async def play_movie(
         # Подписчик не открыл чат с ботом → бот не может доставить видео. Не 500 —
         # понятный код, фронт просит открыть бота и повторить.
         raise HTTPException(status_code=409, detail="bot_unreachable")
-    return PlayOut(status="sent", gift=outcome is PlaybackOutcome.GIFT_DELIVERED)
+    return PlayOut(
+        status="sent",
+        gift=outcome is PlaybackOutcome.GIFT_DELIVERED,
+        daily=outcome is PlaybackOutcome.DAILY_DELIVERED,
+    )

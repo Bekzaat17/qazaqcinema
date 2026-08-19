@@ -83,7 +83,7 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
         description="сипаттама",
         year=1994,
         rating=8.5,
-        is_featured=False,
+        notify=True,
         video_file_id="archive-file-id",
         poster_bytes=b"image-bytes",
         hero_bytes=None,
@@ -91,17 +91,16 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
 
     assert movie.id == 1
     assert movie.telegram_file_id == "archive-file-id"
-    assert movie.is_featured is False
     assert movie.hero_image_url is None                # без баннера hero пуст
     assert posters.saved == [b"image-bytes"]           # только постер
     assert images.calls == [(b"image-bytes", POSTER)]  # нормализован к 2:3
     assert movies.added[0].title_ru == "Король Лев"
     assert any("Арыстан Патша" in message for message in notifier.messages)
     assert cache.invalidated == 1                       # кэш главной сброшен → новинка видна
-    assert broadcast.notified == [movie]                # авто-рассылка о новинке поставлена
+    assert broadcast.notified == [movie]                # админ выбрал «хабарла» → рассылка
 
 
-async def test_ingest_featured_saves_hero_banner() -> None:
+async def test_ingest_saves_hero_banner_when_given() -> None:
     movies = _FakeMovies()
     posters = _FakePosters()
     images = _FakeImages()
@@ -118,13 +117,42 @@ async def test_ingest_featured_saves_hero_banner() -> None:
         description="сипаттама",
         year=2002,
         rating=8.3,
-        is_featured=True,
+        notify=True,
         video_file_id="vid",
         poster_bytes=b"poster",
         hero_bytes=b"hero",
     )
 
-    assert movie.is_featured is True
     assert movie.hero_image_url is not None                      # баннер сохранён
     assert posters.saved == [b"poster", b"hero"]                 # постер + hero
     assert {spec for _, spec in images.calls} == {POSTER, HERO}  # обе нормализованы
+
+
+async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
+    """Админ выбрал «🔕 Жоқ» → фильм сохраняется, но рассылка НЕ ставится.
+
+    Ради этого шаг и заведён: каталог заливают пачками, и безусловная рассылка давала
+    десятки пушей за вечер каждому подписчику — прямой путь в блокировку бота.
+    """
+    movies, broadcast, cache = _FakeMovies(), _FakeBroadcast(), _FakeCache()
+    service = MovieIngestionService(
+        movies, _FakeNotifier(), _FakePosters(), _FakeImages(), cache, broadcast
+    )
+
+    movie = await service.ingest(
+        title_kk="Тыныш фильм",
+        title_ru=None,
+        title_original=None,
+        categories=["anime"],
+        description="сипаттама",
+        year=None,
+        rating=None,
+        notify=False,
+        video_file_id="vid",
+        poster_bytes=b"poster",
+        hero_bytes=None,
+    )
+
+    assert movie.id == 1              # фильм в каталоге
+    assert cache.invalidated == 1     # и виден сразу (кэш сброшен)
+    assert broadcast.notified == []   # но никого не разбудили

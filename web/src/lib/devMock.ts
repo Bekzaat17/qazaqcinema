@@ -26,7 +26,8 @@ const MOVIES: Movie[] = [
   { id: 1, title_kk: "Батыл жүрек", title_ru: "Храбрая сердцем", title_original: "Brave", description: "Мерида ханшайым өз тағдырын өзі шешуге бел буады.", categories: ["disney", "adventure"], poster_url: poster("brave"), year: 2012, rating: 7.1 },
 ];
 
-// Фильм на hero: у него есть горизонтальный баннер 3:2 (проверить широкий hero в браузере).
+// Фильм дня на hero. С баннером — кинематографичный вариант; убери `hero_image_url`,
+// чтобы посмотреть «афишу» (размытый постер фоном) — второй вариант вёрстки.
 const HERO_MOVIE: Movie = { ...MOVIES[0], hero_image_url: "https://picsum.photos/seed/howl-hero/1200/800" };
 
 // Полки главной (как их собрал бы бэкенд): «Жаңа түскен» без hero + «Танымал» (по рейтингу-прокси).
@@ -34,7 +35,9 @@ const SHELVES: Shelf[] = [
   { key: "fresh", title: "Жаңа түскен", movies: MOVIES.filter((m) => m.id !== HERO_MOVIE.id) },
   { key: "popular", title: "Танымал", movies: [...MOVIES].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)) },
 ];
-const HOME: CatalogHome = { hero: HERO_MOVIE, shelves: SHELVES };
+// Фильм дня бесплатен до ближайшей местной полуночи — так же, как считает бэк.
+const MIDNIGHT = new Date(new Date().setHours(24, 0, 0, 0)).toISOString();
+const HOME: CatalogHome = { hero: HERO_MOVIE, hero_free_until: MIDNIGHT, shelves: SHELVES };
 
 const TARIFFS: Tariff[] = [
   { slug: "1_day", title_ru: "1 день", title_kk: "1 күн", price_kzt: 290, price_xtr: 50, days: 1, recurring: false },
@@ -56,6 +59,7 @@ const AUTH: Auth = {
   has_access: true,
   token: null, // в dev-моке токен-флоу не задействован (request() уходит в мок до fetch)
   notifications_enabled: true, // тумблер рассылок (Фаза 12)
+  bot_started: true, // false → в браузере увидишь шторку «Ботты ашу»
   // Поставь status:"new"/has_access:false, чтобы посмотреть воронку подарка в браузере.
   free_view_available: true,
   free_view_movie_id: null,

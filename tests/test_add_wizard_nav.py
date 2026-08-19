@@ -38,16 +38,16 @@ def _codes(markup: Any) -> list[str]:
     return [button.callback_data for row in markup.inline_keyboard for button in row]
 
 
-# --- ветка hero -------------------------------------------------------------
+# --- порядок шагов ----------------------------------------------------------
 
-def test_hero_step_only_for_featured() -> None:
-    assert _next(AddMovie.featured, {"is_featured": True}) is AddMovie.hero
-    assert _next(AddMovie.featured, {"is_featured": False}) is AddMovie.category
+def test_hero_banner_is_asked_of_every_movie() -> None:
+    """Условных шагов больше нет: баннер спрашивают всех (решение 2026-08-19).
 
-
-def test_back_from_category_skips_hero_for_non_featured() -> None:
-    assert _previous(AddMovie.category, {"is_featured": True}) is AddMovie.hero
-    assert _previous(AddMovie.category, {"is_featured": False}) is AddMovie.featured
+    Раньше hero показывался только помеченным «на главную»; теперь hero — это фильм дня,
+    в него по очереди попадает весь каталог, и баннер пригодится любому фильму.
+    """
+    assert _next(AddMovie.poster, {}) is AddMovie.hero
+    assert _previous(AddMovie.category, {}) is AddMovie.hero
 
 
 def test_first_step_has_nowhere_to_go_back() -> None:
@@ -74,20 +74,20 @@ def test_skipped_step_is_marked_and_can_be_refilled() -> None:
 
 
 def test_untouched_step_offers_only_back() -> None:
-    _, markup = _screen(AddMovie.title_ru, {"is_featured": False})
+    _, markup = _screen(AddMovie.title_ru, {})
     assert _codes(markup) == [BACK]
 
 
 def test_category_step_keeps_selection_but_has_no_keep_button() -> None:
-    data = {"categories": ["disney"], "is_featured": False}
+    data = {"categories": ["disney"]}
     assert _has_value(AddMovie.category, data) is False  # роль «дальше» играет «Дайын»
     _, markup = _screen(AddMovie.category, data)
     assert BACK in _codes(markup)
 
 
-def test_edit_menu_hides_hero_without_banner() -> None:
-    assert f"{EDIT_PREFIX}hero" not in _codes(edit_keyboard(is_featured=False))
-    assert f"{EDIT_PREFIX}hero" in _codes(edit_keyboard(is_featured=True))
+def test_edit_menu_always_offers_the_hero_banner() -> None:
+    """Баннер правится всегда — в т.ч. чтобы добавить его туда, где сначала был /skip."""
+    assert f"{EDIT_PREFIX}hero" in _codes(edit_keyboard())
 
 
 # --- режим точечной правки --------------------------------------------------
@@ -103,17 +103,18 @@ async def test_edit_of_one_field_returns_straight_to_summary() -> None:
     assert (await state.get_data())["edit"] is False
 
 
-async def test_edit_featured_to_yes_collects_banner_before_summary() -> None:
-    state = _state()
-    await state.set_state(AddMovie.featured)
-    await state.update_data(edit=True, is_featured=True)
+async def test_skipped_banner_is_distinguishable_from_untouched_step() -> None:
+    """«Ещё не спрашивали» и «сознательно пропустил» — разные экраны.
 
-    await _advance(_TARGET, state)
+    У первого «Әрі қарай» быть не должно (оставлять нечего), у второго — должна, иначе
+    админ, вернувшийся к шагу, не смог бы уйти дальше, не приложив картинку.
+    """
+    _, untouched = _screen(AddMovie.hero, {})
+    text, skipped = _screen(AddMovie.hero, {"hero_file_id": None})
 
-    assert await state.get_state() == AddMovie.hero.state
-    await state.update_data(hero_file_id="fid")
-    await _advance(_TARGET, state)  # баннер получен → назад к сводке
-    assert await state.get_state() == AddMovie.confirm.state
+    assert _codes(untouched) == [BACK]
+    assert "өткізілген" in text
+    assert NEXT in _codes(skipped)
 
 
 async def test_plain_flow_goes_to_the_next_step() -> None:

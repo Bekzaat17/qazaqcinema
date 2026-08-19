@@ -35,7 +35,7 @@ class _FakeCatalog:
         page: BrowsePage | None = None,
         counts: list[tuple[str, int]] | None = None,
     ) -> None:
-        self._home = home or Home(hero=None, shelves=[])
+        self._home = home or Home(hero=None, free_until=None, shelves=[])
         self._page = page or BrowsePage(items=[], total=0, page=1, limit=24)
         self._counts = counts or []
         self.home_calls = 0
@@ -108,7 +108,11 @@ async def test_home_returns_cached_without_touching_db() -> None:
 
 async def test_home_builds_from_db_and_caches_on_miss() -> None:
     cache = _MissCache()
-    home = Home(hero=_movie(2), shelves=[HomeShelf(key="fresh", movies=[_movie(2), _movie(1)])])
+    home = Home(
+        hero=_movie(2),
+        free_until=None,
+        shelves=[HomeShelf(key="fresh", movies=[_movie(2), _movie(1)])],
+    )
     catalog = _FakeCatalog(home=home)
 
     response = await catalog_home(cache=cache, catalog=catalog, _user=_USER)
