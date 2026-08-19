@@ -20,7 +20,6 @@ class MovieOut(BaseModel):
     poster_url: str
     year: int | None = None
     rating: float | None = None
-    hero_image_url: str | None = None  # горизонтальный баннер, если фильм показан на hero
     # telegram_file_id ОТСУТСТВУЕТ намеренно — его видит только бот.
 
     @classmethod
@@ -37,7 +36,6 @@ class MovieOut(BaseModel):
             poster_url=movie.poster_url,
             year=movie.year,
             rating=movie.rating,
-            hero_image_url=movie.hero_image_url,
         )
 
 

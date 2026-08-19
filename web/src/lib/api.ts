@@ -126,7 +126,6 @@ export interface Movie {
   poster_url: string;
   year: number | null;
   rating: number | null;
-  hero_image_url?: string | null; // горизонтальный баннер, если фильм показан на hero
 }
 
 /** Полка главной: ключ (fresh/popular), казахская подпись, фильмы (собрано на бэке). */

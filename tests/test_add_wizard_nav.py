@@ -40,14 +40,15 @@ def _codes(markup: Any) -> list[str]:
 
 # --- порядок шагов ----------------------------------------------------------
 
-def test_hero_banner_is_asked_of_every_movie() -> None:
-    """Условных шагов больше нет: баннер спрашивают всех (решение 2026-08-19).
+def test_only_one_image_is_asked_for() -> None:
+    """Картинка у фильма одна — постер (решение 2026-08-19).
 
-    Раньше hero показывался только помеченным «на главную»; теперь hero — это фильм дня,
-    в него по очереди попадает весь каталог, и баннер пригодится любому фильму.
+    Ни вопроса «показывать на главной?», ни отдельного широкого баннера в визарде нет:
+    hero — это фильм дня, туда по очереди попадает весь каталог, а широкую поверхность
+    фронт делает из того же постера.
     """
-    assert _next(AddMovie.poster, {}) is AddMovie.hero
-    assert _previous(AddMovie.category, {}) is AddMovie.hero
+    assert _next(AddMovie.poster, {}) is AddMovie.category
+    assert _previous(AddMovie.category, {}) is AddMovie.poster
 
 
 def test_first_step_has_nowhere_to_go_back() -> None:
@@ -85,9 +86,11 @@ def test_category_step_keeps_selection_but_has_no_keep_button() -> None:
     assert BACK in _codes(markup)
 
 
-def test_edit_menu_always_offers_the_hero_banner() -> None:
-    """Баннер правится всегда — в т.ч. чтобы добавить его туда, где сначала был /skip."""
-    assert f"{EDIT_PREFIX}hero" in _codes(edit_keyboard())
+def test_edit_menu_has_no_banner_field() -> None:
+    """Править нечего: широкого баннера у фильма больше не бывает."""
+    codes = _codes(edit_keyboard())
+    assert f"{EDIT_PREFIX}hero" not in codes
+    assert f"{EDIT_PREFIX}poster" in codes
 
 
 # --- режим точечной правки --------------------------------------------------
@@ -101,20 +104,6 @@ async def test_edit_of_one_field_returns_straight_to_summary() -> None:
 
     assert await state.get_state() == AddMovie.confirm.state
     assert (await state.get_data())["edit"] is False
-
-
-async def test_skipped_banner_is_distinguishable_from_untouched_step() -> None:
-    """«Ещё не спрашивали» и «сознательно пропустил» — разные экраны.
-
-    У первого «Әрі қарай» быть не должно (оставлять нечего), у второго — должна, иначе
-    админ, вернувшийся к шагу, не смог бы уйти дальше, не приложив картинку.
-    """
-    _, untouched = _screen(AddMovie.hero, {})
-    text, skipped = _screen(AddMovie.hero, {"hero_file_id": None})
-
-    assert _codes(untouched) == [BACK]
-    assert "өткізілген" in text
-    assert NEXT in _codes(skipped)
 
 
 async def test_plain_flow_goes_to_the_next_step() -> None:

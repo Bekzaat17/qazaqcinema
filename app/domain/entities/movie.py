@@ -17,7 +17,11 @@ class Movie:
     title_original: str | None = None  # оригинал/EN (для поиска: «Frozen», «Naruto»)
     year: int | None = None
     rating: float | None = None
-    hero_image_url: str | None = None  # горизонтальный баннер 3:2 для hero (None → фолбэк постер)
+    # Наследие широкого баннера (до 2026-08-19). Визард его больше НЕ запрашивает и hero
+    # его не рисует — широкую поверхность делает фронт из постера. Поле живёт ради SEO:
+    # у полусотни старых фильмов горизонтальная картинка лучше как og:image в соцсетях,
+    # чем портретный постер (`SeoBuilder`: hero → фолбэк постер).
+    hero_image_url: str | None = None
     play_count: int = 0                # число просмотров (Фаза 13); входит в «Танымал»
     favorites_count: int = 0           # сколько раз добавлен в избранное; тоже в «Танымал»
     created_at: datetime | None = None  # проставляет БД (server_default); None до вставки

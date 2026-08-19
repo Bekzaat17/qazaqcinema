@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.application.ports.images import HERO, POSTER, ImageSpec
+from app.application.ports.images import POSTER, ImageSpec
 from app.application.services.ingestion_service import MovieIngestionService
 from app.domain.entities.movie import Movie
 
@@ -86,7 +86,6 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
         notify=True,
         video_file_id="archive-file-id",
         poster_bytes=b"image-bytes",
-        hero_bytes=None,
     )
 
     assert movie.id == 1
@@ -100,13 +99,16 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     assert broadcast.notified == [movie]                # админ выбрал «хабарла» → рассылка
 
 
-async def test_ingest_saves_hero_banner_when_given() -> None:
-    movies = _FakeMovies()
-    posters = _FakePosters()
-    images = _FakeImages()
-    notifier = _FakeNotifier()
+async def test_ingest_stores_exactly_one_image() -> None:
+    """У фильма ровно одна картинка — постер (решение 2026-08-19).
+
+    Широкий баннер больше не запрашивается: hero главной делает широкую поверхность из
+    этого же постера, а вторая картинка к каждому из сотен фильмов — работа, которая
+    ничего не добавляла.
+    """
+    movies, posters, images = _FakeMovies(), _FakePosters(), _FakeImages()
     service = MovieIngestionService(
-        movies, notifier, posters, images, _FakeCache(), _FakeBroadcast()
+        movies, _FakeNotifier(), posters, images, _FakeCache(), _FakeBroadcast()
     )
 
     movie = await service.ingest(
@@ -120,12 +122,11 @@ async def test_ingest_saves_hero_banner_when_given() -> None:
         notify=True,
         video_file_id="vid",
         poster_bytes=b"poster",
-        hero_bytes=b"hero",
     )
 
-    assert movie.hero_image_url is not None                      # баннер сохранён
-    assert posters.saved == [b"poster", b"hero"]                 # постер + hero
-    assert {spec for _, spec in images.calls} == {POSTER, HERO}  # обе нормализованы
+    assert movie.hero_image_url is None            # баннера нет и взяться неоткуда
+    assert posters.saved == [b"poster"]            # в хранилище ушёл один файл
+    assert images.calls == [(b"poster", POSTER)]   # и нормализован он один раз
 
 
 async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
@@ -150,7 +151,6 @@ async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
         notify=False,
         video_file_id="vid",
         poster_bytes=b"poster",
-        hero_bytes=None,
     )
 
     assert movie.id == 1              # фильм в каталоге

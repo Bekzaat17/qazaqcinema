@@ -10,7 +10,7 @@ from __future__ import annotations
 from io import BytesIO
 
 import pytest
-from app.application.ports.images import HERO, POSTER, ImageSpec
+from app.application.ports.images import POSTER, ImageSpec
 from app.infrastructure.images.pillow import PillowImageProcessor
 from PIL import Image
 
@@ -28,11 +28,18 @@ async def test_normalize_poster_to_2x3_jpeg() -> None:
     assert image.size == (POSTER.width, POSTER.height)  # 600x900 (портрет 2:3)
 
 
-async def test_normalize_hero_to_landscape_jpeg() -> None:
-    out = await PillowImageProcessor().normalize(_png(500, 900), HERO)
+async def test_normalize_crops_portrait_source_to_a_landscape_spec() -> None:
+    """Обработчик умеет любую пропорцию, а не только постерную.
+
+    Спецификация здесь задаётся прямо в тесте: в приложении сейчас один формат
+    (POSTER), но `normalize` обязан оставаться общим — иначе первый же новый размер
+    (превью, og:image) потребовал бы правки самого адаптера.
+    """
+    landscape = ImageSpec(1200, 800)
+    out = await PillowImageProcessor().normalize(_png(500, 900), landscape)
     image = Image.open(BytesIO(out))
     assert image.format == "JPEG"
-    assert image.size == (HERO.width, HERO.height)  # 1200x800 (горизонталь 3:2)
+    assert image.size == (landscape.width, landscape.height)  # 3:2 из портрета
 
 
 async def test_normalize_rejects_broken_bytes() -> None:

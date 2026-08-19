@@ -2,8 +2,8 @@
 
 Сервис чист: знает только порты (репозиторий, хранилище постеров, обработчик картинок,
 нотификатор), ничего про aiogram. Видео уже лежит в канале-архиве (его file_id приходит
-готовым); постер (и, если фильм на hero, горизонтальный баннер) приходят байтами,
-нормализуются через `ImageProcessor` и уходят в `PosterStorage` (статика на VPS).
+готовым); постер приходит байтами, нормализуется через `ImageProcessor` и уходит в
+`PosterStorage` (статика на VPS).
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import logging
 from html import escape
 
 from app.application.ports.catalog_cache import CatalogCache
-from app.application.ports.images import HERO, POSTER, ImageProcessor
+from app.application.ports.images import POSTER, ImageProcessor
 from app.application.ports.repositories import MovieRepository
 from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
@@ -52,14 +52,14 @@ class MovieIngestionService:
         notify: bool,
         video_file_id: str,
         poster_bytes: bytes,
-        hero_bytes: bytes | None,
     ) -> Movie:
         """Нормализовать/сохранить постер (+ hero-баннер), записать фильм, уведомить админов.
 
         `video_file_id` — file_id видео в канале-архиве (отдаётся ТОЛЬКО боту).
         `poster_bytes` — постер → нормализуется к 2:3 → `PosterStorage` → публичный URL.
-        `hero_bytes` — горизонтальный баннер; None (админ нажал /skip) → фронт строит фон
-        hero из размытого постера. Битую картинку `ImageProcessor` отклонит (ValueError).
+        Картинка у фильма одна: широкий баннер больше не запрашивается (решение
+        2026-08-19) — hero строит фон из этого же постера. Битую картинку
+        `ImageProcessor` отклонит (ValueError).
 
         `notify` — рассылать ли новинку. Решение принимает админ на каждом фильме (шаг
         визарда), а не код: каталог заливают пачками по десятку-другому за вечер, и
@@ -68,9 +68,6 @@ class MovieIngestionService:
         (`BroadcastService.notify_new_movie` берёт только согласившихся).
         """
         poster_url = await self._posters.save(await self._images.normalize(poster_bytes, POSTER))
-        hero_url: str | None = None
-        if hero_bytes is not None:
-            hero_url = await self._posters.save(await self._images.normalize(hero_bytes, HERO))
         movie = Movie(
             title_kk=title_kk,
             title_ru=title_ru,
@@ -81,7 +78,6 @@ class MovieIngestionService:
             telegram_file_id=video_file_id,
             year=year,
             rating=rating,
-            hero_image_url=hero_url,
         )
         saved = await self._movies.add(movie)
         # Сбрасываем ВЕСЬ кэш каталога (главная/чипы/страницы браузинга), иначе новинка не

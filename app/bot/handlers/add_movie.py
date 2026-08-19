@@ -1,14 +1,15 @@
 """Бот-визард `/add` — пошаговое добавление фильма (только для админов).
 
-Поток (FSM): видео → постер → hero-баннер → категория → title_kk → title_ru →
-title_original → год → рейтинг → описание → рассылка? → подтверждение. По подтверждению видео уходит
-копией в канал-архив (`protect_content`); постер и горизонтальный hero-баннер скачиваются,
-нормализуются и сохраняются `MovieIngestionService`.
+Поток (FSM): видео → постер → категория → title_kk → title_ru → title_original → год →
+рейтинг → описание → рассылка? → подтверждение. По подтверждению видео уходит копией в
+канал-архив (`protect_content`); постер скачивается, нормализуется и сохраняется
+`MovieIngestionService`.
 
-Вопроса «показывать на главной?» больше нет (решение 2026-08-19): hero — это фильм дня,
-и туда по очереди попадает ВЕСЬ каталог, поэтому выбирать нечего. Баннер спрашиваем у
-каждого фильма как обычный шаг: с ним hero выглядит кинематографично, без него фронт
-строит фон из размытого постера — поэтому шаг пропускаемый (/skip), а не обязательный.
+Картинка у фильма ровно ОДНА — постер (решение 2026-08-19). Ни «показывать на главной?»,
+ни отдельного широкого баннера визард больше не спрашивает: hero — это фильм дня, туда по
+очереди попадает весь каталог, а широкую поверхность фронт делает из того же постера
+(увеличенная размытая копия фоном). Просить у админа вторую картинку к каждому из сотен
+фильмов — работа, которая ничего не добавляет.
 
 Навигация — данные, а не разветвлённые хендлеры: порядок шагов задан `_ORDER`, у каждого шага
 свой текст (`_PROMPTS`), поэтому «⬅️ Артқа» (шаг назад), «➡️ Әрі қарай» (оставить как есть) и
@@ -63,7 +64,6 @@ _SKIP = "/skip"
 class AddMovie(StatesGroup):
     video = State()
     poster = State()
-    hero = State()
     category = State()
     title_kk = State()
     title_ru = State()
@@ -78,11 +78,10 @@ class AddMovie(StatesGroup):
 # --- шаги как данные --------------------------------------------------------
 
 # Порядок шагов. Отсюда считаются «назад»/«вперёд» — условных шагов больше нет, все
-# показываются всем (ветка «hero только у featured» ушла вместе с курированием главной).
+# показываются всем — условных шагов в визарде не осталось.
 _ORDER: tuple[State, ...] = (
     AddMovie.video,
     AddMovie.poster,
-    AddMovie.hero,
     AddMovie.category,
     AddMovie.title_kk,
     AddMovie.title_ru,
@@ -95,24 +94,19 @@ _ORDER: tuple[State, ...] = (
 )
 
 _PROMPTS: dict[str | None, str] = {
-    AddMovie.video.state: "🎬 1/11 — видеоны жібер (видео, не файл). /cancel — болдырмау.",
-    AddMovie.poster.state: "2/11 — постерді сурет (фото) ретінде жібер.",
-    AddMovie.hero.state: (
-        "3/11 — hero-баннер: басты бетте кең көрсетіледі. Кең (горизонталь) НЕ шаршы "
-        "сурет жібер — 3:2-ге қиылады (портрет постер емес).\n\n"
-        "Баннер жоқ па? /skip — басты бетте постердің өзі әдемі бұлыңғыр фон болады."
-    ),
+    AddMovie.video.state: "🎬 1/10 — видеоны жібер (видео, не файл). /cancel — болдырмау.",
+    AddMovie.poster.state: "2/10 — постерді сурет (фото) ретінде жібер.",
     AddMovie.category.state: (
-        "4/11 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:"
+        "3/10 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:"
     ),
-    AddMovie.title_kk.state: "5/11 — қазақша атауы (название на казахском):",
-    AddMovie.title_ru.state: "6/11 — название на русском (или /skip):",
-    AddMovie.title_original.state: "7/11 — оригинальное название / English (или /skip):",
-    AddMovie.year.state: "8/11 — год выпуска (напр. 1994) или /skip:",
-    AddMovie.rating.state: "9/11 — рейтинг 0–10 (напр. 8.5) или /skip:",
-    AddMovie.description.state: "10/11 — описание (сипаттама):",
+    AddMovie.title_kk.state: "4/10 — қазақша атауы (название на казахском):",
+    AddMovie.title_ru.state: "5/10 — название на русском (или /skip):",
+    AddMovie.title_original.state: "6/10 — оригинальное название / English (или /skip):",
+    AddMovie.year.state: "7/10 — год выпуска (напр. 1994) или /skip:",
+    AddMovie.rating.state: "8/10 — рейтинг 0–10 (напр. 8.5) или /skip:",
+    AddMovie.description.state: "9/10 — описание (сипаттама):",
     AddMovie.notify.state: (
-        "11/11 — жазылушыларға жаңа фильм туралы хабарлама жіберу керек пе?\n\n"
+        "10/10 — жазылушыларға жаңа фильм туралы хабарлама жіберу керек пе?\n\n"
         "Хабарлама тек хабарландыруды ҚОСҚАНДАРҒА барады. Каталогты топтап толтырып "
         "жатсаң — «🔕 Жоқ» (әйтпесе бір күнде ондаған хабарлама кетеді)."
     ),
@@ -145,12 +139,6 @@ def _value(step: State, data: dict[str, Any]) -> str | None:
     """Что уже введено на шаге — показываем при возврате, чтобы было видно, что правим."""
     if step in (AddMovie.video, AddMovie.poster):
         return "тіркелген ✅" if data.get(f"{_name(step)}_file_id") else None
-    if step is AddMovie.hero:
-        # Отличаем «ещё не спрашивали» от «сознательно пропустил»: у первого кнопки
-        # «Әрі қарай» быть не должно, у второго — должна.
-        if data.get("hero_file_id"):
-            return "тіркелген ✅"
-        return "— (өткізілген)" if "hero_file_id" in data else None
     if step is AddMovie.notify:
         return None if "notify" not in data else ("Иә" if data["notify"] else "Жоқ")
     if step is AddMovie.category:
@@ -323,29 +311,6 @@ async def step_notify(callback: CallbackQuery, state: FSMContext) -> None:
     await _advance(callback, state)
 
 
-@router.message(AddMovie.hero, F.photo)
-async def step_hero(message: Message, state: FSMContext) -> None:
-    if not message.photo:
-        return
-    await state.update_data(hero_file_id=message.photo[-1].file_id)
-    await _advance(message, state)
-
-
-@router.message(AddMovie.hero, F.text)
-async def step_hero_skip(message: Message, state: FSMContext) -> None:
-    """Баннера нет — /skip. Фон hero фронт соберёт из постера (размытый + увеличенный)."""
-    if (message.text or "").strip() != _SKIP:
-        await message.answer("Кең сурет жібер немесе /skip (постерден фон жасаймыз).")
-        return
-    await state.update_data(hero_file_id=None)
-    await _advance(message, state)
-
-
-@router.message(AddMovie.hero)
-async def step_hero_retry(message: Message) -> None:
-    await message.answer("Hero-сурет күтілуде — кең фото жібер, /skip немесе /cancel.")
-
-
 # DONE зарегистрирован ПЕРЕД тумблером: его callback_data тоже начинается с
 # CATEGORY_PREFIX, но точное совпадение должно перехватываться раньше overlap-матча.
 @router.callback_query(AddMovie.category, F.data == CATEGORY_DONE)
@@ -491,10 +456,8 @@ async def confirm_add(
     try:
         # 1) копия видео в канал-архив (protect_content) → стабильный file_id для выдачи
         archive_file_id = await _archive_video(bot, config, str(data["video_file_id"]))
-        # 2) постер (и hero-баннер, если фильм на главной) скачиваем → байты для сервиса
+        # 2) постер скачиваем → байты для сервиса (единственная картинка фильма)
         poster_bytes = await _download(bot, str(data["poster_file_id"]))
-        hero_file_id = data.get("hero_file_id")
-        hero_bytes = await _download(bot, str(hero_file_id)) if hero_file_id else None
 
         movie = await ingestion.ingest(
             title_kk=str(data["title_kk"]),
@@ -507,7 +470,6 @@ async def confirm_add(
             notify=bool(data.get("notify")),
             video_file_id=archive_file_id,
             poster_bytes=poster_bytes,
-            hero_bytes=hero_bytes,
         )
     except Exception:
         # Визард не должен зависать на «⏳ Сақталуда…»: любую ошибку (битая картинка, сеть,
@@ -549,7 +511,6 @@ def _category_titles(data: dict[str, Any]) -> str:
 
 
 def _summary(data: dict[str, Any]) -> str:
-    banner = "Иә" if data.get("hero_file_id") else "Жоқ (постерден фон)"
     return "\n".join(
         [
             "Тексер және сақта (проверь и сохрани):",
@@ -557,7 +518,6 @@ def _summary(data: dict[str, Any]) -> str:
             f"🇷🇺 RU: {data.get('title_ru') or '—'}",
             f"🌐 Ориг.: {data.get('title_original') or '—'}",
             f"🗂 Категория: {_category_titles(data)}",
-            f"🖼 Hero-баннер: {banner}",
             f"📅 Год: {data.get('year') or '—'}",
             f"⭐ Рейтинг: {data.get('rating') or '—'}",
             f"📝 {data.get('description') or '—'}",

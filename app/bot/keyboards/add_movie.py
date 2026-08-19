@@ -25,7 +25,6 @@ _NEXT_TEXT = "➡️ Әрі қарай"
 EDIT_FIELDS: tuple[tuple[str, str], ...] = (
     ("video", "🎬 Видео"),
     ("poster", "🖼 Постер"),
-    ("hero", "⭐ Hero-баннер"),
     ("category", "🗂 Категориялар"),
     ("title_kk", "🇰🇿 Атауы (KK)"),
     ("title_ru", "🇷🇺 Атауы (RU)"),
@@ -118,11 +117,7 @@ def confirm_keyboard() -> InlineKeyboardMarkup:
 
 
 def edit_keyboard() -> InlineKeyboardMarkup:
-    """Меню правки: прыжок к одному полю (после ввода — сразу обратно к сводке).
-
-    Условных полей больше нет: hero-баннер спрашивают у каждого фильма, поэтому и
-    поправить его можно всегда (в т.ч. добавить там, где сначала нажали /skip).
-    """
+    """Меню правки: прыжок к одному полю (после ввода — сразу обратно к сводке)."""
     buttons = [
         InlineKeyboardButton(text=title, callback_data=f"{EDIT_PREFIX}{field}")
         for field, title in EDIT_FIELDS

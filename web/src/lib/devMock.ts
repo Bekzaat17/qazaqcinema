@@ -26,9 +26,8 @@ const MOVIES: Movie[] = [
   { id: 1, title_kk: "Батыл жүрек", title_ru: "Храбрая сердцем", title_original: "Brave", description: "Мерида ханшайым өз тағдырын өзі шешуге бел буады.", categories: ["disney", "adventure"], poster_url: poster("brave"), year: 2012, rating: 7.1 },
 ];
 
-// Фильм дня на hero. С баннером — кинематографичный вариант; убери `hero_image_url`,
-// чтобы посмотреть «афишу» (размытый постер фоном) — второй вариант вёрстки.
-const HERO_MOVIE: Movie = { ...MOVIES[0], hero_image_url: "https://picsum.photos/seed/howl-hero/1200/800" };
+// Фильм дня на hero: широкую поверхность фронт делает из его же постера.
+const HERO_MOVIE: Movie = MOVIES[0];
 
 // Полки главной (как их собрал бы бэкенд): «Жаңа түскен» без hero + «Танымал» (по рейтингу-прокси).
 const SHELVES: Shelf[] = [
