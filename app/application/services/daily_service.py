@@ -18,7 +18,7 @@ from datetime import datetime
 from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.daily_pin import DailyPin
 from app.application.ports.repositories import MovieRepository
-from app.domain.catalog.daily import day_index, free_until, pick_daily_id
+from app.domain.catalog.daily import day_index, day_start, free_until, pick_daily_id
 from app.domain.entities.movie import Movie
 
 
@@ -29,11 +29,22 @@ class DailyMovieService:
         self._cache = cache
 
     async def today_id(self, now: datetime) -> int | None:
-        """id сегодняшнего бесплатного фильма: закреп админа, иначе ротация."""
+        """id сегодняшнего бесплатного фильма: закреп админа, иначе ротация.
+
+        Пул — фильмы, добавленные ДО начала текущих суток. Это не придирка: длина пула
+        входит в `divmod`, поэтому загруженная днём новинка меняла бы бесплатное кино
+        прямо под руками у зрителя — тот, кто минуту назад видел «Тегін көру», получил
+        бы на том же фильме пэйволл. Новинка входит в ротацию со следующего дня.
+        """
         pinned = await self._pin.get(day_index(now))
         if pinned is not None:
             return pinned
-        return pick_daily_id(await self._movies.list_rotation_ids(), now)
+        ids = await self._movies.list_rotation_ids(day_start(now))
+        if not ids:
+            # Каталог целиком залит сегодня (первый день жизни или разовая большая
+            # заливка) — лучше подвижный фильм дня, чем пустая главная.
+            ids = await self._movies.list_rotation_ids()
+        return pick_daily_id(ids, now)
 
     async def today(self, now: datetime) -> Movie | None:
         movie_id = await self.today_id(now)

@@ -52,8 +52,20 @@ class _FakeMovies:
         self._counts = counts or {}
         self.list_page_args: dict[str, object] = {}
 
-    async def list_rotation_ids(self) -> list[int]:
-        return [movie.id for movie in self._pool if movie.id is not None]
+    async def list_rotation_ids(self, created_before: datetime | None = None) -> list[int]:
+        # Фейк повторяет главное свойство адаптера: с отсечкой в пул попадают только
+        # фильмы, добавленные РАНЬШЕ неё (у фикстур `created_at` может быть None —
+        # такие считаем «старыми», как и строки до появления колонки).
+        return [
+            movie.id
+            for movie in self._pool
+            if movie.id is not None
+            and (
+                created_before is None
+                or movie.created_at is None
+                or movie.created_at < created_before
+            )
+        ]
 
     async def get(self, movie_id: int) -> Movie | None:
         return next((m for m in self._pool if m.id == movie_id), None)
@@ -224,3 +236,33 @@ async def test_pinning_a_missing_movie_changes_nothing() -> None:
 
     assert await _daily(repo, pin).pin_today(999, _NOW) is None
     assert pin.pinned == []  # ничего не закрепили
+
+
+async def test_uploading_a_movie_today_does_not_change_todays_free_film() -> None:
+    """Заливка новинки НЕ подменяет сегодняшнее бесплатное кино.
+
+    Длина каталога входит в `divmod`, поэтому раньше каждый залитый днём фильм сдвигал
+    выбор: зритель, минуту назад видевший «Тегін көру», получил бы на том же фильме
+    пэйволл. Новинка входит в ротацию со следующих суток.
+    """
+    old = [_movie(mid) for mid in (1, 2, 3, 4)]
+    for movie in old:
+        movie.created_at = _NOW - timedelta(days=5)
+    repo = _FakeMovies(pool=old)
+    before = await _daily(repo).today_id(_NOW)
+
+    fresh = _movie(5)
+    fresh.created_at = _NOW  # залит уже сегодня
+    repo._pool.append(fresh)
+
+    assert await _daily(repo).today_id(_NOW) == before
+
+
+async def test_brand_new_catalog_still_has_a_film_of_the_day() -> None:
+    """Все фильмы залиты сегодня → отсечка оставила бы пустой пул и пустую главную."""
+    today_only = [_movie(mid) for mid in (1, 2)]
+    for movie in today_only:
+        movie.created_at = _NOW
+    repo = _FakeMovies(pool=today_only)
+
+    assert await _daily(repo).today_id(_NOW) in (1, 2)

@@ -145,7 +145,7 @@ class PgMovieRepository:
         model = await self._session.get(MovieModel, movie_id)
         return _movie_to_domain(model) if model else None
 
-    async def list_rotation_ids(self) -> list[int]:
+    async def list_rotation_ids(self, created_before: datetime | None = None) -> list[int]:
         """Пул фильма дня: id ВСЕХ фильмов каталога в стабильном порядке.
 
         Только id, а не строки целиком: выбирать из пула — работа чистой функции
@@ -155,10 +155,12 @@ class PgMovieRepository:
 
         Порядок по id обязателен: перестановка круга детерминирована, и достаточно
         одной «плавающей» сортировки, чтобы фильм дня менялся между запросами внутри
-        одних суток. Фильтра по баннеру тут НЕТ намеренно — фильм дня показывается
-        и без него (фронт строит фон из постера), иначе каталог в пуле урезался бы втрое.
+        одних суток. По той же причине есть `created_before`: длина пула входит в
+        `divmod`, поэтому фильм, залитый днём, сдвинул бы сегодняшний выбор.
         """
         stmt = select(MovieModel.id).order_by(MovieModel.id)
+        if created_before is not None:
+            stmt = stmt.where(MovieModel.created_at < created_before)
         result = await self._session.scalars(stmt)
         return list(result)
 

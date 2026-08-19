@@ -28,8 +28,12 @@ class MovieRepository(Protocol):
     async def get(self, movie_id: int) -> Movie | None: ...
     async def list_all(self, category: str | None = None) -> list[Movie]: ...
     async def search(self, query: str) -> list[Movie]: ...
-    async def list_rotation_ids(self) -> list[int]:
-        """id всех фильмов (стабильный порядок) — пул выбора фильма дня.
+    async def list_rotation_ids(self, created_before: datetime | None = None) -> list[int]:
+        """id фильмов (стабильный порядок) — пул выбора фильма дня.
+
+        `created_before` — взять только добавленные РАНЬШЕ этого момента. Пул обязан быть
+        неизменным внутри суток: выбор считается через `divmod` по длине каталога, и
+        всякая новинка иначе сдвигала бы сегодняшнее бесплатное кино.
 
         Только id: кого показать сегодня, решает чистая функция `daily.pick_daily_id`,
         а карточку победителя достаёт `get`.

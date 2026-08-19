@@ -33,6 +33,17 @@ def day_index(now: datetime) -> int:
     return now.astimezone(TZ).date().toordinal()
 
 
+def day_start(now: datetime) -> datetime:
+    """Начало текущих МЕСТНЫХ суток — граница пула фильма дня.
+
+    В выбор идут только фильмы, добавленные ДО неё. Иначе залитая днём новинка меняла бы
+    длину каталога, а с ней — и `divmod`, то есть бесплатное кино подменялось бы прямо
+    под руками у зрителя (проверено: +1 фильм к 158 сдвигает выбор с id 77 на id 35).
+    Новинка входит в ротацию со следующих суток; нужна сегодня — есть `/daily <id>`.
+    """
+    return datetime.combine(now.astimezone(TZ).date(), time.min, tzinfo=TZ)
+
+
 def free_until(now: datetime) -> datetime:
     """Когда фильм дня сменится: ближайшая местная полночь.
 
