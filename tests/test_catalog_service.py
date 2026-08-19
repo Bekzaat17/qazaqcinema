@@ -80,13 +80,40 @@ class _FakeMovies:
         return self._counts
 
 
+class _NoPin:
+    """Закрепа админом нет — обычная ротация (её и проверяют тесты витрины)."""
+
+    def __init__(self, movie_id: int | None = None) -> None:
+        self.movie_id = movie_id
+        self.pinned: list[tuple[int, int, int]] = []
+
+    async def get(self, day: int) -> int | None:
+        return self.movie_id
+
+    async def set(self, day: int, movie_id: int, ttl_seconds: int) -> None:
+        self.pinned.append((day, movie_id, ttl_seconds))
+
+
+class _NoCache:
+    async def get(self, key: str) -> str | None:
+        return None
+
+    async def set(self, key: str, payload: str, ttl_seconds: int) -> None: ...
+
+    async def invalidate(self) -> None: ...
+
+
+def _daily(repo: _FakeMovies, pin: _NoPin | None = None) -> DailyMovieService:
+    return DailyMovieService(repo, pin or _NoPin(), _NoCache())  # type: ignore[arg-type]
+
+
 def _service(repo: _FakeMovies) -> CatalogService:
     """Каталог с настоящим `DailyMovieService` поверх того же фейка репозитория.
 
     Подменять выбор фильма дня заглушкой нельзя: витрина и выдача обязаны сходиться,
     и тест должен ломаться ровно тогда, когда они разъедутся.
     """
-    return CatalogService(repo, DailyMovieService(repo))  # type: ignore[arg-type]
+    return CatalogService(repo, _daily(repo))  # type: ignore[arg-type]
 
 
 async def test_browse_clamps_page_and_limit() -> None:
@@ -176,3 +203,24 @@ async def test_category_counts_orders_canonically() -> None:
 
     # disney раньше anime в справочнике; незнакомая категория — в конец.
     assert result == [("disney", 5), ("anime", 3), ("zzz_unknown", 2)]
+
+
+async def test_pinned_movie_beats_the_rotation_for_today() -> None:
+    """Админ закрепил фильм командой /daily → сегодня hero именно он, ротация подождёт."""
+    repo = _FakeMovies(pool=[_movie(mid) for mid in (1, 2, 3, 4)])
+    rotated = await _daily(repo).today_id(_NOW)
+    service = CatalogService(repo, _daily(repo, _NoPin(movie_id=3)))  # type: ignore[arg-type]
+
+    hero = await service.get_hero(_NOW)
+
+    assert hero is not None and hero.id == 3
+    assert rotated != 3  # именно закреп, а не совпадение с ротацией
+
+
+async def test_pinning_a_missing_movie_changes_nothing() -> None:
+    """Опечатка в ID не должна оставлять главную без фильма дня."""
+    repo = _FakeMovies(pool=[_movie(1)])
+    pin = _NoPin()
+
+    assert await _daily(repo, pin).pin_today(999, _NOW) is None
+    assert pin.pinned == []  # ничего не закрепили

@@ -158,6 +158,12 @@ class PlaybackService:
                 # что ему вообще дарили.
                 await self._users.release_free_view(user.telegram_id, movie_id)
             return PlaybackOutcome.BOT_BLOCKED
+        # Отправка удалась — значит чат с ботом существует, что бы ни было записано в
+        # флаге. Чинит устаревший NULL: у людей, начавших чат до появления колонки (или
+        # снятых прошлой неудачной отправкой), иначе навсегда висела бы шторка «Ботты
+        # ашу» при живом чате — а нажать в нём было бы нечего.
+        if not user.has_bot_chat():
+            await self._users.set_bot_started(user.telegram_id, now)
         # Запоминаем выдачу (chat=личка юзера) → удалим это сообщение, когда подписка
         # истечёт (`SubscriptionService.expire_due`): оплаченное видео не остаётся навсегда.
         await self._deliveries.add(user.telegram_id, user.telegram_id, message_id)

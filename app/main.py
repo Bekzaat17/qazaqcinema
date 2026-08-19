@@ -13,7 +13,7 @@ import contextlib
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.types import MenuButtonWebApp, WebAppInfo
+from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 from dishka import AsyncContainer
@@ -35,6 +35,24 @@ async def _ping_redis(container: AsyncContainer) -> None:
         _log.info("Redis подключён")
     except Exception as exc:
         _log.warning("Redis недоступен на старте (fail-open): %s", exc)
+
+
+async def _setup_commands(bot: Bot) -> None:
+    """Список команд бота — чтобы `/start` можно было НАЖАТЬ, а не вспомнить.
+
+    Telegram показывает большую кнопку START только тем, кто бота ни разу не запускал.
+    Всем остальным (в том числе тем, кто когда-то заблокировал бота и вернулся) в чате
+    не видно ничего, и подсказка «нажмите Іске қосу» превращается в тупик: набрать
+    /start руками догадается разработчик, а не зритель. Зарегистрированные команды
+    видны по «/» в поле ввода и в профиле бота, и их можно ткнуть пальцем.
+
+    Fail-open: не смогли зарегистрировать — бот всё равно работает.
+    """
+    with contextlib.suppress(Exception):
+        await bot.set_my_commands(
+            [BotCommand(command="start", description="🎬 Кинотеатрды ашу")]
+        )
+        _log.info("Команды бота зарегистрированы")
 
 
 async def _setup_menu_button(bot: Bot, config: AppConfig) -> None:
@@ -89,6 +107,7 @@ async def main() -> None:
     config = await container.get(AppConfig)
     bot = await container.get(Bot)
     await _ping_redis(container)
+    await _setup_commands(bot)
     await _setup_menu_button(bot, config)
     dispatcher = build_dispatcher(container)
     scheduler = build_scheduler(container)

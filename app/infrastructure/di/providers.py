@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.catalog_cache import CatalogCache
+from app.application.ports.daily_pin import DailyPin
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
@@ -55,6 +56,7 @@ from app.domain.entities.enums import PaymentMethod
 from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
 from app.infrastructure.cache.broadcast import RedisBroadcastQueue
 from app.infrastructure.cache.catalog import RedisCatalogCache
+from app.infrastructure.cache.daily_pin import RedisDailyPin
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
@@ -124,6 +126,12 @@ class AppProvider(Provider):
         # Cache-aside каталога (Фаза 11.2/13): namespace catalog:* (home/categories/browse),
         # инвалидация на /add чистит весь namespace.
         return RedisCatalogCache(redis)
+
+    @provide
+    def daily_pin(self, redis: Redis) -> DailyPin:
+        # Закреп фильма дня админом (`/daily <id>`): ключ с TTL до местной полуночи.
+        # Fail-open: Redis лёг → закрепа нет → работает обычная ротация.
+        return RedisDailyPin(redis)
 
     @provide
     def broadcast_queue(self, redis: Redis) -> BroadcastQueue:

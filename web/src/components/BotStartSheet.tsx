@@ -10,6 +10,12 @@
 // Кнопка ведёт в `t.me/<bot>?start=web` через `openTelegramLink`: Telegram сворачивает
 // Mini App и открывает чат, где человеку остаётся нажать «Начать». Возврат в приложение
 // ловит `visibilitychange` в App — статус перечитывается сам, повторять ничего не нужно.
+//
+// Второй шаг называет и запасной путь. Большую кнопку START Telegram рисует только тем,
+// кто бота ни разу не запускал; у остальных (например, заблокировавших и вернувшихся) в
+// чате не видно НИЧЕГО, и без подсказки про «/» человек упирается в тупик — набрать
+// /start руками догадается разработчик, а не зритель. Сама команда зарегистрирована в
+// боте (`_setup_commands` в main.py), поэтому она предлагается списком и нажимается.
 
 import { MessageCircle, Play } from "lucide-react";
 
@@ -46,7 +52,8 @@ export default function BotStartSheet({ open, onClose }: BotStartSheetProps) {
           </li>
           <li>
             <span className="mr-2 font-bold text-brand">2.</span>
-            Ботта «Іске қосу» (Start) батырмасын басыңыз
+            «Іске қосу» (Start) батырмасын басыңыз. Ол көрінбесе — жазу жолағына «/»
+            теріп, <span className="font-semibold text-text">/start</span> таңдаңыз
           </li>
           <li>
             <span className="mr-2 font-bold text-brand">3.</span>
