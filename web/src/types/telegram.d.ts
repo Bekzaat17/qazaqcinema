@@ -65,6 +65,9 @@ interface TelegramWebApp {
   switchInlineQuery(query: string, chooseChatTypes?: string[]): void;
   openInvoice(url: string, callback?: (status: InvoiceStatus) => void): void;
   openTelegramLink(url: string): void;
+  // Нативный попап «разрешить боту писать вам» (Bot API 6.9). Опционален: в старых
+  // клиентах метода нет, и вызывать его надо только через проверку — иначе TypeError.
+  requestWriteAccess?(callback?: (granted: boolean) => void): void;
   openLink(url: string, options?: { try_instant_view?: boolean }): void;
   showAlert(message: string, callback?: () => void): void;
   showConfirm(message: string, callback?: (ok: boolean) => void): void;

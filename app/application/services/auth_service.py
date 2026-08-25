@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from app.application.ports.repositories import UserEventRepository, UserRepository
-from app.application.ports.security import InitDataVerifier
+from app.application.ports.security import InitDataVerifier, TelegramUser
+from app.application.services.activity_service import UserActivityService
 from app.domain.analytics.events import EventKind
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
@@ -11,11 +14,16 @@ from app.domain.entities.user import User
 
 class AuthService:
     def __init__(
-        self, verifier: InitDataVerifier, users: UserRepository, events: UserEventRepository
+        self,
+        verifier: InitDataVerifier,
+        users: UserRepository,
+        events: UserEventRepository,
+        activity: UserActivityService,
     ) -> None:
         self._verifier = verifier
         self._users = users
         self._events = events
+        self._activity = activity
 
     async def bootstrap(self, init_data: str) -> User:
         """Вход через `POST /api/auth` — то же, что `authenticate`, плюс событие «открыл».
@@ -42,17 +50,38 @@ class AuthService:
         tg_user = self._verifier.verify(init_data)
         user = await self._users.get(tg_user.id)
         if user is None:
-            return await self._users.upsert(
+            user = await self._users.upsert(
                 User(
                     telegram_id=tg_user.id,
                     username=tg_user.username,
                     status=UserStatus.NEW,
                 )
             )
+            return await self._sync_write_access(user, tg_user)
         # Хэндл мог появиться или смениться после первого входа, а он — единственный
         # способ админа ответить на чек/обращение (см. domain/mention.py). Пишем только
         # при расхождении: логин частый, лишний UPDATE ни к чему.
         if tg_user.username is not None and tg_user.username != user.username:
             user.username = tg_user.username
             await self._users.upsert(user)
+        return await self._sync_write_access(user, tg_user)
+
+    async def _sync_write_access(self, user: User, tg_user: TelegramUser) -> User:
+        """Признать открытым чат, если Telegram сам сообщил о разрешении писать в личку.
+
+        `allows_write_to_pm` приходит в подписанном initData — то есть ровно при открытии
+        Mini App, без единого действия человека. Для тех, кто разрешение уже давал (нажимал
+        START, соглашался в попапе, просто писал боту раньше), кинотеатр открывается сам:
+        шторки «Ботты іске қосыңыз» они больше не видят.
+
+        Проверка идёт при КАЖДОМ входе, но UPDATE случается один раз — пока факт не
+        зафиксирован. Обратное (Telegram молчит → снять признак) НЕ делаем: поле есть не
+        во всех версиях клиента, и его отсутствие значит «не знаю», а не «доступа нет».
+        Снимает признак только реальная недоставка в `PlaybackService`.
+        """
+        if not tg_user.allows_write_to_pm or user.has_bot_chat():
+            return user
+        now = datetime.now(UTC)
+        await self._activity.register_write_access(user.telegram_id, now, source="auto")
+        user.bot_started_at = now
         return user

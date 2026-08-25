@@ -244,6 +244,23 @@ export const api = {
   removeFavorite: (id: number) =>
     request<void>(`/api/favorites/${id}`, { method: "DELETE" }),
 
+  /**
+   * Человек разрешил боту писать в личку (нативный попап) — зафиксировать это на сервере.
+   * Возвращает свежий Auth: `bot_started` в нём уже true, и «Көру» работает сразу.
+   */
+  grantWriteAccess: () => request<Auth>("/api/me/write-access", { method: "POST" }),
+
+  /**
+   * «Показали пэйволл» — единственный шаг воронки, о котором знает только фронт.
+   * Шлётся фоном: ответ не нужен, ошибка гасится на вызывающей стороне.
+   */
+  trackPaywall: (movieId: number | null) =>
+    request<void>("/api/events/paywall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ movie_id: movieId }),
+    }),
+
   /** Тумблер рассылок о новинках (Фаза 12): включить/выключить для текущего юзера. */
   setNotifications: (enabled: boolean) =>
     request<{ notifications_enabled: boolean }>("/api/me/notifications", {

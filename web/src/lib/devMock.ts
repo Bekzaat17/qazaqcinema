@@ -127,6 +127,8 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
         ? ({ method: "stars", kaspi_number: null, kaspi_name: null, kaspi_link: null, invoice_url: "https://t.me/invoice/mock", payload: "1:1_month" } satisfies PaymentInit)
         : ({ method: "kaspi", kaspi_number: KASPI_NUMBER, kaspi_name: KASPI_NAME, kaspi_link: KASPI_LINK, invoice_url: null, payload: null } satisfies PaymentInit);
   } else if (p === "/api/payments/proof") data = { status: "pending_review", request_id: 1 } satisfies ProofAccepted;
+  else if (p === "/api/me/write-access") data = { ...AUTH, bot_started: true };
+  else if (p === "/api/events/paywall") data = undefined; // 204: событие воронки, тела нет
   else if (p === "/api/me/notifications") {
     const enabled = init?.body ? (JSON.parse(String(init.body)) as { enabled: boolean }).enabled : true;
     data = { notifications_enabled: enabled };

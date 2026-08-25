@@ -80,3 +80,43 @@ async def test_start_refreshes_changed_username() -> None:
     assert users.store[42].username == "new"
     assert users.store[42].status is UserStatus.ACTIVE  # статус не пострадал
     assert users.upserts == 1
+
+
+async def test_write_access_opens_cinema_without_visiting_chat() -> None:
+    """Разрешение писать в личку = тот же итог, что и /start, но без ухода в чат."""
+    users = _FakeUsers(User(telegram_id=42, username="neo", status=UserStatus.NEW))
+    events = FakeEvents()
+
+    await UserActivityService(users, events).register_write_access(42, _NOW, source="prompt")
+
+    assert users.store[42].bot_started_at == _NOW
+    assert events.added == [(42, EventKind.WRITE_ACCESS, "prompt")]
+
+
+async def test_write_access_keeps_source_apart() -> None:
+    """«auto» (узнали из initData) и «prompt» (нажал в попапе) — разные дороги воронки."""
+    users = _FakeUsers(User(telegram_id=42, status=UserStatus.NEW))
+    events = FakeEvents()
+
+    await UserActivityService(users, events).register_write_access(42, _NOW, source="auto")
+
+    assert events.added == [(42, EventKind.WRITE_ACCESS, "auto")]
+
+
+async def test_paywall_event_carries_movie() -> None:
+    users = _FakeUsers()
+    events = FakeEvents()
+
+    await UserActivityService(users, events).register_paywall(42, 144)
+
+    assert events.added == [(42, EventKind.PAYWALL, "144")]
+
+
+async def test_paywall_event_without_movie() -> None:
+    """Пэйволл открыт не с карточки (кнопка в профиле) — привязывать не к чему."""
+    users = _FakeUsers()
+    events = FakeEvents()
+
+    await UserActivityService(users, events).register_paywall(42, None)
+
+    assert events.added == [(42, EventKind.PAYWALL, None)]

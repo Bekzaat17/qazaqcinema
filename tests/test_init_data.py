@@ -36,6 +36,22 @@ def test_valid_init_data_returns_user() -> None:
     assert user.username == "neo"
 
 
+def test_write_access_flag_is_read() -> None:
+    """`allows_write_to_pm` — подписанный факт: бот уже вправе прислать фильм в личку."""
+    verifier = TelegramInitDataVerifier(SecretStr(TOKEN))
+    user = verifier.verify(
+        _make_init_data({"id": 42, "allows_write_to_pm": True}), now=FRESH_NOW
+    )
+    assert user.allows_write_to_pm is True
+
+
+def test_missing_write_access_flag_reads_as_false() -> None:
+    """Старый клиент поля не шлёт — считаем «не знаем», и признак не выставляем."""
+    verifier = TelegramInitDataVerifier(SecretStr(TOKEN))
+    user = verifier.verify(_make_init_data({"id": 42}), now=FRESH_NOW)
+    assert user.allows_write_to_pm is False
+
+
 def test_tampered_init_data_rejected() -> None:
     verifier = TelegramInitDataVerifier(SecretStr(TOKEN))
     tampered = _make_init_data({"id": 42}).replace("42", "43")

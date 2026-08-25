@@ -45,3 +45,32 @@ class UserActivityService:
         # обязан идти после upsert — строки до неё ещё нет.
         await self._users.set_bot_started(telegram_id, now)
         await self._events.add(telegram_id, EventKind.START)
+
+    async def register_write_access(
+        self, telegram_id: int, now: datetime, source: str
+    ) -> None:
+        """Боту разрешили писать в личку — тот же итог, что и /start, но без ухода в чат.
+
+        Telegram даёт два пути к праву написать первым: кнопка START в чате и нативный
+        попап `requestWriteAccess()` внутри Mini App. Второй короче на целый экран, и
+        именно им теперь открывается кинотеатр для пришедших из поиска — раньше каждый
+        третий останавливался здесь и не получал ни одного фильма.
+
+        `source`: "auto" — разрешение уже было, узнали из initData при входе;
+        "prompt" — человек только что нажал «Разрешить» в попапе.
+        """
+        await self._users.set_bot_started(telegram_id, now)
+        await self._events.add(telegram_id, EventKind.WRITE_ACCESS, meta=source)
+
+    async def register_paywall(self, telegram_id: int, movie_id: int | None) -> None:
+        """Человек упёрся в пэйволл: смотреть хочет, а доступа и подарка уже нет.
+
+        Ключевая точка отказа воронки. Событие есть и в `PlaybackService`, но туда
+        попадают лишь те, у кого доступ протух между открытием карточки и нажатием
+        «Көру» — единицы. Обычный путь короче: фронт знает про отсутствие доступа сам
+        и рисует пэйволл, не спрашивая сервер. Поэтому счётчик и стоял на нуле всё
+        время, пока метрика считалась собранной.
+        """
+        await self._events.add(
+            telegram_id, EventKind.PAYWALL, meta=str(movie_id) if movie_id else None
+        )

@@ -27,7 +27,7 @@ import { FavoritesProvider } from "./hooks/useFavorites";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
 import { ApiError, api, type Auth, type Movie, type Shelf as ShelfData, type Tariff, type UserStatus } from "./lib/api";
 import { loadLastPage, saveLastPage } from "./lib/lastPage";
-import { getInitData, getStartMovieId, haptic } from "./lib/telegram";
+import { getInitData, getStartMovieId, haptic, requestWriteAccess } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
 
 // Как часто переспрашивать статус, пока чек «на проверке». Решение админа (✅/❌) приходит
@@ -39,6 +39,12 @@ const STATUS_POLL_MS = 20_000;
 // чтобы новинка, добавленная админом, появилась сама, и при этом «свернул-развернул»
 // десять раз подряд не превращается в десять запросов.
 const CONTENT_REFRESH_MS = 30_000;
+
+// Пауза перед попапом «разрешить боту писать». Нужна, чтобы человек успел увидеть, КУДА
+// он попал: системный запрос поверх голого скелета выглядит как требование неизвестно от
+// кого, и его закрывают не читая. Полсекунды — главная уже отрисована, приложение ещё не
+// пролистано.
+const WRITE_ACCESS_PROMPT_MS = 600;
 
 export default function App() {
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "no_telegram">("loading");
@@ -233,6 +239,38 @@ export default function App() {
     if (botStarted) setBotStartOpen(false);
   }, [botStarted]);
 
+  // Право боту писать в личку — просим САМИ, на входе, нативным попапом Telegram.
+  //
+  // Без этого права кинотеатр для человека не работает вообще: фильм уходит сообщением, а
+  // первым бот писать не вправе. Раньше единственной дорогой был поход в чат за кнопкой
+  // START — и по живым данным на нём останавливались 34 человека из 123, ни один из
+  // которых не посмотрел ни одного фильма. Попап решает то же самое одним нажатием, не
+  // сворачивая приложение.
+  //
+  // Спрашиваем один раз за заход (ref, а не state — перерисовка не должна открывать попап
+  // заново) и только когда права ещё нет. Отказ и старый клиент оставляют всё как было:
+  // шторка `BotStartSheet` с дорогой в чат никуда не делась и покажется на «Көру».
+  const writeAccessAsked = useRef(false);
+  useEffect(() => {
+    if (phase !== "ready" || botStarted || writeAccessAsked.current) return;
+    writeAccessAsked.current = true;
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (!(await requestWriteAccess())) return;
+        haptic.success();
+        try {
+          setAuth(await api.grantWriteAccess());
+        } catch {
+          // Сеть моргнула на записи факта — состояние всё равно поднимаем: отправка
+          // видео от признака не зависит, а успешная доставка чинит флаг на бэке сама
+          // (`PlaybackService` проставляет его при первой же удачной выдаче).
+          setAuth((prev) => (prev ? { ...prev, bot_started: true } : prev));
+        }
+      })();
+    }, WRITE_ACCESS_PROMPT_MS);
+    return () => clearTimeout(timer);
+  }, [phase, botStarted]);
+
   // Запоминаем экран (вкладка + открытая карточка) — чтобы вернуть его при заходе в
   // ближайший час. Пишем на каждое изменение: заход можно и не «закрыть» по-человечески.
   useEffect(() => {
@@ -281,9 +319,21 @@ export default function App() {
   }, [handoffOpen, paywallOpen, giftOpen, botStartOpen, supportOpen, selected, profileOpen, tab]);
   useTelegramBackButton(anyOverlay || tab !== "home", onBack);
 
-  const openPaywall = useCallback((movie: Movie | null) => {
+  /**
+   * Показать пэйволл. `track` — писать ли событие воронки (по умолчанию да).
+   *
+   * Логируем ИМЕННО здесь: это единственное место, через которое проходят все дороги к
+   * пэйволлу, и единственный способ для сервера вообще узнать о нём — решение «доступа
+   * нет» фронт принимает сам, ничего не спрашивая. `track: false` передаётся там, где
+   * сервер уже записал событие своей стороной (ответ 403 на «Көру»), иначе один упор
+   * считался бы дважды.
+   */
+  const openPaywall = useCallback((movie: Movie | null, track = true) => {
     setPaywallMovie(movie);
     setPaywallOpen(true);
+    // Фоном и без ожидания: метрика не имеет права задерживать шторку или ронять её
+    // показ, если запрос не прошёл.
+    if (track) void api.trackPaywall(movie?.id ?? null).catch(() => {});
   }, []);
 
   /** Отправка видео. `useFreeView` — согласие потратить подарок (только из GiftSheet). */
@@ -304,7 +354,9 @@ export default function App() {
       } catch (e) {
         if (e instanceof ApiError && e.status === 403) {
           setGiftOpen(false);
-          openPaywall(movie); // доступ устарел — сервер источник правды
+          // Доступ устарел — сервер источник правды. Событие пэйволла он записал сам
+          // (`PlaybackService` пишет его на отказе), поэтому здесь не дублируем.
+          openPaywall(movie, false);
         } else if (e instanceof ApiError && e.status === 404) {
           setToast("Фильм табылмады");
         } else if (e instanceof ApiError && e.status === 409) {

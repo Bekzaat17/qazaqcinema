@@ -96,6 +96,32 @@ export function openBotChat(payload = "web"): void {
   else openLink(url);
 }
 
+/**
+ * Попросить у человека право боту писать ему в личку — нативным попапом Telegram.
+ *
+ * Это короткий путь к тому же, ради чего раньше гоняли в чат за кнопкой START: фильм
+ * уходит сообщением, и Telegram пускает его только с разрешения. Попап показывается
+ * поверх Mini App, ответ приходит одним нажатием, приложение не сворачивается.
+ *
+ * Возвращает false и в отказе, и в старом клиенте без метода — на оба случая у нас один
+ * ответ: остаётся прежняя шторка `BotStartSheet` с дорогой в чат.
+ */
+export function requestWriteAccess(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const wa = getWebApp();
+    if (!wa?.requestWriteAccess) {
+      resolve(false);
+      return;
+    }
+    try {
+      wa.requestWriteAccess((granted) => resolve(granted));
+    } catch {
+      // Метод объявлен, но клиент старее нужной версии — Telegram бросает синхронно.
+      resolve(false);
+    }
+  });
+}
+
 /** Открыть инвойс Telegram Stars. Резолвится статусом оплаты. */
 export function openInvoice(url: string): Promise<string> {
   return new Promise((resolve) => {

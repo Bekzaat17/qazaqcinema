@@ -17,6 +17,7 @@ from redis.asyncio import Redis
 from app.api.routers import (
     auth,
     catalog,
+    events,
     favorites,
     health,
     me,
@@ -62,6 +63,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(payments.router)
     app.include_router(me.router)
     app.include_router(favorites.router)
+    app.include_router(events.router)
     app.include_router(support.router)
     app.include_router(health.router)
     # Публичные SSR-страницы для SEO (/m/<slug>, /catalog, /sitemap.xml, /robots.txt).

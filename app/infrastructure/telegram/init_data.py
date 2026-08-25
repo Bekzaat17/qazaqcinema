@@ -84,4 +84,5 @@ class TelegramInitDataVerifier:
             id=user_id,
             username=data.get("username"),
             first_name=data.get("first_name"),
+            allows_write_to_pm=bool(data.get("allows_write_to_pm")),
         )

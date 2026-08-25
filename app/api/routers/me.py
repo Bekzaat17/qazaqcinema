@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from app.api.deps.auth import get_current_user
 from app.api.deps.rate_limit import rate_limit
 from app.api.schemas.auth import AuthOut
+from app.application.services.activity_service import UserActivityService
 from app.application.services.broadcast_service import BroadcastService
 from app.domain.entities.user import User
 
@@ -43,6 +44,31 @@ async def current_user(user: User = Depends(get_current_user)) -> AuthOut:
     Токен здесь не возвращаем: он у клиента уже есть.
     """
     return AuthOut.from_domain(user, datetime.now(UTC))
+
+
+@router.post("/write-access", response_model=AuthOut, dependencies=[_write_rate_limited])
+async def grant_write_access(
+    activity: FromDishka[UserActivityService],
+    user: User = Depends(get_current_user),
+) -> AuthOut:
+    """Человек разрешил боту писать ему в личку прямо в Mini App — запомнить это.
+
+    Зовётся сразу после того, как нативный попап `requestWriteAccess()` вернул согласие.
+    Отдельная ручка нужна из-за того, что initData у открытого приложения уже подписан и
+    не переписывается: свежий факт до сервера иначе доедет только следующим заходом, а
+    кнопка «Көру» должна заработать сейчас же.
+
+    Ответ — полный AuthOut: фронт заменяет им состояние и рисует кинотеатр уже рабочим.
+
+    Слову клиента здесь верим, и это осознанно: соврать он может только себе во вред —
+    признак ведёт к попытке отправки, которая упрётся в 403 от Telegram, и `PlaybackService`
+    тут же снимет флаг обратно. Цена ошибки — один неудачный «Көру», цена проверки —
+    лишний вызов Bot API на каждом входе.
+    """
+    now = datetime.now(UTC)
+    await activity.register_write_access(user.telegram_id, now, source="prompt")
+    user.bot_started_at = now
+    return AuthOut.from_domain(user, now)
 
 
 @router.patch("/notifications", response_model=NotificationsOut, dependencies=[_write_rate_limited])
