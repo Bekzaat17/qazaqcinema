@@ -18,7 +18,7 @@ from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
 from tests.fakes import FakeEvents
 
 ALMATY = ZoneInfo("Asia/Almaty")
-_NOW = datetime(2026, 8, 13, 18, 0, tzinfo=UTC)  # 23:00 по Алматы
+_NOW = datetime(2026, 8, 13, 17, 0, tzinfo=UTC)  # 22:00 по Алматы
 ADMIN = 1
 USER = 2
 

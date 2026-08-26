@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, tzinfo
+from datetime import date, datetime, timedelta
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,16 +30,18 @@ class DailyReport:
     expires: int          # истёкших подписок за день
 
 
-def day_window(now: datetime, tz: tzinfo) -> tuple[datetime, datetime]:
-    """Границы «сегодня» в часовом поясе `tz`, приведённые к UTC.
+def day_window(now: datetime) -> tuple[datetime, datetime]:
+    """Скользящие «сутки»: от предыдущего запуска крона до этого (ровно 24 ч).
 
-    Отчёт уходит в 23:00 по местному времени, а в БД всё лежит в UTC (+5 у Казахстана):
-    без пересчёта «сутки» съехали бы на 5 часов и в отчёт попадал бы кусок вчерашнего дня.
-    Верхняя граница — `now`, а не полночь: считаем то, что уже произошло.
+    Решение 2026-08-26 (было — «с местной полуночи до `now`»): отчёт уходит не в
+    полночь, а вечером, и окно «с полуночи» обрубало хвост между временем отправки
+    и полуночью — эти события не терял только назавтра (следующий отчёт снова считает
+    от СВОЕЙ полуночи), а не попадали НИ В ОДИН отчёт вообще. Особенно заметно в
+    выходные, когда люди активны допоздна. Скользящее окно `[now-24ч, now)` дыр не
+    оставляет: раз джоб идёт раз в сутки, оно ровно покрывает интервал между двумя
+    соседними запусками — независимо от того, в котором часу отчёт настроен.
     """
-    local = now.astimezone(tz)
-    start = local.replace(hour=0, minute=0, second=0, microsecond=0)
-    return start.astimezone(UTC), now
+    return now - timedelta(hours=24), now
 
 
 def render_report(report: DailyReport) -> str:

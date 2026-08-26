@@ -30,8 +30,8 @@ class AnalyticsService:
         self._admins = admin_ids
 
     async def daily_report(self, now: datetime, tz: tzinfo) -> DailyReport:
-        """Срез за «сегодня» в часовом поясе `tz` (в БД всё в UTC — границы считает домен)."""
-        since, until = day_window(now, tz)
+        """Срез за скользящие сутки до `now` (границы — домен); `tz` только для даты в шапке."""
+        since, until = day_window(now)
         return DailyReport(
             day=now.astimezone(tz).date(),
             users_total=await self._users.count_all(self._admins),

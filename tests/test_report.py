@@ -1,42 +1,37 @@
-"""Юнит-тесты домена отчёта: границы суток и текст (без БД, без Telegram).
+"""Юнит-тесты домена отчёта: окно отчёта и текст (без БД, без Telegram).
 
-Главное здесь — часовой пояс. Данные лежат в UTC, отчёт уходит в 23:00 по Алматы
-(UTC+5): без пересчёта «сегодня» съехало бы на 5 часов и в сводку попадал бы хвост
-вчерашнего дня.
+Окно — скользящие 24 часа до `now`, а не «с местной полуночи»: отчёт уходит вечером,
+и фиксированная полночь обрубала бы хвост между отправкой и полуночью — эти события
+не попадали бы ни в один отчёт вообще (решение 2026-08-26).
 """
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
-from zoneinfo import ZoneInfo
+from datetime import UTC, date, datetime, timedelta
 
 from app.domain.analytics.report import DailyReport, day_window, render_report
 
-ALMATY = ZoneInfo("Asia/Almaty")
 
+def test_day_window_covers_last_24_hours() -> None:
+    now = datetime(2026, 8, 13, 17, 0, tzinfo=UTC)
 
-def test_day_window_starts_at_local_midnight_in_utc() -> None:
-    # 13 августа, 23:00 в Алматы = 18:00 UTC того же дня.
-    now = datetime(2026, 8, 13, 18, 0, tzinfo=UTC)
+    since, until = day_window(now)
 
-    since, until = day_window(now, ALMATY)
-
-    # Местная полночь 13-го = 19:00 UTC 12-го.
-    assert since == datetime(2026, 8, 12, 19, 0, tzinfo=UTC)
+    assert since == now - timedelta(hours=24)
     assert until == now
 
 
-def test_day_window_covers_events_of_the_local_day_only() -> None:
-    now = datetime(2026, 8, 13, 18, 0, tzinfo=UTC)
-    since, _ = day_window(now, ALMATY)
+def test_day_window_excludes_events_before_the_previous_run() -> None:
+    now = datetime(2026, 8, 13, 17, 0, tzinfo=UTC)
+    since, _ = day_window(now)
 
-    # Событие в 00:30 по Алматы (= 19:30 UTC вчера) — уже «сегодняшнее».
-    just_after_midnight = datetime(2026, 8, 12, 19, 30, tzinfo=UTC)
-    # А в 23:30 по Алматы предыдущего дня (= 18:30 UTC) — ещё вчерашнее.
-    late_yesterday = datetime(2026, 8, 12, 18, 30, tzinfo=UTC)
+    # Событие сразу после предыдущего запуска (= начало окна) — уже в отчёте.
+    just_after_previous_run = since + timedelta(seconds=1)
+    # А чуть раньше предыдущего запуска — ещё нет, его учёл отчёт днём ранее.
+    just_before_previous_run = since - timedelta(seconds=1)
 
-    assert just_after_midnight >= since
-    assert late_yesterday < since
+    assert just_after_previous_run >= since
+    assert just_before_previous_run < since
 
 
 def test_render_report_contains_all_numbers() -> None:
