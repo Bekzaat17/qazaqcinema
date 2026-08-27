@@ -14,6 +14,8 @@ from app.domain.analytics.events import EventKind
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentStatus
 from app.domain.entities.movie import Movie
+from app.domain.entities.season import Season
+from app.domain.entities.series import Series
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
 
@@ -53,6 +55,31 @@ class MovieRepository(Protocol):
     ) -> tuple[list[Movie], int]: ...
     async def category_counts(self) -> dict[str, int]: ...
     async def increment_play_count(self, movie_id: int) -> None: ...
+
+    async def list_by_season(self, season_id: int) -> list[Movie]:
+        """Серии одного сезона, по возрастанию `episode_number` — эпизод-лист сериала.
+
+        Двойное назначение: визард `/add` берёт отсюда последнюю серию, чтобы
+        предзаполнить название/категории/описание новой (не печатать заново), а
+        каталог — чтобы показать список серий на карточке сезона.
+        """
+        ...
+
+
+class SeriesRepository(Protocol):
+    """Сериал — только группировка сезонов (см. `domain/entities/series.Series`)."""
+
+    async def add(self, series: Series) -> Series: ...
+    async def get(self, series_id: int) -> Series | None: ...
+    async def list_all(self) -> list[Series]: ...
+
+
+class SeasonRepository(Protocol):
+    """Сезон — держатель постера, общего на все свои серии (ISP: не смешан с Movie)."""
+
+    async def add(self, season: Season) -> Season: ...
+    async def get(self, season_id: int) -> Season | None: ...
+    async def list_by_series(self, series_id: int) -> list[Season]: ...
 
 
 class UserRepository(Protocol):

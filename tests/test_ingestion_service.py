@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.application.ports.images import POSTER, ImageSpec
 from app.application.services.ingestion_service import MovieIngestionService
 from app.domain.entities.movie import Movie
+from app.domain.entities.season import Season
 
 
 class _FakeMovies:
@@ -15,6 +16,17 @@ class _FakeMovies:
         movie.id = len(self.added) + 1
         self.added.append(movie)
         return movie
+
+    async def list_by_season(self, season_id: int) -> list[Movie]:
+        return [m for m in self.added if m.season_id == season_id]
+
+
+class _FakeSeasons:
+    def __init__(self, seasons: list[Season] | None = None) -> None:
+        self._seasons = {s.id: s for s in (seasons or [])}
+
+    async def get(self, season_id: int) -> Season | None:
+        return self._seasons.get(season_id)
 
 
 class _FakePosters:
@@ -73,7 +85,9 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     notifier = _FakeNotifier()
     cache = _FakeCache()
     broadcast = _FakeBroadcast()
-    service = MovieIngestionService(movies, notifier, posters, images, cache, broadcast)
+    service = MovieIngestionService(
+        movies, _FakeSeasons(), notifier, posters, images, cache, broadcast
+    )
 
     movie = await service.ingest(
         title_kk="Арыстан Патша",
@@ -108,7 +122,7 @@ async def test_ingest_stores_exactly_one_image() -> None:
     """
     movies, posters, images = _FakeMovies(), _FakePosters(), _FakeImages()
     service = MovieIngestionService(
-        movies, _FakeNotifier(), posters, images, _FakeCache(), _FakeBroadcast()
+        movies, _FakeSeasons(), _FakeNotifier(), posters, images, _FakeCache(), _FakeBroadcast()
     )
 
     movie = await service.ingest(
@@ -137,7 +151,7 @@ async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
     """
     movies, broadcast, cache = _FakeMovies(), _FakeBroadcast(), _FakeCache()
     service = MovieIngestionService(
-        movies, _FakeNotifier(), _FakePosters(), _FakeImages(), cache, broadcast
+        movies, _FakeSeasons(), _FakeNotifier(), _FakePosters(), _FakeImages(), cache, broadcast
     )
 
     movie = await service.ingest(
@@ -156,3 +170,41 @@ async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
     assert movie.id == 1              # фильм в каталоге
     assert cache.invalidated == 1     # и виден сразу (кэш сброшен)
     assert broadcast.notified == []   # но никого не разбудили
+
+
+async def test_ingest_episode_of_existing_season_reuses_its_fields() -> None:
+    """Серия УЖЕ СУЩЕСТВУЮЩЕГО сезона (решение 2026-08-28): постер/категории/описание
+    берутся с сезона (визард их не спрашивал), номер серии — следующий по счёту, название
+    авто-генерируется «<сезон> — N-бөлім»; постер повторно не нормализуется/не сохраняется.
+    """
+    season = Season(
+        id=9,
+        series_id=1,
+        season_number=2,
+        poster_url="/posters/season2.jpg",
+        title_kk="Көліктер",
+        description="Мультсериал туралы сипаттама",
+        categories=["disney", "adventure"],
+    )
+    movies, posters, images = _FakeMovies(), _FakePosters(), _FakeImages()
+    seasons = _FakeSeasons([season])
+    service = MovieIngestionService(
+        movies, seasons, _FakeNotifier(), posters, images, _FakeCache(), _FakeBroadcast()
+    )
+
+    first = await service.ingest(
+        year=None, rating=None, notify=False, video_file_id="ep1", season_id=9
+    )
+    second = await service.ingest(
+        year=None, rating=None, notify=False, video_file_id="ep2", season_id=9
+    )
+
+    assert first.title_kk == "Көліктер — 1-бөлім"
+    assert second.title_kk == "Көліктер — 2-бөлім"   # счёт продолжается по существующим сериям
+    assert first.episode_number == 1
+    assert second.episode_number == 2
+    assert first.categories == ["disney", "adventure"]
+    assert first.description == "Мультсериал туралы сипаттама"
+    assert first.poster_url == "/posters/season2.jpg"
+    assert posters.saved == []       # постер сезона уже сохранён — повторно не грузим
+    assert images.calls == []        # и не нормализуем заново

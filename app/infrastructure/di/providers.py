@@ -27,6 +27,8 @@ from app.application.ports.repositories import (
     FavoriteRepository,
     MovieRepository,
     PaymentRepository,
+    SeasonRepository,
+    SeriesRepository,
     UserEventRepository,
     UserRepository,
     VideoDeliveryRepository,
@@ -47,6 +49,7 @@ from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
 from app.application.services.seo_service import SeoBuilder
+from app.application.services.series_service import SeriesService
 from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.support_service import SupportService
@@ -65,6 +68,8 @@ from app.infrastructure.db.repositories import (
     PgFavoriteRepository,
     PgMovieRepository,
     PgPaymentRepository,
+    PgSeasonRepository,
+    PgSeriesRepository,
     PgUserEventRepository,
     PgUserRepository,
     PgVideoDeliveryRepository,
@@ -191,6 +196,8 @@ class RequestProvider(Provider):
     # (FavoriteService) просто затёр бы этот, и репозиторий из контейнера пропал бы.
     favorite_repo = provide(PgFavoriteRepository, provides=FavoriteRepository)
     deliveries = provide(PgVideoDeliveryRepository, provides=VideoDeliveryRepository)
+    series_repo = provide(PgSeriesRepository, provides=SeriesRepository)
+    season_repo = provide(PgSeasonRepository, provides=SeasonRepository)
 
     @provide
     def events(self, session: AsyncSession, config: AppConfig) -> UserEventRepository:
@@ -209,6 +216,7 @@ class RequestProvider(Provider):
     catalog = provide(CatalogService)
     favorites = provide(FavoriteService)  # избранное («Таңдаулы»), без гейта подписки
     ingestion = provide(MovieIngestionService)
+    series = provide(SeriesService)  # сериалы/сезоны — справочник для визарда /add и каталога
     playback = provide(PlaybackService)
     retention = provide(VideoRetentionService)  # чистка видео: ежечасный джоб + истечение
     subscription = provide(SubscriptionService)

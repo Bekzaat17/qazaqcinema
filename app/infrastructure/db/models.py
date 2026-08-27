@@ -119,6 +119,37 @@ class UserEventModel(Base):
     __table_args__ = (Index("ix_user_events_kind_created_at", "kind", "created_at"),)
 
 
+class SeriesModel(Base):
+    """Сериал — только название; группировка сезонов (см. `SeasonModel`)."""
+
+    __tablename__ = "series"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title_kk: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SeasonModel(Base):
+    """Сезон — держатель постера/названия/категорий/описания на ВСЕ свои серии
+    (решение 2026-08-28): это спрашивается один раз при создании сезона, как у
+    обычного фильма. Серии внутри своего названия не имеют — только номер
+    (`MovieModel.episode_number`); при сохранении серии эти поля копируются сюда же.
+    """
+
+    __tablename__ = "series_seasons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    series_id: Mapped[int] = mapped_column(ForeignKey("series.id", ondelete="CASCADE"), index=True)
+    season_number: Mapped[int] = mapped_column()
+    poster_url: Mapped[str] = mapped_column(Text)
+    title_kk: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    categories: Mapped[list[str]] = mapped_column(ARRAY(String(32)))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (Index("uq_season_series_number", "series_id", "season_number", unique=True),)
+
+
 class MovieModel(Base):
     __tablename__ = "movies"
 
@@ -152,6 +183,13 @@ class MovieModel(Base):
     favorites_count: Mapped[int] = mapped_column(
         BigInteger, server_default=text("0"), nullable=False
     )
+    # Сериалы (решение 2026-08-28): NULL у обоих — обычный самостоятельный фильм.
+    # Заполнены — строка есть серия конкретного сезона (`SeasonModel`); ON DELETE SET
+    # NULL у FK — снос сезона не должен молча утащить за собой сами серии.
+    season_id: Mapped[int | None] = mapped_column(
+        ForeignKey("series_seasons.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    episode_number: Mapped[int | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

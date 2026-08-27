@@ -34,12 +34,16 @@ from app.domain.catalog.popularity import FAVORITE_WEIGHT, PLAY_WEIGHT
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
+from app.domain.entities.season import Season
+from app.domain.entities.series import Series
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
 from app.infrastructure.db.models import (
     FavoriteModel,
     MovieModel,
     PaymentRequestModel,
+    SeasonModel,
+    SeriesModel,
     UserEventModel,
     UserModel,
     VideoDeliveryModel,
@@ -78,6 +82,25 @@ def _movie_to_domain(model: MovieModel) -> Movie:
         hero_image_url=model.hero_image_url,
         play_count=model.play_count,
         favorites_count=model.favorites_count,
+        season_id=model.season_id,
+        episode_number=model.episode_number,
+        created_at=model.created_at,
+    )
+
+
+def _series_to_domain(model: SeriesModel) -> Series:
+    return Series(id=model.id, title_kk=model.title_kk, created_at=model.created_at)
+
+
+def _season_to_domain(model: SeasonModel) -> Season:
+    return Season(
+        id=model.id,
+        series_id=model.series_id,
+        season_number=model.season_number,
+        poster_url=model.poster_url,
+        title_kk=model.title_kk,
+        description=model.description,
+        categories=list(model.categories),
         created_at=model.created_at,
     )
 
@@ -135,6 +158,8 @@ class PgMovieRepository:
             year=movie.year,
             rating=movie.rating,
             hero_image_url=movie.hero_image_url,
+            season_id=movie.season_id,
+            episode_number=movie.episode_number,
         )
         self._session.add(model)
         await self._session.commit()
@@ -330,6 +355,69 @@ class PgMovieRepository:
             .values(play_count=MovieModel.play_count + 1)
         )
         await self._session.commit()
+
+    async def list_by_season(self, season_id: int) -> list[Movie]:
+        """Серии одного сезона по возрастанию номера — эпизод-лист сериала."""
+        stmt = (
+            select(MovieModel)
+            .where(MovieModel.season_id == season_id)
+            .order_by(MovieModel.episode_number.asc())
+        )
+        result = await self._session.scalars(stmt)
+        return [_movie_to_domain(model) for model in result]
+
+
+class PgSeriesRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, series: Series) -> Series:
+        model = SeriesModel(title_kk=series.title_kk)
+        self._session.add(model)
+        await self._session.commit()
+        await self._session.refresh(model)
+        return _series_to_domain(model)
+
+    async def get(self, series_id: int) -> Series | None:
+        model = await self._session.get(SeriesModel, series_id)
+        return _series_to_domain(model) if model else None
+
+    async def list_all(self) -> list[Series]:
+        stmt = select(SeriesModel).order_by(SeriesModel.title_kk.asc())
+        result = await self._session.scalars(stmt)
+        return [_series_to_domain(model) for model in result]
+
+
+class PgSeasonRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, season: Season) -> Season:
+        model = SeasonModel(
+            series_id=season.series_id,
+            season_number=season.season_number,
+            poster_url=season.poster_url,
+            title_kk=season.title_kk,
+            description=season.description,
+            categories=season.categories,
+        )
+        self._session.add(model)
+        await self._session.commit()
+        await self._session.refresh(model)
+        return _season_to_domain(model)
+
+    async def get(self, season_id: int) -> Season | None:
+        model = await self._session.get(SeasonModel, season_id)
+        return _season_to_domain(model) if model else None
+
+    async def list_by_series(self, series_id: int) -> list[Season]:
+        stmt = (
+            select(SeasonModel)
+            .where(SeasonModel.series_id == series_id)
+            .order_by(SeasonModel.season_number.asc())
+        )
+        result = await self._session.scalars(stmt)
+        return [_season_to_domain(model) for model in result]
 
 
 class PgUserRepository:

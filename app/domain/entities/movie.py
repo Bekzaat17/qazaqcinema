@@ -24,5 +24,11 @@ class Movie:
     hero_image_url: str | None = None
     play_count: int = 0                # число просмотров (Фаза 13); входит в «Танымал»
     favorites_count: int = 0           # сколько раз добавлен в избранное; тоже в «Танымал»
+    # Сериалы (решение 2026-08-28): NULL у обоих = обычный самостоятельный фильм. Заполнены
+    # оба сразу — строка является серией конкретного сезона (`domain/entities/season.Season`);
+    # название/категории/описание у серии свои, как у любого Movie (визард лишь предзаполняет
+    # их значениями последней серии сезона, чтобы не печатать заново).
+    season_id: int | None = None
+    episode_number: int | None = None
     created_at: datetime | None = None  # проставляет БД (server_default); None до вставки
     id: int | None = None  # None до вставки в БД

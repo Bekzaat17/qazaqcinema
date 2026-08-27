@@ -1,9 +1,9 @@
 """Бот-визард `/add` — пошаговое добавление фильма (только для админов).
 
-Поток (FSM): видео → постер → категория → title_kk → title_ru → title_original → год →
-рейтинг → описание → рассылка? → подтверждение. По подтверждению видео уходит копией в
-канал-архив (`protect_content`); постер скачивается, нормализуется и сохраняется
-`MovieIngestionService`.
+Поток (FSM): видео → категория → сериал? → постер → title_kk → title_ru →
+title_original → год → рейтинг → описание → рассылка? → подтверждение. По
+подтверждению видео уходит копией в канал-архив (`protect_content`); постер
+скачивается, нормализуется и сохраняется `MovieIngestionService`.
 
 Картинка у фильма ровно ОДНА — постер (решение 2026-08-19). Ни «показывать на главной?»,
 ни отдельного широкого баннера визард больше не спрашивает: hero — это фильм дня, туда по
@@ -15,6 +15,14 @@
 свой текст (`_PROMPTS`), поэтому «⬅️ Артқа» (шаг назад), «➡️ Әрі қарай» (оставить как есть) и
 точечная правка поля с экрана подтверждения работают одинаково на всех шагах. Опечатку в
 названии или случайный /skip можно поправить, не начиная визард заново.
+
+Сериалы (решение 2026-08-28): шаг «сериал» — единственное настоящее ветвление визарда,
+и оно намеренно НЕ разветвляет сами хендлеры/шаги (принцип «условных шагов нет», см.
+CLAUDE.md 2026-08-19) — это внутренний под-диалог ОДНОГО шага (кнопки → кнопки → текст),
+как уже устроен мультивыбор категорий. А вот `_next`/`_previous` при серии УЖЕ
+СУЩЕСТВУЮЩЕГО сезона осознанно перескакивают постер/категорию/названия/описание —
+это не тот же антипаттерн: для такой серии эти поля просто не существуют (их несёт
+сезон, см. `domain/entities/season.Season`), а не «временно не нужны».
 
 Презентация тонкая: aiogram-склейка (скачать/отправить) тут, бизнес-логика — в сервисе.
 """
@@ -30,11 +38,12 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
 
 from app.application.services.ingestion_service import MovieIngestionService
+from app.application.services.series_service import SeriesService
 from app.bot.keyboards.add_movie import (
     BACK,
     CANCEL,
@@ -46,10 +55,20 @@ from app.bot.keyboards.add_movie import (
     EDIT_PREFIX,
     NEXT,
     NOTIFY_PREFIX,
+    SEASON_NEW,
+    SEASON_PICK_PREFIX,
+    SERIES_LIST,
+    SERIES_MENU,
+    SERIES_NEW,
+    SERIES_NONE,
+    SERIES_PICK_PREFIX,
     category_keyboard,
     confirm_keyboard,
     edit_keyboard,
     notify_keyboard,
+    season_list_keyboard,
+    series_list_keyboard,
+    series_root_keyboard,
     step_keyboard,
 )
 from app.bot.security import is_admin
@@ -63,8 +82,9 @@ _SKIP = "/skip"
 
 class AddMovie(StatesGroup):
     video = State()
-    poster = State()
     category = State()
+    series = State()
+    poster = State()
     title_kk = State()
     title_ru = State()
     title_original = State()
@@ -77,12 +97,14 @@ class AddMovie(StatesGroup):
 
 # --- шаги как данные --------------------------------------------------------
 
-# Порядок шагов. Отсюда считаются «назад»/«вперёд» — условных шагов больше нет, все
-# показываются всем — условных шагов в визарде не осталось.
+# Порядок шагов. Отсюда считаются «назад»/«вперёд» — условных шагов в самом списке нет
+# (см. модуль-докстринг про _SEASON_SKIP — это НЕ то же самое, что убранная в 2026-08-19
+# условность: тут поля физически не существуют у серии готового сезона).
 _ORDER: tuple[State, ...] = (
     AddMovie.video,
-    AddMovie.poster,
     AddMovie.category,
+    AddMovie.series,
+    AddMovie.poster,
     AddMovie.title_kk,
     AddMovie.title_ru,
     AddMovie.title_original,
@@ -93,20 +115,34 @@ _ORDER: tuple[State, ...] = (
     AddMovie.confirm,
 )
 
+# Шаги, которые пропускаются, когда выбрана серия УЖЕ СУЩЕСТВУЮЩЕГО сезона (season_id
+# в FSM-данных): постер/категории/названия/описание сезон уже несёт сам.
+_SEASON_SKIP: frozenset[State] = frozenset(
+    {
+        AddMovie.poster,
+        AddMovie.category,
+        AddMovie.title_kk,
+        AddMovie.title_ru,
+        AddMovie.title_original,
+        AddMovie.description,
+    }
+)
+
 _PROMPTS: dict[str | None, str] = {
-    AddMovie.video.state: "🎬 1/10 — видеоны жібер (видео, не файл). /cancel — болдырмау.",
-    AddMovie.poster.state: "2/10 — постерді сурет (фото) ретінде жібер.",
+    AddMovie.video.state: "🎬 1/11 — видеоны жібер (видео, не файл). /cancel — болдырмау.",
     AddMovie.category.state: (
-        "3/10 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:"
+        "2/11 — категорияларды таңда (бірнешеуін болады), содан кейін «Дайын»:"
     ),
-    AddMovie.title_kk.state: "4/10 — қазақша атауы (название на казахском):",
-    AddMovie.title_ru.state: "5/10 — название на русском (или /skip):",
-    AddMovie.title_original.state: "6/10 — оригинальное название / English (или /skip):",
-    AddMovie.year.state: "7/10 — год выпуска (напр. 1994) или /skip:",
-    AddMovie.rating.state: "8/10 — рейтинг 0–10 (напр. 8.5) или /skip:",
-    AddMovie.description.state: "9/10 — описание (сипаттама):",
+    AddMovie.series.state: "3/11 — бұл сериалдың бөлігі ме?",
+    AddMovie.poster.state: "4/11 — постерді сурет (фото) ретінде жібер.",
+    AddMovie.title_kk.state: "5/11 — қазақша атауы (название на казахском):",
+    AddMovie.title_ru.state: "6/11 — название на русском (или /skip):",
+    AddMovie.title_original.state: "7/11 — оригинальное название / English (или /skip):",
+    AddMovie.year.state: "8/11 — год выпуска (напр. 1994) или /skip:",
+    AddMovie.rating.state: "9/11 — рейтинг 0–10 (напр. 8.5) или /skip:",
+    AddMovie.description.state: "10/11 — описание (сипаттама):",
     AddMovie.notify.state: (
-        "10/10 — жазылушыларға жаңа фильм туралы хабарлама жіберу керек пе?\n\n"
+        "11/11 — жазылушыларға жаңа фильм туралы хабарлама жіберу керек пе?\n\n"
         "Хабарлама тек хабарландыруды ҚОСҚАНДАРҒА барады. Каталогты топтап толтырып "
         "жатсаң — «🔕 Жоқ» (әйтпесе бір күнде ондаған хабарлама кетеді)."
     ),
@@ -122,23 +158,61 @@ def _name(step: State) -> str:
     return (step.state or "").split(":")[-1]
 
 
+def _season_active(data: dict[str, Any]) -> bool:
+    """Серия УЖЕ СУЩЕСТВУЮЩЕГО сезона выбрана — постер/названия/категории/описание
+    у неё не спрашиваются (несёт сезон)."""
+    return data.get("season_id") is not None
+
+
 def _step_at(index: int) -> State | None:
     """Шаг по индексу или None за краями списка (первый «назад», последний «вперёд»)."""
     return _ORDER[index] if 0 <= index < len(_ORDER) else None
 
 
 def _next(step: State, data: dict[str, Any]) -> State | None:
-    return _step_at(_INDEX[step.state] + 1)
+    index = _INDEX[step.state] + 1
+    while (candidate := _step_at(index)) is not None:
+        if candidate in _SEASON_SKIP and _season_active(data):
+            index += 1
+            continue
+        return candidate
+    return None
 
 
 def _previous(step: State, data: dict[str, Any]) -> State | None:
-    return _step_at(_INDEX[step.state] - 1)
+    index = _INDEX[step.state] - 1
+    while (candidate := _step_at(index)) is not None:
+        if candidate in _SEASON_SKIP and _season_active(data):
+            index -= 1
+            continue
+        return candidate
+    return None
+
+
+def _series_summary(data: dict[str, Any]) -> str | None:
+    """Что выбрано на шаге «сериал» — для «Қазір: …» и сводки. None — ещё не решали."""
+    if not data.get("series_decided"):
+        return None
+    if data.get("season_id") is not None:
+        title = data.get("series_title_display") or "?"
+        number = data.get("season_number_display", "?")
+        return f"«{title}» — {number}-маусым"
+    if data.get("season_new_number") is not None:
+        title = data.get("series_new_title") or data.get("series_title_display") or "?"
+        return f"«{title}» — {data['season_new_number']}-маусым (жаңа)"
+    return "Жеке фильм"
 
 
 def _value(step: State, data: dict[str, Any]) -> str | None:
     """Что уже введено на шаге — показываем при возврате, чтобы было видно, что правим."""
-    if step in (AddMovie.video, AddMovie.poster):
-        return "тіркелген ✅" if data.get(f"{_name(step)}_file_id") else None
+    if step is AddMovie.video:
+        return "тіркелген ✅" if data.get("video_file_id") else None
+    if step is AddMovie.poster:
+        if data.get("season_id") is not None:
+            return "тіркелген ✅ (маусым постері)"
+        return "тіркелген ✅" if data.get("poster_file_id") else None
+    if step is AddMovie.series:
+        return _series_summary(data)
     if step is AddMovie.notify:
         return None if "notify" not in data else ("Иә" if data["notify"] else "Жоқ")
     if step is AddMovie.category:
@@ -151,8 +225,8 @@ def _value(step: State, data: dict[str, Any]) -> str | None:
 
 def _has_value(step: State, data: dict[str, Any]) -> bool:
     """Есть ли что «оставить как есть» — от этого зависит кнопка «➡️ Әрі қарай»."""
-    if step in (AddMovie.category, AddMovie.confirm):
-        return False  # у категорий своя «Дайын», у сводки — «Сақтау»
+    if step in (AddMovie.category, AddMovie.series, AddMovie.confirm):
+        return False  # у категорий своя «Дайын», у сериала — свои кнопки, у сводки — «Сақтау»
     return _value(step, data) is not None
 
 
@@ -172,6 +246,8 @@ def _screen(step: State, data: dict[str, Any]) -> tuple[str, InlineKeyboardMarku
         return text, notify_keyboard(back=back, forward=forward)
     if step is AddMovie.category:
         return text, category_keyboard(set(data.get("categories") or []), back=back)
+    if step is AddMovie.series:
+        return text, series_root_keyboard(back=back)
     return text, step_keyboard(back=back, forward=forward)
 
 
@@ -191,6 +267,15 @@ async def _send(
     message = target.message if isinstance(target, CallbackQuery) else target
     if isinstance(message, Message):
         await message.answer(text, reply_markup=reply_markup)
+
+
+async def _edit(
+    callback: CallbackQuery, text: str, reply_markup: InlineKeyboardMarkup | None = None
+) -> None:
+    """Перерисовать текущее сообщение (под-экраны шага «сериал») — не плодим сообщения."""
+    if isinstance(callback.message, Message):
+        with suppress(TelegramBadRequest):
+            await callback.message.edit_text(text, reply_markup=reply_markup)
 
 
 async def _show(target: Message | CallbackQuery, state: FSMContext, step: State) -> None:
@@ -347,6 +432,148 @@ async def step_category_toggle(callback: CallbackQuery, state: FSMContext) -> No
             )
 
 
+# --- шаг «сериал» -------------------------------------------------------------
+
+@router.callback_query(AddMovie.series, F.data == SERIES_NONE)
+async def series_pick_none(callback: CallbackQuery, state: FSMContext) -> None:
+    """«Жоқ, жеке фильм» — обычный самостоятельный фильм, как раньше."""
+    await callback.answer()
+    await state.update_data(
+        series_decided=True,
+        series_id=None,
+        series_new_title=None,
+        series_title_display=None,
+        season_id=None,
+        season_new_number=None,
+        season_number_display=None,
+        series_await=None,
+    )
+    await _advance(callback, state)
+
+
+@router.callback_query(AddMovie.series, F.data == SERIES_NEW)
+async def series_pick_new(callback: CallbackQuery, state: FSMContext) -> None:
+    """«➕ Жаңа сериал» — сначала имя сериала, потом номер сезона (текстом)."""
+    await callback.answer()
+    await state.update_data(
+        series_await="name", series_id=None, series_title_display=None, season_id=None
+    )
+    await _edit(callback, "Жаңа сериалдың атауы (қазақша):")
+
+
+@router.callback_query(AddMovie.series, F.data == SERIES_LIST)
+@inject
+async def series_pick_list(
+    callback: CallbackQuery, state: FSMContext, series: FromDishka[SeriesService]
+) -> None:
+    """«📺 Бар сериалдан таңдау» — список уже заведённых сериалов."""
+    await callback.answer()
+    items = await series.list_series()
+    if items:
+        await _edit(callback, "Сериалды таңда:", series_list_keyboard(items))
+    else:
+        await _edit(
+            callback,
+            "Әзірге сериал жоқ. Жаңасын аш:",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="➕ Жаңа сериал", callback_data=SERIES_NEW)]
+                ]
+            ),
+        )
+
+
+@router.callback_query(AddMovie.series, F.data == SERIES_MENU)
+async def series_menu_root(callback: CallbackQuery, state: FSMContext) -> None:
+    """Назад из списка сериалов к корневым 3 кнопкам шага."""
+    await callback.answer()
+    data = await state.get_data()
+    back = bool(data.get("edit")) or _previous(AddMovie.series, data) is not None
+    text = _PROMPTS[AddMovie.series.state]
+    if (summary := _series_summary(data)) is not None:
+        text += f"\n\nҚазір: {summary}"
+    await _edit(callback, text, series_root_keyboard(back=back))
+
+
+@router.callback_query(AddMovie.series, F.data.startswith(SERIES_PICK_PREFIX))
+@inject
+async def series_pick_existing(
+    callback: CallbackQuery, state: FSMContext, series: FromDishka[SeriesService]
+) -> None:
+    """Выбран конкретный сериал — показываем его сезоны."""
+    if callback.data is None:
+        return
+    series_id = int(callback.data.removeprefix(SERIES_PICK_PREFIX))
+    picked = await series.get_series(series_id)
+    if picked is None:
+        await callback.answer("Табылмады", show_alert=True)
+        return
+    seasons = await series.list_seasons(series_id)
+    await state.update_data(
+        series_id=series_id, series_title_display=picked.title_kk, series_new_title=None
+    )
+    await callback.answer()
+    await _edit(callback, f"«{picked.title_kk}» — маусымды таңда:", season_list_keyboard(seasons))
+
+
+@router.callback_query(AddMovie.series, F.data == SEASON_NEW)
+async def season_pick_new(callback: CallbackQuery, state: FSMContext) -> None:
+    """«➕ Жаңа маусым» — под текущим сериалом (уже выбранным или только что созданным)."""
+    await callback.answer()
+    await state.update_data(
+        series_await="season_number", season_id=None, season_number_display=None
+    )
+    await _edit(callback, "Нешінші маусым? (сан жібер, мысалы 1)")
+
+
+@router.callback_query(AddMovie.series, F.data.startswith(SEASON_PICK_PREFIX))
+@inject
+async def season_pick_existing(
+    callback: CallbackQuery, state: FSMContext, series: FromDishka[SeriesService]
+) -> None:
+    """Выбран УЖЕ СУЩЕСТВУЮЩИЙ сезон — постер/название/категории/описание уже его."""
+    if callback.data is None:
+        return
+    season_id = int(callback.data.removeprefix(SEASON_PICK_PREFIX))
+    season = await series.get_season(season_id)
+    if season is None:
+        await callback.answer("Табылмады", show_alert=True)
+        return
+    await state.update_data(
+        season_id=season_id,
+        season_number_display=season.season_number,
+        season_new_number=None,
+        series_decided=True,
+        series_await=None,
+    )
+    await callback.answer()
+    await _advance(callback, state)
+
+
+@router.message(AddMovie.series, F.text)
+async def series_text_input(message: Message, state: FSMContext) -> None:
+    """Текст, ожидаемый под-диалогом шага «сериал»: имя нового сериала / номер сезона."""
+    value = (message.text or "").strip()
+    data = await state.get_data()
+    awaiting = data.get("series_await")
+    if awaiting == "name":
+        if not value:
+            return
+        await state.update_data(series_new_title=value, series_await="season_number")
+        await message.answer("Нешінші маусым? (сан жібер, мысалы 1)")
+        return
+    if awaiting == "season_number":
+        if not value.isdigit():
+            await message.answer("Маусым нөмірі — сан (мысалы 1). Қайта жібер:")
+            return
+        await state.update_data(
+            season_new_number=int(value), series_await=None, series_decided=True
+        )
+        await _advance(message, state)
+        return
+    await message.answer("Жоғарыдағы хабарламадағы түймелердің бірін бас.")
+
+
 @router.message(AddMovie.title_kk, F.text)
 async def step_title_kk(message: Message, state: FSMContext) -> None:
     title = (message.text or "").strip()
@@ -422,9 +649,12 @@ async def edit_menu_close(callback: CallbackQuery, state: FSMContext) -> None:
 async def edit_menu_open(callback: CallbackQuery, state: FSMContext) -> None:
     """Меню правки прямо на сводке — чтобы не идти «назад» через все шаги ради одного поля."""
     await callback.answer()
+    data = await state.get_data()
     if isinstance(callback.message, Message):
         with suppress(TelegramBadRequest):
-            await callback.message.edit_reply_markup(reply_markup=edit_keyboard())
+            await callback.message.edit_reply_markup(
+                reply_markup=edit_keyboard(season_picked=_season_active(data))
+            )
 
 
 @router.callback_query(AddMovie.confirm, F.data.startswith(EDIT_PREFIX))
@@ -449,6 +679,7 @@ async def confirm_add(
     bot: FromDishka[Bot],
     config: FromDishka[AppConfig],
     ingestion: FromDishka[MovieIngestionService],
+    series: FromDishka[SeriesService],
 ) -> None:
     data = await state.get_data()
     await callback.answer()
@@ -456,20 +687,44 @@ async def confirm_add(
     try:
         # 1) копия видео в канал-архив (protect_content) → стабильный file_id для выдачи
         archive_file_id = await _archive_video(bot, config, str(data["video_file_id"]))
-        # 2) постер скачиваем → байты для сервиса (единственная картинка фильма)
-        poster_bytes = await _download(bot, str(data["poster_file_id"]))
+
+        # 2) сериал/сезон: три случая — существующий сезон / новый сезон (+новый сериал
+        #    при необходимости) / обычный самостоятельный фильм.
+        season_id = data.get("season_id")
+        season_new_number = data.get("season_new_number")
+        if season_id is None and season_new_number is not None:
+            # Новый сезон — постер грузим один раз, он же станет постером сезона.
+            fresh_poster = await _download(bot, str(data["poster_file_id"]))
+            series_id = data.get("series_id")
+            if series_id is None:
+                created_series = await series.create_series(str(data["series_new_title"]))
+                if created_series.id is None:
+                    raise ValueError("Сериал сақталды, бірақ id жоқ")
+                series_id = created_series.id
+            created_season = await series.create_season(
+                series_id,
+                int(season_new_number),
+                fresh_poster,
+                title_kk=str(data["title_kk"]),
+                description=str(data["description"]),
+                categories=list(data["categories"]),
+            )
+            season_id = created_season.id
 
         movie = await ingestion.ingest(
-            title_kk=str(data["title_kk"]),
+            title_kk=None if season_id is not None else str(data["title_kk"]),
             title_ru=data.get("title_ru"),
             title_original=data.get("title_original"),
-            categories=list(data["categories"]),
-            description=str(data["description"]),
+            categories=None if season_id is not None else list(data["categories"]),
+            description=None if season_id is not None else str(data["description"]),
             year=data.get("year"),
             rating=data.get("rating"),
             notify=bool(data.get("notify")),
             video_file_id=archive_file_id,
-            poster_bytes=poster_bytes,
+            poster_bytes=(
+                None if season_id is not None else await _download(bot, str(data["poster_file_id"]))
+            ),
+            season_id=season_id,
         )
     except Exception:
         # Визард не должен зависать на «⏳ Сақталуда…»: любую ошибку (битая картинка, сеть,
@@ -511,18 +766,31 @@ def _category_titles(data: dict[str, Any]) -> str:
 
 
 def _summary(data: dict[str, Any]) -> str:
-    return "\n".join(
-        [
-            "Тексер және сақта (проверь и сохрани):",
+    """Сводка перед сохранением.
+
+    У серии УЖЕ СУЩЕСТВУЮЩЕГО сезона (`_season_active`) название/категории/описание не
+    спрашивались (несёт сезон) — их и не показываем. А вот при создании НОВОГО сезона
+    (`season_new_number` без `season_id`) эти поля реально собраны визардом (они станут
+    данными сезона) — показываем как у обычного фильма.
+    """
+    lines = ["Тексер және сақта (проверь и сохрани):"]
+    if not _season_active(data):
+        lines += [
             f"🎬 KK: {data.get('title_kk') or '—'}",
             f"🇷🇺 RU: {data.get('title_ru') or '—'}",
             f"🌐 Ориг.: {data.get('title_original') or '—'}",
             f"🗂 Категория: {_category_titles(data)}",
-            f"📅 Год: {data.get('year') or '—'}",
-            f"⭐ Рейтинг: {data.get('rating') or '—'}",
-            f"📝 {data.get('description') or '—'}",
-            f"🔔 Хабарлама: {'Иә' if data.get('notify') else 'Жоқ'}",
-            "",
-            "«✏️ Түзету» — жеке өрісті түзету.",
         ]
-    )
+    lines.append(f"📺 Сериал: {_series_summary(data) or 'Жеке фильм'}")
+    lines += [
+        f"📅 Год: {data.get('year') or '—'}",
+        f"⭐ Рейтинг: {data.get('rating') or '—'}",
+    ]
+    if not _season_active(data):
+        lines.append(f"📝 {data.get('description') or '—'}")
+    lines += [
+        f"🔔 Хабарлама: {'Иә' if data.get('notify') else 'Жоқ'}",
+        "",
+        "«✏️ Түзету» — жеке өрісті түзету.",
+    ]
+    return "\n".join(lines)

@@ -45,14 +45,39 @@ def test_only_one_image_is_asked_for() -> None:
 
     Ни вопроса «показывать на главной?», ни отдельного широкого баннера в визарде нет:
     hero — это фильм дня, туда по очереди попадает весь каталог, а широкую поверхность
-    фронт делает из того же постера.
+    фронт делает из того же постера. Сосед постера — `title_kk` (после него шаг «сериал»
+    из решения 2026-08-28 сдвинул порядок: video → category → series → poster → title_kk).
     """
-    assert _next(AddMovie.poster, {}) is AddMovie.category
-    assert _previous(AddMovie.category, {}) is AddMovie.poster
+    assert _next(AddMovie.poster, {}) is AddMovie.title_kk
+    assert _previous(AddMovie.title_kk, {}) is AddMovie.poster
 
 
 def test_first_step_has_nowhere_to_go_back() -> None:
     assert _previous(AddMovie.video, {}) is None
+
+
+# --- сериалы: серия существующего сезона пропускает постер/категорию/названия/описание ---
+
+def test_existing_season_skips_its_own_fields() -> None:
+    """Серия УЖЕ СУЩЕСТВУЮЩЕГО сезона (решение 2026-08-28): постер/категории/названия/
+    описание несёт сезон, спрашивать их заново незачем — визард перескакивает эти шаги
+    и от `series` сразу попадает на `year`."""
+    data = {"season_id": 7}
+    assert _next(AddMovie.series, data) is AddMovie.year
+    assert _previous(AddMovie.year, data) is AddMovie.series
+
+
+def test_new_season_still_asks_its_own_fields() -> None:
+    """А вот НОВЫЙ сезон (даже под существующим сериалом) эти поля собирает как обычно —
+    они станут данными сезона (`season_new_number` без `season_id`)."""
+    data = {"season_new_number": 3}
+    assert _next(AddMovie.series, data) is AddMovie.poster
+    assert _next(AddMovie.poster, data) is AddMovie.title_kk
+
+
+def test_standalone_movie_asks_every_field() -> None:
+    """Обычный фильм («Жоқ, жеке фильм») ничего не пропускает."""
+    assert _next(AddMovie.series, {}) is AddMovie.poster
 
 
 # --- экран шага -------------------------------------------------------------
