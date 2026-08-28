@@ -495,6 +495,17 @@ async def test_daily_report_save_is_upsert_by_day(session: AsyncSession) -> None
     assert saved is not None and saved.catalog_size == 9
 
 
+async def test_daily_report_list_range_is_inclusive_and_ordered(session: AsyncSession) -> None:
+    repo = PgDailyReportRepository(session)
+    await repo.save(_report(day=date(2026, 8, 13)))
+    await repo.save(_report(day=date(2026, 8, 15)))
+    await repo.save(_report(day=date(2026, 8, 20)))  # за пределами диапазона
+
+    rows = await repo.list_range(date(2026, 8, 13), date(2026, 8, 15))
+
+    assert [r.day for r in rows] == [date(2026, 8, 13), date(2026, 8, 15)]
+
+
 async def test_milestone_add_and_list_recent(session: AsyncSession) -> None:
     repo = PgMilestoneRepository(session)
     now = datetime.now(UTC)
@@ -506,3 +517,14 @@ async def test_milestone_add_and_list_recent(session: AsyncSession) -> None:
     # Свежее — первым.
     assert [m.label for m in recent] == ["Сыйлық фильм тоқтатылды", "Фильм дня іске қосылды"]
     assert recent[0].created_by == 1
+
+
+async def test_milestone_list_between_respects_window(session: AsyncSession) -> None:
+    repo = PgMilestoneRepository(session)
+    now = datetime.now(UTC)
+    await repo.add("Ескі веха", now - timedelta(days=10), created_by=1)
+    await repo.add("Осы аптадағы веха", now - timedelta(days=1), created_by=1)
+
+    window = await repo.list_between(now - timedelta(days=7), now)
+
+    assert [m.label for m in window] == ["Осы аптадағы веха"]

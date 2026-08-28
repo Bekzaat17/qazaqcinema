@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Collection
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, cast
 
 from sqlalchemy import (
@@ -723,6 +723,15 @@ class PgDailyReportRepository:
         await self._session.execute(stmt)
         await self._session.commit()
 
+    async def list_range(self, start: date, end: date) -> list[DailyReport]:
+        stmt = (
+            select(DailyReportModel)
+            .where(DailyReportModel.day >= start, DailyReportModel.day <= end)
+            .order_by(DailyReportModel.day)
+        )
+        result = await self._session.scalars(stmt)
+        return [_daily_report_to_domain(model) for model in result]
+
 
 class PgMilestoneRepository:
     """Лента вех роста (`milestones`). Пишет и читает админ-команда `/milestone`."""
@@ -742,6 +751,15 @@ class PgMilestoneRepository:
         result = await self._session.scalars(stmt)
         return [_milestone_to_domain(model) for model in result]
 
+    async def list_between(self, since: datetime, until: datetime) -> list[Milestone]:
+        stmt = (
+            select(MilestoneModel)
+            .where(MilestoneModel.occurred_at >= since, MilestoneModel.occurred_at < until)
+            .order_by(MilestoneModel.occurred_at)
+        )
+        result = await self._session.scalars(stmt)
+        return [_milestone_to_domain(model) for model in result]
+
 
 def _milestone_to_domain(model: MilestoneModel) -> Milestone:
     return Milestone(
@@ -749,6 +767,25 @@ def _milestone_to_domain(model: MilestoneModel) -> Milestone:
         occurred_at=model.occurred_at,
         label=model.label,
         created_by=model.created_by,
+    )
+
+
+def _daily_report_to_domain(model: DailyReportModel) -> DailyReport:
+    return DailyReport(
+        day=model.day,
+        users_total=model.users_total,
+        users_new=model.users_new,
+        subs_active=model.subs_active,
+        catalog_size=model.catalog_size,
+        opens_total=model.opens_total,
+        opens_unique=model.opens_unique,
+        starts=model.starts,
+        plays=model.plays,
+        free_plays=model.free_plays,
+        daily_plays=model.daily_plays,
+        paywalls=model.paywalls,
+        subscribes=model.subscribes,
+        expires=model.expires,
     )
 
 

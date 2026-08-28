@@ -7,9 +7,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
 
 
@@ -45,10 +46,36 @@ class FakeMovies:
 
 
 class FakeReports:
-    """Фейк `DailyReportRepository`: помнит последний сохранённый снимок."""
+    """Фейк `DailyReportRepository`: держит снимки в памяти, отдаёт по диапазону дат."""
 
-    def __init__(self) -> None:
-        self.saved: list[DailyReport] = []
+    def __init__(self, seed: list[DailyReport] | None = None) -> None:
+        self.saved: list[DailyReport] = list(seed or [])
 
     async def save(self, report: DailyReport) -> None:
-        self.saved.append(report)
+        self.saved = [r for r in self.saved if r.day != report.day] + [report]
+
+    async def list_range(self, start: date, end: date) -> list[DailyReport]:
+        return sorted((r for r in self.saved if start <= r.day <= end), key=lambda r: r.day)
+
+
+class FakeMilestones:
+    """Фейк `MilestoneRepository`: помнит добавленное, отдаёт по окну/лимиту."""
+
+    def __init__(self) -> None:
+        self.items: list[Milestone] = []
+        self._next_id = 1
+
+    async def add(self, label: str, occurred_at: datetime, created_by: int) -> Milestone:
+        milestone = Milestone(self._next_id, occurred_at, label, created_by)
+        self._next_id += 1
+        self.items.append(milestone)
+        return milestone
+
+    async def list_recent(self, limit: int) -> list[Milestone]:
+        return sorted(self.items, key=lambda m: m.occurred_at, reverse=True)[:limit]
+
+    async def list_between(self, since: datetime, until: datetime) -> list[Milestone]:
+        return sorted(
+            (m for m in self.items if since <= m.occurred_at < until),
+            key=lambda m: m.occurred_at,
+        )

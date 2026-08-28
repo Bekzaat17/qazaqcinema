@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
+from app.domain.analytics.percent import share
+
 
 @dataclass(frozen=True, slots=True)
 class DailyReport:
@@ -64,8 +66,8 @@ def render_report(report: DailyReport) -> str:
     производные величины (снимок несёт только числители/знаменатели), а формула
     может меняться — тексту отчёта незачем тянуть за собой миграцию.
     """
-    open_rate = _percent(report.opens_unique, report.starts)
-    convert_rate = _percent(report.subscribes, report.paywalls)
+    open_rate = share(report.opens_unique, report.starts)
+    convert_rate = share(report.subscribes, report.paywalls)
     return (
         f"📊 <b>Күнделікті есеп</b> · {report.day:%d.%m.%Y}\n"
         "———\n"
@@ -86,8 +88,3 @@ def render_report(report: DailyReport) -> str:
         f"{f' — конверсия {convert_rate}%' if convert_rate is not None else ''}\n"
         f"⌛️ Мерзімі бітті: {report.expires}"
     )
-
-
-def _percent(part: int, whole: int) -> int | None:
-    """Целый процент `part`/`whole`, либо `None` при пустом знаменателе (нечего делить)."""
-    return round(part / whole * 100) if whole else None

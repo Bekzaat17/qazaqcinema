@@ -1,23 +1,31 @@
-"""Сбор цифр для ежедневного отчёта.
+"""Сбор цифр для ежедневного отчёта и еженедельного дайджеста.
 
 Считает БД (COUNT по индексам), наружу идут только числа — строки пользователей и
 событий сюда не грузятся, поэтому стоимость отчёта не растёт с базой. Как это выглядит
-и какие сутки считать — домен (`domain/analytics/report`), когда слать — планировщик.
+и какие сутки считать — домен (`domain/analytics/report`, `.../weekly_report`), когда
+слать — планировщик.
 """
 
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime, tzinfo
+from datetime import datetime, time, tzinfo
 
 from app.application.ports.repositories import (
     DailyReportRepository,
+    MilestoneRepository,
     MovieRepository,
     UserEventRepository,
     UserRepository,
 )
 from app.domain.analytics.events import EventKind
 from app.domain.analytics.report import DailyReport, day_window
+from app.domain.analytics.weekly_report import (
+    WeeklyReport,
+    build_weekly_report,
+    previous_week_range,
+    week_range,
+)
 
 
 class AnalyticsService:
@@ -27,12 +35,14 @@ class AnalyticsService:
         events: UserEventRepository,
         movies: MovieRepository,
         reports: DailyReportRepository,
+        milestones: MilestoneRepository,
         admin_ids: Collection[int] = (),
     ) -> None:
         self._users = users
         self._events = events
         self._movies = movies
         self._reports = reports
+        self._milestones = milestones
         # Админы — не аудитория: их заходы служебные. События до журнала вообще не
         # доходят (`AdminBlindEventRepository`), а вот в `users` они лежат наравне со
         # всеми — поэтому счётчики людей исключают их явно.
@@ -63,3 +73,19 @@ class AnalyticsService:
         )
         await self._reports.save(report)
         return report
+
+    async def weekly_report(self, now: datetime, tz: tzinfo) -> WeeklyReport:
+        """Дайджест за последние 7 суток из уже сохранённых снимков `daily_reports`.
+
+        Запускать ПОСЛЕ `daily_report` того же дня: иначе сегодняшний снимок ещё не
+        записан и «последние 7 суток» упрутся во вчера. Планировщик разводит их по
+        времени (`scheduler.py`), а не порядком вызова здесь.
+        """
+        today = now.astimezone(tz).date()
+        cur_start, cur_end = week_range(today)
+        prev_start, prev_end = previous_week_range(today)
+        current_days = await self._reports.list_range(cur_start, cur_end)
+        previous_days = await self._reports.list_range(prev_start, prev_end)
+        window_start = datetime.combine(cur_start, time.min, tzinfo=tz)
+        milestones = await self._milestones.list_between(window_start, now)
+        return build_weekly_report(today, current_days, previous_days, milestones)

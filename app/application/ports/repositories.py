@@ -7,7 +7,7 @@ PaymentRepository. Реализации — в app/infrastructure/db/repositorie
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Protocol
 
 from app.domain.analytics.events import EventKind
@@ -187,12 +187,25 @@ class DailyReportRepository(Protocol):
         """
         ...
 
+    async def list_range(self, start: date, end: date) -> list[DailyReport]:
+        """Снимки за диапазон дат (обе границы включительно), по возрастанию `day`.
+
+        Единственный потребитель — еженедельный дайджест (`domain/analytics/
+        weekly_report`): агрегирует уже посчитанное и сохранённое `save`, вместо
+        повторного похода к `user_events` с более широким окном.
+        """
+        ...
+
 
 class MilestoneRepository(Protocol):
     """Лента вех роста — см. `domain/analytics/milestone`."""
 
     async def add(self, label: str, occurred_at: datetime, created_by: int) -> Milestone: ...
     async def list_recent(self, limit: int) -> list[Milestone]: ...
+
+    async def list_between(self, since: datetime, until: datetime) -> list[Milestone]:
+        """Вехи внутри `[since, until)`, по возрастанию времени — контекст дайджеста."""
+        ...
 
 
 class PaymentRepository(Protocol):

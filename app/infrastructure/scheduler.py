@@ -15,6 +15,12 @@
    daily_report` пишет снимок в `daily_reports` (upsert по дню) — история накапливается
    сама, отдельного джоба на запись нет.
 
+4. `weekly_report` (раз в неделю, воскресенье 22:10 по Алматы) — дайджест за 7 суток
+   с сравнением к предыдущим 7 (в %), нормировкой на размер каталога и вехами роста
+   за период (`domain/analytics/weekly_report`). Считает НЕ `user_events` заново, а
+   агрегирует уже сохранённые снимки `daily_reports` — 10-минутный сдвиг от
+   `daily_report` гарантирует, что сегодняшний снимок к этому моменту уже записан.
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
@@ -35,6 +41,7 @@ from app.application.services.analytics_service import AnalyticsService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.analytics.report import render_report
+from app.domain.analytics.weekly_report import render_weekly_report
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +54,13 @@ PURGE_VIDEOS_INTERVAL_MINUTES = 60
 REPORT_TZ = ZoneInfo("Asia/Almaty")
 REPORT_HOUR = 22
 REPORT_MINUTE = 0
+# 10 минут после дневного отчёта того же дня — сегодняшний снимок `daily_reports`
+# к этому моменту уже точно записан (weekly_report только читает историю, не считает
+# заново). Воскресенье — просто конец недели, окно самого отчёта скользящее и от
+# дня запуска не зависит.
+WEEKLY_REPORT_DAY_OF_WEEK = "sun"
+WEEKLY_REPORT_HOUR = 22
+WEEKLY_REPORT_MINUTE = 10
 
 
 async def _expire_due_job(container: AsyncContainer) -> None:
@@ -77,6 +91,17 @@ async def _daily_report_job(container: AsyncContainer) -> None:
             logger.warning("Ежедневный отчёт не доставлен ни одному админу")
 
 
+async def _weekly_report_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        analytics = await request_container.get(AnalyticsService)
+        notifier: TelegramNotifier = await request_container.get(TelegramNotifier)
+        report = await analytics.weekly_report(datetime.now(UTC), REPORT_TZ)
+        try:
+            await notifier.notify_admins(render_weekly_report(report))
+        except AdminsUnreachableError:
+            logger.warning("Еженедельный дайджест не доставлен ни одному админу")
+
+
 def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
@@ -100,6 +125,19 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         id="daily_report",
         # Бот перезапустился в 22:05 — отчёт за день всё равно уйдёт (в пределах часа),
         # а не пропадёт до завтра; coalesce не даёт послать его дважды.
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _weekly_report_job,
+        CronTrigger(
+            day_of_week=WEEKLY_REPORT_DAY_OF_WEEK,
+            hour=WEEKLY_REPORT_HOUR,
+            minute=WEEKLY_REPORT_MINUTE,
+            timezone=REPORT_TZ,
+        ),
+        args=[container],
+        id="weekly_report",
         misfire_grace_time=3600,
         coalesce=True,
     )

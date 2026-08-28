@@ -8,19 +8,40 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from app.application.services.analytics_service import AnalyticsService
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.report import DailyReport
 from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
 
-from tests.fakes import FakeEvents, FakeMovies, FakeReports
+from tests.fakes import FakeEvents, FakeMilestones, FakeMovies, FakeReports
 
 ALMATY = ZoneInfo("Asia/Almaty")
 _NOW = datetime(2026, 8, 13, 17, 0, tzinfo=UTC)  # 22:00 по Алматы
 ADMIN = 1
 USER = 2
+
+
+def _snapshot(day: date, **overrides: int) -> DailyReport:
+    base: dict[str, int] = {
+        "users_total": 0,
+        "users_new": 0,
+        "subs_active": 0,
+        "catalog_size": 0,
+        "opens_total": 0,
+        "opens_unique": 0,
+        "starts": 0,
+        "plays": 0,
+        "free_plays": 0,
+        "daily_plays": 0,
+        "paywalls": 0,
+        "subscribes": 0,
+        "expires": 0,
+    }
+    base.update(overrides)
+    return DailyReport(day=day, **base)  # type: ignore[arg-type]
 
 
 class _CountingUsers:
@@ -54,7 +75,7 @@ async def test_daily_report_collects_numbers() -> None:
     await events.add(USER, EventKind.START)
 
     report = await AnalyticsService(
-        _CountingUsers(), events, FakeMovies(catalog_size=42), FakeReports()
+        _CountingUsers(), events, FakeMovies(catalog_size=42), FakeReports(), FakeMilestones()
     ).daily_report(_NOW, ALMATY)
 
     assert report.day.isoformat() == "2026-08-13"  # местная дата, не UTC
@@ -70,7 +91,7 @@ async def test_admin_ids_are_excluded_from_user_counts() -> None:
     users = _CountingUsers()
 
     await AnalyticsService(
-        users, FakeEvents(), FakeMovies(), FakeReports(), [ADMIN]
+        users, FakeEvents(), FakeMovies(), FakeReports(), FakeMilestones(), [ADMIN]
     ).daily_report(_NOW, ALMATY)
 
     assert users.excluded == [[ADMIN], [ADMIN], [ADMIN]]
@@ -80,12 +101,52 @@ async def test_daily_report_is_persisted_to_history() -> None:
     reports = FakeReports()
 
     report = await AnalyticsService(
-        _CountingUsers(), FakeEvents(), FakeMovies(catalog_size=7), reports
+        _CountingUsers(), FakeEvents(), FakeMovies(catalog_size=7), reports, FakeMilestones()
     ).daily_report(_NOW, ALMATY)
 
     # Снимок пишется тем же вызовом, которым собирается текст для админов — не
     # отдельным джобом, иначе история отставала бы от реально отправленных отчётов.
     assert reports.saved == [report]
+
+
+async def test_weekly_report_aggregates_saved_snapshots_and_compares_to_previous_week() -> None:
+    """22:10 воскресенья: неделя — 17.08..23.08 (сегодня включительно), прошлая — 10.08..16.08."""
+    sunday = datetime(2026, 8, 23, 17, 10, tzinfo=UTC)  # 22:10 по Алматы
+    reports = FakeReports(
+        seed=[
+            _snapshot(date(2026, 8, 16), catalog_size=90, opens_unique=5, subscribes=1),
+            _snapshot(date(2026, 8, 17), catalog_size=100, opens_unique=6, subscribes=1),
+            _snapshot(date(2026, 8, 23), catalog_size=120, opens_unique=9, subscribes=2),
+        ]
+    )
+    milestones = FakeMilestones()
+    await milestones.add(
+        "Күн фильмі іске қосылды", sunday - timedelta(days=2), created_by=ADMIN
+    )
+    await milestones.add("Ескі веха", sunday - timedelta(days=20), created_by=ADMIN)  # вне окна
+
+    report = await AnalyticsService(
+        _CountingUsers(), FakeEvents(), FakeMovies(), reports, milestones
+    ).weekly_report(sunday, ALMATY)
+
+    assert (report.period_start, report.period_end) == (date(2026, 8, 17), date(2026, 8, 23))
+    assert report.catalog_size == 120  # последний снимок текущего окна
+    assert report.catalog_size_prev == 90  # последний снимок ПРЕДЫДУЩЕГО (16.08)
+    assert report.current.opens_unique == 6 + 9  # сумма снимков внутри текущего окна
+    assert report.previous is not None and report.previous.opens_unique == 5
+    assert [m.label for m in report.milestones] == ["Күн фильмі іске қосылды"]  # старая вне окна
+
+
+async def test_weekly_report_without_history_has_no_previous_period() -> None:
+    sunday = datetime(2026, 8, 23, 17, 10, tzinfo=UTC)
+    reports = FakeReports(seed=[_snapshot(date(2026, 8, 23), catalog_size=10)])
+
+    report = await AnalyticsService(
+        _CountingUsers(), FakeEvents(), FakeMovies(), reports, FakeMilestones()
+    ).weekly_report(sunday, ALMATY)
+
+    assert report.previous is None
+    assert report.catalog_size_prev is None
 
 
 async def test_admin_events_are_not_recorded() -> None:
