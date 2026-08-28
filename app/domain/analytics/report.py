@@ -15,16 +15,29 @@ from datetime import date, datetime, timedelta
 
 @dataclass(frozen=True, slots=True)
 class DailyReport:
-    """Срез за сутки. `*_total` — накопленные величины, остальное — за отчётный день."""
+    """Срез за сутки. `*_total` — накопленные величины, остальное — за отчётный день.
+
+    Само по себе число просмотров ни о чём не говорит без контекста, в котором оно
+    случилось: `catalog_size` — это контекст (решение 2026-08-28, «фундамент истории
+    аналитики»). Без него рост открытий за месяц роста каталога с 50 до 150 фильмов
+    выглядел бы взрывом органики, хотя это просто больше SEO-страниц в индексе Google.
+    Снимок пишется КАЖДЫЙ день в `daily_reports` (не пересчитывается на лету из
+    `user_events` при каждом обращении) — иначе исторический размер каталога/аудитории
+    потерялся бы: `movies`/`users` растут, и «каталог на 13.08» перезапросом уже не
+    восстановить.
+    """
 
     day: date
     users_total: int      # всего пользователей в БД (нажавшие /start тоже считаются)
     users_new: int        # из них появились сегодня
     subs_active: int      # активных подписок прямо сейчас
+    catalog_size: int     # фильмов в каталоге на конец дня — знаменатель для нормировки
     opens_total: int      # открытий Mini App за день
     opens_unique: int     # ...из них уникальных людей (главная метрика живой аудитории)
+    starts: int           # нажавших /start (в т.ч. пришедшие из SEO, до входа в Mini App)
     plays: int            # выданных видео за день (по подписке)
-    free_plays: int       # ...и отдельно подарочных первых фильмов
+    free_plays: int       # ...и отдельно подарочных первых фильмов (разовый подарок)
+    daily_plays: int      # ...и отдельно фильма дня (регулярный бесплатный крючок)
     paywalls: int         # упоров в пэйволл: хотел смотреть, но платить пока не стал
     subscribes: int       # активаций/продлений подписки за день
     expires: int          # истёкших подписок за день
@@ -45,19 +58,36 @@ def day_window(now: datetime) -> tuple[datetime, datetime]:
 
 
 def render_report(report: DailyReport) -> str:
-    """Текст отчёта для личек админов (HTML-безопасен: только цифры и наши подписи)."""
+    """Текст отчёта для личек админов (HTML-безопасен: только цифры и наши подписи).
+
+    Проценты считаются тут же, не в `AnalyticsService` и не хранятся в БД: это
+    производные величины (снимок несёт только числители/знаменатели), а формула
+    может меняться — тексту отчёта незачем тянуть за собой миграцию.
+    """
+    open_rate = _percent(report.opens_unique, report.starts)
+    convert_rate = _percent(report.subscribes, report.paywalls)
     return (
         f"📊 <b>Күнделікті есеп</b> · {report.day:%d.%m.%Y}\n"
         "———\n"
         f"👥 Барлық қолданушы: {report.users_total} (бүгін +{report.users_new})\n"
         f"✅ Белсенді жазылым: {report.subs_active}\n"
+        f"🎬 Каталог: {report.catalog_size} фильм\n"
         "———\n"
-        f"📱 Кинотеатрды ашты: {report.opens_unique} адам ({report.opens_total} рет)\n"
-        f"▶️ Жіберілген видео: {report.plays}\n"
-        # Воронка «сначала ценность, потом оплата» — две цифры рядом читаются как
-        # соотношение: сколько людей попробовали продукт и сколько упёрлись в оплату.
+        f"🤖 /start басты: {report.starts}\n"
+        f"📱 Кинотеатрды ашты: {report.opens_unique} адам ({report.opens_total} рет)"
+        f"{f' — {open_rate}%' if open_rate is not None else ''}\n"
+        f"▶️ Жіберілген видео (жазылым): {report.plays}\n"
+        # Воронка «сначала ценность, потом оплата»: два разных крючка — разовый
+        # подарок и регулярный фильм дня — рядом, чтобы было видно, какой тянет больше.
         f"🎁 Сыйлық фильм: {report.free_plays}\n"
+        f"📅 Күн фильмі: {report.daily_plays}\n"
         f"🔒 Пэйволл көрді: {report.paywalls}\n"
-        f"💳 Жазылым қосылды: {report.subscribes}\n"
+        f"💳 Жазылым қосылды: {report.subscribes}"
+        f"{f' — конверсия {convert_rate}%' if convert_rate is not None else ''}\n"
         f"⌛️ Мерзімі бітті: {report.expires}"
     )
+
+
+def _percent(part: int, whole: int) -> int | None:
+    """Целый процент `part`/`whole`, либо `None` при пустом знаменателе (нечего делить)."""
+    return round(part / whole * 100) if whole else None

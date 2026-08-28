@@ -30,6 +30,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import SortDir, SortField
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.milestone import Milestone
+from app.domain.analytics.report import DailyReport
 from app.domain.catalog.popularity import FAVORITE_WEIGHT, PLAY_WEIGHT
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
@@ -39,7 +41,9 @@ from app.domain.entities.series import Series
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
 from app.infrastructure.db.models import (
+    DailyReportModel,
     FavoriteModel,
+    MilestoneModel,
     MovieModel,
     PaymentRequestModel,
     SeasonModel,
@@ -366,6 +370,10 @@ class PgMovieRepository:
         result = await self._session.scalars(stmt)
         return [_movie_to_domain(model) for model in result]
 
+    async def count_all(self) -> int:
+        stmt = select(func.count()).select_from(MovieModel)
+        return int(await self._session.scalar(stmt) or 0)
+
 
 class PgSeriesRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -677,6 +685,71 @@ class PgUserEventRepository:
             *_event_window(kind, since, until)
         )
         return int(await self._session.scalar(stmt) or 0)
+
+
+class PgDailyReportRepository:
+    """История снимков (`daily_reports`). Одна операция — upsert по `day`."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def save(self, report: DailyReport) -> None:
+        values = {
+            "day": report.day,
+            "users_total": report.users_total,
+            "users_new": report.users_new,
+            "subs_active": report.subs_active,
+            "catalog_size": report.catalog_size,
+            "opens_total": report.opens_total,
+            "opens_unique": report.opens_unique,
+            "starts": report.starts,
+            "plays": report.plays,
+            "free_plays": report.free_plays,
+            "daily_plays": report.daily_plays,
+            "paywalls": report.paywalls,
+            "subscribes": report.subscribes,
+            "expires": report.expires,
+        }
+        stmt = pg_insert(DailyReportModel).values(**values)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["day"],
+            set_={
+                **{key: stmt.excluded[key] for key in values if key != "day"},
+                # created_at «Core»-апдейт не проходит через ORM onupdate — двигаем явно,
+                # чтобы по нему было видно, что снимок за этот день переписан повторно.
+                "created_at": func.now(),
+            },
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()
+
+
+class PgMilestoneRepository:
+    """Лента вех роста (`milestones`). Пишет и читает админ-команда `/milestone`."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, label: str, occurred_at: datetime, created_by: int) -> Milestone:
+        model = MilestoneModel(label=label, occurred_at=occurred_at, created_by=created_by)
+        self._session.add(model)
+        await self._session.commit()
+        await self._session.refresh(model)
+        return _milestone_to_domain(model)
+
+    async def list_recent(self, limit: int) -> list[Milestone]:
+        stmt = select(MilestoneModel).order_by(MilestoneModel.occurred_at.desc()).limit(limit)
+        result = await self._session.scalars(stmt)
+        return [_milestone_to_domain(model) for model in result]
+
+
+def _milestone_to_domain(model: MilestoneModel) -> Milestone:
+    return Milestone(
+        id=model.id,
+        occurred_at=model.occurred_at,
+        label=model.label,
+        created_by=model.created_by,
+    )
 
 
 def _not_in(ids: Collection[int]) -> tuple[ColumnElement[bool], ...]:

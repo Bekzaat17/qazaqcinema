@@ -24,7 +24,9 @@ from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
 from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
+    DailyReportRepository,
     FavoriteRepository,
+    MilestoneRepository,
     MovieRepository,
     PaymentRepository,
     SeasonRepository,
@@ -45,6 +47,7 @@ from app.application.services.catalog_service import CatalogService
 from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
 from app.application.services.ingestion_service import MovieIngestionService
+from app.application.services.milestone_service import MilestoneService
 from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
@@ -65,7 +68,9 @@ from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
 from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
+    PgDailyReportRepository,
     PgFavoriteRepository,
+    PgMilestoneRepository,
     PgMovieRepository,
     PgPaymentRepository,
     PgSeasonRepository,
@@ -198,6 +203,8 @@ class RequestProvider(Provider):
     deliveries = provide(PgVideoDeliveryRepository, provides=VideoDeliveryRepository)
     series_repo = provide(PgSeriesRepository, provides=SeriesRepository)
     season_repo = provide(PgSeasonRepository, provides=SeasonRepository)
+    daily_reports_repo = provide(PgDailyReportRepository, provides=DailyReportRepository)
+    milestones_repo = provide(PgMilestoneRepository, provides=MilestoneRepository)
 
     @provide
     def events(self, session: AsyncSession, config: AppConfig) -> UserEventRepository:
@@ -225,14 +232,20 @@ class RequestProvider(Provider):
     support = provide(SupportService)  # обращения из Mini App → в личку админам
     stars = provide(StarsPaymentService)
     activity = provide(UserActivityService)  # /start → юзер в БД + событие «пришёл»
+    milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
 
     @provide
     def analytics(
-        self, users: UserRepository, events: UserEventRepository, config: AppConfig
+        self,
+        users: UserRepository,
+        events: UserEventRepository,
+        movies: MovieRepository,
+        reports: DailyReportRepository,
+        config: AppConfig,
     ) -> AnalyticsService:
         # admin_ids — примитив из конфига (как webapp_url у рассылок), поэтому явный
         # метод: сервис получает список id, а не весь AppConfig.
-        return AnalyticsService(users, events, config.bot.admin_user_ids)
+        return AnalyticsService(users, events, movies, reports, config.bot.admin_user_ids)
 
     @provide
     def broadcast(

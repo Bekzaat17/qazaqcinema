@@ -15,7 +15,7 @@ from app.application.services.analytics_service import AnalyticsService
 from app.domain.analytics.events import EventKind
 from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
 
-from tests.fakes import FakeEvents
+from tests.fakes import FakeEvents, FakeMovies, FakeReports
 
 ALMATY = ZoneInfo("Asia/Almaty")
 _NOW = datetime(2026, 8, 13, 17, 0, tzinfo=UTC)  # 22:00 по Алматы
@@ -50,21 +50,42 @@ async def test_daily_report_collects_numbers() -> None:
     await events.add(USER, EventKind.OPEN)  # тот же человек — одно уникальное открытие
     await events.add(3, EventKind.OPEN)
     await events.add(USER, EventKind.PLAY, "7")
+    await events.add(USER, EventKind.DAILY_PLAY, "9")
+    await events.add(USER, EventKind.START)
 
-    report = await AnalyticsService(_CountingUsers(), events).daily_report(_NOW, ALMATY)
+    report = await AnalyticsService(
+        _CountingUsers(), events, FakeMovies(catalog_size=42), FakeReports()
+    ).daily_report(_NOW, ALMATY)
 
     assert report.day.isoformat() == "2026-08-13"  # местная дата, не UTC
     assert (report.users_total, report.users_new, report.subs_active) == (10, 2, 4)
+    assert report.catalog_size == 42
     assert (report.opens_total, report.opens_unique) == (3, 2)
+    assert report.starts == 1
     assert report.plays == 1
+    assert report.daily_plays == 1
 
 
 async def test_admin_ids_are_excluded_from_user_counts() -> None:
     users = _CountingUsers()
 
-    await AnalyticsService(users, FakeEvents(), [ADMIN]).daily_report(_NOW, ALMATY)
+    await AnalyticsService(
+        users, FakeEvents(), FakeMovies(), FakeReports(), [ADMIN]
+    ).daily_report(_NOW, ALMATY)
 
     assert users.excluded == [[ADMIN], [ADMIN], [ADMIN]]
+
+
+async def test_daily_report_is_persisted_to_history() -> None:
+    reports = FakeReports()
+
+    report = await AnalyticsService(
+        _CountingUsers(), FakeEvents(), FakeMovies(catalog_size=7), reports
+    ).daily_report(_NOW, ALMATY)
+
+    # Снимок пишется тем же вызовом, которым собирается текст для админов — не
+    # отдельным джобом, иначе история отставала бы от реально отправленных отчётов.
+    assert reports.saved == [report]
 
 
 async def test_admin_events_are_not_recorded() -> None:

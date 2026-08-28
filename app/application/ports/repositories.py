@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Literal, Protocol
 
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.milestone import Milestone
+from app.domain.analytics.report import DailyReport
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentStatus
 from app.domain.entities.movie import Movie
@@ -55,6 +57,13 @@ class MovieRepository(Protocol):
     ) -> tuple[list[Movie], int]: ...
     async def category_counts(self) -> dict[str, int]: ...
     async def increment_play_count(self, movie_id: int) -> None: ...
+    async def count_all(self) -> int:
+        """Размер каталога — знаменатель для нормировки метрик отчёта (не растёт с базой:
+
+        один `COUNT`, без выгрузки строк — в отличие от `list_rotation_ids`, которому
+        нужны сами id.
+        """
+        ...
 
     async def list_by_season(self, season_id: int) -> list[Movie]:
         """Серии одного сезона, по возрастанию `episode_number` — эпизод-лист сериала.
@@ -162,6 +171,28 @@ class UserEventRepository(Protocol):
     async def count_unique_users(self, kind: EventKind, since: datetime, until: datetime) -> int:
         """Сколько РАЗНЫХ людей сделали это за период (открытия кинотеатра «по головам»)."""
         ...
+
+
+class DailyReportRepository(Protocol):
+    """История ежедневных снимков (`daily_reports`) — фундамент ретро-аналитики.
+
+    Один метод: снимок собирает `AnalyticsService` целиком (числа согласованы между
+    собой, окно/дата посчитаны один раз), репозиторию остаётся только записать его.
+    """
+
+    async def save(self, report: DailyReport) -> None:
+        """Upsert по `day`: повторный прогон отчёта за тот же день перезаписывает
+
+        строку, а не плодит дубликаты (misfire/ручной перезапуск джоба — не редкость).
+        """
+        ...
+
+
+class MilestoneRepository(Protocol):
+    """Лента вех роста — см. `domain/analytics/milestone`."""
+
+    async def add(self, label: str, occurred_at: datetime, created_by: int) -> Milestone: ...
+    async def list_recent(self, limit: int) -> list[Milestone]: ...
 
 
 class PaymentRepository(Protocol):

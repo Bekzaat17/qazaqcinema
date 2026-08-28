@@ -7,11 +7,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -234,3 +235,50 @@ class PaymentRequestModel(Base):
     external_charge_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DailyReportModel(Base):
+    """Ежедневный снимок `domain/analytics/report.DailyReport` — один на сутки.
+
+    `day` — сам ключ (не суррогатный id): «снимок за 13.08» и есть естественная
+    единица этой таблицы, второй строки на ту же дату быть не может (upsert в
+    `PgDailyReportRepository.save`). Числа — как в дата-классе один в один, без
+    производных величин (проценты считает `render_report`, не хранится).
+    """
+
+    __tablename__ = "daily_reports"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    users_total: Mapped[int] = mapped_column()
+    users_new: Mapped[int] = mapped_column()
+    subs_active: Mapped[int] = mapped_column()
+    catalog_size: Mapped[int] = mapped_column()
+    opens_total: Mapped[int] = mapped_column()
+    opens_unique: Mapped[int] = mapped_column()
+    starts: Mapped[int] = mapped_column()
+    plays: Mapped[int] = mapped_column()
+    free_plays: Mapped[int] = mapped_column()
+    daily_plays: Mapped[int] = mapped_column()
+    paywalls: Mapped[int] = mapped_column()
+    subscribes: Mapped[int] = mapped_column()
+    expires: Mapped[int] = mapped_column()
+    # Когда СТРОКА записана/перезаписана — техническое поле, не путать с `day` (тот —
+    # какие сутки описаны; misfire мог дописать их и на следующий день). Обновление на
+    # конфликте — явно в `set_` репозитория (upsert идёт через Core, ORM-`onupdate`
+    # каллбэк на нём не срабатывает).
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class MilestoneModel(Base):
+    """Веха роста — см. `domain/analytics/milestone`. Пишется вручную командой `/milestone`."""
+
+    __tablename__ = "milestones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    label: Mapped[str] = mapped_column(String(255))
+    created_by: Mapped[int] = mapped_column(BigInteger)

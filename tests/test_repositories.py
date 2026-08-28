@@ -1,20 +1,24 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.report import DailyReport
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
-from app.infrastructure.db.models import VideoDeliveryModel
+from app.infrastructure.db.models import DailyReportModel, VideoDeliveryModel
 from app.infrastructure.db.repositories import (
+    PgDailyReportRepository,
+    PgMilestoneRepository,
     PgMovieRepository,
     PgPaymentRepository,
     PgUserEventRepository,
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -220,6 +224,17 @@ async def test_movie_list_page_sorts_by_rating_nulls_last(session: AsyncSession)
         categories=[], sort="rating", direction="asc", limit=10, offset=0
     )
     assert [m.title_kk for m in asc_items] == ["R6", "R9", "RN"]  # без оценки всё равно в конце
+
+
+async def test_movie_count_all(session: AsyncSession) -> None:
+    """Размер каталога — знаменатель для нормировки метрик отчёта."""
+    repo = PgMovieRepository(session)
+    assert await repo.count_all() == 0
+
+    await repo.add(_movie("a", "anime", "1"))
+    await repo.add(_movie("b", "disney", "2"))
+
+    assert await repo.count_all() == 2
 
 
 async def test_movie_category_counts(session: AsyncSession) -> None:
@@ -444,3 +459,50 @@ async def test_user_event_counts_by_kind_and_window(session: AsyncSession) -> No
     # За пределами окна не считаем ничего.
     future = (now + timedelta(minutes=5), now + timedelta(hours=1))
     assert await events.count(EventKind.OPEN, *future) == 0
+
+
+def _report(**overrides: object) -> DailyReport:
+    base: dict[str, object] = {
+        "day": date(2026, 8, 13),
+        "users_total": 10,
+        "users_new": 1,
+        "subs_active": 2,
+        "catalog_size": 5,
+        "opens_total": 3,
+        "opens_unique": 2,
+        "starts": 4,
+        "plays": 1,
+        "free_plays": 0,
+        "daily_plays": 0,
+        "paywalls": 1,
+        "subscribes": 1,
+        "expires": 0,
+    }
+    base.update(overrides)
+    return DailyReport(**base)  # type: ignore[arg-type]
+
+
+async def test_daily_report_save_is_upsert_by_day(session: AsyncSession) -> None:
+    """Повторный прогон отчёта за тот же день перезаписывает строку, не плодит дубликат."""
+    repo = PgDailyReportRepository(session)
+
+    await repo.save(_report(catalog_size=5))
+    await repo.save(_report(catalog_size=9))  # тот же day=2026-08-13, каталог подрос
+
+    rows = (await session.execute(select(func.count()).select_from(DailyReportModel))).scalar()
+    assert rows == 1
+    saved = await session.get(DailyReportModel, date(2026, 8, 13))
+    assert saved is not None and saved.catalog_size == 9
+
+
+async def test_milestone_add_and_list_recent(session: AsyncSession) -> None:
+    repo = PgMilestoneRepository(session)
+    now = datetime.now(UTC)
+    await repo.add("Фильм дня іске қосылды", now, created_by=1)
+    await repo.add("Сыйлық фильм тоқтатылды", now + timedelta(minutes=1), created_by=1)
+
+    recent = await repo.list_recent(10)
+
+    # Свежее — первым.
+    assert [m.label for m in recent] == ["Сыйлық фильм тоқтатылды", "Фильм дня іске қосылды"]
+    assert recent[0].created_by == 1

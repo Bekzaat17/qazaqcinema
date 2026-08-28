@@ -1,8 +1,8 @@
 """Фейки, общие для юнит-тестов сервисов (без БД).
 
-Пока здесь только журнал событий: его порт появился сразу у трёх сервисов
-(auth/playback/subscription), и копировать один и тот же заглушечный класс в каждый
-тест-файл смысла нет.
+Журнал событий: его порт появился сразу у трёх сервисов (auth/playback/subscription),
+и копировать один и тот же заглушечный класс в каждый тест-файл смысла нет. Плюс
+пара мелких фейков под `AnalyticsService` (каталог + история снимков).
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.report import DailyReport
 
 
 class FakeEvents:
@@ -31,3 +32,23 @@ class FakeEvents:
 
     def kinds_for(self, user_id: int) -> list[EventKind]:
         return [k for uid, k, _m in self.added if uid == user_id]
+
+
+class FakeMovies:
+    """Фейк `MovieRepository`, урезанный до того, что нужно `AnalyticsService` — размер каталога."""
+
+    def __init__(self, catalog_size: int = 0) -> None:
+        self.catalog_size = catalog_size
+
+    async def count_all(self) -> int:
+        return self.catalog_size
+
+
+class FakeReports:
+    """Фейк `DailyReportRepository`: помнит последний сохранённый снимок."""
+
+    def __init__(self) -> None:
+        self.saved: list[DailyReport] = []
+
+    async def save(self, report: DailyReport) -> None:
+        self.saved.append(report)
