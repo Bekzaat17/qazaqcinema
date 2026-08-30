@@ -88,9 +88,18 @@ export function openLink(url: string): void {
  * Открыть чат с ботом ВНУТРИ Telegram (Mini App сворачивается, сверху встаёт чат).
  * Именно `openTelegramLink`, а не `openLink`: последний уводит t.me во внешний браузер,
  * и человек оказывался бы на веб-странице вместо чата, который ему как раз и нужен.
+ *
+ * `payload` — ТОЛЬКО для случая, когда чата с ботом ещё не было (`BotStartSheet`): без него
+ * человек, впервые тыкающий на ссылку, просто открывает пустой чат. С параметром — Telegram
+ * рисует большую кнопку START, а нажатие шлёт `/start <payload>`.
+ * ⚠️ Без параметра НЕ звать `t.me/<bot>?start=...` там, где чат УЖЕ открыт (`HandoffModal`):
+ * Telegram шлёт `/start <payload>` заново при КАЖДОМ переходе по такой ссылке, даже если
+ * переписка с ботом давно идёт — обнаружено 2026-08-30 живым багом (после «Чатқа өту» вместо
+ * видео прилетало дефолтное приветствие `GREETING` из `handlers/start.py`, затирая контекст
+ * с подарком). Оставлять `payload` не передан — открывает уже существующий чат как есть.
  */
-export function openBotChat(payload = "web"): void {
-  const url = `${BOT_URL}?start=${payload}`;
+export function openBotChat(payload?: string): void {
+  const url = payload ? `${BOT_URL}?start=${payload}` : BOT_URL;
   const wa = getWebApp();
   if (wa?.openTelegramLink) wa.openTelegramLink(url);
   else openLink(url);

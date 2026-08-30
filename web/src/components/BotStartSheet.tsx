@@ -62,7 +62,7 @@ export default function BotStartSheet({ open, onClose }: BotStartSheetProps) {
         </ol>
 
         <div className="mt-5">
-          <Button onClick={() => openBotChat()}>
+          <Button onClick={() => openBotChat("web")}>
             <Play size={18} />
             Ботты ашу
           </Button>
