@@ -21,6 +21,15 @@
 //    старше и обкатанней, чем Mini Apps JS-мост. `openBotChat()`+`close()` зовём ДОПОЛНИТЕЛЬНО
 //    в onClick (без preventDefault) — где мост исправен, сработает мгновенно; где сломан,
 //    сработает сама ссылка.
+// 4) С компьютера (Telegram Desktop) заработало, с телефона (нативное приложение) — всё ещё
+//    нет: `close()` звался СИНХРОННО, в тот же тик клика по `<a>`. На части мобильных WebView
+//    немедленное закрытие/уничтожение контекста обрывает ещё не начавшуюся навигацию по ссылке
+//    (классический класс браузерных гонок — сравни с `location.href=…` сразу перед
+//    `window.close()`); на Chromium-based Desktop-клиенте это, похоже, проскакивает, на
+//    мобильном WebView — нет. Сдвинул `close()` на следующий тик (`setTimeout`), чтобы
+//    браузер/WebView успел начать обработку `href` до того, как мы прибьём контекст. Добавил
+//    `target="_top"` — на случай, если Mini App рендерится во вложенном фрейме, ссылка обязана
+//    всплыть до верхнего уровня, иначе перехват t.me Telegram'ом может не сработать.
 
 import { Clapperboard, Gift, Sparkles } from "lucide-react";
 
@@ -28,7 +37,9 @@ import { BOT_URL, close, openBotChat } from "../lib/telegram";
 
 function goToChat(): void {
   openBotChat();
-  close();
+  // Не синхронно: даём браузеру/WebView шанс начать навигацию по href ДО того, как close()
+  // снесёт контекст страницы (см. пункт 4 разбора выше).
+  setTimeout(close, 300);
 }
 
 /**
@@ -72,6 +83,8 @@ export default function HandoffModal({
         <div className="mt-6">
           <a
             href={BOT_URL}
+            target="_top"
+            rel="noopener"
             onClick={goToChat}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-brand/25 transition-transform duration-150 active:scale-[0.98] active:bg-brand-600"
           >
