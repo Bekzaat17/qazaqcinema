@@ -1,24 +1,30 @@
 // Хэндофф-модалка (ключевой момент Фазы 9): видео не играется в Mini App — бот отправил
-// его в чат. Показываем подтверждение + «Чатқа өту» → openBotChat() + close().
+// его в чат. Показываем подтверждение + «Чатқа өту» → переход в чат с ботом.
 //
-// РЕШЕНИЕ 2026-08-30: сначала кнопка звала только WebApp.close() в расчёте на то, что Telegram
-// сам вернёт на чат, из которого открыли Mini App — ломалось у гостя с Google (direct-link
-// запуск, `t.me/<bot>?startapp=m_<id>`): под Mini App нет чата, close() возвращал на браузер.
-// Заменил на openBotChat() (openTelegramLink) — но и этого мало: с **Bot API 7.0** этот метод
-// САМ БОЛЬШЕ НЕ закрывает Mini App («The Mini App will not be closed after this method is
-// called», core.telegram.org/bots/webapps — до 7.0 закрывал, поведение разъединили). Чат
-// открывается, а Mini App остаётся висеть поверх/под ним: на одних клиентах это выглядит как
-// «не работает» (приложение всё ещё занимает экран), на других — «открыло, но не закрылось».
-// Официальный паттерн после 7.0 — звать оба метода: сперва openTelegramLink, затем close().
-//
-// ⚠️ openBotChat() тут звать БЕЗ payload (см. docstring в telegram.ts): чат уже открыт, видео
-// уже в нём — `?start=web` заставлял Telegram слать `/start web` заново при каждом переходе,
-// и вместо видео человек видел дефолтное приветствие бота (был живой баг 2026-08-30).
+// РЕШЕНИЕ 2026-08-30 (три раунда живых багов подряд, детали — история коммитов):
+// 1) Кнопка звала только `WebApp.close()` в расчёте на то, что Telegram сам вернёт на чат, из
+//    которого открыли Mini App — ломалось у гостя с Google (direct-link запуск,
+//    `t.me/<bot>?startapp=m_<id>`): под Mini App нет чата, close() возвращал на браузер.
+// 2) Заменил на `openBotChat()` (`openTelegramLink`) — но с **Bot API 7.0** этот метод САМ
+//    БОЛЬШЕ НЕ закрывает Mini App («The Mini App will not be closed after this method is
+//    called», core.telegram.org/bots/webapps), плюс `openBotChat()` слал `?start=web` —
+//    Telegram шлёт `/start <payload>` заново при КАЖДОМ переходе по такой ссылке, даже если
+//    чат уже открыт, так что вместо видео человек видел дефолтное приветствие бота.
+//    Убрал payload (см. docstring `openBotChat` в telegram.ts) и добавил явный `close()`.
+// 3) Всё ещё ненадёжно — конкретно для Mini App, запущенной direct-link'ом ТОГО ЖЕ бота,
+//    `openTelegramLink`/`close()` — задокументированный баг клиента, не нашего кода:
+//    github.com/Telegram-Mini-Apps/telegram-apps/issues/326 («does not close app on iOS ...
+//    when the mini app was opened from the same url»), issues/743 (методы молчат, хотя
+//    isAvailable() = true). Поэтому кнопка теперь настоящая `<a href={BOT_URL}>`: клик по
+//    реальной ссылке перехватывают Universal Links/App Links на уровне ОС и клиента Telegram
+//    независимо от того, исправен ли конкретно этот метод WebApp SDK на платформе — механизм
+//    старше и обкатанней, чем Mini Apps JS-мост. `openBotChat()`+`close()` зовём ДОПОЛНИТЕЛЬНО
+//    в onClick (без preventDefault) — где мост исправен, сработает мгновенно; где сломан,
+//    сработает сама ссылка.
 
 import { Clapperboard, Gift, Sparkles } from "lucide-react";
 
-import Button from "../ui/Button";
-import { close, openBotChat } from "../lib/telegram";
+import { BOT_URL, close, openBotChat } from "../lib/telegram";
 
 function goToChat(): void {
   openBotChat();
@@ -64,7 +70,13 @@ export default function HandoffModal({
           Ботпен чаттан ашып қараңыз. Видео тек сол жерде — қауіпсіздік үшін жүктеп алуға болмайды.
         </p>
         <div className="mt-6">
-          <Button onClick={goToChat}>Чатқа өту</Button>
+          <a
+            href={BOT_URL}
+            onClick={goToChat}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-brand/25 transition-transform duration-150 active:scale-[0.98] active:bg-brand-600"
+          >
+            Чатқа өту
+          </a>
         </div>
       </div>
     </div>
