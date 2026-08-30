@@ -1,19 +1,25 @@
 // Хэндофф-модалка (ключевой момент Фазы 9): видео не играется в Mini App — бот отправил
-// его в чат. Показываем подтверждение + «Чатқа өту» → openBotChat().
+// его в чат. Показываем подтверждение + «Чатқа өту» → openBotChat() + close().
 //
-// РЕШЕНИЕ 2026-08-30: раньше кнопка звала WebApp.close() в расчёте на то, что Telegram сам
-// вернёт на чат, из которого открыли Mini App. Это верно только когда Mini App и правда была
-// открыта ИЗ чата с ботом. У гостя с Google (SEO-страница → `t.me/<bot>?startapp=m_<id>`)
-// под Mini App нет чата — это отдельный direct-link запуск, и close() просто гасит окно,
-// возвращая на браузер/системный экран, а не в чат с присланным видео: кнопка выглядела
-// нерабочей. `openBotChat()` (тот же приём, что в `BotStartSheet`) не полагается на то, что
-// было «под низом» — активно открывает чат через `openTelegramLink`, который сам сворачивает
-// Mini App, работает из любого места запуска одинаково.
+// РЕШЕНИЕ 2026-08-30: сначала кнопка звала только WebApp.close() в расчёте на то, что Telegram
+// сам вернёт на чат, из которого открыли Mini App — ломалось у гостя с Google (direct-link
+// запуск, `t.me/<bot>?startapp=m_<id>`): под Mini App нет чата, close() возвращал на браузер.
+// Заменил на openBotChat() (openTelegramLink) — но и этого мало: с **Bot API 7.0** этот метод
+// САМ БОЛЬШЕ НЕ закрывает Mini App («The Mini App will not be closed after this method is
+// called», core.telegram.org/bots/webapps — до 7.0 закрывал, поведение разъединили). Чат
+// открывается, а Mini App остаётся висеть поверх/под ним: на одних клиентах это выглядит как
+// «не работает» (приложение всё ещё занимает экран), на других — «открыло, но не закрылось».
+// Официальный паттерн после 7.0 — звать оба метода: сперва openTelegramLink, затем close().
 
 import { Clapperboard, Gift, Sparkles } from "lucide-react";
 
 import Button from "../ui/Button";
-import { openBotChat } from "../lib/telegram";
+import { close, openBotChat } from "../lib/telegram";
+
+function goToChat(): void {
+  openBotChat();
+  close();
+}
 
 /**
  * `gift` — видео ушло за счёт подарочного фильма: говорим об этом прямо, одним словом.
@@ -54,7 +60,7 @@ export default function HandoffModal({
           Ботпен чаттан ашып қараңыз. Видео тек сол жерде — қауіпсіздік үшін жүктеп алуға болмайды.
         </p>
         <div className="mt-6">
-          <Button onClick={() => openBotChat()}>Чатқа өту</Button>
+          <Button onClick={goToChat}>Чатқа өту</Button>
         </div>
       </div>
     </div>

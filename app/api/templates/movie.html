@@ -100,6 +100,10 @@
       @media (max-width: 560px) {
         .hero { grid-template-columns: 130px 1fr; gap: 16px; }
         h1 { font-size: 1.35rem; }
+        /* Колонка с текстом узкая (130px под постер съедают половину экрана), а «Telegram-да
+           көру» в размере десктопа туда не влезает и переносится на вторую строку — на телефоне
+           это основной способ увидеть страницу. */
+        .cta { padding: 11px 16px; font-size: 0.86rem; gap: 6px; }
       }
     </style>
   </head>
