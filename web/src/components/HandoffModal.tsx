@@ -1,10 +1,19 @@
 // Хэндофф-модалка (ключевой момент Фазы 9): видео не играется в Mini App — бот отправил
-// его в чат. Показываем подтверждение + «Жабу» → WebApp.close(), юзер попадает к боту.
+// его в чат. Показываем подтверждение + «Чатқа өту» → openBotChat().
+//
+// РЕШЕНИЕ 2026-08-30: раньше кнопка звала WebApp.close() в расчёте на то, что Telegram сам
+// вернёт на чат, из которого открыли Mini App. Это верно только когда Mini App и правда была
+// открыта ИЗ чата с ботом. У гостя с Google (SEO-страница → `t.me/<bot>?startapp=m_<id>`)
+// под Mini App нет чата — это отдельный direct-link запуск, и close() просто гасит окно,
+// возвращая на браузер/системный экран, а не в чат с присланным видео: кнопка выглядела
+// нерабочей. `openBotChat()` (тот же приём, что в `BotStartSheet`) не полагается на то, что
+// было «под низом» — активно открывает чат через `openTelegramLink`, который сам сворачивает
+// Mini App, работает из любого места запуска одинаково.
 
 import { Clapperboard, Gift, Sparkles } from "lucide-react";
 
 import Button from "../ui/Button";
-import { close } from "../lib/telegram";
+import { openBotChat } from "../lib/telegram";
 
 /**
  * `gift` — видео ушло за счёт подарочного фильма: говорим об этом прямо, одним словом.
@@ -45,7 +54,7 @@ export default function HandoffModal({
           Ботпен чаттан ашып қараңыз. Видео тек сол жерде — қауіпсіздік үшін жүктеп алуға болмайды.
         </p>
         <div className="mt-6">
-          <Button onClick={close}>Чатқа өту</Button>
+          <Button onClick={() => openBotChat()}>Чатқа өту</Button>
         </div>
       </div>
     </div>
