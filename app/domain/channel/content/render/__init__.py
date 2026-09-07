@@ -5,7 +5,7 @@ Strategy по `kind` через `Registry` (`domain/registry.py`): каждый 
 импорты модулей форм ниже: без них реестр пуст (см. докстринг `Registry`).
 """
 
-from app.domain.channel.content.render import longread  # регистрация формы
+from app.domain.channel.content.render import longread, quiz  # регистрация форм
 from app.domain.channel.content.render.base import (
     RENDERERS,
     CallbackButton,
@@ -23,4 +23,5 @@ __all__ = [
     "compose",
     "frame",
     "longread",
+    "quiz",
 ]

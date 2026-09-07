@@ -1,4 +1,4 @@
-"""Фоновый планировщик (apscheduler). Шесть задач — все через REQUEST-scope dishka.
+"""Фоновый планировщик (apscheduler). Семь задач — все через REQUEST-scope dishka.
 
 1. `expire_due` (15 мин) — гасит просроченные подписки: ACTIVE → EXPIRED + уведомление +
    чистка выданных видео. Доступ к контенту от этого джоба НЕ зависит (`has_active_access`
@@ -34,6 +34,11 @@
    Идемпотентность — `slot_key` UNIQUE в журнале, поэтому misfire-окно широкое (50 мин):
    бот, перезапущенный в 19:20, опубликует воскресный пост, а не пропустит неделю.
 
+7. `quiz_results` (ежечасно, :00) — разбор закрывшихся квизов: снять кнопки с поста,
+   опубликовать ответ и статистику ответом на него. Отдельный джоб от `content_post`
+   (другая ответственность), но тот же час: квиз закрывается в 21:00, и разбор уходит
+   ровно тогда, когда обещано в посте.
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
@@ -54,6 +59,7 @@ from app.application.ports.telegram import AdminsUnreachableError, TelegramNotif
 from app.application.services.analytics_service import AnalyticsService
 from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
+from app.application.services.quiz_service import QuizService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.analytics.report import render_report
@@ -132,6 +138,13 @@ async def _content_post_job(container: AsyncContainer) -> None:
             logger.info("Пост контент-плана опубликован в канале")
 
 
+async def _quiz_results_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        quiz = await request_container.get(QuizService)
+        if count := await quiz.publish_due_results(datetime.now(UTC)):
+            logger.info("Опубликовано разборов квиза: %d", count)
+
+
 async def _daily_channel_post_job(container: AsyncContainer) -> None:
     async with container() as request_container:
         channel = await request_container.get(ChannelService)
@@ -198,6 +211,15 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         id="content_post",
         # Меньше часа: следующий запуск сам проверит свой слот, а слоты в сетке стоят на
         # разные часы, поэтому 50 минут догоняют пропущенный час, не задевая следующий.
+        misfire_grace_time=3000,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _quiz_results_job,
+        CronTrigger(minute=0, timezone=REPORT_TZ),
+        args=[container],
+        id="quiz_results",
+        # Разбор идемпотентен по `result_posted_at` — догонять можно смело.
         misfire_grace_time=3000,
         coalesce=True,
     )

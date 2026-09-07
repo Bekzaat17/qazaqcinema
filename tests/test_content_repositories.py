@@ -109,3 +109,37 @@ async def test_post_log_slot_key_is_unique(session: AsyncSession) -> None:
     found = await log.get_by_channel_message(555)
     assert found is not None and found.slot_key == "2026-09-13:abai"
     assert await log.get_by_channel_message(556) is None
+
+
+async def test_quiz_answers_first_only_and_stats_order(session: AsyncSession) -> None:
+    from app.infrastructure.db.content_repositories import PgQuizAnswerRepository
+
+    items = PgContentRepository(session)
+    await items.upsert_many([_abai(1)])
+    item = await items.next_for(Source(ContentKind.LONGREAD, "abai"), TODAY)
+    assert item is not None and item.id is not None
+    log = PgPostLogRepository(session)
+    post = await log.add(PostLogEntry(
+        slot_key="2026-09-14:quiz-mon", item_id=item.id, kind=ContentKind.QUIZ_CHOICE,
+        channel_message_id=10, posted_at=NOW, quiz_closes_at=NOW + timedelta(hours=9),
+    ))
+    assert post is not None and post.id is not None
+    answers = PgQuizAnswerRepository(session)
+
+    assert await answers.add_first(post.id, 1, "Ерлан", "1", False, NOW)
+    assert await answers.add_first(post.id, 2, "Айгүл", "0", True, NOW + timedelta(seconds=5))
+    assert await answers.add_first(post.id, 3, "Дана", "0", True, NOW + timedelta(seconds=9))
+    assert not await answers.add_first(post.id, 1, "Ерлан", "0", True, NOW)  # второй ответ
+
+    stats = await answers.stats(post.id, first_n=3)
+    assert (stats.total, stats.correct, stats.first_correct) == (3, 2, ("Айгүл", "Дана"))
+
+    # Привязка ветки, разбор к сроку, отметка.
+    assert await log.bind_group_message(10, 300) and not await log.bind_group_message(11, 301)
+    found = await log.get_by_group_message(300)
+    assert found is not None and found.id == post.id
+    assert await log.list_due_results(NOW) == []
+    due = await log.list_due_results(NOW + timedelta(hours=9))
+    assert [e.id for e in due] == [post.id]
+    await log.mark_result_posted(post.id, NOW + timedelta(hours=9))
+    assert await log.list_due_results(NOW + timedelta(hours=10)) == []

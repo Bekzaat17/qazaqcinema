@@ -66,3 +66,43 @@ class PostLogRepository(Protocol):
     async def exists(self, slot_key: str) -> bool: ...
 
     async def get_by_channel_message(self, channel_message_id: int) -> PostLogEntry | None: ...
+
+    async def get_by_group_message(self, group_message_id: int) -> PostLogEntry | None:
+        """Пост по id его авто-форварда в группе обсуждений (= `message_thread_id` комментариев)."""
+        ...
+
+    async def bind_group_message(self, channel_message_id: int, group_message_id: int) -> bool:
+        """Связать пост канала с его форвардом в группе. False — такого поста в журнале нет."""
+        ...
+
+    async def list_due_results(self, now: datetime) -> list[PostLogEntry]:
+        """Квизы, у которых время ответов вышло, а разбор ещё не опубликован."""
+        ...
+
+    async def mark_result_posted(self, post_id: int, at: datetime) -> None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class QuizStatsRow:
+    total: int
+    correct: int
+    first_correct: tuple[str, ...]
+
+
+class QuizAnswerRepository(Protocol):
+    async def add_first(
+        self,
+        post_id: int,
+        user_id: int,
+        first_name: str,
+        text: str,
+        is_correct: bool,
+        at: datetime,
+    ) -> bool:
+        """Записать ответ, если человек ещё не отвечал на этот пост. False — уже отвечал
+        (UNIQUE post+user в БД): засчитывается первый ответ, перебор вариантов не работает."""
+        ...
+
+    async def stats(self, post_id: int, first_n: int) -> QuizStatsRow:
+        """Всего ответивших, верных, имена первых `first_n` правильных по времени."""
+        ...

@@ -9,17 +9,18 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from datetime import date, datetime
+from typing import Any, cast
 
-from sqlalchemy import ColumnElement, case, func, select, update
+from sqlalchemy import ColumnElement, CursorResult, case, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.ports.content import PostLogEntry
+from app.application.ports.content import PostLogEntry, QuizStatsRow
 from app.domain.channel.content.item import ContentItem
 from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.plan import Source
 from app.infrastructure.db.content_codec import payload_from_json, payload_to_json
-from app.infrastructure.db.models import ChannelPostLogModel, ContentItemModel
+from app.infrastructure.db.models import ChannelPostLogModel, ContentItemModel, QuizAnswerModel
 
 logger = logging.getLogger(__name__)
 
@@ -183,3 +184,91 @@ class PgPostLogRepository:
         )
         model = await self._session.scalar(stmt)
         return _log_to_domain(model) if model else None
+
+    async def get_by_group_message(self, group_message_id: int) -> PostLogEntry | None:
+        stmt = select(ChannelPostLogModel).where(
+            ChannelPostLogModel.group_message_id == group_message_id
+        )
+        model = await self._session.scalar(stmt)
+        return _log_to_domain(model) if model else None
+
+    async def bind_group_message(self, channel_message_id: int, group_message_id: int) -> bool:
+        result = cast(
+            CursorResult[Any],
+            await self._session.execute(
+                update(ChannelPostLogModel)
+                .where(ChannelPostLogModel.channel_message_id == channel_message_id)
+                .values(group_message_id=group_message_id)
+            ),
+        )
+        await self._session.commit()
+        return bool(result.rowcount)
+
+    async def list_due_results(self, now: datetime) -> list[PostLogEntry]:
+        stmt = (
+            select(ChannelPostLogModel)
+            .where(
+                ChannelPostLogModel.quiz_closes_at.is_not(None),
+                ChannelPostLogModel.quiz_closes_at <= now,
+                ChannelPostLogModel.result_posted_at.is_(None),
+            )
+            .order_by(ChannelPostLogModel.quiz_closes_at)
+        )
+        return [_log_to_domain(m) for m in await self._session.scalars(stmt)]
+
+    async def mark_result_posted(self, post_id: int, at: datetime) -> None:
+        await self._session.execute(
+            update(ChannelPostLogModel)
+            .where(ChannelPostLogModel.id == post_id)
+            .values(result_posted_at=at)
+        )
+        await self._session.commit()
+
+
+class PgQuizAnswerRepository:
+    """Ответы на квиз. Первый ответ — единственный: `ON CONFLICT (post_id, user_id) DO NOTHING`."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add_first(
+        self,
+        post_id: int,
+        user_id: int,
+        first_name: str,
+        text: str,
+        is_correct: bool,
+        at: datetime,
+    ) -> bool:
+        stmt = (
+            pg_insert(QuizAnswerModel)
+            .values(
+                post_id=post_id,
+                user_id=user_id,
+                first_name=first_name,
+                text=text,
+                is_correct=is_correct,
+                answered_at=at,
+            )
+            .on_conflict_do_nothing(constraint="uq_quiz_answers_post_user")
+            .returning(QuizAnswerModel.id)
+        )
+        inserted = await self._session.scalar(stmt)
+        await self._session.commit()
+        return inserted is not None
+
+    async def stats(self, post_id: int, first_n: int) -> QuizStatsRow:
+        totals = await self._session.execute(
+            select(
+                func.count(),
+                func.count().filter(QuizAnswerModel.is_correct.is_(True)),
+            ).where(QuizAnswerModel.post_id == post_id)
+        )
+        total, correct = totals.one()
+        first = await self._session.scalars(
+            select(QuizAnswerModel.first_name)
+            .where(QuizAnswerModel.post_id == post_id, QuizAnswerModel.is_correct.is_(True))
+            .order_by(QuizAnswerModel.answered_at, QuizAnswerModel.id)
+            .limit(first_n)
+        )
+        return QuizStatsRow(int(total), int(correct), tuple(first))

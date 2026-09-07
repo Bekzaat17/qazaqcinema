@@ -13,6 +13,7 @@ from app.bot.handlers import (
     inline_query,
     milestone,
     moderation,
+    quiz,
     stars,
     start,
 )
@@ -28,6 +29,7 @@ def build_dispatcher(container: AsyncContainer) -> Dispatcher:
         milestone.router,
         inline_query.router,
         moderation.router,
+        quiz.router,
         stars.router,
     )
     setup_dishka(container=container, router=dp)

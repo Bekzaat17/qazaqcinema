@@ -19,8 +19,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.channel import ChannelPublisher
-from app.application.ports.content import ContentRepository, PostLogRepository
+from app.application.ports.content import (
+    ContentRepository,
+    PostLogRepository,
+    QuizAnswerRepository,
+)
 from app.application.ports.daily_pin import DailyPin
+from app.application.ports.discussion import DiscussionGroup
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
@@ -57,6 +62,7 @@ from app.application.services.milestone_service import MilestoneService
 from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
+from app.application.services.quiz_service import QuizService
 from app.application.services.seo_service import SeoBuilder
 from app.application.services.series_service import SeriesService
 from app.application.services.stars_service import StarsPaymentService
@@ -77,7 +83,11 @@ from app.infrastructure.cache.daily_pin import RedisDailyPin
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
-from app.infrastructure.db.content_repositories import PgContentRepository, PgPostLogRepository
+from app.infrastructure.db.content_repositories import (
+    PgContentRepository,
+    PgPostLogRepository,
+    PgQuizAnswerRepository,
+)
 from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
     PgDailyReportRepository,
@@ -97,6 +107,7 @@ from app.infrastructure.payments.kaspi import KaspiManualProvider
 from app.infrastructure.payments.stars import TelegramStarsProvider
 from app.infrastructure.storage.local import LocalPosterStorage
 from app.infrastructure.telegram.channel import AiogramChannelPublisher
+from app.infrastructure.telegram.discussion import AiogramDiscussionGroup
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.notifier import AiogramNotifier
 
@@ -184,6 +195,11 @@ class AppProvider(Provider):
         )
 
     @provide
+    def discussion_group(self, bot: Bot, config: AppConfig) -> DiscussionGroup:
+        # Группа обсуждений канала: удалить ответ на жұмбақ, подтвердить в ветке. 0 → no-op.
+        return AiogramDiscussionGroup(bot, config.bot.discussion_group_id)
+
+    @provide
     def content_renderers(self) -> Mapping[ContentKind, ContentRenderer]:
         # Реестр рендереров (Strategy по форме поста) → карта для сервиса публикации.
         # Наполняется саморегистрацией модулей `domain/channel/content/render/*` при
@@ -236,6 +252,7 @@ class RequestProvider(Provider):
     milestones_repo = provide(PgMilestoneRepository, provides=MilestoneRepository)
     content_repo = provide(PgContentRepository, provides=ContentRepository)
     post_log_repo = provide(PgPostLogRepository, provides=PostLogRepository)
+    quiz_answers_repo = provide(PgQuizAnswerRepository, provides=QuizAnswerRepository)
 
     @provide
     def events(self, session: AsyncSession, config: AppConfig) -> UserEventRepository:
@@ -285,6 +302,18 @@ class RequestProvider(Provider):
     milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
     content_posting = provide(ContentPostingService)  # контент-план канала: ежечасный джоб
     content_seed = provide(ContentSeedService)  # заливка пула из YAML (tools/seed_content)
+
+    @provide
+    def quiz(
+        self,
+        items: ContentRepository,
+        log: PostLogRepository,
+        answers: QuizAnswerRepository,
+        publisher: ChannelPublisher,
+        config: AppConfig,
+    ) -> QuizService:
+        # admin_ids — примитив из конфига (как у AnalyticsService): админы не в статистике.
+        return QuizService(items, log, answers, publisher, config.bot.admin_user_ids)
 
     @provide
     def analytics(
