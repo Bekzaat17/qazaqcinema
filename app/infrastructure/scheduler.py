@@ -1,4 +1,4 @@
-"""Фоновый планировщик (apscheduler). Три задачи — все через REQUEST-scope dishka.
+"""Фоновый планировщик (apscheduler). Пять задач — все через REQUEST-scope dishka.
 
 1. `expire_due` (15 мин) — гасит просроченные подписки: ACTIVE → EXPIRED + уведомление +
    чистка выданных видео. Доступ к контенту от этого джоба НЕ зависит (`has_active_access`
@@ -21,9 +21,16 @@
    агрегирует уже сохранённые снимки `daily_reports` — 10-минутный сдвиг от
    `daily_report` гарантирует, что сегодняшний снимок к этому моменту уже записан.
 
+5. `daily_channel_post` (раз в сутки, 10:00 по Алматы) — пост про фильм дня в ПУБЛИЧНЫЙ
+   канал-витрину. Фильм берётся у того же `DailyMovieService`, что рисует hero главной
+   и пускает `PlaybackService`, иначе пост обещал бы одно кино, а приложение открывало
+   другое. Канал не настроен (`BOT_PUBLIC_CHANNEL_ID=0`) → публикация no-op, джоб
+   остаётся зарегистрированным (отключать его руками не нужно).
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
+То же и про пост в канал: дубль там увидели бы все подписчики.
 """
 
 from __future__ import annotations
@@ -38,6 +45,7 @@ from dishka import AsyncContainer
 
 from app.application.ports.telegram import AdminsUnreachableError, TelegramNotifier
 from app.application.services.analytics_service import AnalyticsService
+from app.application.services.channel_service import ChannelService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.analytics.report import render_report
@@ -61,6 +69,13 @@ REPORT_MINUTE = 0
 WEEKLY_REPORT_DAY_OF_WEEK = "sun"
 WEEKLY_REPORT_HOUR = 22
 WEEKLY_REPORT_MINUTE = 10
+# Пост про фильм дня в публичный канал — утром по Алматы (данные: крутить здесь).
+# 10:00, а не в местную полночь, когда фильм фактически меняется: пост, ушедший в 00:00,
+# к подъёму аудитории утонул бы под ночными сообщениями других каналов, а «бүгін тегін»
+# должно попасть на глаза, пока день ещё не прошёл. Тот же `REPORT_TZ`: контейнеры в UTC,
+# и без явной зоны «10:00» пришло бы в 5 утра по Казахстану.
+DAILY_POST_HOUR = 10
+DAILY_POST_MINUTE = 0
 
 
 async def _expire_due_job(container: AsyncContainer) -> None:
@@ -102,6 +117,15 @@ async def _weekly_report_job(container: AsyncContainer) -> None:
             logger.warning("Еженедельный дайджест не доставлен ни одному админу")
 
 
+async def _daily_channel_post_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        channel = await request_container.get(ChannelService)
+        # Исключений публикатор не бросает (деградация в адаптере), поэтому своего
+        # try/except тут нет: джоб не может упасть из-за недоступного канала.
+        if await channel.publish_daily_movie(datetime.now(UTC)):
+            logger.info("Фильм дня опубликован в канале")
+
+
 def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
@@ -138,6 +162,17 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         ),
         args=[container],
         id="weekly_report",
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _daily_channel_post_job,
+        CronTrigger(hour=DAILY_POST_HOUR, minute=DAILY_POST_MINUTE, timezone=REPORT_TZ),
+        args=[container],
+        id="daily_channel_post",
+        # Бот перезапустился в 10:05 — пост всё равно уйдёт (в пределах часа), а
+        # `coalesce` не даст опубликовать его дважды: дубль в публичном канале виден
+        # всем подписчикам, в отличие от повторного отчёта в личку админа.
         misfire_grace_time=3600,
         coalesce=True,
     )

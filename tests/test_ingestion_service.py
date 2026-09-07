@@ -78,6 +78,18 @@ class _FakeBroadcast:
         return 0
 
 
+class _FakeChannel:
+    """Фейк `ChannelService`: помнит, что ушло в публичный канал."""
+
+    def __init__(self, published: bool = True) -> None:
+        self.posted: list[Movie] = []
+        self._published = published
+
+    async def publish_new_movie(self, movie: Movie) -> bool:
+        self.posted.append(movie)
+        return self._published
+
+
 async def test_ingest_saves_poster_persists_and_notifies() -> None:
     movies = _FakeMovies()
     posters = _FakePosters()
@@ -85,8 +97,9 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     notifier = _FakeNotifier()
     cache = _FakeCache()
     broadcast = _FakeBroadcast()
+    channel = _FakeChannel()
     service = MovieIngestionService(
-        movies, _FakeSeasons(), notifier, posters, images, cache, broadcast
+        movies, _FakeSeasons(), notifier, posters, images, cache, broadcast, channel
     )
 
     movie = await service.ingest(
@@ -111,6 +124,7 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     assert any("Арыстан Патша" in message for message in notifier.messages)
     assert cache.invalidated == 1                       # кэш главной сброшен → новинка видна
     assert broadcast.notified == [movie]                # админ выбрал «хабарла» → рассылка
+    assert channel.posted == [movie]                    # и афиша ушла в публичный канал
 
 
 async def test_ingest_stores_exactly_one_image() -> None:
@@ -122,7 +136,8 @@ async def test_ingest_stores_exactly_one_image() -> None:
     """
     movies, posters, images = _FakeMovies(), _FakePosters(), _FakeImages()
     service = MovieIngestionService(
-        movies, _FakeSeasons(), _FakeNotifier(), posters, images, _FakeCache(), _FakeBroadcast()
+        movies, _FakeSeasons(), _FakeNotifier(), posters, images, _FakeCache(),
+        _FakeBroadcast(), _FakeChannel(),
     )
 
     movie = await service.ingest(
@@ -150,8 +165,10 @@ async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
     десятки пушей за вечер каждому подписчику — прямой путь в блокировку бота.
     """
     movies, broadcast, cache = _FakeMovies(), _FakeBroadcast(), _FakeCache()
+    channel = _FakeChannel()
     service = MovieIngestionService(
-        movies, _FakeSeasons(), _FakeNotifier(), _FakePosters(), _FakeImages(), cache, broadcast
+        movies, _FakeSeasons(), _FakeNotifier(), _FakePosters(), _FakeImages(), cache,
+        broadcast, channel,
     )
 
     movie = await service.ingest(
@@ -170,6 +187,9 @@ async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
     assert movie.id == 1              # фильм в каталоге
     assert cache.invalidated == 1     # и виден сразу (кэш сброшен)
     assert broadcast.notified == []   # но никого не разбудили
+    # Канал молчит по тому же флагу: решение «объявлять ли новинку» админ принимает
+    # ОДИН раз на шаге визарда, второго тумблера отдельно под канал нет.
+    assert channel.posted == []
 
 
 async def test_ingest_episode_of_existing_season_reuses_its_fields() -> None:
@@ -189,7 +209,8 @@ async def test_ingest_episode_of_existing_season_reuses_its_fields() -> None:
     movies, posters, images = _FakeMovies(), _FakePosters(), _FakeImages()
     seasons = _FakeSeasons([season])
     service = MovieIngestionService(
-        movies, seasons, _FakeNotifier(), posters, images, _FakeCache(), _FakeBroadcast()
+        movies, seasons, _FakeNotifier(), posters, images, _FakeCache(),
+        _FakeBroadcast(), _FakeChannel(),
     )
 
     first = await service.ingest(

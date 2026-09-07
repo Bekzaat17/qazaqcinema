@@ -17,6 +17,7 @@ from app.application.ports.repositories import MovieRepository, SeasonRepository
 from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
 from app.application.services.broadcast_service import BroadcastService
+from app.application.services.channel_service import ChannelService
 from app.domain.entities.movie import Movie
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class MovieIngestionService:
         images: ImageProcessor,
         catalog_cache: CatalogCache,
         broadcast: BroadcastService,
+        channel: ChannelService,
     ) -> None:
         self._movies = movies
         self._seasons = seasons
@@ -40,6 +42,7 @@ class MovieIngestionService:
         self._images = images
         self._cache = catalog_cache
         self._broadcast = broadcast
+        self._channel = channel
 
     async def ingest(
         self,
@@ -137,4 +140,14 @@ class MovieIngestionService:
             logger.info("Рассылка о новинке #%s поставлена: %d адресатов", saved.id, queued)
         except Exception:
             logger.exception("Не удалось поставить рассылку о новинке #%s", saved.id)
+        # Пост в публичный канал — под тем же флагом `notify`, что и рассылка: решение
+        # «объявлять ли эту новинку» админ принимает ОДИН раз на шаге визарда, и делить
+        # его на два тумблера значило бы спрашивать дважды об одном. Канал не настроен →
+        # publish сам вернёт False (no-op). Исключений публикатор не бросает, но
+        # try/except оставляем: фильм уже в БД, и падать на витрине нельзя ни при чём.
+        try:
+            if await self._channel.publish_new_movie(saved):
+                logger.info("Новинка #%s опубликована в канале", saved.id)
+        except Exception:
+            logger.exception("Не удалось опубликовать новинку #%s в канале", saved.id)
         return saved

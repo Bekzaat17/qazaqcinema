@@ -36,6 +36,16 @@ class BotConfig(BaseSettings):
     # NoDecode: не даём pydantic-settings JSON-декодить env-строку — её разберёт валидатор
     admin_user_ids: Annotated[list[int], NoDecode] = Field(default_factory=list)
     archive_channel_id: int = 0     # секретный канал-архив с видео
+    # ПУБЛИЧНЫЙ канал-витрина: туда бот сам постит фильм дня (раз в сутки) и новинки.
+    # Не путать с `archive_channel_id`: там лежит видео и он приватный, здесь — афиши.
+    # 0 = канал не настроен → публикация тихий no-op (тот же приём «по заполненности
+    # env», что у способов оплаты Kaspi): отдельного флага «постить ли» не нужно, а
+    # dev/test живут без канала, ничего не отключая руками.
+    public_channel_id: int = 0
+    # @-имя публичного канала без «@» — для ссылок «наш канал» из бота/Mini App и под
+    # будущую проверку подписки (`getChatMember`). Публикация им не пользуется: она
+    # идёт по id, потому что id не сломается при переименовании канала.
+    public_channel_username: str = ""
 
     # webapp_url и webhook_url НЕ задаются напрямую из env — их выводит
     # AppConfig._derive_from_public_origin из единого PUBLIC_ORIGIN (одна переменная

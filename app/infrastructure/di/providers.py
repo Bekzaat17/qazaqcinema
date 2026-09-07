@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.catalog_cache import CatalogCache
+from app.application.ports.channel import ChannelPublisher
 from app.application.ports.daily_pin import DailyPin
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
@@ -45,6 +46,7 @@ from app.application.services.analytics_service import AnalyticsService
 from app.application.services.auth_service import AuthService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
+from app.application.services.channel_service import ChannelService
 from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
 from app.application.services.ingestion_service import MovieIngestionService
@@ -88,6 +90,7 @@ from app.infrastructure.images.pillow import PillowImageProcessor
 from app.infrastructure.payments.kaspi import KaspiManualProvider
 from app.infrastructure.payments.stars import TelegramStarsProvider
 from app.infrastructure.storage.local import LocalPosterStorage
+from app.infrastructure.telegram.channel import AiogramChannelPublisher
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.notifier import AiogramNotifier
 
@@ -165,6 +168,12 @@ class AppProvider(Provider):
     @provide
     def notifier(self, bot: Bot, config: AppConfig) -> TelegramNotifier:
         return AiogramNotifier(bot, config.bot.admin_chat_id, config.bot.admin_user_ids)
+
+    @provide
+    def channel_publisher(self, bot: Bot, config: AppConfig) -> ChannelPublisher:
+        # APP-scope, как и нотификатор: состояния у публикатора нет, только Bot и id.
+        # id = 0 → адаптер сам работает как no-op (см. `AiogramChannelPublisher`).
+        return AiogramChannelPublisher(bot, config.bot.public_channel_id)
 
     @provide
     def poster_storage(self, config: AppConfig) -> PosterStorage:
@@ -246,6 +255,16 @@ class RequestProvider(Provider):
     support = provide(SupportService)  # обращения из Mini App → в личку админам
     stars = provide(StarsPaymentService)
     activity = provide(UserActivityService)  # /start → юзер в БД + событие «пришёл»
+
+    @provide
+    def channel(
+        self, publisher: ChannelPublisher, daily: DailyMovieService, config: AppConfig
+    ) -> ChannelService:
+        # webapp_url и username бота — примитивы из конфига (как у BroadcastService):
+        # сервис получает строки, а не весь AppConfig.
+        return ChannelService(
+            publisher, daily, config.bot.webapp_url, config.bot.username
+        )
     milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
 
     @provide
