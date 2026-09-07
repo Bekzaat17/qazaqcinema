@@ -1,0 +1,398 @@
+# Мақал-мәтелдер — халық ауыз әдебиеті (қоғамдық игілік). «Жалғастыр»: бастапқы жартысы сұрақта, жалғасы — дұрыс нұсқа.
+# Форма quiz_choice: 4 нұсқа (басқа мақалдардың жалғасы — дистракторлар), answer — дұрыс нұсқаның индексі.
+
+- slug: maqal-01
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Еңбек етсең ерінбей, …"
+    options: ["жүз досың болсын.", "адамның баласы бол.", "атылған оқ.", "тояды қарның тіленбей."]
+    answer: 3
+
+- slug: maqal-02
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Отан — …"
+    options: ["өз еліңде ұлтан бол.", "нұр жауар.", "оттан да ыстық.", "жаным — арымның садағасы."]
+    answer: 2
+
+- slug: maqal-03
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Білекті бірді жығады, …"
+    options: ["адамның баласы бол.", "көл болады.", "білімді мыңды жығады.", "тас жармаса — бас жарады."]
+    answer: 2
+
+- slug: maqal-04
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Оқу — …"
+    options: ["инемен құдық қазғандай.", "жаным — арымның садағасы.", "жүз досың болсын.", "тояды қарның тіленбей."]
+    answer: 0
+
+- slug: maqal-05
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Жақсы сөз — …"
+    options: ["атылған оқ.", "адамзатты сөз бұзар.", "көп сөз — көмір.", "жарым ырыс."]
+    answer: 3
+
+- slug: maqal-06
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Ағаш тамырымен мықты, …"
+    options: ["адам досымен мықты.", "ақыл жастан.", "тас жармаса — бас жарады.", "нұр жауар."]
+    answer: 0
+
+- slug: maqal-07
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Тіл тас жарады, …"
+    options: ["өз еліңде ұлтан бол.", "қол — батыр.", "тас жармаса — бас жарады.", "жетпіс өнер де аз."]
+    answer: 2
+
+- slug: maqal-08
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Досы көпті жау алмайды, …"
+    options: ["білімсіз күнің жоқ.", "баласыз үй — мазар.", "ұшқанда соны ілерсің.", "ақылы көпті дау алмайды."]
+    answer: 3
+
+- slug: maqal-09
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Атаның баласы болма, …"
+    options: ["адамның баласы бол.", "білімсіз күнің жоқ.", "ақылы көпті дау алмайды.", "атылған оқ."]
+    answer: 0
+
+- slug: maqal-10
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Жеті рет өлшеп, …"
+    options: ["еңбек шығарады.", "жақсы жоқ.", "өз еліңде ұлтан бол.", "бір рет кес."]
+    answer: 3
+
+- slug: maqal-11
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Көз — қорқақ, …"
+    options: ["түкірме.", "адамның баласы бол.", "инемен құдық қазғандай.", "қол — батыр."]
+    answer: 3
+
+- slug: maqal-12
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Ананың сүті — бал, …"
+    options: ["тірлік бар.", "жақсы жоқ.", "бір рет кес.", "баланың тілі — бал."]
+    answer: 3
+
+- slug: maqal-13
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Отансыз адам — …"
+    options: ["ормансыз бұлбұл.", "жақсы жоқ.", "ақыл жастан.", "алтын бесік."]
+    answer: 0
+
+- slug: maqal-14
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Туған жердей жер болмас, …"
+    options: ["туған елдей ел болмас.", "жетпіс өнер де аз.", "нұр жауар.", "атылған оқ."]
+    answer: 0
+
+- slug: maqal-15
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Еңбек түбі — …"
+    options: ["ормансыз бұлбұл.", "білім бұлағы.", "білім — кітапта.", "береке."]
+    answer: 3
+
+- slug: maqal-16
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Бірлік бар жерде — …"
+    options: ["тал бесіктен.", "тірлік бар.", "жетпіс өнер де аз.", "баласыз үй — мазар."]
+    answer: 1
+
+- slug: maqal-17
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Алтау ала болса, ауыздағы кетеді, …"
+    options: ["жаным — арымның садағасы.", "төртеу түгел болса, төбедегі келеді.", "алтын бесік.", "баласыз үй — мазар."]
+    answer: 1
+
+- slug: maqal-18
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Ел іші — …"
+    options: ["баласыз үй — мазар.", "жүз досың болсын.", "білім бұлағы.", "алтын бесік."]
+    answer: 3
+
+- slug: maqal-19
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Күш — білімде, …"
+    options: ["баланың тілі — бал.", "дұшпан күлдіріп айтады.", "білім — кітапта.", "білімсіз күнің жоқ."]
+    answer: 2
+
+- slug: maqal-20
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Кітап — …"
+    options: ["білім бұлағы.", "тас жармаса — бас жарады.", "ұшқанда соны ілерсің.", "жаным — арымның садағасы."]
+    answer: 0
+
+- slug: maqal-21
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Өнер алды — …"
+    options: ["дұшпан күлдіріп айтады.", "бір рет кес.", "тояды қарның тіленбей.", "қызыл тіл."]
+    answer: 3
+
+- slug: maqal-22
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Жүз сомың болғанша, …"
+    options: ["адам досымен мықты.", "ақыл жастан.", "жүз досың болсын.", "зор байлық."]
+    answer: 2
+
+- slug: maqal-23
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Ат айналып қазығын табады, …"
+    options: ["ер айналып елін табады.", "көл болады.", "ақыл жастан.", "білімді мыңды жығады."]
+    answer: 0
+
+- slug: maqal-24
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Тау мен тасты су бұзар, …"
+    options: ["бір рет кес.", "адамзатты сөз бұзар.", "тояды қарның тіленбей.", "қызыл тіл."]
+    answer: 1
+
+- slug: maqal-25
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Ұяда не көрсең, …"
+    options: ["ұшқанда соны ілерсің.", "жақсы жоқ.", "береке.", "ақыл жастан."]
+    answer: 0
+
+- slug: maqal-26
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Аз сөз — алтын, …"
+    options: ["еңбек шығарады.", "бай бір жұттық.", "көп сөз — көмір.", "адам досымен мықты."]
+    answer: 2
+
+- slug: maqal-27
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Сабыр түбі — …"
+    options: ["ұшқанда соны ілерсің.", "сары алтын.", "еңбек шығарады.", "атылған оқ."]
+    answer: 1
+
+- slug: maqal-28
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Ердің атын …"
+    options: ["ұшқанда соны ілерсің.", "тояды қарның тіленбей.", "еңбек шығарады.", "тас жармаса — бас жарады."]
+    answer: 2
+
+- slug: maqal-29
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Оқусыз білім жоқ, …"
+    options: ["оттан да ыстық.", "ер айналып елін табады.", "жетпіс өнер де аз.", "білімсіз күнің жоқ."]
+    answer: 3
+
+- slug: maqal-30
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Дос жылатып айтады, …"
+    options: ["білімсіз күнің жоқ.", "қызыл тіл.", "дұшпан күлдіріп айтады.", "білім бұлағы."]
+    answer: 2
+
+- slug: maqal-31
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Балалы үй — базар, …"
+    options: ["көл болады.", "өз еліңде ұлтан бол.", "баласыз үй — мазар.", "дұшпан күлдіріп айтады."]
+    answer: 2
+
+- slug: maqal-32
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Жаман айтпай, …"
+    options: ["еңбек шығарады.", "жақсы жоқ.", "көл болады.", "жүз досың болсын."]
+    answer: 1
+
+- slug: maqal-33
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Малым — жанымның садағасы, …"
+    options: ["жарым ырыс.", "нұр жауар.", "көп сөз — көмір.", "жаным — арымның садағасы."]
+    answer: 3
+
+- slug: maqal-34
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Айтылған сөз — …"
+    options: ["жетпіс өнер де аз.", "ақыл жастан.", "білімді мыңды жығады.", "атылған оқ."]
+    answer: 3
+
+- slug: maqal-35
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Су ішкен құдығыңа …"
+    options: ["адамның баласы бол.", "түкірме.", "оттан да ыстық.", "баласыз үй — мазар."]
+    answer: 1
+
+- slug: maqal-36
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Асыл тастан, …"
+    options: ["ақыл жастан.", "бай бір жұттық.", "қол — батыр.", "баланың тілі — бал."]
+    answer: 0
+
+- slug: maqal-37
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Талапты ерге …"
+    options: ["сары алтын.", "нұр жауар.", "түкірме.", "адам досымен мықты."]
+    answer: 1
+
+- slug: maqal-38
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Кісі елінде сұлтан болғанша, …"
+    options: ["өз еліңде ұлтан бол.", "баланың тілі — бал.", "ер айналып елін табады.", "төртеу түгел болса, төбедегі келеді."]
+    answer: 0
+
+- slug: maqal-39
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Денсаулық — …"
+    options: ["зор байлық.", "білім — кітапта.", "баланың тілі — бал.", "дұшпан күлдіріп айтады."]
+    answer: 0
+
+- slug: maqal-40
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Тәрбие — …"
+    options: ["білімсіз күнің жоқ.", "атылған оқ.", "тал бесіктен.", "ақылы көпті дау алмайды."]
+    answer: 2
+
+- slug: maqal-41
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Көп түкірсе — …"
+    options: ["көл болады.", "береке.", "тояды қарның тіленбей.", "адам досымен мықты."]
+    answer: 0
+
+- slug: maqal-42
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Ырыс алды — …"
+    options: ["түкірме.", "бай бір жұттық.", "ынтымақ.", "сары алтын."]
+    answer: 2
+
+- slug: maqal-43
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Жігітке жеті өнер де аз, …"
+    options: ["ер айналып елін табады.", "ақыл жастан.", "жетпіс өнер де аз.", "қол — батыр."]
+    answer: 2
+
+- slug: maqal-44
+  kind: quiz_choice
+  topic: maqal
+  title: Мақалды жалғастыр
+  payload:
+    question: "Батыр бір оқтық, …"
+    options: ["бай бір жұттық.", "ақыл жастан.", "туған елдей ел болмас.", "нұр жауар."]
+    answer: 0

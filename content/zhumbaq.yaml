@@ -1,0 +1,354 @@
+# Жұмбақтар — халық ауыз әдебиеті (қоғамдық игілік). Жинақтар: bilim-all.kz, zharar.com.
+# Форма quiz_open: жауап — комментарийде; accept[] — рұқсат етілген жазылу нұсқалары (салыстыру fold-нормализациядан кейін).
+
+- slug: zhumbaq-01
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Торы тай,\nТабанында төрт ай."
+    accept: ["Таға", "подкова"]
+
+- slug: zhumbaq-02
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қауын, қарбыз дей алмайсың,\nПіскенмен, жей алмайсың.\nЖарғаныңмен, қап-қатты,\nАл асқанда, тәп-тәтті."
+    accept: ["Асқабақ", "тыква"]
+
+- slug: zhumbaq-03
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Бір жыланды таяққа іліп алдым,\nЕрге қона, пайдасын біліп алдым."
+    accept: ["Қамшы", "кнут", "плеть"]
+
+- slug: zhumbaq-04
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Тақия, мұрын, бір құлағы бар,\nСамаурын қасында тұрағы бар."
+    accept: ["Шайнек", "шәйнек", "шәугім", "чайник"]
+
+- slug: zhumbaq-05
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Тілден ұшып,\nҚұлаққа қонады."
+    accept: ["Сөз", "слово"]
+
+- slug: zhumbaq-06
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Ойдың аяқталуын күтпейді,\nОны қойсаң, сөйлем бітпейді."
+    accept: ["Үтір", "запятая"]
+
+- slug: zhumbaq-07
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Ашылып, жабылады,\nӘр үйден табылады."
+    accept: ["Есік", "дверь"]
+
+- slug: zhumbaq-08
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қауаққа да ұқсаған,\nАлмұртқа да ұқсаған,\nАузы бар, тілі бар,\nБілер көріп, ұстаған."
+    accept: ["Қоңырау", "зіл", "колокол"]
+
+- slug: zhumbaq-09
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Егіз қайың,\nБой-бастары тең өскен.\nІске дайын,\nБұтақтары бес-бестен."
+    accept: ["Қол", "қолдар", "руки", "рука"]
+
+- slug: zhumbaq-10
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Алуан түрлі із салғанның өзі еді,\nӨзінен де пайдалысы өзегі."
+    accept: ["Қарындаш", "карандаш"]
+
+- slug: zhumbaq-11
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Жасыл ала дөңгелек,\nБақшада жатыр дөңгелеп."
+    accept: ["Қарбыз", "арбуз"]
+
+- slug: zhumbaq-12
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Әр желінің асты толған көк қоян,\nЖаз болғанда көк қоянды жеп қоям."
+    accept: ["Қияр", "огурец"]
+
+- slug: zhumbaq-13
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Ақ құман жүр жүзіп.\nСу бетін сүзіп."
+    accept: ["Аққу", "лебедь"]
+
+- slug: zhumbaq-14
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Бес қаруы белінде\nСамғап жүреді көгімде."
+    accept: ["Бүркіт", "қыран", "орёл", "орел", "беркут"]
+
+- slug: zhumbaq-15
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Бір-ақ сөз біледі, Өз аты онысы.\nСоны айтып жүреді және жоқ қонысы."
+    accept: ["Көкек", "кукушка"]
+
+- slug: zhumbaq-16
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Ызақор бұғып жатыр,\nСақалы шығып жатыр."
+    accept: ["Жуа"]
+
+- slug: zhumbaq-17
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Бұл не деген көп киім, жетпіс қабат көп киім.\nЖаңбыр одан өтпейді, қабат-қабат тоны бар, түймелеуге жетпейді."
+    accept: ["Орамжапырақ", "қырыққабат", "капуста"]
+
+- slug: zhumbaq-18
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Үстіне тігіп көк шатыр,\nАстында қызыл дәу жатыр"
+    accept: ["Қызылша", "свекла"]
+
+- slug: zhumbaq-19
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Жерде жатып желіндейді,\nКүз түскенше желінбейді."
+    accept: ["Қауын", "дыня"]
+
+- slug: zhumbaq-20
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Шәкіртке жанашыр,\nМейірман кім, жаны асыл."
+    accept: ["Ұстаз", "мұғалім", "учитель"]
+
+- slug: zhumbaq-21
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қабат-қабат қаттама,\nАқылың болса аттама."
+    accept: ["Кітап", "книга"]
+
+- slug: zhumbaq-22
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Жазу жазып жалықпаған,\nЖаза-жаза арықтаған."
+    accept: ["Бор"]
+
+- slug: zhumbaq-23
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Білімнен мол сый — асы,\nБалғындардың ұясы."
+    accept: ["Мектеп", "школа"]
+
+- slug: zhumbaq-24
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қиналып көтеріп, Өзінен ауырды.\nЖорғалап кетеді, Жүкшідей кәдімгі."
+    accept: ["Құмырсқа", "муравей"]
+
+- slug: zhumbaq-25
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Бейбітшілік құсы деп,\nАтайды оны барша жұрт."
+    accept: ["Көгершін", "кептер", "голубь"]
+
+- slug: zhumbaq-26
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қыста киімін тастайды,\nКөктемде киіне бастайды."
+    accept: ["Ағаш", "дерево"]
+
+- slug: zhumbaq-27
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қолы бар, Саусағы жоқ.\nМойны бар, Басы жоқ."
+    accept: ["Көйлек", "рубашка", "платье"]
+
+- slug: zhumbaq-28
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Үсті тас, асты тас,\nОртасында піскен ас."
+    accept: ["Нан"]
+
+- slug: zhumbaq-29
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қанаты бар,\nҚауырсыны жоқ."
+    accept: ["Жарқанат", "летучая мышь"]
+
+- slug: zhumbaq-30
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Күндіз тіпті ұшпайды,\nТүнде тышқан ұстайды,\nКөзі шамға ұқсайды."
+    accept: ["Жапалақ", "үкі", "сова"]
+
+- slug: zhumbaq-31
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Тіріден өлі туады,\nӨліден тірі туады."
+    accept: ["Жұмыртқа", "яйцо"]
+
+- slug: zhumbaq-32
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Аяғы түйеге ұқсайды,\nҚұс болса да ұшпайды."
+    accept: ["Түйеқұс", "страус"]
+
+- slug: zhumbaq-33
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Өзі сақ, өзі ұсақ,\nШықылықтап тұрмайды.\nӨсекшіге ұқсап,\nҚұйрығы ұзын, ала.\nБұл қандай құс, бала?"
+    accept: ["Сауысқан", "сорока"]
+
+- slug: zhumbaq-34
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Сөз үйретсең қайталайды,\nӨздігінен айта алмайды."
+    accept: ["Тоты", "тотықұс", "попугай"]
+
+- slug: zhumbaq-35
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Күндегі тамағы –\nБалықтың шабағы.\nТеңізге барғандар,\nЖағадан табады."
+    accept: ["Шағала", "чайка"]
+
+- slug: zhumbaq-36
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Пошымы бар домалақ,\nКөріп қойдым сығалап.\nЖақсы болса тұрмысы,\nШығады екен қоғалап.\nБес ай тамам біткенде,\nҚаптап алдым құмалақ."
+    accept: ["Картоп", "картошка", "картофель"]
+
+- slug: zhumbaq-37
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Асты тақта,\nҮсті тақта,\nОртасы жасыл мақта."
+    accept: ["Пісте", "шемішке", "семечки"]
+
+- slug: zhumbaq-38
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Алыстан көрсем ақ тас,\nЖақыннан көрсем – дәмді ас."
+    accept: ["Күріш", "рис"]
+
+- slug: zhumbaq-39
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Бала-бала, балалар,\nМүйізінен су шіп,\nТаяғынан балалар."
+    accept: ["Тары", "пшено", "просо"]
+
+- slug: zhumbaq-40
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Өзі қызыл,\nБауырында бар,\nЖалғыз сызық.\nБұған жұрттың,\nБәрі де ынтық."
+    accept: ["Бидай", "пшеница"]
+
+- slug: zhumbaq-41
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Мезгілсіз піспейді.\nПіспей түспейді,\nШыңнан құласа,\nШекесі іспейді."
+    accept: ["Жаңғақ", "орех", "грецкий орех"]
+
+- slug: zhumbaq-42
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Тәтті.\nТәттінің іші қатты,\nҚаттының іші тәтті."
+    accept: ["Өрік", "абрикос", "урюк"]
+
+- slug: zhumbaq-43
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Басына үлпүлдетіп таққан шашақ,\nБұралып тал шыбықтай тұрған жасап."
+    accept: ["Қамыс", "камыш"]
+
+- slug: zhumbaq-44
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ
+  payload:
+    question: "Қық-қық етеді,\nКезіп жүріп көшені.\nЖата қалса орнына,\nАқ доп тастап кетеді."
+    accept: ["Тауық", "курица"]

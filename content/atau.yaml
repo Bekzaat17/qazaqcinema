@@ -1,0 +1,712 @@
+# Атау-сұрақ — терминология: төрт түлік жасы, киіз үй, аспаптар, киім, тағам, ойын, туыстық, салт, мүшел, өлшем, жұлдыз.
+# Форма quiz_choice, 4 нұсқа. Суреттер — Wikimedia Commons (ашық лицензия), автор image_credit-те.
+
+- slug: atau-01
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  image: terms/foal.jpg
+  image_credit: "Фото: Zhanat Kulenov, Wikimedia Commons, CC BY-SA 3.0 igo"
+  payload:
+    question: "Бір жасқа толмаған жылқының баласы қалай аталады?"
+    options: ["дөнен", "тай", "құлын", "құнан"]
+    answer: 2
+
+- slug: atau-02
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  image: terms/foal.jpg
+  image_credit: "Фото: Zhanat Kulenov, Wikimedia Commons, CC BY-SA 3.0 igo"
+  payload:
+    question: "Алты айдан асқан, бір жасқа жетпеген құлынды қалай атайды?"
+    options: ["тай", "байтал", "бесті", "жабағы"]
+    answer: 3
+
+- slug: atau-03
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  image: terms/horses.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    question: "Екі жастағы жылқы қалай аталады?"
+    options: ["құлын", "тай", "дөнен", "құнан"]
+    answer: 1
+
+- slug: atau-04
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  image: terms/horses.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    question: "Үш жастағы еркек жылқы қалай аталады?"
+    options: ["бесті", "дөнен", "құнан", "тай"]
+    answer: 2
+
+- slug: atau-05
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  payload:
+    question: "Төрт жастағы жылқы қалай аталады?"
+    options: ["бесті", "дөнен", "құнан", "тай"]
+    answer: 1
+
+- slug: atau-06
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  payload:
+    question: "Бес жасқа толған жылқы қалай аталады?"
+    options: ["құнан", "сәурік", "бесті", "дөнен"]
+    answer: 2
+
+- slug: atau-07
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  payload:
+    question: "Әлі құлындамаған жас ұрғашы жылқы қалай аталады?"
+    options: ["бие", "тай", "құнан", "байтал"]
+    answer: 3
+
+- slug: atau-08
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  image: terms/horses.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    question: "Құлындаған ұрғашы жылқы қалай аталады?"
+    options: ["ат", "бие", "айғыр", "байтал"]
+    answer: 1
+
+- slug: atau-09
+  kind: quiz_choice
+  topic: zhylqy
+  title: Атау-сұрақ
+  payload:
+    question: "Үйір бастайтын еркек жылқы қалай аталады?"
+    options: ["ат", "бесті", "айғыр", "бура"]
+    answer: 2
+
+- slug: atau-10
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/camel_calf.jpg
+  image_credit: "Фото: Marmoset1000 at en.wikipedia, Wikimedia Commons, қоғамдық игілік"
+  payload:
+    question: "Түйенің бір жасқа дейінгі төлі қалай аталады?"
+    options: ["тайлақ", "бұзау", "лақ", "бота"]
+    answer: 3
+
+- slug: atau-11
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/camel.jpg
+  image_credit: "Фото: Ninaras, Wikimedia Commons, CC BY 4.0"
+  payload:
+    question: "Түйенің екі жастағы төлі қалай аталады?"
+    options: ["бура", "тайлақ", "бота", "атан"]
+    answer: 1
+
+- slug: atau-12
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/camel.jpg
+  image_credit: "Фото: Ninaras, Wikimedia Commons, CC BY 4.0"
+  payload:
+    question: "Піштірілген еркек түйе қалай аталады?"
+    options: ["нар", "бура", "інген", "атан"]
+    answer: 3
+
+- slug: atau-13
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  payload:
+    question: "Ұрғашы түйе қалай аталады?"
+    options: ["бие", "атан", "інген", "бура"]
+    answer: 2
+
+- slug: atau-14
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/sheep.jpg
+  image_credit: "Фото: Nikolai Bulykin, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Қойдың алты айдан асқан төлі қалай аталады?"
+    options: ["қозы", "саулық", "тоқты", "тұсақ"]
+    answer: 2
+
+- slug: atau-15
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/sheep.jpg
+  image_credit: "Фото: Nikolai Bulykin, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Бір жасқа толған ұрғашы қой қалай аталады?"
+    options: ["тоқты", "қошқар", "саулық", "тұсақ"]
+    answer: 3
+
+- slug: atau-16
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/goat.jpg
+  image_credit: "Фото: Ivan ideia, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Ешкінің төлі қалай аталады?"
+    options: ["лақ", "қозы", "бота", "бұзау"]
+    answer: 0
+
+- slug: atau-17
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/goat.jpg
+  image_credit: "Фото: Ivan ideia, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Піштірілген еркек ешкі қалай аталады?"
+    options: ["серке", "атан", "теке", "қошқар"]
+    answer: 0
+
+- slug: atau-18
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/cattle.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    question: "Сиырдың бір жастан асқан төлі қалай аталады?"
+    options: ["дөнежін", "тана", "бұзау", "құнажын"]
+    answer: 1
+
+- slug: atau-19
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/cattle.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    question: "Үш жастағы ұрғашы сиыр (алғаш бұзаулайтын) қалай аталады?"
+    options: ["торпақ", "құнажын", "дөнежін", "тана"]
+    answer: 1
+
+- slug: atau-20
+  kind: quiz_choice
+  topic: kiiz_ui
+  title: Атау-сұрақ
+  image: terms/shanyrak.jpg
+  image_credit: "Фото: Man77, Wikimedia Commons, CC BY 3.0"
+  payload:
+    question: "Киіз үйдің төбесіндегі дөңгелек — оның аты қалай?"
+    options: ["түндік", "уық", "кереге", "шаңырақ"]
+    answer: 3
+
+- slug: atau-21
+  kind: quiz_choice
+  topic: kiiz_ui
+  title: Атау-сұрақ
+  image: terms/yurt.jpg
+  image_credit: "Фото: Kunshuak asem, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Киіз үйдің қабырғасын құрайтын торлы ағаш қалай аталады?"
+    options: ["кереге", "шаңырақ", "уық", "босаға"]
+    answer: 0
+
+- slug: atau-22
+  kind: quiz_choice
+  topic: kiiz_ui
+  title: Атау-сұрақ
+  image: terms/yurt.jpg
+  image_credit: "Фото: Kunshuak asem, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Шаңырақ пен керегені жалғайтын иілген сырықтар қалай аталады?"
+    options: ["кереге", "уық", "сықырлауық", "бақан"]
+    answer: 1
+
+- slug: atau-23
+  kind: quiz_choice
+  topic: kiiz_ui
+  title: Атау-сұрақ
+  image: terms/yurt_in.jpg
+  image_credit: "Фото: PixelMastero, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Шаңырақтың үстін жабатын төрт бұрышты киіз қалай аталады?"
+    options: ["текемет", "туырлық", "үзік", "түндік"]
+    answer: 3
+
+- slug: atau-24
+  kind: quiz_choice
+  topic: kiiz_ui
+  title: Атау-сұрақ
+  payload:
+    question: "Керегені жабатын киіз қалай аталады?"
+    options: ["үзік", "туырлық", "сырмақ", "түндік"]
+    answer: 1
+
+- slug: atau-25
+  kind: quiz_choice
+  topic: kiiz_ui
+  title: Атау-сұрақ
+  payload:
+    question: "Киіз үйдің есігінің екі жақ тіреуі қалай аталады?"
+    options: ["табалдырық", "босаға", "маңдайша", "уық"]
+    answer: 1
+
+- slug: atau-26
+  kind: quiz_choice
+  topic: aspap
+  title: Атау-сұрақ
+  image: terms/dombra.jpg
+  image_credit: "Фото: Ice201:Játi Þór Mikjálsson at is.wikipedia, Wikimedia Commons, CC BY 2.5"
+  payload:
+    question: "Екі ішекті, шертіп ойнайтын қазақтың ең кең тараған аспабы?"
+    options: ["сыбызғы", "қобыз", "жетіген", "домбыра"]
+    answer: 3
+
+- slug: atau-27
+  kind: quiz_choice
+  topic: aspap
+  title: Атау-сұрақ
+  payload:
+    question: "Ысқышпен ойналатын, Қорқыт атаның есімімен байланысты аспап?"
+    options: ["қобыз", "домбыра", "дауылпаз", "шаңқобыз"]
+    answer: 0
+
+- slug: atau-28
+  kind: quiz_choice
+  topic: aspap
+  title: Атау-сұрақ
+  payload:
+    question: "Қамыстан немесе ағаштан жасалатын үрлемелі аспап?"
+    options: ["сыбызғы", "жетіген", "асатаяқ", "дауылпаз"]
+    answer: 0
+
+- slug: atau-29
+  kind: quiz_choice
+  topic: aspap
+  title: Атау-сұрақ
+  payload:
+    question: "Жеті ішекті, шертіп ойнайтын ежелгі аспап?"
+    options: ["қобыз", "домбыра", "сазсырнай", "жетіген"]
+    answer: 3
+
+- slug: atau-30
+  kind: quiz_choice
+  topic: kiim
+  title: Атау-сұрақ
+  image: terms/wedding.jpg
+  image_credit: "Фото: Amhogas, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Қалыңдықтың биік, әшекейлі бас киімі қалай аталады?"
+    options: ["кимешек", "сәукеле", "бөрік", "тақия"]
+    answer: 1
+
+- slug: atau-31
+  kind: quiz_choice
+  topic: kiim
+  title: Атау-сұрақ
+  image: terms/kimeshek.jpg
+  image_credit: "Фото: kjfnj (Flickr)y/, Wikimedia Commons, CC BY 2.0"
+  payload:
+    question: "Егде әйелдердің ақ матадан тігілген бас киімі?"
+    options: ["тақия", "сәукеле", "жаулық", "кимешек"]
+    answer: 3
+
+- slug: atau-32
+  kind: quiz_choice
+  topic: kiim
+  title: Атау-сұрақ
+  image: terms/eagle.jpg
+  image_credit: "Фото: Altaihunters, Wikimedia Commons, CC BY-SA 3.0"
+  payload:
+    question: "Ерлердің құлақшыны бар, теріден тігілген қысқы бас киімі?"
+    options: ["тымақ", "тақия", "бөрік", "қалпақ"]
+    answer: 0
+
+- slug: atau-33
+  kind: quiz_choice
+  topic: kiim
+  title: Атау-сұрақ
+  payload:
+    question: "Иыққа жамылатын, ұзын етек, кең қазақ шапанының кішкентай, жеңсіз түрі?"
+    options: ["тон", "шапан", "камзол", "ішік"]
+    answer: 2
+
+- slug: atau-34
+  kind: quiz_choice
+  topic: kiim
+  title: Атау-сұрақ
+  payload:
+    question: "Қой терісінен тігілген, жүні ішіне қаратылған қысқы киім?"
+    options: ["шапан", "күпі", "тон", "ішік"]
+    answer: 2
+
+- slug: atau-35
+  kind: quiz_choice
+  topic: tagam
+  title: Атау-сұрақ
+  image: terms/kumis.jpg
+  image_credit: "Фото: Upyernoz on Flickr, Wikimedia Commons, CC BY 2.0"
+  payload:
+    question: "Бие сүтінен ашытылатын сусын?"
+    options: ["шұбат", "айран", "қымыз", "көже"]
+    answer: 2
+
+- slug: atau-36
+  kind: quiz_choice
+  topic: tagam
+  title: Атау-сұрақ
+  image: terms/kumis.jpg
+  image_credit: "Фото: Upyernoz on Flickr, Wikimedia Commons, CC BY 2.0"
+  payload:
+    question: "Түйе сүтінен ашытылатын сусын?"
+    options: ["қымыз", "қатық", "шұбат", "айран"]
+    answer: 2
+
+- slug: atau-37
+  kind: quiz_choice
+  topic: tagam
+  title: Атау-сұрақ
+  image: terms/baursak.jpg
+  image_credit: "Фото: Ds02006, Wikimedia Commons, қоғамдық игілік"
+  payload:
+    question: "Ашыған қамырдан майға пісірілетін дөңгелек тағам?"
+    options: ["бауырсақ", "жент", "шелпек", "құрт"]
+    answer: 0
+
+- slug: atau-38
+  kind: quiz_choice
+  topic: tagam
+  title: Атау-сұрақ
+  image: terms/kazy.jpg
+  image_credit: "Фото: Sara Yeomans, Wikimedia Commons, CC BY 2.0"
+  payload:
+    question: "Жылқының қабырға етінен жасалатын шұжық?"
+    options: ["жал", "қарта", "жая", "қазы"]
+    answer: 3
+
+- slug: atau-39
+  kind: quiz_choice
+  topic: tagam
+  title: Атау-сұрақ
+  payload:
+    question: "Кептірілген, сүзілген қышқыл сүт өнімі — домалақ, тұзды?"
+    options: ["құрт", "ірімшік", "қатық", "сүзбе"]
+    answer: 0
+
+- slug: atau-40
+  kind: quiz_choice
+  topic: oiyn
+  title: Атау-сұрақ
+  image: terms/kokpar.jpg
+  image_credit: "Фото: Rustam Uzbekov, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Салт аттылар лақты (серкені) тартысатын ұлттық ойын?"
+    options: ["көкпар", "қыз қуу", "бәйге", "аударыспақ"]
+    answer: 0
+
+- slug: atau-41
+  kind: quiz_choice
+  topic: oiyn
+  title: Атау-сұрақ
+  image: terms/kokpar_rubo.jpg
+  image_credit: "Фото: Franz Roubaud, Wikimedia Commons, қоғамдық игілік"
+  payload:
+    question: "Екі салт атты бір-бірін аттан аударып түсіруге тырысатын ойын?"
+    options: ["аударыспақ", "теңге ілу", "көкпар", "жамбы ату"]
+    answer: 0
+
+- slug: atau-42
+  kind: quiz_choice
+  topic: oiyn
+  title: Атау-сұрақ
+  payload:
+    question: "Тақтадағы тоғыз отау мен 162 құмалақпен ойналатын логикалық ойын?"
+    options: ["бес тас", "хан талапай", "тоғызқұмалақ", "асық"]
+    answer: 2
+
+- slug: atau-43
+  kind: quiz_choice
+  topic: oiyn
+  title: Атау-сұрақ
+  payload:
+    question: "Қой мен қозының тобық сүйегімен ойналатын ойын?"
+    options: ["ақсүйек", "бес тас", "асық", "тоғызқұмалақ"]
+    answer: 2
+
+- slug: atau-44
+  kind: quiz_choice
+  topic: oiyn
+  title: Атау-сұрақ
+  payload:
+    question: "Шауып келе жатып жерден теңгені іліп алу ойыны?"
+    options: ["көкпар", "қыз қуу", "теңге ілу", "жамбы ату"]
+    answer: 2
+
+- slug: atau-45
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Ананың туыстары кім деп аталады?"
+    options: ["нағашы", "бөле", "құда", "жиен"]
+    answer: 0
+
+- slug: atau-46
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Апалы-сіңлілі әйелдердің балалары бір-біріне кім?"
+    options: ["немере", "жиен", "абысын", "бөле"]
+    answer: 3
+
+- slug: atau-47
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Қыздан туған бала оның ағайын-туысына кім?"
+    options: ["жиен", "бөле", "келін", "немере"]
+    answer: 0
+
+- slug: atau-48
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Немеренің баласы қалай аталады?"
+    options: ["жиеншар", "шөбере", "немене", "шөпшек"]
+    answer: 1
+
+- slug: atau-49
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Шөбереден туған бала қалай аталады?"
+    options: ["шөпшек", "шөбере", "немене", "туажат"]
+    answer: 0
+
+- slug: atau-50
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Әпкенің күйеуі кім?"
+    options: ["жезде", "қайын аға", "бажа", "күйеу бала"]
+    answer: 0
+
+- slug: atau-51
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Әйелінің сіңлісі ер адамға кім?"
+    options: ["жеңге", "абысын", "қайын сіңлі", "балдыз"]
+    answer: 3
+
+- slug: atau-52
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Апалы-сіңлілі қыздарға үйленген ер адамдар бір-біріне кім?"
+    options: ["құда", "жезде", "қайын аға", "бажа"]
+    answer: 3
+
+- slug: atau-53
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Ағайынды жігіттердің әйелдері бір-біріне кім?"
+    options: ["жеңге", "абысын", "балдыз", "келін"]
+    answer: 1
+
+- slug: atau-54
+  kind: quiz_choice
+  topic: tuystyq
+  title: Атау-сұрақ
+  payload:
+    question: "Ағаның әйелі інісіне кім?"
+    options: ["келін", "апа", "абысын", "жеңге"]
+    answer: 3
+
+- slug: atau-55
+  kind: quiz_choice
+  topic: salt
+  title: Атау-сұрақ
+  image: terms/wedding.jpg
+  image_credit: "Фото: Amhogas, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    question: "Қалыңдықтың бетін ашып, туыстарымен таныстыру рәсімі?"
+    options: ["сүйінші", "шашу", "тұсаукесер", "беташар"]
+    answer: 3
+
+- slug: atau-56
+  kind: quiz_choice
+  topic: salt
+  title: Атау-сұрақ
+  payload:
+    question: "Баланың алғашқы қадамында аяғындағы бауды кесу рәсімі?"
+    options: ["шілдехана", "бесікке салу", "тілашар", "тұсаукесер"]
+    answer: 3
+
+- slug: atau-57
+  kind: quiz_choice
+  topic: salt
+  title: Атау-сұрақ
+  payload:
+    question: "Жақсы хабар жеткізген адамға берілетін сый?"
+    options: ["кәде", "көрімдік", "байғазы", "сүйінші"]
+    answer: 3
+
+- slug: atau-58
+  kind: quiz_choice
+  topic: salt
+  title: Атау-сұрақ
+  payload:
+    question: "Жаңа нәрсені (сәбиді, келінді, жаңа затты) алғаш көргенде берілетін сый?"
+    options: ["көрімдік", "ерулік", "шашу", "сүйінші"]
+    answer: 0
+
+- slug: atau-59
+  kind: quiz_choice
+  topic: salt
+  title: Атау-сұрақ
+  payload:
+    question: "Жаңа көшіп келген көршіге арнап берілетін дәм?"
+    options: ["ерулік", "қонақасы", "сарқыт", "көрімдік"]
+    answer: 0
+
+- slug: atau-60
+  kind: quiz_choice
+  topic: salt
+  title: Атау-сұрақ
+  payload:
+    question: "Қуанышты сәтте үстіне тәттілер мен күміс шашу рәсімі?"
+    options: ["сүйінші", "бата", "шашу", "кәде"]
+    answer: 2
+
+- slug: atau-61
+  kind: quiz_choice
+  topic: mushel
+  title: Атау-сұрақ
+  payload:
+    question: "Мүшел жыл неше жылдан тұрады?"
+    options: ["12", "13", "10", "7"]
+    answer: 0
+
+- slug: atau-62
+  kind: quiz_choice
+  topic: mushel
+  title: Атау-сұрақ
+  payload:
+    question: "Мүшел жыл қай жануардан басталады?"
+    options: ["барыс", "тышқан", "сиыр", "қоян"]
+    answer: 1
+
+- slug: atau-63
+  kind: quiz_choice
+  topic: mushel
+  title: Атау-сұрақ
+  payload:
+    question: "Адамның бірінші мүшелі неше жасында келеді?"
+    options: ["25", "7", "13", "12"]
+    answer: 2
+
+- slug: atau-64
+  kind: quiz_choice
+  topic: olshem
+  title: Атау-сұрақ
+  payload:
+    question: "Бас бармақ пен сұқ саусақтың арасындағы ұзындық қалай аталады?"
+    options: ["құлаш", "сүйем", "қарыс", "елі"]
+    answer: 1
+
+- slug: atau-65
+  kind: quiz_choice
+  topic: olshem
+  title: Атау-сұрақ
+  payload:
+    question: "Екі қолды екі жаққа жайғандағы ұзындық қалай аталады?"
+    options: ["адым", "қарыс", "кез", "құлаш"]
+    answer: 3
+
+- slug: atau-66
+  kind: quiz_choice
+  topic: olshem
+  title: Атау-сұрақ
+  payload:
+    question: "Бас бармақ пен шынашақтың арасындағы ұзындық қалай аталады?"
+    options: ["тұтам", "қарыс", "елі", "сүйем"]
+    answer: 1
+
+- slug: atau-67
+  kind: quiz_choice
+  topic: zhuldyz
+  title: Атау-сұрақ
+  payload:
+    question: "Түнде солтүстікті көрсететін жұлдыз қазақша қалай аталады?"
+    options: ["Шолпан", "Темірқазық", "Сүмбіле", "Үркер"]
+    answer: 1
+
+- slug: atau-68
+  kind: quiz_choice
+  topic: zhuldyz
+  title: Атау-сұрақ
+  payload:
+    question: "«Үлкен Аю» шоқжұлдызының қазақша атауы?"
+    options: ["Жетіқарақшы", "Үркер", "Таразы", "Темірқазық"]
+    answer: 0
+
+- slug: atau-69
+  kind: quiz_choice
+  topic: zhuldyz
+  title: Атау-сұрақ
+  payload:
+    question: "Плеяда шоқжұлдызының қазақша атауы?"
+    options: ["Шолпан", "Үркер", "Сүмбіле", "Жетіқарақшы"]
+    answer: 1
+
+- slug: atau-70
+  kind: quiz_choice
+  topic: zhuldyz
+  title: Атау-сұрақ
+  payload:
+    question: "Таңертең және кешке жарқырап көрінетін «Венера» планетасының қазақша атауы?"
+    options: ["Есекқырған", "Шолпан", "Темірқазық", "Үркер"]
+    answer: 1
+
+- slug: atau-71
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/saddle.jpg
+  image_credit: "Фото: Лапоть, Wikimedia Commons, CC0"
+  payload:
+    question: "Ер-тұрманның ішінде аттың үстіне салынатын негізгі бөлігі — оның аты?"
+    options: ["жүген", "айыл", "ер", "үзеңгі"]
+    answer: 2
+
+- slug: atau-72
+  kind: quiz_choice
+  topic: mal
+  title: Атау-сұрақ
+  image: terms/saddle.jpg
+  image_credit: "Фото: Лапоть, Wikimedia Commons, CC0"
+  payload:
+    question: "Салт аттының аяғын тірейтін ер-тұрман бөлігі?"
+    options: ["тоқым", "құйысқан", "үзеңгі", "айыл"]
+    answer: 2
