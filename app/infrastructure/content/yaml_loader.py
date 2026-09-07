@@ -179,21 +179,22 @@ def _card(raw: object, slug: str, title: str, ctx: _Ctx, where: str) -> str:
     if not isinstance(raw, dict):
         raise SeedError(f"{where}: card должен быть словарём")
     data = cast(dict[str, Any], raw)
-    portrait = ctx.images_dir / str(data.get("portrait", ""))
-    if not portrait.is_file():
+    portrait_name = str(data.get("portrait", "")).strip()
+    portrait = ctx.images_dir / portrait_name if portrait_name else None
+    if portrait is not None and not portrait.is_file():
         raise SeedError(f"{where}: портрет {portrait} не найден")
     if ctx.cards is None:
         raise SeedError(f"{where}: карточки требуют генератор (CardRenderer), а он не передан")
     spec = CardSpec(
         title=str(data.get("title", title)).strip(),
-        portrait=str(data["portrait"]),
+        portrait=portrait_name,
         label=str(data.get("label", "")).strip(),
         subtitle=str(data.get("subtitle", "")).strip(),
     )
     if not spec.title:
         raise SeedError(f"{where}: у карточки пустой заголовок (нет ни card.title, ни title)")
     try:
-        jpeg = ctx.cards.render(spec, portrait.read_bytes())
+        jpeg = ctx.cards.render(spec, portrait.read_bytes() if portrait else None)
     except ValueError as exc:
         raise SeedError(f"{where}: {exc}") from exc
     rel = f"{CHANNEL_MEDIA_DIR}/{slug}.jpg"

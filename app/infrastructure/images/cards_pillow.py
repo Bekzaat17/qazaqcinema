@@ -32,7 +32,7 @@ class PillowCardRenderer:
     def _font(self, name: str, size: int) -> ImageFont.FreeTypeFont:
         return ImageFont.truetype(str(self._fonts / name), size)
 
-    def render(self, spec: CardSpec, portrait: bytes) -> bytes:
+    def render(self, spec: CardSpec, portrait: bytes | None) -> bytes:
         st = self._style
         canvas = self._background()
         draw = ImageDraw.Draw(canvas)
@@ -40,7 +40,10 @@ class PillowCardRenderer:
         # Портрет: круг в золотом кольце, слева по центру.
         cx = st.padding + st.portrait_diameter // 2
         cy = st.height // 2
-        self._paste_portrait(canvas, portrait, (cx, cy))
+        if portrait is not None:
+            self._paste_portrait(canvas, portrait, (cx, cy))
+        else:
+            self._paste_initial(canvas, spec, (cx, cy))
 
         # Текстовый блок справа от портрета.
         x = st.padding * 2 + st.portrait_diameter
@@ -51,13 +54,19 @@ class PillowCardRenderer:
                       fill=_hex(st.accent))
             y += st.label_size + 28
 
+        # Подвал (черта + адрес) — фиксированная зона снизу; текст должен уложиться выше неё.
+        footer_top = st.height - st.padding - st.handle_size - 18 - 24
+        subtitle_block = st.subtitle_size + 18 if spec.subtitle else 0
         title_size = st.title_size
         title_font = self._font(_FONT_BOLD, title_size)
         lines = self._wrap(draw, spec.title, title_font, width)
-        # Заголовок длиннее четырёх строк ужимаем шрифтом, а не режем: обрывать
-        # «Он тоғызыншы сөз» посреди слова было бы хуже мелкой строки.
-        while len(lines) > 4 and title_size > 36:
-            title_size -= 6
+        # Длинную цитату ужимаем шрифтом, а не режем: обрывать фразу посреди слова хуже
+        # мелкой строки. Критерий — ВЫСОТА блока (строки × интерлиньяж + подпись), а не
+        # число строк: шесть коротких строк влезают, шесть длинных при 64px — нет.
+        while title_size > 26 and (
+            y + len(lines) * int(title_size * 1.2) + subtitle_block > footer_top
+        ):
+            title_size -= 4
             title_font = self._font(_FONT_BOLD, title_size)
             lines = self._wrap(draw, spec.title, title_font, width)
         line_height = int(title_size * 1.2)
@@ -101,13 +110,14 @@ class PillowCardRenderer:
         except (OSError, ValueError) as exc:
             raise ValueError("не удалось декодировать портрет") from exc
         d = st.portrait_diameter
-        # Портреты чаще вертикальные и групповые/поясные, лицо — в верхней трети. Сначала
-        # берём квадрат по верхней части кадра (лицо крупно, без соседей по фото), потом
-        # вписываем в круг.
         rgb = image.convert("RGB")
-        side = min(rgb.width, int(rgb.height * 0.62))
-        left = (rgb.width - side) // 2
-        rgb = rgb.crop((left, 0, left + side, side))
+        if rgb.height > rgb.width * 1.25:
+            # Явно вертикальный (поясной/групповой) снимок: лицо в верхней трети. Берём
+            # квадрат по верхней части кадра — лицо крупно, без соседей по фото.
+            side = min(rgb.width, int(rgb.height * 0.62))
+            left = (rgb.width - side) // 2
+            rgb = rgb.crop((left, 0, left + side, side))
+        # Иначе (уже вырезанное лицо, квадрат) — обычный центр-кроп.
         fitted = ImageOps.fit(rgb, (d, d), method=Image.Resampling.LANCZOS)
         mask = Image.new("L", (d * 4, d * 4), 0)
         ImageDraw.Draw(mask).ellipse((0, 0, d * 4 - 1, d * 4 - 1), fill=255)
@@ -120,6 +130,21 @@ class PillowCardRenderer:
             fill=_hex(st.accent),
         )
         canvas.paste(fitted, (cx - d // 2, cy - d // 2), mask)
+
+    def _paste_initial(self, canvas: Image.Image, spec: CardSpec, center: tuple[int, int]) -> None:
+        """Нет открытого портрета → золотой круг с первой буквой подписи (или заголовка)."""
+        st = self._style
+        d = st.portrait_diameter
+        cx, cy = center
+        draw = ImageDraw.Draw(canvas)
+        draw.ellipse((cx - d // 2, cy - d // 2, cx + d // 2, cy + d // 2), fill=_hex(st.accent))
+        source = spec.subtitle or spec.title
+        letter = next((ch for ch in source if ch.isalpha()), "•").upper()
+        font = self._font(_FONT_BOLD, int(d * 0.5))
+        box = draw.textbbox((0, 0), letter, font=font)
+        w, h = box[2] - box[0], box[3] - box[1]
+        draw.text((cx - w / 2 - box[0], cy - h / 2 - box[1]), letter, font=font,
+                  fill=_hex(st.background_top))
 
     @staticmethod
     def _wrap(

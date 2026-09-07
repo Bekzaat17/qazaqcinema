@@ -1,0 +1,566 @@
+# Атаулары — терминология тізімдері (term_list). Суреттер — Wikimedia Commons (ашық лицензия), автор image_credit-те.
+
+- slug: terms-01
+  kind: term_list
+  topic: zhylqy
+  title: "Жылқының жасына қарай атаулары"
+  body: "Қазақ жылқыны жасына қарай әр жылы басқа сөзбен атайды:"
+  image: terms/foal.jpg
+  image_credit: "Фото: Zhanat Kulenov, Wikimedia Commons, CC BY-SA 3.0 igo"
+  payload:
+    items:
+      - {term: "құлын", meaning: "туғаннан алты айға дейін"}
+      - {term: "жабағы", meaning: "алты айдан бір жасқа дейін"}
+      - {term: "тай", meaning: "бір жастан екі жасқа дейін"}
+      - {term: "құнан", meaning: "екі-үш жастағы еркек жылқы"}
+      - {term: "байтал", meaning: "екі-үш жастағы ұрғашы жылқы"}
+      - {term: "дөнен", meaning: "үш-төрт жастағы жылқы"}
+      - {term: "бесті", meaning: "бес жасқа толған жылқы"}
+    note: "Бестіден кейін еркегі — ат (піштірілген) немесе айғыр, ұрғашысы — бие."
+
+- slug: terms-02
+  kind: term_list
+  topic: zhylqy
+  title: "Жылқының жынысы мен қызметіне қарай атаулары"
+  image: terms/horses.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    items:
+      - {term: "айғыр", meaning: "үйір бастайтын еркек жылқы"}
+      - {term: "ат", meaning: "піштірілген, мінуге арналған еркек жылқы"}
+      - {term: "бие", meaning: "құлындаған ұрғашы жылқы"}
+      - {term: "сәурік", meaning: "үйірге әлі түспеген жас айғыр"}
+      - {term: "тұлпар", meaning: "жүйрік, бәйге аты"}
+      - {term: "арғымақ", meaning: "асыл тұқымды, сымбатты ат"}
+      - {term: "жорға", meaning: "аяғын жорғалатып жүретін ат"}
+
+- slug: terms-03
+  kind: term_list
+  topic: zhylqy
+  title: "Жылқының түстері"
+  body: "Жылқы түсінің әрқайсысының өз аты бар:"
+  image: terms/horses.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    items:
+      - {term: "торы", meaning: "қоңыр-қызыл, жалы мен құйрығы қара"}
+      - {term: "жирен", meaning: "қызғылт-сары"}
+      - {term: "қара", meaning: "қап-қара"}
+      - {term: "ақ боз", meaning: "ақ, аппақ"}
+      - {term: "көк", meaning: "сұр, күлгін реңді"}
+      - {term: "құла", meaning: "сарғыш, жалы мен құйрығы қара"}
+      - {term: "кер", meaning: "қоңырқай, қара сарғыш"}
+      - {term: "шабдар", meaning: "ашық сары, жалы ақшыл"}
+      - {term: "ала", meaning: "бірнеше түсті, шұбар"}
+      - {term: "бурыл", meaning: "ақ пен қара араласқан"}
+    note: "Ат сыны түстен басталады: «Торы ат», «Көк тұлпар», «Ақ боз ат» — ертегіден таныс есімдер."
+
+- slug: terms-04
+  kind: term_list
+  topic: mal
+  title: "Түйе атаулары"
+  image: terms/camel.jpg
+  image_credit: "Фото: Ninaras, Wikimedia Commons, CC BY 4.0"
+  payload:
+    items:
+      - {term: "бота", meaning: "бір жасқа дейінгі төл"}
+      - {term: "тайлақ", meaning: "бір-екі жастағы төл"}
+      - {term: "інген", meaning: "ұрғашы түйе"}
+      - {term: "бура", meaning: "үйір бастайтын еркек түйе"}
+      - {term: "атан", meaning: "піштірілген еркек түйе — жүк көлігі"}
+      - {term: "нар", meaning: "бір өркешті түйе"}
+      - {term: "айыр", meaning: "екі өркешті түйе"}
+      - {term: "желмая", meaning: "жүйрік, жеңіл түйе"}
+    note: "Асан Қайғы аңызда желмаяға мініп жер шолған."
+
+- slug: terms-05
+  kind: term_list
+  topic: mal
+  title: "Қой мен ешкі атаулары"
+  image: terms/sheep.jpg
+  image_credit: "Фото: Nikolai Bulykin, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    items:
+      - {term: "қозы", meaning: "қойдың төлі (алты айға дейін)"}
+      - {term: "тоқты", meaning: "алты айдан бір жасқа дейінгі қой"}
+      - {term: "тұсақ", meaning: "бір жастан асқан ұрғашы қой"}
+      - {term: "саулық", meaning: "қоздаған ұрғашы қой"}
+      - {term: "қошқар", meaning: "еркек қой"}
+      - {term: "ісек", meaning: "піштірілген еркек қой"}
+      - {term: "лақ", meaning: "ешкінің төлі"}
+      - {term: "серке", meaning: "піштірілген еркек ешкі"}
+      - {term: "теке", meaning: "еркек ешкі"}
+
+- slug: terms-06
+  kind: term_list
+  topic: mal
+  title: "Сиыр атаулары"
+  image: terms/cattle.jpg
+  image_credit: "Фото: Radosław Botev, Wikimedia Commons, CC BY 3.0 pl"
+  payload:
+    items:
+      - {term: "бұзау", meaning: "бір жасқа дейінгі төл"}
+      - {term: "тана", meaning: "бір-екі жастағы төл"}
+      - {term: "торпақ", meaning: "екі жастағы еркек төл"}
+      - {term: "құнажын", meaning: "үш жастағы, алғаш бұзаулайтын сиыр"}
+      - {term: "дөнежін", meaning: "төрт жастағы сиыр"}
+      - {term: "бұқа", meaning: "еркек сиыр"}
+      - {term: "өгіз", meaning: "піштірілген еркек сиыр"}
+
+- slug: terms-07
+  kind: term_list
+  topic: kiiz_ui
+  title: "Киіз үйдің сүйегі"
+  body: "Киіз үйдің ағаш қаңқасы — «сүйегі» — үш бөліктен тұрады:"
+  image: terms/yurt.jpg
+  image_credit: "Фото: Kunshuak asem, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    items:
+      - {term: "шаңырақ", meaning: "төбедегі дөңгелек — үйдің ұйтқысы, отбасы символы"}
+      - {term: "уық", meaning: "шаңырақ пен керегені жалғайтын иілген сырықтар"}
+      - {term: "кереге", meaning: "қабырғаны құрайтын торлы қанаттар"}
+      - {term: "бақан", meaning: "шаңырақты көтеретін ұзын сырық"}
+      - {term: "сықырлауық", meaning: "ағаш есік"}
+      - {term: "босаға", meaning: "есіктің екі жақ тіреуі"}
+      - {term: "маңдайша", meaning: "есіктің үстіңгі ағашы"}
+      - {term: "табалдырық", meaning: "есіктің астыңғы ағашы"}
+    note: "«Шаңырағың биік болсын» — жаңа отбасыға айтылатын бата."
+
+- slug: terms-08
+  kind: term_list
+  topic: kiiz_ui
+  title: "Киіз үйдің киіздері мен жабдығы"
+  image: terms/shanyrak.jpg
+  image_credit: "Фото: Man77, Wikimedia Commons, CC BY 3.0"
+  payload:
+    items:
+      - {term: "түндік", meaning: "шаңырақты жабатын төрт бұрышты киіз"}
+      - {term: "үзік", meaning: "уықтарды жабатын киіз"}
+      - {term: "туырлық", meaning: "керегені жабатын киіз"}
+      - {term: "текемет", meaning: "оюлы киіз төсеніш"}
+      - {term: "сырмақ", meaning: "сырып тігілген киіз төсеніш"}
+      - {term: "тұскиіз", meaning: "қабырғаға ілінетін кестелі киіз"}
+      - {term: "шым ши", meaning: "керегенің сыртына тұтылатын өрнекті ши"}
+      - {term: "бау", meaning: "киіздерді бекітетін өрнекті таспа"}
+
+- slug: terms-09
+  kind: term_list
+  topic: kiiz_ui
+  title: "Киіз үйдің ішкі кеңістігі"
+  body: "Үйдің ішінде әр орынның өз аты мен өз иесі бар:"
+  image: terms/yurt_in.jpg
+  image_credit: "Фото: PixelMastero, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    items:
+      - {term: "төр", meaning: "есікке қарсы, ең құрметті орын — қонақ пен қария"}
+      - {term: "ошақ", meaning: "үйдің ортасы, от жағылатын жер"}
+      - {term: "оң жақ", meaning: "үй иелерінің төсегі тұратын жақ"}
+      - {term: "сол жақ", meaning: "үй-жабдық, ас-су тұратын жақ"}
+      - {term: "жүкаяқ", meaning: "жүк (көрпе-жастық) жиналатын ағаш"}
+      - {term: "кебеже", meaning: "ас сақтайтын оюлы сандық"}
+      - {term: "адалбақан", meaning: "киім ілетін ағаш"}
+
+- slug: terms-10
+  kind: term_list
+  topic: aspap
+  title: "Қазақтың ұлттық аспаптары: ішекті"
+  image: terms/dombra.jpg
+  image_credit: "Фото: Ice201:Játi Þór Mikjálsson at is.wikipedia, Wikimedia Commons, CC BY 2.5"
+  payload:
+    items:
+      - {term: "домбыра", meaning: "екі ішекті, шертіп ойналады"}
+      - {term: "қобыз", meaning: "ысқышпен ойналады, Қорқыт атадан қалған"}
+      - {term: "жетіген", meaning: "жеті ішекті, шертіп ойналады"}
+      - {term: "шертер", meaning: "үш ішекті, домбыраға ұқсас"}
+      - {term: "адырна", meaning: "садақ пішіндес көне аспап"}
+
+- slug: terms-11
+  kind: term_list
+  topic: aspap
+  title: "Қазақтың ұлттық аспаптары: үрлемелі және ұрмалы"
+  payload:
+    items:
+      - {term: "сыбызғы", meaning: "қамыстан жасалатын ұзын сырнай"}
+      - {term: "сазсырнай", meaning: "саз балшықтан күйдірілген, кішкентай"}
+      - {term: "шаңқобыз", meaning: "аузға салып ойналатын темір аспап"}
+      - {term: "дауылпаз", meaning: "соғысқа, аңшылыққа шақыратын дабыл"}
+      - {term: "асатаяқ", meaning: "сылдырмақтары бар таяқ — бақсы аспабы"}
+      - {term: "кепшік", meaning: "дөңгелек ұрмалы аспап"}
+      - {term: "үскірік", meaning: "ысқырық — балалар аспабы"}
+
+- slug: terms-12
+  kind: term_list
+  topic: kiim
+  title: "Ерлердің ұлттық киімі"
+  image: terms/eagle.jpg
+  image_credit: "Фото: Altaihunters, Wikimedia Commons, CC BY-SA 3.0"
+  payload:
+    items:
+      - {term: "шапан", meaning: "ұзын, кең сырт киім"}
+      - {term: "тон", meaning: "қой терісінен тігілген қысқы киім"}
+      - {term: "ішік", meaning: "іші аң терісі, сырты матамен тысталған тон"}
+      - {term: "бешпент", meaning: "белі қынама, жеңі тар жеңіл киім"}
+      - {term: "тымақ", meaning: "құлақшыны бар терi бас киiм"}
+      - {term: "бөрік", meaning: "дөңгелек, жиегі аң терісі бас киім"}
+      - {term: "тақия", meaning: "жеңіл, дөңгелек бас киім"}
+      - {term: "қалпақ", meaning: "ақ киізден тігілген биік бас киім"}
+      - {term: "мәсі", meaning: "жұмсақ былғары аяқ киім"}
+      - {term: "кебіс", meaning: "мәсінің үстінен киетін аяқ киім"}
+
+- slug: terms-13
+  kind: term_list
+  topic: kiim
+  title: "Әйелдердің ұлттық киімі"
+  image: terms/kimeshek.jpg
+  image_credit: "Фото: kjfnj (Flickr)y/, Wikimedia Commons, CC BY 2.0"
+  payload:
+    items:
+      - {term: "сәукеле", meaning: "қалыңдықтың биік әшекейлі бас киімі"}
+      - {term: "кимешек", meaning: "егде әйелдердің ақ бас киімі"}
+      - {term: "жаулық", meaning: "кимешектің үстінен тартылатын ақ орамал"}
+      - {term: "тақия", meaning: "қыздардың үкілі бас киімі"}
+      - {term: "камзол", meaning: "жеңсіз, белі қынама сырт киім"}
+      - {term: "көйлек", meaning: "етегі қос қатпарлы ұлттық көйлек"}
+      - {term: "желек", meaning: "қалыңдықтың бетін жабатын жамылғы"}
+      - {term: "кестелі белбеу", meaning: "күміс, алтын шытырамен әшекейленген белдік"}
+
+- slug: terms-14
+  kind: term_list
+  topic: tagam
+  title: "Сүттен жасалатын тағамдар"
+  body: "Төрт түліктің сүтінен қазақ ондаған тағам жасайды:"
+  image: terms/kumis.jpg
+  image_credit: "Фото: Upyernoz on Flickr, Wikimedia Commons, CC BY 2.0"
+  payload:
+    items:
+      - {term: "қымыз", meaning: "ашытылған бие сүті"}
+      - {term: "шұбат", meaning: "ашытылған түйе сүті"}
+      - {term: "айран", meaning: "ашытылған сиыр сүті"}
+      - {term: "қатық", meaning: "қою айран"}
+      - {term: "құрт", meaning: "кептірілген тұзды сүзбе"}
+      - {term: "ірімшік", meaning: "қайнатылған сүттен жасалған"}
+      - {term: "сүзбе", meaning: "сүзілген қою айран"}
+      - {term: "сары май", meaning: "айраннан шайқап алынған май"}
+      - {term: "қаймақ", meaning: "сүттің бетіндегі қалың қабат"}
+
+- slug: terms-15
+  kind: term_list
+  topic: tagam
+  title: "Ет тағамдары мен мүшелер"
+  body: "Табаққа ет мүшелермен тартылады, әр мүшенің өз құрметі бар:"
+  image: terms/kazy.jpg
+  image_credit: "Фото: Sara Yeomans, Wikimedia Commons, CC BY 2.0"
+  payload:
+    items:
+      - {term: "бас", meaning: "ең құрметті қонаққа тартылады"}
+      - {term: "жамбас", meaning: "үлкен кісілерге"}
+      - {term: "асықты жілік", meaning: "құрметті қонаққа"}
+      - {term: "тоқпан жілік", meaning: "күйеу бала мен жастарға"}
+      - {term: "қазы", meaning: "жылқының қабырға етінен жасалған шұжық"}
+      - {term: "қарта", meaning: "жылқының тік ішегінен жасалған тағам"}
+      - {term: "жал", meaning: "жылқының жалындағы май"}
+      - {term: "жая", meaning: "жылқының жамбас еті"}
+
+- slug: terms-16
+  kind: term_list
+  topic: tagam
+  title: "Ұннан жасалатын тағамдар"
+  image: terms/baursak.jpg
+  image_credit: "Фото: Ds02006, Wikimedia Commons, қоғамдық игілік"
+  payload:
+    items:
+      - {term: "бауырсақ", meaning: "ашыған қамырдан майға пісірілген"}
+      - {term: "шелпек", meaning: "жұқа, дөңгелек, майға пісірілген"}
+      - {term: "таба нан", meaning: "табаға, күлге пісірілген нан"}
+      - {term: "жент", meaning: "талқан, май, қант қосылған тәтті"}
+      - {term: "талқан", meaning: "қуырылған тарыны ұнтақтаған"}
+      - {term: "құймақ", meaning: "сұйық қамырдан пісірілген"}
+      - {term: "бидай көже", meaning: "бидай қосылған сүтті көже"}
+      - {term: "наурыз көже", meaning: "жеті дәмнен жасалатын наурыз тағамы"}
+
+- slug: terms-17
+  kind: term_list
+  topic: oiyn
+  title: "Ат үстіндегі ұлттық ойындар"
+  image: terms/kokpar.jpg
+  image_credit: "Фото: Rustam Uzbekov, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    items:
+      - {term: "көкпар", meaning: "салт аттылар лақты тартысады"}
+      - {term: "бәйге", meaning: "ат жарысы"}
+      - {term: "аударыспақ", meaning: "салт аттылар бірін-бірі аттан аударады"}
+      - {term: "қыз қуу", meaning: "жігіт қызды қуып жетуге тырысады"}
+      - {term: "теңге ілу", meaning: "шауып келе жатып жерден теңге іліп алу"}
+      - {term: "жамбы ату", meaning: "ат үстінен нысанаға садақ ату"}
+      - {term: "жорға жарыс", meaning: "жорға аттардың жарысы"}
+
+- slug: terms-18
+  kind: term_list
+  topic: oiyn
+  title: "Үй ішіндегі және далада ойналатын ойындар"
+  image: terms/kokpar_rubo.jpg
+  image_credit: "Фото: Franz Roubaud, Wikimedia Commons, қоғамдық игілік"
+  payload:
+    items:
+      - {term: "тоғызқұмалақ", meaning: "162 құмалақпен ойналатын логикалық ойын"}
+      - {term: "асық ату", meaning: "қой тобығымен ойналады"}
+      - {term: "хан талапай", meaning: "асықтарды таратып алу ойыны"}
+      - {term: "ақсүйек", meaning: "түнде ақ сүйекті іздеу ойыны"}
+      - {term: "айгөлек", meaning: "қыз-жігіттердің дөңгелек ойыны"}
+      - {term: "соқыр теке", meaning: "көзі байланған адам ұстау ойыны"}
+      - {term: "бес тас", meaning: "бес тасты лақтырып қағу ойыны"}
+
+- slug: terms-19
+  kind: term_list
+  topic: tuystyq
+  title: "Туыстық атаулар: әке жағы"
+  payload:
+    items:
+      - {term: "ата", meaning: "әкенің әкесі"}
+      - {term: "әже", meaning: "әкенің анасы"}
+      - {term: "аға", meaning: "үлкен ер бауыр немесе әкенің інісі"}
+      - {term: "іні", meaning: "кіші ер бауыр"}
+      - {term: "әпке", meaning: "үлкен қыз бауыр"}
+      - {term: "сіңлі", meaning: "қыз балаға кіші қыз бауыр"}
+      - {term: "қарындас", meaning: "ер балаға кіші қыз бауыр"}
+      - {term: "немере", meaning: "баланың баласы"}
+      - {term: "шөбере", meaning: "немеренің баласы"}
+      - {term: "шөпшек", meaning: "шөбереден туған бала"}
+    note: "Немере, шөбере, шөпшек, немене, туажат, жүрежат — жеті атаға дейін."
+
+- slug: terms-20
+  kind: term_list
+  topic: tuystyq
+  title: "Туыстық атаулар: ана жағы"
+  payload:
+    items:
+      - {term: "нағашы", meaning: "ананың туыстары"}
+      - {term: "нағашы ата", meaning: "ананың әкесі"}
+      - {term: "нағашы әже", meaning: "ананың анасы"}
+      - {term: "нағашы аға", meaning: "ананың ағасы/інісі"}
+      - {term: "нағашы апа", meaning: "ананың әпкесі/сіңлісі"}
+      - {term: "жиен", meaning: "қыздан туған бала — нағашыларына"}
+      - {term: "жиеншар", meaning: "жиеннің баласы"}
+      - {term: "бөле", meaning: "апалы-сіңлілі әйелдердің балалары бір-біріне"}
+    note: "«Жиен ел болмас, желке ас болмас» — мақал, бірақ «жиеннің қалауын бермеу — сын»."
+
+- slug: terms-21
+  kind: term_list
+  topic: tuystyq
+  title: "Туыстық атаулар: неке арқылы"
+  image: terms/wedding.jpg
+  image_credit: "Фото: Amhogas, Wikimedia Commons, CC BY-SA 4.0"
+  payload:
+    items:
+      - {term: "келін", meaning: "ұлдың әйелі"}
+      - {term: "күйеу бала", meaning: "қыздың күйеуі"}
+      - {term: "жезде", meaning: "әпкенің күйеуі"}
+      - {term: "жеңге", meaning: "ағаның әйелі"}
+      - {term: "балдыз", meaning: "әйелдің сіңлісі / інісі (ер адамға)"}
+      - {term: "қайын аға", meaning: "жұбайының ағасы"}
+      - {term: "қайын сіңлі", meaning: "күйеуінің кіші қарындасы"}
+      - {term: "абысын", meaning: "ағайынды жігіттердің әйелдері бір-біріне"}
+      - {term: "бажа", meaning: "апалы-сіңлілі қыздарды алған ер адамдар бір-біріне"}
+      - {term: "құда", meaning: "бала-шағасы үйленген екі жақтың ата-анасы бір-біріне"}
+
+- slug: terms-22
+  kind: term_list
+  topic: salt
+  title: "Бала туылғандағы дәстүрлер"
+  payload:
+    items:
+      - {term: "шілдехана", meaning: "бала туылған күнгі қуаныш кеші"}
+      - {term: "ат қою", meaning: "балаға есім беру"}
+      - {term: "бесікке салу", meaning: "баланы бесікке бөлеу рәсімі"}
+      - {term: "қырқынан шығару", meaning: "40 күндік баланы 40 қасық сумен шомылдыру"}
+      - {term: "тұсаукесер", meaning: "алғашқы қадамда аяғындағы бауды кесу"}
+      - {term: "тілашар", meaning: "мектепке барардағы қуаныш"}
+      - {term: "сүндет той", meaning: "ұл баланың сүндетке отыруы"}
+
+- slug: terms-23
+  kind: term_list
+  topic: salt
+  title: "Үйлену дәстүрлері"
+  payload:
+    items:
+      - {term: "құда түсу", meaning: "қыз айттыру, құдалық"}
+      - {term: "сырға салу", meaning: "қызға сырға тағып, келісім белгісі"}
+      - {term: "қалың мал", meaning: "қыз жағына берілетін мал"}
+      - {term: "қыз ұзату", meaning: "қыздың төркінінен аттануы"}
+      - {term: "беташар", meaning: "келіннің бетін ашу, туыстармен таныстыру"}
+      - {term: "отқа май құю", meaning: "келіннің ошаққа май құюы — үйге кіру"}
+      - {term: "неке қияр", meaning: "дін жолымен неке бекіту"}
+      - {term: "есік көру", meaning: "келіннің төркініне баруы"}
+
+- slug: terms-24
+  kind: term_list
+  topic: salt
+  title: "Сый-сияпат атаулары"
+  body: "Қазақта әр жағдайға өз сыйы бар:"
+  payload:
+    items:
+      - {term: "сүйінші", meaning: "жақсы хабар жеткізушіге"}
+      - {term: "көрімдік", meaning: "жаңа нәрсені (сәби, келін) көргенде"}
+      - {term: "байғазы", meaning: "жаңа зат алғанда балаға беріледі"}
+      - {term: "кәде", meaning: "той-думандағы дәстүрлі сый"}
+      - {term: "шашу", meaning: "қуанышта шашылатын тәттілер"}
+      - {term: "ерулік", meaning: "жаңа көшіп келген көршіге берілетін дәм"}
+      - {term: "сарқыт", meaning: "қонақтан үйге әкелінетін дәм"}
+      - {term: "бата", meaning: "ақ тілек, алғыс сөз"}
+
+- slug: terms-25
+  kind: term_list
+  topic: mushel
+  title: "Мүшел жыл — 12 жануар"
+  body: "Он екі жылдық цикл — мүшел. Жылдар кезегімен:"
+  payload:
+    items:
+      - {term: "тышқан", meaning: "1-ші жыл"}
+      - {term: "сиыр", meaning: "2-ші"}
+      - {term: "барыс", meaning: "3-ші"}
+      - {term: "қоян", meaning: "4-ші"}
+      - {term: "ұлу", meaning: "5-ші"}
+      - {term: "жылан", meaning: "6-шы"}
+      - {term: "жылқы", meaning: "7-ші"}
+      - {term: "қой", meaning: "8-ші"}
+      - {term: "мешін", meaning: "9-шы"}
+      - {term: "тауық", meaning: "10-шы"}
+      - {term: "ит", meaning: "11-ші"}
+      - {term: "доңыз", meaning: "12-ші"}
+    note: "Адамның мүшелі 13, 25, 37, 49, 61, 73 жаста — «мүшел жас»."
+
+- slug: terms-26
+  kind: term_list
+  topic: mushel
+  title: "Ай атаулары"
+  body: "Айлардың қазақша атаулары табиғатпен байланысты:"
+  payload:
+    items:
+      - {term: "қаңтар", meaning: "күн қаңтарылып, ұзара бастайды"}
+      - {term: "ақпан", meaning: "ақпа боран айы"}
+      - {term: "наурыз", meaning: "жаңа күн, жыл басы"}
+      - {term: "көкек", meaning: "көкек құсы келеді"}
+      - {term: "мамыр", meaning: "көк шығып, мал мамырлайды"}
+      - {term: "маусым", meaning: "мал төлдеу маусымы аяқталады"}
+      - {term: "шілде", meaning: "ыстық, «шілде» — қырық күн"}
+      - {term: "тамыз", meaning: "от тамызатын шөп қурау кезі"}
+      - {term: "қыркүйек", meaning: "қошқарға күйек байлау айы"}
+      - {term: "қазан", meaning: "көктің қазаны — қурау"}
+      - {term: "қараша", meaning: "қар аралас, қара жер"}
+      - {term: "желтоқсан", meaning: "жел мен тоқсан — қыс тоқсаны"}
+
+- slug: terms-27
+  kind: term_list
+  topic: olshem
+  title: "Ұзындық өлшемдері"
+  body: "Қазақ ұзындықты денесімен өлшеген:"
+  payload:
+    items:
+      - {term: "елі", meaning: "бір саусақтың ені"}
+      - {term: "сүйем", meaning: "бас бармақ пен сұқ саусақтың арасы"}
+      - {term: "қарыс", meaning: "бас бармақ пен шынашақтың арасы"}
+      - {term: "тұтам", meaning: "жұдырықтың ені"}
+      - {term: "шынтақ", meaning: "шынтақтан саусақ ұшына дейін"}
+      - {term: "құлаш", meaning: "екі қолды жайғандағы ара"}
+      - {term: "адым", meaning: "бір қадам"}
+      - {term: "шақырым", meaning: "дауыс жететін жер — ~1 км"}
+
+- slug: terms-28
+  kind: term_list
+  topic: olshem
+  title: "Уақыт өлшемдері"
+  body: "Сағат болмаған заманда уақытты іспен өлшеген:"
+  payload:
+    items:
+      - {term: "сүт пісірім", meaning: "сүт пісетін уақыт — 10–15 минут"}
+      - {term: "ет асым", meaning: "ет асатын уақыт — 2–3 сағат"}
+      - {term: "бие сауым", meaning: "биені сауу аралығы — 1–1,5 сағат"}
+      - {term: "шай қайнатым", meaning: "шай қайнатқанша — 15–20 минут"}
+      - {term: "көз байлану", meaning: "қас қарайған кез"}
+      - {term: "таң сәрі", meaning: "таң алдындағы мезгіл"}
+      - {term: "сәске", meaning: "күн көтерілген түс алдындағы уақыт"}
+      - {term: "бесін", meaning: "түстен кейінгі уақыт"}
+
+- slug: terms-29
+  kind: term_list
+  topic: zhuldyz
+  title: "Жұлдыз атаулары"
+  body: "Аспан денелерінің қазақша атаулары:"
+  payload:
+    items:
+      - {term: "Темірқазық", meaning: "Полярная — солтүстікті көрсетеді"}
+      - {term: "Жетіқарақшы", meaning: "Үлкен Аю шоқжұлдызы"}
+      - {term: "Үркер", meaning: "Плеяда шоқжұлдызы"}
+      - {term: "Шолпан", meaning: "Венера — таңғы/кешкі жарық жұлдыз"}
+      - {term: "Сүмбіле", meaning: "Сириус — күз белгісі"}
+      - {term: "Есекқырған", meaning: "Марс"}
+      - {term: "Таразы", meaning: "Орион белдігі"}
+      - {term: "Құс жолы", meaning: "Галактикамыз — Млечный путь"}
+    note: "«Үркер жерге түспей, жер қызбайды» — маусым туралы мақал."
+
+- slug: terms-30
+  kind: term_list
+  topic: mal
+  title: "Ер-тұрман атаулары"
+  image: terms/saddle.jpg
+  image_credit: "Фото: Лапоть, Wikimedia Commons, CC0"
+  payload:
+    items:
+      - {term: "ер", meaning: "аттың үстіне салынатын отырғыш"}
+      - {term: "тоқым", meaning: "ердің астына салынатын киіз"}
+      - {term: "үзеңгі", meaning: "аяқ тірейтін ілмек"}
+      - {term: "айыл", meaning: "ерді бекітетін таспа"}
+      - {term: "жүген", meaning: "аттың басына кигізетін әбзел"}
+      - {term: "ауыздық", meaning: "аттың аузына салынатын темір"}
+      - {term: "тізгін", meaning: "жүгеннің ұзын таспасы"}
+      - {term: "құйысқан", meaning: "ердің құйрық жағындағы таспа"}
+      - {term: "өмілдірік", meaning: "ердің кеуде жағындағы таспа"}
+      - {term: "қамшы", meaning: "ат айдайтын өрме"}
+
+- slug: terms-31
+  kind: term_list
+  topic: mal
+  title: "Төрт түлік және пірлері"
+  body: "Аңызда әр түліктің қамқор пірі бар:"
+  image: terms/camel_calf.jpg
+  image_credit: "Фото: Marmoset1000 at en.wikipedia, Wikimedia Commons, қоғамдық игілік"
+  payload:
+    items:
+      - {term: "жылқы", meaning: "пірі — Қамбар ата"}
+      - {term: "түйе", meaning: "пірі — Ойсыл қара"}
+      - {term: "қой", meaning: "пірі — Шопан ата"}
+      - {term: "сиыр", meaning: "пірі — Зеңгі баба"}
+      - {term: "ешкі", meaning: "пірі — Шекшек ата"}
+    note: "Ешкіні қоймен бірге «қой» түлігіне қосып, «төрт түлік» деп атайды."
+
+- slug: terms-32
+  kind: term_list
+  topic: salt
+  title: "Қонақжайлылық дәстүрі"
+  payload:
+    items:
+      - {term: "қонақасы", meaning: "қонаққа арналған тамақ — міндетті дәстүр"}
+      - {term: "дастарқан", meaning: "ас жайылған орын, дәм"}
+      - {term: "төрге шығу", meaning: "құрметті орынға отыру"}
+      - {term: "бас тарту", meaning: "ең үлкен қонаққа бас тарту"}
+      - {term: "табақ тарту", meaning: "ет мүшелермен табаққа салып тарту"}
+      - {term: "бата беру", meaning: "ас соңында алғыс тілек"}
+      - {term: "аттандыру", meaning: "қонақты шығарып салу"}
+    note: "«Қонақ келсе — құт келеді» — қазақ мақалы."
+
+- slug: terms-33
+  kind: term_list
+  topic: oiyn
+  title: "Аңшылық атаулары"
+  image: terms/eagle.jpg
+  image_credit: "Фото: Altaihunters, Wikimedia Commons, CC BY-SA 3.0"
+  payload:
+    items:
+      - {term: "құсбегі", meaning: "аңшы құс баптаушы"}
+      - {term: "бүркітші", meaning: "бүркітпен аңшылық етуші"}
+      - {term: "томаға", meaning: "құстың басына кигізетін қалпақ"}
+      - {term: "балдақ", meaning: "құс отыратын ағаш"}
+      - {term: "биялай", meaning: "құс қондыратын қолғап"}
+      - {term: "саятшы", meaning: "салбурын аңшысы"}
+      - {term: "тазы", meaning: "аңшы ит"}
+      - {term: "салбурын", meaning: "ұзақ мерзімді ұжымдық аңшылық"}

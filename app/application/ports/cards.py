@@ -12,6 +12,7 @@ from app.domain.channel.cards import CardSpec
 
 
 class CardRenderer(Protocol):
-    def render(self, spec: CardSpec, portrait: bytes) -> bytes:
-        """Битый портрет → ValueError (сидер остановится до записи)."""
+    def render(self, spec: CardSpec, portrait: bytes | None) -> bytes:
+        """`portrait=None` — автор без открытого фото: вместо портрета инициал в круге.
+        Битый портрет → ValueError (сидер остановится до записи)."""
         ...

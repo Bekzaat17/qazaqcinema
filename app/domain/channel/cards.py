@@ -18,7 +18,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class CardSpec:
     title: str            # крупно: «Бірінші сөз» / текст цитаты у нақыл сөз
-    portrait: str         # путь к портрету относительно content/images/
+    portrait: str = ""    # путь к портрету относительно content/images/; пусто → инициал в круге
     label: str = ""       # рубрика капителями: «АБАЙДЫҢ ҚАРА СӨЗДЕРІ»
     subtitle: str = ""    # автор и годы: «Абай Құнанбайұлы · 1845–1904»
 
