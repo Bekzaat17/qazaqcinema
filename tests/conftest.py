@@ -11,7 +11,10 @@ from app.infrastructure.db.engine import create_engine
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-_TABLES = "users, movies, payment_requests, user_events, favorites, daily_reports, milestones"
+_TABLES = (
+    "users, movies, payment_requests, user_events, favorites, "
+    "daily_reports, milestones, search_queries"
+)
 
 
 def _require_test_db() -> None:

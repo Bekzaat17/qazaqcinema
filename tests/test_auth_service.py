@@ -10,7 +10,7 @@ from app.domain.analytics.events import EventKind
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 
-from tests.fakes import FakeEvents
+from tests.fakes import FakeEvents, FakeSearches
 
 
 class _FakeVerifier:
@@ -47,7 +47,9 @@ def _service(
 ) -> AuthService:
     """Сборка сервиса: журнал и `UserActivityService` нужны всем тестам одинаково."""
     log = events or FakeEvents()
-    return AuthService(_FakeVerifier(tg_user), repo, log, UserActivityService(repo, log))
+    return AuthService(
+        _FakeVerifier(tg_user), repo, log, UserActivityService(repo, log, FakeSearches())
+    )
 
 
 async def test_creates_new_user_on_first_auth() -> None:
@@ -81,6 +83,37 @@ async def test_refreshes_username_when_it_changed() -> None:
 
     assert user.username == "neo"
     assert repo.store[7].username == "neo"
+    assert user.status is UserStatus.ACTIVE  # прочие поля не тронуты
+
+
+async def test_stores_premium_flag_on_first_auth() -> None:
+    """Premium приходит в подписанном initData — забираем сразу при заведении юзера."""
+    repo = _FakeUserRepo()
+    service = _service(TelegramUser(id=7, username="neo", is_premium=True), repo)
+
+    user = await service.authenticate("valid")
+
+    assert user.is_premium is True
+    assert repo.store[7].is_premium is True
+
+
+async def test_refreshes_premium_when_it_changed() -> None:
+    """Premium покупают и бросают: свежее значение из initData правдивее сохранённого.
+
+    Проверяем и обратный переход (был Premium → перестал): признак не «однажды
+    выданный», а текущее состояние, и залипнуть в True он не имеет права — иначе
+    доля Premium в отчёте только росла бы, никогда не убывая.
+    """
+    repo = _FakeUserRepo()
+    repo.store[7] = User(telegram_id=7, username="neo", status=UserStatus.ACTIVE)
+    gained = _service(TelegramUser(id=7, username="neo", is_premium=True), repo)
+
+    assert (await gained.authenticate("valid")).is_premium is True
+
+    lost = _service(TelegramUser(id=7, username="neo", is_premium=False), repo)
+
+    user = await lost.authenticate("valid")
+    assert user.is_premium is False
     assert user.status is UserStatus.ACTIVE  # прочие поля не тронуты
 
 

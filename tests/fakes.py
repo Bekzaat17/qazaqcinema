@@ -2,7 +2,7 @@
 
 Журнал событий: его порт появился сразу у трёх сервисов (auth/playback/subscription),
 и копировать один и тот же заглушечный класс в каждый тест-файл смысла нет. Плюс
-пара мелких фейков под `AnalyticsService` (каталог + история снимков).
+пара мелких фейков под `AnalyticsService` (каталог + история снимков + спрос словами).
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from datetime import date, datetime
 from app.domain.analytics.events import EventKind
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
+from app.domain.analytics.search import SearchDemand
 
 
 class FakeEvents:
@@ -33,6 +34,42 @@ class FakeEvents:
 
     def kinds_for(self, user_id: int) -> list[EventKind]:
         return [k for uid, k, _m in self.added if uid == user_id]
+
+
+class FakeSearches:
+    """Фейк `SearchQueryRepository`: копит запросы, считает и группирует по накопленному."""
+
+    def __init__(self) -> None:
+        self.added: list[tuple[int, str, int]] = []
+
+    async def add(self, user_id: int, query: str, found: int) -> None:
+        self.added.append((user_id, query, found))
+
+    async def count(self, since: datetime, until: datetime) -> int:
+        return len(self.added)
+
+    async def count_missing(self, since: datetime, until: datetime) -> int:
+        return sum(1 for _uid, _q, found in self.added if found == 0)
+
+    async def top(self, since: datetime, until: datetime, limit: int) -> list[SearchDemand]:
+        return self._group(self.added, limit)
+
+    async def top_missing(
+        self, since: datetime, until: datetime, limit: int
+    ) -> list[SearchDemand]:
+        return self._group([row for row in self.added if row[2] == 0], limit)
+
+    @staticmethod
+    def _group(rows: list[tuple[int, str, int]], limit: int) -> list[SearchDemand]:
+        by_query: dict[str, list[int]] = {}
+        for user_id, query, _found in rows:
+            by_query.setdefault(query, []).append(user_id)
+        demands = [
+            SearchDemand(query=query, hits=len(users), people=len(set(users)))
+            for query, users in by_query.items()
+        ]
+        demands.sort(key=lambda d: (-d.hits, -d.people, d.query))
+        return demands[:limit]
 
 
 class FakeMovies:

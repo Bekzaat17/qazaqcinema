@@ -14,6 +14,7 @@ from app.infrastructure.db.repositories import (
     PgMilestoneRepository,
     PgMovieRepository,
     PgPaymentRepository,
+    PgSearchQueryRepository,
     PgUserEventRepository,
     PgUserRepository,
     PgVideoDeliveryRepository,
@@ -438,6 +439,71 @@ async def test_user_counters_ignore_excluded_ids(session: AsyncSession) -> None:
     assert await users.count_active(now) == 1
     assert await users.count_created_since(now - timedelta(minutes=5)) == 3
     assert await users.count_created_since(now + timedelta(minutes=5)) == 0
+
+
+async def test_premium_and_returned_counts(session: AsyncSession) -> None:
+    """`count_premium` — сток, `count_returned` — когорта «зарегистрировался и вернулся».
+
+    Возврат обязан считаться по `OPEN` и ТОЛЬКО внутри окна: если бы в счёт шли
+    события того же дня, что и регистрация, метрика показывала бы «вернулись все» —
+    первый вход человека тоже пишет `open`.
+    """
+    users = PgUserRepository(session)
+    events = PgUserEventRepository(session)
+    await users.upsert(User(telegram_id=1, is_premium=True))
+    await users.upsert(User(telegram_id=2, is_premium=True))
+    await users.upsert(User(telegram_id=3))
+
+    assert await users.count_premium() == 2
+    assert await users.count_premium(exclude=[1]) == 1
+
+    now = datetime.now(UTC)
+    # Когорта — все трое (заведены только что); «вернулись» — те, у кого есть `open`.
+    await events.add(1, EventKind.OPEN)
+    await events.add(2, EventKind.START)  # /start возвратом не считается
+    cohort = (now - timedelta(minutes=5), now + timedelta(minutes=5))
+    window = (now - timedelta(minutes=5), now + timedelta(minutes=5))
+
+    assert await users.count_returned(*cohort, *window) == 1
+    assert await users.count_returned(*cohort, *window, exclude=[1]) == 0
+    # Окно возврата в будущем — не вернулся никто, хотя когорта та же.
+    future = (now + timedelta(minutes=5), now + timedelta(hours=1))
+    assert await users.count_returned(*cohort, *future) == 0
+
+
+async def test_search_queries_group_into_demand(session: AsyncSession) -> None:
+    """Топ спроса и очередь на озвучку (`found = 0`) — из одной таблицы, разными предикатами."""
+    users = PgUserRepository(session)
+    await users.upsert(User(telegram_id=1))
+    await users.upsert(User(telegram_id=2))
+    searches = PgSearchQueryRepository(session)
+    now = datetime.now(UTC)
+
+    await searches.add(1, "шрек", found=2)
+    await searches.add(2, "шрек", found=2)
+    await searches.add(1, "гарри поттер", found=0)
+    await searches.add(2, "гарри поттер", found=0)
+    await searches.add(1, "наруто", found=0)
+
+    window = (now - timedelta(minutes=5), now + timedelta(minutes=5))
+    assert await searches.count(*window) == 5
+    assert await searches.count_missing(*window) == 3
+
+    top = await searches.top(*window, limit=10)
+    assert [(d.query, d.hits, d.people) for d in top[:2]] == [
+        ("гарри поттер", 2, 2),
+        ("шрек", 2, 2),
+    ]
+
+    # Очередь на озвучку: только ненайденное, найденный «шрек» сюда не попадает.
+    queue = await searches.top_missing(*window, limit=10)
+    assert [(d.query, d.hits, d.people) for d in queue] == [
+        ("гарри поттер", 2, 2),
+        ("наруто", 1, 1),
+    ]
+
+    future = (now + timedelta(minutes=5), now + timedelta(hours=1))
+    assert await searches.top_missing(*future, limit=10) == []
 
 
 async def test_user_event_counts_by_kind_and_window(session: AsyncSession) -> None:

@@ -25,6 +25,9 @@ class User:
     # проставляются один раз, атомарно (`UserRepository.claim_free_view`).
     free_view_used_at: datetime | None = None  # None → подарок ещё не потрачен
     free_view_movie_id: int | None = None      # какой фильм подарен (None у плативших-до-запуска)
+    # Telegram Premium — прокси платёжеспособности из initData. В доступе НЕ участвует
+    # (`has_active_access` его не смотрит): это признак аудитории, а не право.
+    is_premium: bool = False
 
     def has_active_access(self, now: datetime) -> bool:
         """Единственный источник правды о доступе (used: inline-выдача, API-гейт)."""

@@ -261,6 +261,21 @@ export const api = {
       body: JSON.stringify({ movie_id: movieId }),
     }),
 
+  /**
+   * Спрос словами: запрос, на котором человек ОСТАНОВИЛСЯ, и сколько по нему нашлось.
+   *
+   * Шлёт именно фронт, а не серверный `/api/movies/search`: поиск дебаунсится на 300 мс,
+   * и сервер видит префиксы недонабранного слова («кун», «кунг ф»). На чём человек
+   * остановился, знает только клиент — по паузе в наборе (см. SEARCH_TRACK_MS в App.tsx).
+   * Фоном: ответ не нужен, ошибка гасится на вызывающей стороне.
+   */
+  trackSearch: (query: string, found: number) =>
+    request<void>("/api/events/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, found }),
+    }),
+
   /** Тумблер рассылок о новинках (Фаза 12): включить/выключить для текущего юзера. */
   setNotifications: (enabled: boolean) =>
     request<{ notifications_enabled: boolean }>("/api/me/notifications", {

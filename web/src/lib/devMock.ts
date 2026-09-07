@@ -129,6 +129,7 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
   } else if (p === "/api/payments/proof") data = { status: "pending_review", request_id: 1 } satisfies ProofAccepted;
   else if (p === "/api/me/write-access") data = { ...AUTH, bot_started: true };
   else if (p === "/api/events/paywall") data = undefined; // 204: событие воронки, тела нет
+  else if (p === "/api/events/search") data = undefined; // 204: спрос словами, тела нет
   else if (p === "/api/me/notifications") {
     const enabled = init?.body ? (JSON.parse(String(init.body)) as { enabled: boolean }).enabled : true;
     data = { notifications_enabled: enabled };

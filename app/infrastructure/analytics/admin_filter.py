@@ -15,8 +15,9 @@ from __future__ import annotations
 from collections.abc import Collection
 from datetime import datetime
 
-from app.application.ports.repositories import UserEventRepository
+from app.application.ports.repositories import SearchQueryRepository, UserEventRepository
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.search import SearchDemand
 
 
 class AdminBlindEventRepository:
@@ -38,3 +39,37 @@ class AdminBlindEventRepository:
         self, kind: EventKind, since: datetime, until: datetime
     ) -> int:
         return await self._inner.count_unique_users(kind, since, until)
+
+
+class AdminBlindSearchRepository:
+    """`SearchQueryRepository`, который молча игнорирует поиск админов.
+
+    Здесь искажение было бы даже грубее, чем в журнале событий: админ ищет фильм по
+    названию каждый раз, когда проверяет свежезалитое, — и его запросы автоматически
+    попадали бы в топ. А главное, они уходили бы в список «искали, но не нашли»:
+    админ ищет то, что ЗАЛИВАЕТ, то есть чего в каталоге пока нет. Очередь на озвучку
+    заполнилась бы тем, что уже готовится к заливке, — ровно наоборот к её смыслу.
+    """
+
+    def __init__(self, inner: SearchQueryRepository, admin_ids: Collection[int]) -> None:
+        self._inner = inner
+        self._admins = frozenset(admin_ids)
+
+    async def add(self, user_id: int, query: str, found: int) -> None:
+        if user_id in self._admins:
+            return
+        await self._inner.add(user_id, query, found)
+
+    async def count(self, since: datetime, until: datetime) -> int:
+        return await self._inner.count(since, until)
+
+    async def count_missing(self, since: datetime, until: datetime) -> int:
+        return await self._inner.count_missing(since, until)
+
+    async def top(self, since: datetime, until: datetime, limit: int) -> list[SearchDemand]:
+        return await self._inner.top(since, until, limit)
+
+    async def top_missing(
+        self, since: datetime, until: datetime, limit: int
+    ) -> list[SearchDemand]:
+        return await self._inner.top_missing(since, until, limit)

@@ -55,14 +55,26 @@ class AuthService:
                     telegram_id=tg_user.id,
                     username=tg_user.username,
                     status=UserStatus.NEW,
+                    is_premium=tg_user.is_premium,
                 )
             )
             return await self._sync_write_access(user, tg_user)
         # Хэндл мог появиться или смениться после первого входа, а он — единственный
         # способ админа ответить на чек/обращение (см. domain/mention.py). Пишем только
         # при расхождении: логин частый, лишний UPDATE ни к чему.
-        if tg_user.username is not None and tg_user.username != user.username:
+        #
+        # Premium сверяем тем же условием и тем же upsert: признак покупают и бросают,
+        # а приходит он в подписанном initData на каждом входе, то есть свежее значение
+        # правдивее сохранённого. Отдельной ручки он не заслуживает (в отличие от
+        # `bot_started_at` и подарка) — это часть карточки юзера, как `username`,
+        # и на права доступа не влияет.
+        changed = tg_user.username is not None and tg_user.username != user.username
+        if changed:
             user.username = tg_user.username
+        if tg_user.is_premium != user.is_premium:
+            user.is_premium = tg_user.is_premium
+            changed = True
+        if changed:
             await self._users.upsert(user)
         return await self._sync_write_access(user, tg_user)
 

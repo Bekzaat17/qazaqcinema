@@ -13,6 +13,7 @@ from typing import Literal, Protocol
 from app.domain.analytics.events import EventKind
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
+from app.domain.analytics.search import SearchDemand
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentStatus
 from app.domain.entities.movie import Movie
@@ -128,6 +129,32 @@ class UserRepository(Protocol):
     async def count_created_since(self, since: datetime, exclude: Collection[int] = ()) -> int: ...
     async def count_active(self, now: datetime, exclude: Collection[int] = ()) -> int: ...
 
+    async def count_premium(self, exclude: Collection[int] = ()) -> int:
+        """Сколько в базе владельцев Telegram Premium — прокси платёжеспособности.
+
+        Величина СТОКОВАЯ (сколько их сейчас), как `count_all`: признак приходит в
+        initData на каждом входе и может смениться в любой момент, поэтому «сколько
+        стало Premium за день» из него не выводится и не считается.
+        """
+        ...
+
+    async def count_returned(
+        self, cohort_start: datetime, cohort_end: datetime, since: datetime, until: datetime,
+        exclude: Collection[int] = (),
+    ) -> int:
+        """Сколько людей, ЗАВЕДЁННЫХ в `[cohort_start, cohort_end)`, заходили в `[since, until)`.
+
+        Единственная метрика, которой у отчёта не было вообще: вернулся человек или нет.
+        Без неё рост «всего юзеров» не отличить от протекающего ведра — а по живым
+        данным именно ведро и протекало (79% посмотревших не вернулись ни разу).
+
+        Считается джойном `users` × `user_events` в БД (один `COUNT(DISTINCT)`, строки
+        наружу не идут) — стоимость не растёт с базой, как и у прочих счётчиков отчёта.
+        Живёт в `UserRepository`, а не в `UserEventRepository`, потому что когорту
+        задаёт дата РЕГИСТРАЦИИ: ведущая таблица здесь `users`.
+        """
+        ...
+
 
 class FavoriteRepository(Protocol):
     """Избранное («Таңдаулы») — личный список, к правам доступа отношения не имеет.
@@ -170,6 +197,44 @@ class UserEventRepository(Protocol):
 
     async def count_unique_users(self, kind: EventKind, since: datetime, until: datetime) -> int:
         """Сколько РАЗНЫХ людей сделали это за период (открытия кинотеатра «по головам»)."""
+        ...
+
+
+class SearchQueryRepository(Protocol):
+    """Спрос, высказанный словами (`domain/analytics/search`).
+
+    Отдельный мелкий порт (ISP): к профилю, доступу и воронке отношения не имеет —
+    здесь только «что спрашивали» и агрегаты по этому. Запись, как и у журнала
+    событий, **fail-open**: аналитика спроса не вправе уронить сам поиск.
+    """
+
+    async def add(self, user_id: int, query: str, found: int) -> None:
+        """Записать запрос (уже нормализованный) и сколько по нему нашлось.
+
+        `found = 0` — та самая заявка на контент, ради которой порт существует.
+        """
+        ...
+
+    async def count(self, since: datetime, until: datetime) -> int: ...
+
+    async def count_missing(self, since: datetime, until: datetime) -> int:
+        """...из них с пустым результатом — сколько раз каталог не ответил на спрос."""
+        ...
+
+    async def top(self, since: datetime, until: datetime, limit: int) -> list[SearchDemand]:
+        """Самые частые запросы за период — что вообще ищут (по убыванию частоты)."""
+        ...
+
+    async def top_missing(
+        self, since: datetime, until: datetime, limit: int
+    ) -> list[SearchDemand]:
+        """Самые частые запросы БЕЗ результата — очередь на озвучку, по убыванию частоты.
+
+        Главный метод порта: остальные описывают, как пользуются каталогом, а этот —
+        чего в каталоге нет. Второй ключ сортировки — число разных людей: один
+        упорный посетитель, перебирающий написания, не должен обгонять запрос,
+        который спросили пятеро.
+        """
         ...
 
 

@@ -9,15 +9,26 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.application.ports.repositories import UserEventRepository, UserRepository
+from app.application.ports.repositories import (
+    SearchQueryRepository,
+    UserEventRepository,
+    UserRepository,
+)
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.search import normalize_query
 from app.domain.entities.user import User
 
 
 class UserActivityService:
-    def __init__(self, users: UserRepository, events: UserEventRepository) -> None:
+    def __init__(
+        self,
+        users: UserRepository,
+        events: UserEventRepository,
+        searches: SearchQueryRepository,
+    ) -> None:
         self._users = users
         self._events = events
+        self._searches = searches
 
     async def register_start(
         self, telegram_id: int, username: str | None, now: datetime
@@ -74,3 +85,22 @@ class UserActivityService:
         await self._events.add(
             telegram_id, EventKind.PAYWALL, meta=str(movie_id) if movie_id else None
         )
+
+    async def register_search(self, telegram_id: int, query: str, found: int) -> None:
+        """Человек искал в каталоге — и вот что нашёл (`found = 0` = не нашёл ничего).
+
+        Пишет ФРОНТ, а не серверный `/api/movies/search`, и это принципиально. Поиск
+        на фронте дебаунсится на 300 мс, то есть один человек, набирая «кунг фу панда»,
+        отправляет серверу «кун», «кунг ф», «кунг фу пан» — префиксы недонабранного
+        слова. Записывай мы каждый такой запрос, топ спроса состоял бы из огрызков, а
+        очередь на озвучку — из них же с нулевым результатом. «На чём человек
+        ОСТАНОВИЛСЯ» знает только клиент (по паузе в наборе), поэтому факт приходит
+        оттуда — та же причина, по которой оттуда приходит `paywall` (решение
+        2026-08-25): сервер об этой развилке не узнаёт по своим запросам.
+
+        Слишком короткий запрос отбрасывает `normalize_query` — спроса в одной букве нет.
+        """
+        normalized = normalize_query(query)
+        if not normalized:
+            return
+        await self._searches.add(telegram_id, normalized, max(found, 0))

@@ -32,6 +32,7 @@ from app.application.ports.repositories import SortDir, SortField
 from app.domain.analytics.events import EventKind
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
+from app.domain.analytics.search import SearchDemand
 from app.domain.catalog.popularity import FAVORITE_WEIGHT, PLAY_WEIGHT
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
@@ -46,6 +47,7 @@ from app.infrastructure.db.models import (
     MilestoneModel,
     MovieModel,
     PaymentRequestModel,
+    SearchQueryModel,
     SeasonModel,
     SeriesModel,
     UserEventModel,
@@ -120,6 +122,7 @@ def _user_to_domain(model: UserModel) -> User:
         bot_started_at=model.bot_started_at,
         free_view_used_at=model.free_view_used_at,
         free_view_movie_id=model.free_view_movie_id,
+        is_premium=model.is_premium,
     )
 
 
@@ -444,6 +447,7 @@ class PgUserRepository:
             "expires_at": user.expires_at,
             "selected_tariff": user.selected_tariff,
             "notifications_enabled": user.notifications_enabled,
+            "is_premium": user.is_premium,
         }
         stmt = pg_insert(UserModel).values(**values)
         # notifications_enabled НЕ в set_ намеренно: upsert (логин/activate/expire/reject)
@@ -455,6 +459,12 @@ class PgUserRepository:
         # Поля подарка (free_view_*) — по той же причине НЕ здесь ни в values, ни в set_:
         # их проставляет только атомарный `claim_free_view`. Попади они в upsert — активация
         # подписки или отказ модератора обнулили бы уже потраченный подарок, раздав второй.
+        # `is_premium` — НАОБОРОТ, здесь и в values, и в set_: это часть карточки, которую
+        # Telegram присылает в initData на каждом входе (как `username`), а не внешний факт.
+        # Premium покупают и бросают, поэтому свежее значение из подписанного initData
+        # всегда правдивее сохранённого. Вызовы без initData (`activate`, `expire`,
+        # `/start`) передают сюда объект, прочитанный из БД, — то есть пишут своё же
+        # значение и признак не сбрасывают.
         stmt = stmt.on_conflict_do_update(
             index_elements=["telegram_id"],
             set_={
@@ -462,6 +472,7 @@ class PgUserRepository:
                 "status": stmt.excluded.status,
                 "expires_at": stmt.excluded.expires_at,
                 "selected_tariff": stmt.excluded.selected_tariff,
+                "is_premium": stmt.excluded.is_premium,
             },
         )
         await self._session.execute(stmt)
@@ -563,6 +574,55 @@ class PgUserRepository:
                 UserModel.status == UserStatus.ACTIVE.value,
                 UserModel.expires_at.is_not(None),
                 UserModel.expires_at > now,
+                *_not_in(exclude),
+            )
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def count_premium(self, exclude: Collection[int] = ()) -> int:
+        """Владельцев Telegram Premium в базе — прокси платёжеспособности аудитории."""
+        stmt = (
+            select(func.count())
+            .select_from(UserModel)
+            .where(UserModel.is_premium.is_(True), *_not_in(exclude))
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def count_returned(
+        self,
+        cohort_start: datetime,
+        cohort_end: datetime,
+        since: datetime,
+        until: datetime,
+        exclude: Collection[int] = (),
+    ) -> int:
+        """Из заведённых в `[cohort_start, cohort_end)` — сколько заходило в `[since, until)`.
+
+        `EXISTS`, а не `JOIN` + `COUNT(DISTINCT)`: у одного человека за окно десятки
+        `open`, и джойн раздул бы промежуточный результат, чтобы потом схлопнуть его
+        обратно. `EXISTS` останавливается на первом же событии человека — ровно тот
+        вопрос, который мы задаём («заходил ли вообще»).
+
+        Событие берём `OPEN`, а не `START`: /start нажимают один раз, вернуться —
+        значит снова ОТКРЫТЬ кинотеатр.
+        """
+        returned = (
+            select(UserEventModel.id)
+            .where(
+                UserEventModel.user_id == UserModel.telegram_id,
+                UserEventModel.kind == EventKind.OPEN.value,
+                UserEventModel.created_at >= since,
+                UserEventModel.created_at < until,
+            )
+            .exists()
+        )
+        stmt = (
+            select(func.count())
+            .select_from(UserModel)
+            .where(
+                UserModel.created_at >= cohort_start,
+                UserModel.created_at < cohort_end,
+                returned,
                 *_not_in(exclude),
             )
         )
@@ -685,6 +745,86 @@ class PgUserEventRepository:
             *_event_window(kind, since, until)
         )
         return int(await self._session.scalar(stmt) or 0)
+
+
+class PgSearchQueryRepository:
+    """Спрос словами (`search_queries`). Запись — **fail-open**, как у журнала событий."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, user_id: int, query: str, found: int) -> None:
+        try:
+            self._session.add(SearchQueryModel(user_id=user_id, query=query, found=found))
+            await self._session.commit()
+        except SQLAlchemyError:
+            # Тот же принцип, что у `PgUserEventRepository.add`: сбой аналитики не вправе
+            # уронить сам поиск — человек ищет кино, а не пополняет нам статистику.
+            # rollback обязателен: без него аварийная транзакция уронила бы следующий
+            # запрос в этой же сессии, уже по делу.
+            logger.warning("Поисковый запрос юзера %s не записан", user_id, exc_info=True)
+            await self._session.rollback()
+
+    async def count(self, since: datetime, until: datetime) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(SearchQueryModel)
+            .where(*_search_window(since, until))
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def count_missing(self, since: datetime, until: datetime) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(SearchQueryModel)
+            .where(*_search_window(since, until), SearchQueryModel.found == 0)
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def top(self, since: datetime, until: datetime, limit: int) -> list[SearchDemand]:
+        return await self._top(since, until, limit, missing_only=False)
+
+    async def top_missing(
+        self, since: datetime, until: datetime, limit: int
+    ) -> list[SearchDemand]:
+        return await self._top(since, until, limit, missing_only=True)
+
+    async def _top(
+        self, since: datetime, until: datetime, limit: int, *, missing_only: bool
+    ) -> list[SearchDemand]:
+        """Группировка по уже нормализованному `query` (см. `domain/analytics/search`).
+
+        Оба публичных метода отличаются ровно одним предикатом, поэтому запрос один:
+        разница «что ищут» и «чего не нашли» — в данных, не в логике.
+        """
+        hits = func.count().label("hits")
+        people = func.count(distinct(SearchQueryModel.user_id)).label("people")
+        conditions: list[ColumnElement[bool]] = list(_search_window(since, until))
+        if missing_only:
+            conditions.append(SearchQueryModel.found == 0)
+        stmt = (
+            select(SearchQueryModel.query, hits, people)
+            .where(*conditions)
+            .group_by(SearchQueryModel.query)
+            # Второй ключ — число разных людей: пять человек с одним запросом весомее
+            # пяти попыток одного, а по частоте они неотличимы. Третий — сам текст,
+            # чтобы порядок был устойчив и отчёт не «дрожал» между прогонами.
+            .order_by(hits.desc(), people.desc(), SearchQueryModel.query)
+            .limit(limit)
+        )
+        rows = await self._session.execute(stmt)
+        return [
+            SearchDemand(query=row.query, hits=row.hits, people=row.people)
+            for row in rows
+        ]
+
+
+def _search_window(since: datetime, until: datetime) -> tuple[ColumnElement[bool], ...]:
+    """Полуинтервал `[since, until)` — как у окна событий: сутки не пересекаются."""
+    return (
+        SearchQueryModel.created_at >= since,
+        SearchQueryModel.created_at < until,
+    )
 
 
 class PgDailyReportRepository:

@@ -14,7 +14,7 @@ from app.domain.analytics.events import EventKind
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 
-from tests.fakes import FakeEvents
+from tests.fakes import FakeEvents, FakeSearches
 
 _NOW = datetime(2026, 8, 13, tzinfo=UTC)
 
@@ -42,8 +42,9 @@ class _FakeUsers:
 async def test_start_creates_new_user_and_records_event() -> None:
     users = _FakeUsers()
     events = FakeEvents()
+    searches = FakeSearches()
 
-    await UserActivityService(users, events).register_start(42, "neo", _NOW)
+    await UserActivityService(users, events, searches).register_start(42, "neo", _NOW)
 
     created = users.store[42]
     assert created.status is UserStatus.NEW
@@ -62,8 +63,9 @@ async def test_start_does_not_wipe_active_subscription() -> None:
     )
     users = _FakeUsers(active)
     events = FakeEvents()
+    searches = FakeSearches()
 
-    await UserActivityService(users, events).register_start(42, "neo", _NOW)
+    await UserActivityService(users, events, searches).register_start(42, "neo", _NOW)
 
     assert users.store[42].status is UserStatus.ACTIVE
     assert users.store[42].expires_at == _NOW + timedelta(days=10)
@@ -74,8 +76,9 @@ async def test_start_does_not_wipe_active_subscription() -> None:
 async def test_start_refreshes_changed_username() -> None:
     users = _FakeUsers(User(telegram_id=42, username="old", status=UserStatus.ACTIVE))
     events = FakeEvents()
+    searches = FakeSearches()
 
-    await UserActivityService(users, events).register_start(42, "new", _NOW)
+    await UserActivityService(users, events, searches).register_start(42, "new", _NOW)
 
     assert users.store[42].username == "new"
     assert users.store[42].status is UserStatus.ACTIVE  # статус не пострадал
@@ -86,8 +89,10 @@ async def test_write_access_opens_cinema_without_visiting_chat() -> None:
     """Разрешение писать в личку = тот же итог, что и /start, но без ухода в чат."""
     users = _FakeUsers(User(telegram_id=42, username="neo", status=UserStatus.NEW))
     events = FakeEvents()
+    searches = FakeSearches()
 
-    await UserActivityService(users, events).register_write_access(42, _NOW, source="prompt")
+    service = UserActivityService(users, events, searches)
+    await service.register_write_access(42, _NOW, source="prompt")
 
     assert users.store[42].bot_started_at == _NOW
     assert events.added == [(42, EventKind.WRITE_ACCESS, "prompt")]
@@ -97,8 +102,10 @@ async def test_write_access_keeps_source_apart() -> None:
     """«auto» (узнали из initData) и «prompt» (нажал в попапе) — разные дороги воронки."""
     users = _FakeUsers(User(telegram_id=42, status=UserStatus.NEW))
     events = FakeEvents()
+    searches = FakeSearches()
 
-    await UserActivityService(users, events).register_write_access(42, _NOW, source="auto")
+    service = UserActivityService(users, events, searches)
+    await service.register_write_access(42, _NOW, source="auto")
 
     assert events.added == [(42, EventKind.WRITE_ACCESS, "auto")]
 
@@ -106,8 +113,9 @@ async def test_write_access_keeps_source_apart() -> None:
 async def test_paywall_event_carries_movie() -> None:
     users = _FakeUsers()
     events = FakeEvents()
+    searches = FakeSearches()
 
-    await UserActivityService(users, events).register_paywall(42, 144)
+    await UserActivityService(users, events, searches).register_paywall(42, 144)
 
     assert events.added == [(42, EventKind.PAYWALL, "144")]
 
@@ -116,7 +124,8 @@ async def test_paywall_event_without_movie() -> None:
     """Пэйволл открыт не с карточки (кнопка в профиле) — привязывать не к чему."""
     users = _FakeUsers()
     events = FakeEvents()
+    searches = FakeSearches()
 
-    await UserActivityService(users, events).register_paywall(42, None)
+    await UserActivityService(users, events, searches).register_paywall(42, None)
 
     assert events.added == [(42, EventKind.PAYWALL, None)]

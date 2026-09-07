@@ -29,6 +29,7 @@ from app.application.ports.repositories import (
     MilestoneRepository,
     MovieRepository,
     PaymentRepository,
+    SearchQueryRepository,
     SeasonRepository,
     SeriesRepository,
     UserEventRepository,
@@ -59,7 +60,10 @@ from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
 from app.domain.entities.enums import PaymentMethod
-from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
+from app.infrastructure.analytics.admin_filter import (
+    AdminBlindEventRepository,
+    AdminBlindSearchRepository,
+)
 from app.infrastructure.cache.broadcast import RedisBroadcastQueue
 from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.daily_pin import RedisDailyPin
@@ -73,6 +77,7 @@ from app.infrastructure.db.repositories import (
     PgMilestoneRepository,
     PgMovieRepository,
     PgPaymentRepository,
+    PgSearchQueryRepository,
     PgSeasonRepository,
     PgSeriesRepository,
     PgUserEventRepository,
@@ -213,6 +218,15 @@ class RequestProvider(Provider):
         # до БД, а не вычиталась потом при подсчёте.
         return AdminBlindEventRepository(
             PgUserEventRepository(session), config.bot.admin_user_ids
+        )
+
+    @provide
+    def searches(self, session: AsyncSession, config: AppConfig) -> SearchQueryRepository:
+        # Тот же приём, что и с журналом событий: админ ищет то, что ЗАЛИВАЕТ, поэтому
+        # его запросы иначе возглавили бы список «искали, но не нашли» — то есть очередь
+        # на озвучку заполнилась бы уже готовящимся к заливке.
+        return AdminBlindSearchRepository(
+            PgSearchQueryRepository(session), config.bot.admin_user_ids
         )
 
     auth = provide(AuthService)

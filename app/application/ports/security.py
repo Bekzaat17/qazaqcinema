@@ -16,6 +16,9 @@ class TelegramUser:
     # пускает его либо после /start, либо после этого разрешения. Приходит уже в
     # подписанном initData, поэтому доверять полю можно — подделка сломает HMAC.
     allows_write_to_pm: bool = False
+    # `is_premium` в initData — платит ли человек Telegram сам. Тоже внутри подписанной
+    # строки, поэтому полю можно верить. Признак аудитории для отчёта, не право доступа.
+    is_premium: bool = False
 
 
 class InitDataError(ValueError):

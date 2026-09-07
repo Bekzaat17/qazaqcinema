@@ -64,6 +64,14 @@ class UserModel(Base):
     # видео из чата (~40 ч). FK нет намеренно — удаление фильма из каталога не должно
     # ронять историю подарка, а сравнение идёт по id.
     free_view_movie_id: Mapped[int | None] = mapped_column(nullable=True)
+    # Telegram Premium (`is_premium` в initData). Единственный признак платёжеспособности,
+    # который платформа отдаёт бесплатно: человек, уже платящий Telegram, — совсем другая
+    # аудитория для пэйволла, чем тот, кто не платил никогда. Копим, чтобы видеть, есть ли
+    # разница в конверсии; в правах доступа НЕ участвует. server_default false → backfill
+    # старых строк без отдельного UPDATE (для них признак просто неизвестен).
+    is_premium: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), nullable=False
+    )
 
 
 class FavoriteModel(Base):
@@ -118,6 +126,40 @@ class UserEventModel(Base):
 
     # Составной индекс под запросы отчёта: «событий вида X за период» (kind → created_at).
     __table_args__ = (Index("ix_user_events_kind_created_at", "kind", "created_at"),)
+
+
+class SearchQueryModel(Base):
+    """Поисковый запрос в каталоге — спрос, высказанный словами (см. `domain/analytics/search`).
+
+    Отдельная таблица, а не вид `UserEventModel`: у факта два измерения (что спросили
+    и сколько нашлось), а `user_events` держит ровно одно свободное поле `meta`.
+    Кодировать счётчик найденного в строку, чтобы потом разбирать её при группировке
+    растущей многоцелевой таблицы, — цена без выгоды.
+
+    `query` хранится УЖЕ нормализованным (`normalize_query`): таблица существует ради
+    частоты запроса, а без сведения регистра и пробелов к одной форме топ рассыпался бы
+    на варианты написания одного и того же спроса. Сырой ввод не храним — он нужен был
+    бы только для чтения глазами, а читать мы будем как раз сводку.
+
+    `found = 0` — главная строка этой таблицы: человек назвал, за чем пришёл, и ушёл ни
+    с чем. Отсортированный по частоте список таких запросов и есть очередь на озвучку.
+    """
+
+    __tablename__ = "search_queries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"))
+    query: Mapped[str] = mapped_column(String(64))
+    found: Mapped[int] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Один индекс по времени: и дневное окно отчёта, и недельное окно дайджеста ходят
+    # именно по нему, а группировка внутри окна идёт хэш-агрегацией по `query` — своего
+    # индекса ей не нужно. Отдельный индекс под `found = 0` тоже не заводим: нулевые
+    # запросы отбираются уже внутри окна, срезанного этим индексом.
+    __table_args__ = (Index("ix_search_queries_created_at", "created_at"),)
 
 
 class SeriesModel(Base):

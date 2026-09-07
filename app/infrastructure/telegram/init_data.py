@@ -85,4 +85,7 @@ class TelegramInitDataVerifier:
             username=data.get("username"),
             first_name=data.get("first_name"),
             allows_write_to_pm=bool(data.get("allows_write_to_pm")),
+            # Как и `allows_write_to_pm`: поля может не быть (старый клиент, не-Premium) —
+            # `bool(None)` даёт False, что здесь и означает «признака нет».
+            is_premium=bool(data.get("is_premium")),
         )

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.deps.auth import get_current_user
 from app.api.deps.rate_limit import rate_limit
@@ -34,6 +34,20 @@ class PaywallIn(BaseModel):
     movie_id: int | None = None
 
 
+class SearchIn(BaseModel):
+    """Запрос, на котором человек ОСТАНОВИЛСЯ, и сколько по нему нашлось.
+
+    `query` режем на входе по длине колонки (нормализацию и отсев коротких делает
+    домен, `normalize_query`) — ручка не должна падать из-за того, что кто-то вставил
+    в поиск целый абзац. `found` — сколько карточек реально показали человеку; 0
+    означает, что каталог на спрос не ответил, и именно эти строки собираются в
+    очередь на озвучку.
+    """
+
+    query: str = Field(max_length=512)
+    found: int = Field(ge=0)
+
+
 @router.post("/paywall", status_code=204, dependencies=[_rate_limited])
 async def track_paywall(
     body: PaywallIn,
@@ -47,3 +61,18 @@ async def track_paywall(
     `_populate_api_route_state`). Так же сделаны 204-ручки избранного.
     """
     await activity.register_paywall(user.telegram_id, body.movie_id)
+
+
+@router.post("/search", status_code=204, dependencies=[_rate_limited])
+async def track_search(
+    body: SearchIn,
+    activity: FromDishka[UserActivityService],
+    user: User = Depends(get_current_user),
+) -> None:
+    """Записать спрос: что искали и сколько нашлось. Ответ пустой — фронт шлёт фоном.
+
+    Гейта подписки нет (как и у пэйволла): каталог и поиск свободны всем, а спрос
+    неплательщика для наполнения даже важнее — он ещё не купил как раз потому, что
+    не нашёл своего.
+    """
+    await activity.register_search(user.telegram_id, body.query, body.found)
