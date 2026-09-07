@@ -111,3 +111,12 @@ class AiogramChannelPublisher:
         except TelegramAPIError:
             logger.warning("Кнопки с поста %s не сняты", message_id, exc_info=True)
             return False
+
+    async def delete(self, message_id: int) -> bool:
+        if not self._channel_id:
+            return False
+        try:
+            return bool(await self._bot.delete_message(self._channel_id, message_id))
+        except TelegramAPIError:
+            logger.warning("Пост %s из канала не удалён", message_id, exc_info=True)
+            return False

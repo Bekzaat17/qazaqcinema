@@ -68,3 +68,7 @@ class ChannelPublisher(Protocol):
     async def remove_buttons(self, message_id: int) -> bool:
         """Снять клавиатуру с поста (закрытие квиза в 21:00). Тоже без исключений."""
         ...
+
+    async def delete(self, message_id: int) -> bool:
+        """Удалить пост из канала (предпросмотр, ошибочная публикация). Без исключений."""
+        ...

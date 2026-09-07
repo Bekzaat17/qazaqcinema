@@ -96,6 +96,9 @@ class FakePublisher:
         self.removed.append(message_id)
         return True
 
+    async def delete(self, message_id: int) -> bool:
+        return True
+
 
 def _entry(item: ContentItem, channel_id: int, group_id: int | None = None) -> PostLogEntry:
     return PostLogEntry(

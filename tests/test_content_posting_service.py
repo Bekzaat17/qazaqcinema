@@ -64,6 +64,9 @@ class FakePublisher:
     async def remove_buttons(self, message_id: int) -> bool:
         return True
 
+    async def delete(self, message_id: int) -> bool:
+        return True
+
 
 class StubRenderer:
     def __init__(self, tail: int = 0, buttons: int = 0) -> None:
