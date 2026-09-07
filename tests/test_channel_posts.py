@@ -42,8 +42,11 @@ class _FakePublisher:
     def __init__(self) -> None:
         self.posts: list[ChannelPost] = []
 
-    async def publish(self, post: ChannelPost) -> bool:
+    async def publish(self, post: ChannelPost) -> int | None:
         self.posts.append(post)
+        return len(self.posts)
+
+    async def remove_buttons(self, message_id: int) -> bool:
         return True
 
 

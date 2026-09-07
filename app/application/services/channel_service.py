@@ -72,9 +72,10 @@ class ChannelService:
 
     async def publish_new_movie(self, movie: Movie) -> bool:
         """Пост о новинке. Зовёт `MovieIngestionService` после сохранения фильма."""
-        return await self._publisher.publish(
+        sent = await self._publisher.publish(
             self._post(movie, render_new_movie(movie), _NEW_MOVIE_BUTTON)
         )
+        return sent is not None
 
     async def publish_daily_movie(self, now: datetime) -> bool:
         """Пост про сегодняшний бесплатный фильм. Зовёт джоб планировщика раз в сутки.
@@ -89,6 +90,7 @@ class ChannelService:
         if movie is None:
             logger.info("Фильм дня не выбран (каталог пуст) — пост в канал не публикуем")
             return False
-        return await self._publisher.publish(
+        sent = await self._publisher.publish(
             self._post(movie, render_daily_movie(movie), _DAILY_BUTTON)
         )
+        return sent is not None

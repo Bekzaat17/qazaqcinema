@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir .
 
 COPY migrations ./migrations
 COPY alembic.ini ./
+# Контент канала (YAML + исходники картинок) — читает сидер (./start.sh seed) внутри
+# контейнера бота; на диск (том uploads) картинки копирует он же.
+COPY content ./content
 
 # По умолчанию — бот (polling). api/migrate переопределяют command в docker-compose.
 CMD ["python", "-m", "app.main"]

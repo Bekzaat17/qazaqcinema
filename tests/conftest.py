@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 _TABLES = (
     "users, movies, payment_requests, user_events, favorites, "
-    "daily_reports, milestones, search_queries"
+    "daily_reports, milestones, search_queries, "
+    "content_items, channel_post_log, quiz_answers"
 )
 
 

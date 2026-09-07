@@ -17,12 +17,14 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.entities.enums import PaymentStatus, UserStatus
@@ -324,3 +326,79 @@ class MilestoneModel(Base):
     )
     label: Mapped[str] = mapped_column(String(255))
     created_by: Mapped[int] = mapped_column(BigInteger)
+
+
+class ContentItemModel(Base):
+    """Пул контента канала (см. `domain/channel/content`, PLAN.md §4).
+
+    `kind`/`topic` — VARCHAR (форма и рубрика — данные, новая = без миграции типа).
+    `payload` — JSONB: у форм разные поля (варианты квиза, список терминов), а
+    разреженные колонки под каждую были бы хуже; в домен он приходит уже dataclass'ом
+    (`content_codec`). `slug` — натуральный ключ сидера: тот же slug в YAML → upsert.
+    `last_posted_at`/`post_count` — состояние ротации, сидер их не трогает.
+    """
+
+    __tablename__ = "content_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(64), unique=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    topic: Mapped[str] = mapped_column(String(32))
+    title_kk: Mapped[str] = mapped_column(String(255))
+    body_kk: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
+    image_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_credit: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
+    payload: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    scheduled_for: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    post_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ChannelPostLogModel(Base):
+    """Журнал публикаций контента: что, когда и каким сообщением ушло в канал.
+
+    `slot_key` UNIQUE (`2026-09-14:quiz-mon`) — идемпотентность слота на уровне БД:
+    рестарт, misfire, вторая реплика дубля в канале не дадут. `channel_message_id` —
+    к нему привязываются ответы кнопками и разбор; `group_message_id` — id авто-форварда
+    в группе обсуждений, по нему узнаются комментарии (`message_thread_id`).
+    """
+
+    __tablename__ = "channel_post_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slot_key: Mapped[str] = mapped_column(String(64), unique=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("content_items.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    channel_message_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    group_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
+    posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    quiz_closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_posted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class QuizAnswerModel(Base):
+    """Ответы на квиз: первый ответ каждого человека на каждый пост.
+
+    UNIQUE(post_id, user_id) — «А Б В Г Д» пятью сообщениями не работает: засчитан первый.
+    `user_id` БЕЗ FK на `users`: отвечающий из канала/группы мог никогда не жать /start.
+    `first_name` — для «алғашқы үшеу» в разборе (username есть не у всех).
+    """
+
+    __tablename__ = "quiz_answers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("channel_post_log.id"), index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger)
+    first_name: Mapped[str] = mapped_column(String(128))
+    text: Mapped[str] = mapped_column(String(255))
+    is_correct: Mapped[bool] = mapped_column(Boolean)
+    answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_quiz_answers_post_user"),)

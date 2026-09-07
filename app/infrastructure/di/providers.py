@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.channel import ChannelPublisher
+from app.application.ports.content import ContentRepository, PostLogRepository
 from app.application.ports.daily_pin import DailyPin
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
@@ -47,6 +48,8 @@ from app.application.services.auth_service import AuthService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
 from app.application.services.channel_service import ChannelService
+from app.application.services.content_posting_service import ContentPostingService
+from app.application.services.content_seed_service import ContentSeedService
 from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
 from app.application.services.ingestion_service import MovieIngestionService
@@ -61,6 +64,8 @@ from app.application.services.subscription_service import SubscriptionService
 from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
+from app.domain.channel.content.kinds import ContentKind
+from app.domain.channel.content.render import RENDERERS, ContentRenderer
 from app.domain.entities.enums import PaymentMethod
 from app.infrastructure.analytics.admin_filter import (
     AdminBlindEventRepository,
@@ -72,6 +77,7 @@ from app.infrastructure.cache.daily_pin import RedisDailyPin
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
+from app.infrastructure.db.content_repositories import PgContentRepository, PgPostLogRepository
 from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
     PgDailyReportRepository,
@@ -173,7 +179,16 @@ class AppProvider(Provider):
     def channel_publisher(self, bot: Bot, config: AppConfig) -> ChannelPublisher:
         # APP-scope, как и нотификатор: состояния у публикатора нет, только Bot и id.
         # id = 0 → адаптер сам работает как no-op (см. `AiogramChannelPublisher`).
-        return AiogramChannelPublisher(bot, config.bot.public_channel_id)
+        return AiogramChannelPublisher(
+            bot, config.bot.public_channel_id, config.media.root
+        )
+
+    @provide
+    def content_renderers(self) -> Mapping[ContentKind, ContentRenderer]:
+        # Реестр рендереров (Strategy по форме поста) → карта для сервиса публикации.
+        # Наполняется саморегистрацией модулей `domain/channel/content/render/*` при
+        # импорте пакета; новая форма = новый модуль + декоратор, этот код не меняется.
+        return {ContentKind(slug): RENDERERS.get(slug)() for slug in RENDERERS.slugs()}
 
     @provide
     def poster_storage(self, config: AppConfig) -> PosterStorage:
@@ -219,6 +234,8 @@ class RequestProvider(Provider):
     season_repo = provide(PgSeasonRepository, provides=SeasonRepository)
     daily_reports_repo = provide(PgDailyReportRepository, provides=DailyReportRepository)
     milestones_repo = provide(PgMilestoneRepository, provides=MilestoneRepository)
+    content_repo = provide(PgContentRepository, provides=ContentRepository)
+    post_log_repo = provide(PgPostLogRepository, provides=PostLogRepository)
 
     @provide
     def events(self, session: AsyncSession, config: AppConfig) -> UserEventRepository:
@@ -266,6 +283,8 @@ class RequestProvider(Provider):
             publisher, daily, config.bot.webapp_url, config.bot.username
         )
     milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
+    content_posting = provide(ContentPostingService)  # контент-план канала: ежечасный джоб
+    content_seed = provide(ContentSeedService)  # заливка пула из YAML (tools/seed_content)
 
     @provide
     def analytics(

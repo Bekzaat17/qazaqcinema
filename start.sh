@@ -9,6 +9,7 @@
 #   ./start.sh prod         # те же контейнеры, env = .env.prod
 #   ./start.sh test         # ruff + mypy + pytest В КОНТЕЙНЕРЕ (env = .env.test, изолированная БД)
 #   ./start.sh migrate      # применить миграции (alembic upgrade head) и выйти
+#   ./start.sh seed         # залить контент канала (content/*.yaml → БД + картинки в том uploads)
 #   ./start.sh backup       # дамп БД в backups/ (pg_dump|gzip, ротация 14; для cron на VPS)
 #   ./start.sh logs [svc]   # логи всех сервисов или одного (Ctrl-C — выйти)
 #   ./start.sh ps           # статус контейнеров
@@ -115,6 +116,15 @@ case "$MODE" in
     dc "$ef" run --rm migrate
     ;;
 
+  seed)
+    # Контент канала: YAML + картинки из образа → БД + том uploads. Идемпотентно (upsert
+    # по slug), гонять после каждого пополнения content/. Образ пересобирается, чтобы
+    # в контейнер попали свежие файлы content/. Env: .env.prod на проде, иначе default.
+    ef=".env.prod"; [ -f "$ef" ] || ef="$(default_env)"
+    info "Заливаю контент канала (env=$ef)…"
+    dc "$ef" run --rm --build bot python -m app.tools.seed_content "$@"
+    ;;
+
   backup)
     # Дамп рабочей БД из контейнера postgres. Env-файл: .env.prod (прод), иначе default.
     ef=".env.prod"; [ -f "$ef" ] || ef="$(default_env)"
@@ -146,7 +156,7 @@ case "$MODE" in
     ;;
 
   -h|--help|help)
-    sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
     ;;
 
   *) die "Неизвестный режим: '$MODE'. Запусти ./start.sh help для списка команд." ;;

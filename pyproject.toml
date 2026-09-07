@@ -28,6 +28,8 @@ dependencies = [
     "apscheduler>=3.11",
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
+    # --- контент канала ---
+    "pyyaml>=6.0",                   # сидер: content/*.yaml → пул контента канала
 ]
 
 [project.optional-dependencies]
@@ -37,6 +39,7 @@ dev = [
     "fakeredis>=2.26",               # in-memory Redis для тестов кэш-адаптеров (Фаза 11)
     "ruff>=0.8",
     "mypy>=1.13",
+    "types-PyYAML>=6.0",
 ]
 
 [build-system]

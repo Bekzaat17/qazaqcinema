@@ -1,4 +1,4 @@
-"""Фоновый планировщик (apscheduler). Пять задач — все через REQUEST-scope dishka.
+"""Фоновый планировщик (apscheduler). Шесть задач — все через REQUEST-scope dishka.
 
 1. `expire_due` (15 мин) — гасит просроченные подписки: ACTIVE → EXPIRED + уведомление +
    чистка выданных видео. Доступ к контенту от этого джоба НЕ зависит (`has_active_access`
@@ -27,6 +27,13 @@
    другое. Канал не настроен (`BOT_PUBLIC_CHANNEL_ID=0`) → публикация no-op, джоб
    остаётся зарегистрированным (отключать его руками не нужно).
 
+6. `content_post` (ежечасно, :00) — контент-план канала (PLAN.md §4): спрашивает у
+   сетки `plan.slot_for(now)`, есть ли слот на этот час (қара сөз по воскресеньям, квиз
+   по понедельникам/четвергам…), берёт следующий элемент пула по ротации и публикует.
+   Один джоб на все рубрики: расписание — данные в `plan.py`, а не набор крон-строк.
+   Идемпотентность — `slot_key` UNIQUE в журнале, поэтому misfire-окно широкое (50 мин):
+   бот, перезапущенный в 19:20, опубликует воскресный пост, а не пропустит неделю.
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
@@ -46,6 +53,7 @@ from dishka import AsyncContainer
 from app.application.ports.telegram import AdminsUnreachableError, TelegramNotifier
 from app.application.services.analytics_service import AnalyticsService
 from app.application.services.channel_service import ChannelService
+from app.application.services.content_posting_service import ContentPostingService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.analytics.report import render_report
@@ -117,6 +125,13 @@ async def _weekly_report_job(container: AsyncContainer) -> None:
             logger.warning("Еженедельный дайджест не доставлен ни одному админу")
 
 
+async def _content_post_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        posting = await request_container.get(ContentPostingService)
+        if await posting.post_slot(datetime.now(UTC)):
+            logger.info("Пост контент-плана опубликован в канале")
+
+
 async def _daily_channel_post_job(container: AsyncContainer) -> None:
     async with container() as request_container:
         channel = await request_container.get(ChannelService)
@@ -174,6 +189,16 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         # `coalesce` не даст опубликовать его дважды: дубль в публичном канале виден
         # всем подписчикам, в отличие от повторного отчёта в личку админа.
         misfire_grace_time=3600,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _content_post_job,
+        CronTrigger(minute=0, timezone=REPORT_TZ),
+        args=[container],
+        id="content_post",
+        # Меньше часа: следующий запуск сам проверит свой слот, а слоты в сетке стоят на
+        # разные часы, поэтому 50 минут догоняют пропущенный час, не задевая следующий.
+        misfire_grace_time=3000,
         coalesce=True,
     )
     return scheduler
