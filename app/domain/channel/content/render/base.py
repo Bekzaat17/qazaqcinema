@@ -67,8 +67,13 @@ def footer(item: ContentItem) -> str:
     return "\n".join(lines)
 
 
+def compose(item: ContentItem, body_html: str) -> str:
+    """Шапка → тело → подвал без ограничения длины (рендерер сам решает, влезло ли)."""
+    return "\n\n".join(part for part in (header(item), body_html.strip(), footer(item)) if part)
+
+
 def frame(item: ContentItem, body_html: str, limit: int) -> str:
-    """Шапка → тело → подвал, всё ≤ `limit`. Не влезает — режется ТЕЛО (с «…»), не подвал."""
+    """То же, но ≤ `limit`. Не влезает — режется ТЕЛО (с «…»), не подвал с хэштегами."""
     head = header(item)
     foot = footer(item)
     overhead = len(head) + len(foot) + 4  # два разделителя «\n\n»

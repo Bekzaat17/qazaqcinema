@@ -18,6 +18,7 @@ from app.application.services.content_seed_service import ContentSeedService, Se
 from app.config.settings import AppConfig
 from app.infrastructure.content.yaml_loader import load_items
 from app.infrastructure.di.providers import build_container
+from app.infrastructure.images.cards_pillow import PillowCardRenderer
 
 _log = logging.getLogger("qazaqcinema.seed")
 
@@ -26,7 +27,10 @@ async def _run(content_dir: Path, check_only: bool) -> int:
     container = build_container()
     try:
         config = await container.get(AppConfig)
-        items = load_items(content_dir, Path(config.media.root), copy_images=not check_only)
+        cards = PillowCardRenderer(content_dir / "fonts")
+        items = load_items(
+            content_dir, Path(config.media.root), cards, copy_images=not check_only
+        )
         async with container() as request:
             seeder = await request.get(ContentSeedService)
             if check_only:
