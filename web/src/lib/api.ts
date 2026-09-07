@@ -38,6 +38,50 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Сеть не ответила: обрыв, самолётный режим, ушли в лифт — либо наш таймаут.
+ *
+ * Отдельный класс, потому что лечится иначе, чем HTTP-ошибка: тут не «сервер сказал
+ * нет», а «мы не знаем». Юзеру такое надо показывать кнопкой «Қайталау», а не текстом
+ * «фильм не найден».
+ */
+export class NetworkError extends Error {
+  constructor(readonly timedOut: boolean) {
+    super(timedOut ? "network timeout" : "network unreachable");
+    this.name = "NetworkError";
+  }
+}
+
+/**
+ * Сессию починить нечем: initData протух вместе с ней.
+ *
+ * Тупиковое состояние, которое НЕЛЬЗЯ проглатывать. Telegram не переписывает initData
+ * у уже открытого Mini App, а TTL у него и у серверной сессии одинаковый (24 ч) —
+ * значит у WebView, прожившего сутки (обычное дело на iOS), ре-auth упирается в тот же
+ * просроченный initData. Без этого класса приложение оставалось бы в состоянии `ready`
+ * с виду рабочим каталогом, где КАЖДОЕ нажатие даёт «қате шықты» и ничего больше.
+ * Единственное лечение — переоткрыть Mini App, и сказать об этом должен экран.
+ */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super("session expired");
+    this.name = "SessionExpiredError";
+  }
+}
+
+/**
+ * Потолок ожидания одного запроса.
+ *
+ * ⚠️ Без него зависшее (не упавшее) соединение не реджектится НИКОГДА: `fetch` без
+ * `signal` будет ждать столько, сколько живёт сокет. На мобильной сети это штатная
+ * ситуация, и цена была высокой — экран навсегда оставался скелетом, а флаг «идёт
+ * отправка видео» навсегда гасил кнопку «Көру» на всех фильмах сразу.
+ *
+ * 15 с: выдача видео просит бота отправить файл, и на медленном канале это законно
+ * занимает несколько секунд; меньше — рвали бы живые запросы.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function readError(response: Response): Promise<never> {
   let code = response.statusText || "error";
   try {
@@ -57,20 +101,41 @@ async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts):
     return mockJson<T>(path, init);
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      Authorization: opts?.auth ?? authHeader(),
-      ...(init?.headers ?? {}),
-    },
-  });
+  // Таймаут через AbortController: единственный способ заставить зависший fetch
+  // реджектнуться (см. REQUEST_TIMEOUT_MS).
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: opts?.auth ?? authHeader(),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    // И обрыв сети, и наш abort приходят сюда. Различаем их только для диагностики:
+    // лечение у обоих одно — предложить повторить.
+    throw new NetworkError(controller.signal.aborted);
+  } finally {
+    clearTimeout(timer);
+  }
   // Токен протух / Redis мигнул → сбрасываем сессию, чиним её и повторяем запрос ОДИН раз.
   // Ре-auth идёт по initData (stateless HMAC), поэтому переживает недоступность Redis.
-  if (response.status === 401 && sessionToken && !opts?.retried) {
+  if (response.status === 401 && !opts?.retried) {
+    // Токена нет — значит мы и так шли по initData, и сервер только что отверг именно
+    // его. Чинить нечем: ре-auth пойдёт с тем же initData и получит тот же 401.
+    if (!sessionToken) throw new SessionExpiredError();
     setSessionToken(null);
+    // Если ре-auth сам упрётся в 401, он бросит `SessionExpiredError` строкой ниже
+    // (его запрос идёт с `retried: true`) — и она пролетит наверх как есть.
     await refreshSession();
     return request<T>(path, init, { retried: true });
   }
+  // Уже перезаходили по initData и снова 401 — дальше повторять некуда.
+  if (response.status === 401) throw new SessionExpiredError();
   if (!response.ok) return readError(response);
   // 204 No Content (тумблер звезды) — тела нет, и `.json()` на пустом ответе бросил бы
   // SyntaxError. Такие ручки типизированы как void, поэтому отдаём undefined.

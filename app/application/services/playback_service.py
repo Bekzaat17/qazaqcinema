@@ -22,7 +22,11 @@ from app.application.ports.repositories import (
     UserRepository,
     VideoDeliveryRepository,
 )
-from app.application.ports.telegram import RecipientUnreachableError, TelegramNotifier
+from app.application.ports.telegram import (
+    RecipientUnreachableError,
+    TelegramNotifier,
+    TelegramTemporarilyUnavailableError,
+)
 from app.application.services.daily_service import DailyMovieService
 from app.domain.analytics.events import EventKind
 from app.domain.entities.user import User
@@ -35,6 +39,10 @@ class PlaybackOutcome(Enum):
     NO_ACCESS = auto()       # ни подписки, ни подарка → фронт показывает пэйволл
     NOT_FOUND = auto()       # фильма с таким id нет
     BOT_BLOCKED = auto()     # получатель не открыл чат с ботом → фронт просит открыть бота
+    # Telegram не принял отправку СЕЙЧАС (флуд-лимит на всплеске, сеть, 5xx). Отдельно от
+    # BOT_BLOCKED: там виноват закрытый чат и человек идёт его открывать, здесь виноват
+    # момент и надо просто повторить. Раньше это приходило на фронт как 500.
+    TRY_LATER = auto()
 
 
 class _Gift(Enum):
@@ -158,6 +166,14 @@ class PlaybackService:
                 # что ему вообще дарили.
                 await self._users.release_free_view(user.telegram_id, movie_id)
             return PlaybackOutcome.BOT_BLOCKED
+        except TelegramTemporarilyUnavailableError:
+            # Флуд-лимит/сеть/5xx: чат в порядке, виноват момент. Флаг чата НЕ снимаем —
+            # иначе всплеск трафика из канала массово помечал бы исправных людей как
+            # «бота не открыл» и гнал их в чат без причины.
+            if gift is _Gift.CLAIMED:
+                # Подарок возвращаем по той же причине, что и выше: человек его не увидел.
+                await self._users.release_free_view(user.telegram_id, movie_id)
+            return PlaybackOutcome.TRY_LATER
         # Отправка удалась — значит чат с ботом существует, что бы ни было записано в
         # флаге. Чинит устаревший NULL: у людей, начавших чат до появления колонки (или
         # снятых прошлой неудачной отправкой), иначе навсегда висела бы шторка «Ботты

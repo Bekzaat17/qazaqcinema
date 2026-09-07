@@ -219,6 +219,14 @@ async def play_movie(
         # Подписчик не открыл чат с ботом → бот не может доставить видео. Не 500 —
         # понятный код, фронт просит открыть бота и повторить.
         raise HTTPException(status_code=409, detail="bot_unreachable")
+    if outcome is PlaybackOutcome.TRY_LATER:
+        # Telegram не принял отправку сейчас (флуд-лимит на всплеске из канала, сеть,
+        # 5xx). 503, а не 500: это не поломка, а «повторите» — и фронт скажет ровно так,
+        # вместо общего «қате шықты», после которого человек жал снова и только усугублял
+        # лимит. `Retry-After` — стандартный способ назвать паузу, если клиент её читает.
+        raise HTTPException(
+            status_code=503, detail="try_later", headers={"Retry-After": "5"}
+        )
     return PlayOut(
         status="sent",
         gift=outcome is PlaybackOutcome.GIFT_DELIVERED,

@@ -22,6 +22,17 @@ _write_rate_limited = Depends(rate_limit(limit=30, window_seconds=60, scope="me"
 # проверке», а мобильные юзеры сидят за общим CGNAT-IP (ключ лимитера — IP). Со скромными
 # 30/мин десяток человек с одной вышки упёрлись бы в 429 на ровном месте.
 _read_rate_limited = Depends(rate_limit(limit=120, window_seconds=60, scope="me_read"))
+# Право писать в личку — СВОЙ щедрый лимит, отдельный от тумблера рассылок.
+# Причина: попап `requestWriteAccess()` показывается АВТОМАТИЧЕСКИ каждому, кто вошёл без
+# открытого чата с ботом, то есть эта ручка стоит на критическом пути новичка (а с
+# публичным каналом новички приходят пачками). Ключ лимитера — IP, а мобильные юзеры
+# сидят за общим CGNAT: со скромными 30/мин десяток людей с одной вышки после поста в
+# канале ловили бы 429 на ровном месте — и теряли бы право получить видео, откатываясь
+# на длинный путь через чат бота. Ручка идемпотентна (ставит один и тот же факт) и
+# дешёва, поэтому потолок здесь — защита от абьюза, а не регулировка нагрузки.
+_write_access_rate_limited = Depends(
+    rate_limit(limit=120, window_seconds=60, scope="me_write_access")
+)
 
 router = APIRouter(prefix="/api/me", tags=["me"], route_class=DishkaRoute)
 
@@ -46,7 +57,7 @@ async def current_user(user: User = Depends(get_current_user)) -> AuthOut:
     return AuthOut.from_domain(user, datetime.now(UTC))
 
 
-@router.post("/write-access", response_model=AuthOut, dependencies=[_write_rate_limited])
+@router.post("/write-access", response_model=AuthOut, dependencies=[_write_access_rate_limited])
 async def grant_write_access(
     activity: FromDishka[UserActivityService],
     user: User = Depends(get_current_user),

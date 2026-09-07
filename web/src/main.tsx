@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import { initWebApp } from "./lib/telegram";
 
@@ -11,7 +12,11 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App />
+      {/* Снаружи App: падение самого App — как раз тот случай, ради которого граница и
+          нужна, и она обязана выжить его размонтирование. */}
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   );
 }

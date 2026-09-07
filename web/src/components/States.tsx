@@ -1,6 +1,6 @@
 // Пустые/ошибочные состояния.
 
-import { Film, LayoutGrid, SearchX, Send, Star, WifiOff } from "lucide-react";
+import { Film, LayoutGrid, RefreshCw, SearchX, Send, Star, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { BOT_USERNAME, BOT_URL } from "../lib/telegram";
@@ -77,6 +77,55 @@ export function LoadError({ onRetry }: { onRetry: () => void }) {
       <Button variant="surface" onClick={onRetry}>
         Қайталау
       </Button>
+    </Wrap>
+  );
+}
+
+/**
+ * Поиск не ответил — это НЕ «ничего не найдено».
+ *
+ * Раньше сетевой сбой и 429 показывались тем же `SearchEmpty`, то есть приложение
+ * уверенно сообщало «такого фильма у нас нет» вместо «я не смог спросить». Для
+ * человека, пришедшего из канала или поиска за конкретным названием, это прямая
+ * дезинформация: он уходит, решив, что фильма нет.
+ */
+export function SearchFailed({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Wrap
+      icon={<WifiOff size={28} />}
+      title="Іздеу орындалмады"
+      hint="Байланыс үзілді. Бұл «табылмады» дегенді білдірмейді — қайталап көріңіз."
+    >
+      <Button variant="surface" onClick={onRetry}>
+        Қайталау
+      </Button>
+    </Wrap>
+  );
+}
+
+/**
+ * Сессия и initData просрочены вместе (WebView прожил сутки — обычное дело на iOS).
+ *
+ * Отдельный экран, а не `LoadError`: кнопка «Қайталау» здесь бессмысленна — повтор
+ * пойдёт с тем же просроченным initData, который Telegram не переписывает у уже
+ * открытого приложения. Помогает только закрыть и открыть Mini App заново, поэтому
+ * это и предлагаем — вместе с кнопкой в бота, откуда открыть проще всего.
+ */
+export function SessionExpired() {
+  return (
+    <Wrap
+      icon={<RefreshCw size={28} />}
+      title="Сессия мерзімі бітті"
+      hint="Қосымшаны жабып, қайта ашыңыз — бәрі орнына келеді."
+    >
+      <a
+        href={BOT_URL}
+        rel="noopener"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-brand/25 transition-transform duration-150 active:scale-[0.98]"
+      >
+        <Send size={18} />
+        Ботты ашу
+      </a>
     </Wrap>
   );
 }

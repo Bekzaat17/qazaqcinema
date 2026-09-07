@@ -28,6 +28,7 @@ from app.application.ports.telegram import (
     DeleteOutcome,
     ProofRef,
     RecipientUnreachableError,
+    TelegramTemporarilyUnavailableError,
 )
 
 # Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
@@ -113,19 +114,44 @@ class AiogramNotifier:
     async def send_protected_video(
         self, chat_id: int, file_id: str, caption: str | None = None
     ) -> int:
+        """Видео с protect_content; флуд-лимит пережидаем, временные сбои — наверх.
+
+        Раньше здесь ловились ТОЛЬКО отказы получателя, а `RetryAfter` (флуд-лимит),
+        сетевые ошибки и 5xx Telegram пролетали наверх необработанными → FastAPI отдавал
+        500, и человек, нажавший «Көру», видел общее «қате шықты», не понимая, придёт
+        видео или нет. Для главного действия продукта это дорого — и особенно дорого с
+        публичным каналом, где пост создаёт всплеск одновременных запросов.
+
+        Флуд-лимит пережидаем и повторяем — ровно как это давно делает `delete_message`
+        ниже: пауза, которую назвал сам Telegram, обычно секунды, и ждать её дешевле, чем
+        гонять человека нажимать заново.
+        """
         # protect_content=True — ядро безопасности: получатель не может скачать/переслать.
-        try:
-            message = await self._bot.send_video(
-                chat_id, file_id, caption=caption, protect_content=True
-            )
-        except TelegramForbiddenError as exc:
-            # Юзер не открыл чат с ботом / заблокировал → понятный сигнал наверх, не 500.
-            raise RecipientUnreachableError(str(exc)) from exc
-        except TelegramBadRequest as exc:
-            if "chat not found" in str(exc).lower():
+        for attempt in (1, 2):
+            try:
+                message = await self._bot.send_video(
+                    chat_id, file_id, caption=caption, protect_content=True
+                )
+            except TelegramForbiddenError as exc:
+                # Юзер не открыл чат с ботом / заблокировал → понятный сигнал наверх, не 500.
                 raise RecipientUnreachableError(str(exc)) from exc
-            raise  # прочий BadRequest (напр. битый file_id) — настоящая ошибка, пусть всплывёт
-        return message.message_id  # запоминаем выдачу → удалим при истечении подписки
+            except TelegramRetryAfter as exc:
+                if attempt == 2:
+                    # Переждали и снова упёрлись — честно говорим «позже», а не 500.
+                    logger.warning("Повторный флуд-лимит на выдаче видео в чат %s", chat_id)
+                    raise TelegramTemporarilyUnavailableError(str(exc)) from exc
+                await asyncio.sleep(exc.retry_after + 1)
+            except (TelegramNetworkError, TelegramServerError) as exc:
+                # Сеть до Telegram или его 5xx. Не наша вина и не вина юзера — повторяемо.
+                logger.warning("Временный сбой выдачи видео в чат %s: %s", chat_id, exc)
+                raise TelegramTemporarilyUnavailableError(str(exc)) from exc
+            except TelegramBadRequest as exc:
+                if "chat not found" in str(exc).lower():
+                    raise RecipientUnreachableError(str(exc)) from exc
+                raise  # прочий BadRequest (напр. битый file_id) — настоящая ошибка, пусть всплывёт
+            else:
+                return message.message_id  # запоминаем выдачу → удалим при истечении подписки
+        raise TelegramTemporarilyUnavailableError("не удалось отправить видео")
 
     async def delete_message(self, chat_id: int, message_id: int) -> DeleteOutcome:
         """Удалить своё сообщение; классифицировать отказ (см. `DeleteOutcome`).

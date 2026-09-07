@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from app.application.ports.telegram import RecipientUnreachableError
+from app.application.ports.telegram import (
+    RecipientUnreachableError,
+    TelegramTemporarilyUnavailableError,
+)
 from app.application.services.playback_service import PlaybackOutcome, PlaybackService
 from app.domain.analytics.events import EventKind
 from app.domain.entities.delivery import VideoDelivery
@@ -57,15 +60,18 @@ class _FakeDaily:
 
 
 class _FakeNotifier:
-    def __init__(self, unreachable: bool = False) -> None:
+    def __init__(self, unreachable: bool = False, try_later: bool = False) -> None:
         self.sent: list[tuple[int, str, str | None]] = []
         self._unreachable = unreachable
+        self._try_later = try_later
 
     async def send_protected_video(
         self, chat_id: int, file_id: str, caption: str | None = None
     ) -> int:
         if self._unreachable:  # эмулируем «юзер не открыл чат с ботом»
             raise RecipientUnreachableError("chat not found")
+        if self._try_later:  # эмулируем флуд-лимит/сеть/5xx Telegram
+            raise TelegramTemporarilyUnavailableError("flood limit")
         self.sent.append((chat_id, file_id, caption))
         return 1000 + len(self.sent)  # фиктивный message_id отправленного сообщения
 
@@ -244,6 +250,51 @@ async def test_deliver_reports_bot_blocked_when_recipient_unreachable() -> None:
     assert notifier.sent == []  # видео не ушло
     assert movies.play_increments == []  # блок → просмотр не засчитан
     assert deliveries.added == []  # не дошло → нечего удалять потом
+
+
+async def test_deliver_reports_try_later_on_flood_limit() -> None:
+    """Флуд-лимит/сеть/5xx Telegram → TRY_LATER (роутер отдаст 503, не 500).
+
+    Раньше это пролетало необработанным, и человек, нажавший «Көру», получал общее
+    «қате шықты» — при том что чат в порядке и надо просто повторить. С публичным
+    каналом это ломалось бы ровно на всплеске после поста, то есть в худший момент.
+    """
+    movies = _FakeMovies(_movie())
+    notifier = _FakeNotifier(try_later=True)
+    deliveries = _FakeDeliveries()
+    users = _FakeUsers()
+    service = _service(movies, notifier, deliveries, users=users)
+
+    outcome = await service.deliver(
+        _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=7, now=_NOW
+    )
+
+    assert outcome is PlaybackOutcome.TRY_LATER
+    assert notifier.sent == []
+    assert movies.play_increments == []      # не дошло → просмотр не засчитан
+    assert deliveries.added == []            # нечего удалять потом
+    # ⚠️ Ключевое: флаг открытого чата НЕ снимаем. Иначе всплеск трафика массово помечал
+    # бы исправных людей как «бота не открыл» и гнал их в чат без всякой причины.
+    assert users.bot_started == []
+
+
+async def test_try_later_returns_the_gift() -> None:
+    """Сорвалась выдача подарка не по вине юзера → право возвращаем.
+
+    Иначе человек потерял бы единственный подарок из-за нашего флуд-лимита и на
+    следующем заходе упёрся бы в пэйволл, так и не увидев обещанного фильма.
+    """
+    movies = _FakeMovies(_movie())
+    notifier = _FakeNotifier(try_later=True)
+    guest = _guest()
+    users = _FakeUsers(guest)
+    service = _service(movies, notifier, _FakeDeliveries(), users=users)
+
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
+
+    assert outcome is PlaybackOutcome.TRY_LATER
+    assert users.releases == [(guest.telegram_id, 7)]
+    assert guest.can_use_free_view()  # подарок снова цел
 
 
 async def test_deliver_swallows_rapid_duplicate_send() -> None:

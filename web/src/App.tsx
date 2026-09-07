@@ -18,14 +18,31 @@ import SearchBar from "./components/SearchBar";
 import Shelf from "./components/Shelf";
 import SupportSheet from "./components/SupportSheet";
 import TabBar, { type Tab } from "./components/TabBar";
-import { CatalogEmpty, LoadError, NotInTelegram, SearchEmpty } from "./components/States";
+import {
+  CatalogEmpty,
+  LoadError,
+  NotInTelegram,
+  SearchEmpty,
+  SearchFailed,
+  SessionExpired,
+} from "./components/States";
 import StatusBanner from "./components/StatusBanner";
 import TopBar from "./components/TopBar";
 import Toast from "./components/Toast";
 import { useAppVersion } from "./hooks/useAppVersion";
 import { FavoritesProvider } from "./hooks/useFavorites";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
-import { ApiError, api, type Auth, type Movie, type Shelf as ShelfData, type Tariff, type UserStatus } from "./lib/api";
+import {
+  ApiError,
+  NetworkError,
+  SessionExpiredError,
+  api,
+  type Auth,
+  type Movie,
+  type Shelf as ShelfData,
+  type Tariff,
+  type UserStatus,
+} from "./lib/api";
 import { loadLastPage, saveLastPage } from "./lib/lastPage";
 import { getInitData, getStartMovieId, haptic, requestWriteAccess } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
@@ -55,8 +72,51 @@ const WRITE_ACCESS_PROMPT_MS = 600;
 // человек реально остановился.
 const SEARCH_TRACK_MS = 1_200;
 
+/**
+ * Авторизация с одной повторной попыткой. `null` — не доехала (сеть).
+ *
+ * `SessionExpiredError` наружу пропускаем специально: её повторять бессмысленно (тот же
+ * просроченный initData даст тот же ответ), и обработать её обязан вызывающий — своим
+ * экраном, а не тихим `null`.
+ */
+async function retryAuth(): Promise<Auth | null> {
+  try {
+    return await api.auth();
+  } catch (e) {
+    if (e instanceof SessionExpiredError) throw e;
+    try {
+      return await api.auth();
+    } catch (retryError) {
+      if (retryError instanceof SessionExpiredError) throw retryError;
+      return null;
+    }
+  }
+}
+
+/**
+ * Текст ошибки для тоста. Каждый случай — свой совет, потому что действия разные:
+ * проверить связь / подождать / попробовать снова.
+ *
+ * До этого всё сводилось к одному «қате шықты, қайталап көріңіз», и на 429 человек по
+ * этому совету жал снова, только усугубляя лимит.
+ */
+function failureText(e: unknown): string {
+  if (e instanceof NetworkError) return "Байланыс жоқ. Қайталап көріңіз.";
+  if (!(e instanceof ApiError)) return "Қате шықты, қайталап көріңіз";
+  // 429 — наш лимитер (ключ по IP, а мобильные сидят за общим CGNAT).
+  // 503 — Telegram не принял отправку сейчас (флуд-лимит на всплеске, сеть, 5xx).
+  // Оба лечатся паузой, а не повтором вплотную, — так и говорим.
+  if (e.status === 429 || e.status === 503) return "Сәл күте тұрып, қайталаңыз.";
+  return "Қате шықты, қайталап көріңіз";
+}
+
 export default function App() {
-  const [phase, setPhase] = useState<"loading" | "ready" | "error" | "no_telegram">("loading");
+  // `session_expired` — отдельная фаза, а не разновидность `error`: лечение у неё другое
+  // (переоткрыть Mini App, а не «повторить»), и без неё приложение оставалось бы с виду
+  // рабочим, отвечая «қате шықты» на каждое нажатие (см. `SessionExpiredError`).
+  const [phase, setPhase] = useState<
+    "loading" | "ready" | "error" | "no_telegram" | "session_expired"
+  >("loading");
   const [auth, setAuth] = useState<Auth | null>(null);
   const [shelves, setShelves] = useState<ShelfData[]>([]);
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
@@ -69,6 +129,8 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Movie[] | null>(null);
   const [searching, setSearching] = useState(false);
+  // Отдельно от `results === []`: «не нашлось» и «не смог спросить» — разные ответы юзеру.
+  const [searchFailed, setSearchFailed] = useState(false);
 
   const [selected, setSelected] = useState<Movie | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -122,7 +184,12 @@ export default function App() {
     setPhase("loading");
     try {
       const [authRes, homeRes, tariffsRes] = await Promise.all([
-        api.auth().catch(() => null), // авторизация не должна ронять весь экран
+        // Авторизация не должна ронять весь экран — каталог смотрят и без неё. Но одну
+        // повторную попытку делаем: моргнувшая сеть на первом же запросе иначе лишала бы
+        // человека подарка и попапа write-access на весь заход, а починить это могло
+        // только свернуть-развернуть приложение (о чём юзер не догадается).
+        // `SessionExpiredError` НЕ глушим — она обязана дойти до `catch` ниже.
+        retryAuth(),
         api.home(), // hero + все фильмы одним кэшируемым ответом (Фаза 11.2)
         api.tariffs(),
       ]);
@@ -133,15 +200,25 @@ export default function App() {
       setHeroFreeUntil(homeRes.hero_free_until ?? null);
       contentAt.current = Date.now(); // каталог только что свежий — не тянуть его повторно
       setPhase("ready");
-      // Deep-link с SEO-страницы (t.me/<bot>?startapp=m_<id>): сразу открываем карточку
-      // нужного фильма. Сбой (нет такого id) молчаливый — просто остаёмся на главной.
-      // Он же главнее сохранённого экрана: юзер пришёл по конкретной ссылке.
+      // Deep-link (t.me/<bot>?startapp=m_<id>) с SEO-страницы или из поста канала: сразу
+      // открываем карточку нужного фильма. Он главнее сохранённого экрана — юзер пришёл
+      // по конкретной ссылке.
+      //
+      // Сбой ОБЪЯСНЯЕМ, а не глотаем: человек нажал кнопку под конкретным фильмом, и
+      // молча оказаться на главной для него выглядит как «ссылка не работает». 404 —
+      // фильма больше нет; всё остальное — сеть, и стоит попробовать снова.
       const startId = getStartMovieId();
       if (startId !== null) {
         api
           .getMovie(startId)
           .then((movie) => setSelected(movie))
-          .catch(() => {});
+          .catch((e) => {
+            setToast(
+              e instanceof ApiError && e.status === 404
+                ? "Бұл фильм қазір қолжетімсіз. Каталогтан іздеп көріңіз."
+                : "Фильмді ашу мүмкін болмады. Байланысты тексеріңіз.",
+            );
+          });
         return;
       }
       // Иначе продолжаем с того места, где юзера прервали (если это было недавно).
@@ -154,8 +231,10 @@ export default function App() {
           .then((movie) => setSelected(movie))
           .catch(() => {}); // фильм удалили — просто открываем вкладку
       }
-    } catch {
-      setPhase("error");
+    } catch (e) {
+      // Сессия и initData просрочены вместе — «Қайталау» тут не поможет, поможет только
+      // переоткрыть Mini App. Своя фаза и свой экран.
+      setPhase(e instanceof SessionExpiredError ? "session_expired" : "error");
     }
   }, []);
 
@@ -289,10 +368,19 @@ export default function App() {
 
   // Поиск с дебаунсом; гонки гасим монотонным reqId.
   const reqId = useRef(0);
+  // Счётчик ручных повторов: запрос тот же, а эффект перезапустить надо (кнопка
+  // «Қайталау» на сбое поиска). Через deps — а не вызовом функции поиска напрямую,
+  // чтобы повтор шёл ровно тем же путём, что и обычный ввод.
+  const [searchNonce, setSearchNonce] = useState(0);
+  const retrySearch = useCallback(() => {
+    setSearchFailed(false);
+    setSearchNonce((n) => n + 1);
+  }, []);
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
       setResults(null);
+      setSearchFailed(false);
       setSearching(false);
       return;
     }
@@ -302,17 +390,25 @@ export default function App() {
       api
         .searchMovies(q)
         .then((res) => {
-          if (id === reqId.current) setResults(res);
+          if (id !== reqId.current) return;
+          setSearchFailed(false);
+          setResults(res);
         })
         .catch(() => {
-          if (id === reqId.current) setResults([]);
+          // ⚠️ НЕ `setResults([])`: пустой массив рисует «Ештеңе табылмады», то есть
+          // приложение уверенно сообщало бы «такого фильма у нас нет» на обычном обрыве
+          // связи. Для человека, пришедшего за конкретным названием, это дезинформация —
+          // он уйдёт, решив, что фильма нет. Ошибку показываем ошибкой.
+          if (id !== reqId.current) return;
+          setSearchFailed(true);
+          setResults(null);
         })
         .finally(() => {
           if (id === reqId.current) setSearching(false);
         });
     }, 300);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, searchNonce]);
 
   // Спрос словами: пишем запрос и сколько по нему нашлось. Отдельным эффектом от самого
   // поиска, с собственной, более длинной паузой (SEARCH_TRACK_MS) — сервер по своим
@@ -392,7 +488,10 @@ export default function App() {
           setAuth((prev) => (prev ? { ...prev, bot_started: false } : prev));
           setBotStartOpen(true);
         } else {
-          setToast("Қате шықты, қайталап көріңіз");
+          // Сеть, таймаут, 429, 5xx (например, флуд-лимит Telegram на всплеске из канала).
+          // Совет юзеру в каждом случае разный, и общее «қате шықты» на 429 толкало его
+          // жать снова, только усугубляя лимит.
+          setToast(failureText(e));
         }
       } finally {
         setWatching(false);
@@ -417,6 +516,18 @@ export default function App() {
         await requestPlay(movie, false);
         return;
       }
+      // Авторизация не доехала (сеть моргнула на входе) — мы НЕ ЗНАЕМ, есть ли подарок и
+      // доступ. Единственное, чего тут нельзя делать, — показывать пэйволл: человек,
+      // пришедший из канала за бесплатным фильмом дня, получил бы просьбу заплатить за
+      // то, что ему положено даром, хотя сервер отдал бы это без вопросов
+      // (`PlaybackService._resolve_gift` считает права сам). Поэтому спрашиваем сервер:
+      // отдаст — покажем видео, откажет — 403 откроет пэйволл уже по правде.
+      // Подарок при этом не тратим (`useFreeView=false`): его расход требует явного
+      // согласия в шторке, а мы даже не знаем, цел ли он.
+      if (auth === null) {
+        await requestPlay(movie, false);
+        return;
+      }
       if (freeViewAvailable) {
         // А вот тут проверяем ДО: на кону единственный подарок, и «попробуем — узнаем»
         // означало бы риск потратить его на отправку, которая не дойдёт.
@@ -436,6 +547,7 @@ export default function App() {
       openPaywall(movie);
     },
     [
+      auth,
       botStarted,
       hasAccess,
       dailyMovieId,
@@ -476,11 +588,23 @@ export default function App() {
       {phase === "loading" && <HomeSkeleton />}
       {phase === "error" && <LoadError onRetry={load} />}
       {phase === "no_telegram" && <NotInTelegram />}
+      {phase === "session_expired" && <SessionExpired />}
 
       {phase === "ready" &&
         tab === "home" &&
-        (results !== null ? (
-          <SearchResults query={query} results={results} searching={searching} onSelect={setSelected} />
+        // `searchFailed` тоже открывает панель поиска: на сбое `results` = null, и без
+        // этого условия юзер вместо объяснения увидел бы главную с полками — как будто
+        // поиск и не запускался.
+        (results !== null || searchFailed ? (
+          <SearchResults
+            query={query}
+            results={results ?? []}
+            searching={searching}
+            failed={searchFailed}
+            // Повтор без нового ввода: дёргаем тот же запрос заново, меняя reqId.
+            onRetry={retrySearch}
+            onSelect={setSelected}
+          />
         ) : shelves.length === 0 && !hero ? (
           <CatalogEmpty />
         ) : (
@@ -555,7 +679,12 @@ export default function App() {
         onSent={setToast}
         onError={setToast}
       />
-      <HandoffModal open={handoffOpen} gift={handoffGift} daily={handoffDaily} />
+      <HandoffModal
+        open={handoffOpen}
+        gift={handoffGift}
+        daily={handoffDaily}
+        onClose={() => setHandoffOpen(false)}
+      />
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
     </FavoritesProvider>
@@ -566,11 +695,15 @@ function SearchResults({
   query,
   results,
   searching,
+  failed,
+  onRetry,
   onSelect,
 }: {
   query: string;
   results: Movie[];
   searching: boolean;
+  failed: boolean;
+  onRetry: () => void;
   onSelect: (m: Movie) => void;
 }) {
   if (searching && results.length === 0) {
@@ -582,6 +715,8 @@ function SearchResults({
       </div>
     );
   }
+  // Сбой проверяем ДО «пусто»: иначе обрыв связи выглядел бы как «фильма нет».
+  if (failed) return <SearchFailed onRetry={onRetry} />;
   if (results.length === 0) return <SearchEmpty query={query} />;
   return (
     <div className="grid grid-cols-3 gap-3 px-4 pt-4">

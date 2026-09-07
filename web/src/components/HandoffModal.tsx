@@ -51,15 +51,29 @@ export default function HandoffModal({
   open,
   gift = false,
   daily = false,
+  onClose,
 }: {
   open: boolean;
   gift?: boolean;
   daily?: boolean;
+  /**
+   * Закрыть модалку и остаться в приложении.
+   *
+   * ⚠️ Обязателен: до этого единственным выходом была нативная кнопка «назад» Telegram.
+   * Она есть не на всех платформах (`useTelegramBackButton` молча ничего не делает, если
+   * `BackButton` не отрисовался), и там модалка становилась НЕПРОХОДИМОЙ — на последнем
+   * шаге сценария, после того как видео уже отправлено. Плюс человек, который хочет
+   * взять второй фильм, а не идти в чат, визуального выхода не видел вовсе.
+   */
+  onClose: () => void;
 }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      <div className="anim-fade absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <div
+        className="anim-fade absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="anim-pop relative w-full max-w-sm rounded-3xl border border-border bg-surface p-6 text-center shadow-2xl">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand/15">
           {gift ? (
@@ -80,7 +94,7 @@ export default function HandoffModal({
         <p className="mt-2 text-[15px] leading-relaxed text-muted">
           Ботпен чаттан ашып қараңыз. Видео тек сол жерде — қауіпсіздік үшін жүктеп алуға болмайды.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col gap-2.5">
           <a
             href={BOT_URL}
             target="_top"
@@ -90,6 +104,16 @@ export default function HandoffModal({
           >
             Чатқа өту
           </a>
+          {/* Второй, спокойный выход: остаться в кинотеатре. Именно КНОПКОЙ, а не только
+              бэкдропом — на модалке без видимого выхода человек застревает, даже если
+              технически её можно закрыть тапом мимо. */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-border bg-elevated px-5 py-3 text-sm font-medium text-muted transition-transform duration-150 active:scale-[0.98] active:bg-surface-2"
+          >
+            Жабу
+          </button>
         </div>
       </div>
     </div>
