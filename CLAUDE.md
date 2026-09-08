@@ -100,6 +100,10 @@ docker run --rm --network host --env-file .env.test -e DB_HOST=127.0.0.1 -e REDI
   -e DB_PASSWORD="$(grep ^DB_PASSWORD= .env.prod | cut -d= -f2-)" \
   -v $PWD/app:/app/app -v $PWD/tests:/app/tests qc-checks:local pytest -q
 ```
+Фронт (node на хосте нет, поэтому тоже в контейнере — `tsc -b && vite build`):
+```bash
+docker run --rm -v $PWD/web:/web -w /web node:20-alpine npm run build
+```
 Тесты репозиториев идут через `create_all` + TRUNCATE в БД с именем на `_test` (conftest
 отказывается работать с другой). После смены схемы тест-БД пересоздать: `dropdb` → `createdb`.
 Ручной `docker compose up` на проде — только как `ENV_FILE=.env.prod docker compose --env-file
