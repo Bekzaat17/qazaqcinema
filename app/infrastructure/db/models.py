@@ -323,7 +323,7 @@ class MilestoneModel(Base):
 
 
 class ContentItemModel(Base):
-    """Пул контента канала (см. `domain/channel/content`, PLAN.md §4).
+    """Пул контента канала (см. `domain/channel/content`).
 
     `kind`/`topic` — VARCHAR (форма и рубрика — данные, новая = без миграции типа).
     `payload` — JSONB: у форм разные поля (варианты квиза, список терминов), а
