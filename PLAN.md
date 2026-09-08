@@ -50,7 +50,40 @@
   `quiz_answers`; обмен — через `SubscriptionService.activate`.
 - Опрос «что озвучить дальше?» — нативный опрос Telegram с вариантами из `top_missing()`.
 
-### 3. Живая e2e в Telegram
+### 3. Рефакторинг — идёт этапами
+Пользователь попросил чистить проект постепенно (2026-09-08): мёртвый код и раздутые md.
+Каждый этап — отдельный коммит, после каждого зелёные ruff + mypy(strict) + pytest.
+
+Пройдено (детали в git, `git log --grep "Рефакторинг, этап"`):
+
+| Этап | Что сделано |
+|---|---|
+| 1 | Мёртвый код: caption-парсер, `require_active_access`, `GET /api/movies/hero`, `is_known_category`, `CATALOG_PAGE_DEFAULT`, колонка `movies.is_featured` (миграция применена на проде) |
+| 2 | Документация: CLAUDE.md 582 → 297 строк без истории решений, PLAN.md только открытое, README актуализирован, DEPLOY.md описал реальный прод |
+| 3 | Докстринги: убраны 41 упоминание фаз и 24 даты решений, смысл «почему так» оставлен |
+| 4 | Адрес канала на карточках — из `BOT_PUBLIC_CHANNEL_USERNAME` (был константой в домене), убран `PaymentMethod.FIAT` |
+| 5 | `CardRenderer` через composition root, каталог контента — `MEDIA_CONTENT_ROOT` (был дефолтом CLI-флага `--content`, флаг убран) |
+
+Дальше, в порядке ценности:
+
+1. **Разбить `infrastructure/db/repositories.py`** — 1042 строки и 11 классов в одном файле.
+   Пакет `db/repositories/` по агрегатам: `catalog.py` (movies, series, seasons, favorites),
+   `users.py`, `payments.py` (payments, video deliveries), `analytics.py` (events, search,
+   daily reports, milestones), `_mapping.py` (общие `*_to_domain`), `__init__.py` с
+   ре-экспортом — чтобы импорты в DI и тестах не менялись.
+2. **Постер в рассылке в личку** — уходит ссылкой и по той же причине, что в канале, до
+   Telegram не доезжает, письмо идёт текстом (молча, без лога). Нужны: том `uploads` сервису
+   `worker` в compose, `photo_path` в `BroadcastMessage` и payload очереди, медиа-корень в
+   `AiogramNotifier`. Тесты `test_broadcast_service.py` ждут `photo_url` — переписать.
+3. **`web/src/App.tsx`** — 728 строк, вся навигация, дип-линки, поиск и опрос статуса в одном
+   компоненте. Вынести хуки: дип-линк, восстановление экрана, опрос `/api/me`.
+4. **`seo_service.py`** — 607 строк, данные (суффиксы, теги, шаблоны) и логика в одном файле.
+   Данные просятся в отдельный модуль-справочник.
+5. **`logrotate` на хосте** — `/etc/logrotate.d/qazaqcinema` указывает на мёртвый лог
+   `qazaqcinema/backups/backup.log`; живые `/root/backups/*.log` и `/root/logs/*.log` не
+   ротируются. Готовый конфиг — в DEPLOY.md §7 (файл в системе, `git pull` его не принесёт).
+
+### 4. Живая e2e в Telegram
 Оплата Stars, авто-продление и рассылка проверены только тестами и браузер-превью; прогнать в бою
 на @qazaqcinema_bot.
 
