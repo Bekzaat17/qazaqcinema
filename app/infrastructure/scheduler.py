@@ -74,6 +74,7 @@ from app.application.services.quiz_service import QuizService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.analytics.report import render_report
+from app.domain.analytics.search import MISSING_TOP
 from app.domain.analytics.weekly_report import render_weekly_report
 from app.domain.channel.holidays import POST_TIMES as HOLIDAY_POST_TIMES
 from app.domain.channel.holidays import review_notes
@@ -129,9 +130,12 @@ async def _daily_report_job(container: AsyncContainer) -> None:
     async with container() as request_container:
         analytics = await request_container.get(AnalyticsService)
         notifier: TelegramNotifier = await request_container.get(TelegramNotifier)
-        report = await analytics.daily_report(datetime.now(UTC), REPORT_TZ)
+        now = datetime.now(UTC)
+        report = await analytics.daily_report(now, REPORT_TZ)
+        # Спрос — живой запрос по журналу поисков, не часть снимка (см. `SearchSummary`).
+        demand = await analytics.search_demand(now, MISSING_TOP)
         try:
-            await notifier.notify_admins(render_report(report))
+            await notifier.notify_admins(render_report(report, demand))
         except AdminsUnreachableError:
             # Никто из админов не получил сводку (не нажал /start / заблокировал бота).
             # Это не повод ронять джоб — цифры не потеряны, они всегда в БД.

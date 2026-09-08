@@ -1,7 +1,8 @@
 """Сбор цифр для ежедневного отчёта и еженедельного дайджеста.
 
-Считает БД (COUNT по индексам), наружу идут только числа — строки пользователей и
-событий сюда не грузятся, поэтому стоимость отчёта не растёт с базой. Как это выглядит
+Считает БД (COUNT по индексам), наружу идут числа и один короткий список — топ
+поисковых запросов без результата; строки пользователей и событий сюда не грузятся,
+поэтому стоимость отчёта не растёт с базой. Как это выглядит
 и какие сутки считать — домен (`domain/analytics/report`, `.../weekly_report`), когда
 слать — планировщик.
 """
@@ -15,11 +16,13 @@ from app.application.ports.repositories import (
     DailyReportRepository,
     MilestoneRepository,
     MovieRepository,
+    SearchQueryRepository,
     UserEventRepository,
     UserRepository,
 )
 from app.domain.analytics.events import EventKind
 from app.domain.analytics.report import DailyReport, day_window
+from app.domain.analytics.search import SearchSummary
 from app.domain.analytics.weekly_report import (
     WeeklyReport,
     build_weekly_report,
@@ -36,6 +39,7 @@ class AnalyticsService:
         movies: MovieRepository,
         reports: DailyReportRepository,
         milestones: MilestoneRepository,
+        searches: SearchQueryRepository,
         admin_ids: Collection[int] = (),
     ) -> None:
         self._users = users
@@ -43,6 +47,7 @@ class AnalyticsService:
         self._movies = movies
         self._reports = reports
         self._milestones = milestones
+        self._searches = searches
         # Админы — не аудитория: их заходы служебные. События до журнала вообще не
         # доходят (`AdminBlindEventRepository`), а вот в `users` они лежат наравне со
         # всеми — поэтому счётчики людей исключают их явно.
@@ -73,6 +78,19 @@ class AnalyticsService:
         )
         await self._reports.save(report)
         return report
+
+    async def search_demand(self, now: datetime, limit: int) -> SearchSummary:
+        """Спрос за те же скользящие сутки, что и отчёт: сколько искали и чего не нашли.
+
+        Отдельный вызов, а не поле снимка: список не хранится (см. `SearchSummary`), а
+        сутки берутся тем же `day_window`, иначе цифры отчёта и спроса разъехались бы.
+        """
+        since, until = day_window(now)
+        return SearchSummary(
+            searches=await self._searches.count(since, until),
+            missing=await self._searches.count_missing(since, until),
+            top=tuple(await self._searches.top_missing(since, until, limit)),
+        )
 
     async def weekly_report(self, now: datetime, tz: tzinfo) -> WeeklyReport:
         """Дайджест за последние 7 суток из уже сохранённых снимков `daily_reports`.

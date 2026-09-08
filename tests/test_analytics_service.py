@@ -14,9 +14,16 @@ from zoneinfo import ZoneInfo
 from app.application.services.analytics_service import AnalyticsService
 from app.domain.analytics.events import EventKind
 from app.domain.analytics.report import DailyReport
+from app.domain.analytics.search import MISSING_TOP
 from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
 
-from tests.fakes import FakeEvents, FakeMilestones, FakeMovies, FakeReports
+from tests.fakes import (
+    FakeEvents,
+    FakeMilestones,
+    FakeMovies,
+    FakeReports,
+    FakeSearches,
+)
 
 ALMATY = ZoneInfo("Asia/Almaty")
 _NOW = datetime(2026, 8, 13, 17, 0, tzinfo=UTC)  # 22:00 по Алматы
@@ -65,6 +72,27 @@ class _CountingUsers:
         return 4
 
 
+def _service(
+    users: object | None = None,
+    events: object | None = None,
+    movies: object | None = None,
+    reports: object | None = None,
+    milestones: object | None = None,
+    searches: object | None = None,
+    admin_ids: Collection[int] = (),
+) -> AnalyticsService:
+    """Сервис на фейках — одна фабрика на файл, чтобы новый порт не переписывал тесты."""
+    return AnalyticsService(  # type: ignore[arg-type]
+        users if users is not None else _CountingUsers(),
+        events if events is not None else FakeEvents(),
+        movies if movies is not None else FakeMovies(),
+        reports if reports is not None else FakeReports(),
+        milestones if milestones is not None else FakeMilestones(),
+        searches if searches is not None else FakeSearches(),
+        admin_ids,
+    )
+
+
 async def test_daily_report_collects_numbers() -> None:
     events = FakeEvents()
     await events.add(USER, EventKind.OPEN)
@@ -74,9 +102,9 @@ async def test_daily_report_collects_numbers() -> None:
     await events.add(USER, EventKind.DAILY_PLAY, "9")
     await events.add(USER, EventKind.START)
 
-    report = await AnalyticsService(
-        _CountingUsers(), events, FakeMovies(catalog_size=42), FakeReports(), FakeMilestones()
-    ).daily_report(_NOW, ALMATY)
+    report = await _service(events=events, movies=FakeMovies(catalog_size=42)).daily_report(
+        _NOW, ALMATY
+    )
 
     assert report.day.isoformat() == "2026-08-13"  # местная дата, не UTC
     assert (report.users_total, report.users_new, report.subs_active) == (10, 2, 4)
@@ -90,9 +118,7 @@ async def test_daily_report_collects_numbers() -> None:
 async def test_admin_ids_are_excluded_from_user_counts() -> None:
     users = _CountingUsers()
 
-    await AnalyticsService(
-        users, FakeEvents(), FakeMovies(), FakeReports(), FakeMilestones(), [ADMIN]
-    ).daily_report(_NOW, ALMATY)
+    await _service(users=users, admin_ids=[ADMIN]).daily_report(_NOW, ALMATY)
 
     assert users.excluded == [[ADMIN], [ADMIN], [ADMIN]]
 
@@ -100,9 +126,9 @@ async def test_admin_ids_are_excluded_from_user_counts() -> None:
 async def test_daily_report_is_persisted_to_history() -> None:
     reports = FakeReports()
 
-    report = await AnalyticsService(
-        _CountingUsers(), FakeEvents(), FakeMovies(catalog_size=7), reports, FakeMilestones()
-    ).daily_report(_NOW, ALMATY)
+    report = await _service(movies=FakeMovies(catalog_size=7), reports=reports).daily_report(
+        _NOW, ALMATY
+    )
 
     # Снимок пишется тем же вызовом, которым собирается текст для админов — не
     # отдельным джобом, иначе история отставала бы от реально отправленных отчётов.
@@ -125,9 +151,9 @@ async def test_weekly_report_aggregates_saved_snapshots_and_compares_to_previous
     )
     await milestones.add("Ескі веха", sunday - timedelta(days=20), created_by=ADMIN)  # вне окна
 
-    report = await AnalyticsService(
-        _CountingUsers(), FakeEvents(), FakeMovies(), reports, milestones
-    ).weekly_report(sunday, ALMATY)
+    report = await _service(reports=reports, milestones=milestones).weekly_report(
+        sunday, ALMATY
+    )
 
     assert (report.period_start, report.period_end) == (date(2026, 8, 17), date(2026, 8, 23))
     assert report.catalog_size == 120  # последний снимок текущего окна
@@ -141,9 +167,7 @@ async def test_weekly_report_without_history_has_no_previous_period() -> None:
     sunday = datetime(2026, 8, 23, 17, 10, tzinfo=UTC)
     reports = FakeReports(seed=[_snapshot(date(2026, 8, 23), catalog_size=10)])
 
-    report = await AnalyticsService(
-        _CountingUsers(), FakeEvents(), FakeMovies(), reports, FakeMilestones()
-    ).weekly_report(sunday, ALMATY)
+    report = await _service(reports=reports).weekly_report(sunday, ALMATY)
 
     assert report.previous is None
     assert report.catalog_size_prev is None
@@ -159,3 +183,38 @@ async def test_admin_events_are_not_recorded() -> None:
 
     assert inner.added == [(USER, EventKind.OPEN, None)]
     assert await journal.count_unique_users(EventKind.OPEN, _NOW, _NOW) == 1
+
+
+# ── спрос: что искали и не нашли ──────────────────────────────────────────────
+async def test_search_demand_counts_queries_and_lists_only_the_missing_ones() -> None:
+    """В отчёт идёт ТОП нулевых, а не весь поиск: успешный поиск решений о наполнении
+    каталога не меняет, а «искали и не нашли» — это прямая заявка на контент."""
+    searches = FakeSearches()
+    await searches.add(USER, "көліктер", found=0)
+    await searches.add(3, "көліктер", found=0)
+    await searches.add(USER, "шрек", found=4)          # нашёлся — в списке его быть не должно
+    await searches.add(USER, "моана 2", found=0)
+
+    demand = await _service(searches=searches).search_demand(_NOW, MISSING_TOP)
+
+    assert (demand.searches, demand.missing) == (4, 3)
+    assert [d.query for d in demand.top] == ["көліктер", "моана 2"]
+    assert (demand.top[0].hits, demand.top[0].people) == (2, 2)
+
+
+async def test_search_demand_is_empty_when_nobody_searched() -> None:
+    demand = await _service().search_demand(_NOW, MISSING_TOP)
+
+    assert (demand.searches, demand.missing, demand.top) == (0, 0, ())
+
+
+async def test_search_demand_respects_the_top_limit() -> None:
+    searches = FakeSearches()
+    for i in range(15):
+        await searches.add(USER, f"фильм {i}", found=0)
+
+    demand = await _service(searches=searches).search_demand(_NOW, MISSING_TOP)
+
+    assert demand.missing == 15
+    assert len(demand.top) == MISSING_TOP   # длинный хвост в отчёт не тащим
+

@@ -344,12 +344,13 @@ class RequestProvider(Provider):
         movies: MovieRepository,
         reports: DailyReportRepository,
         milestones: MilestoneRepository,
+        searches: SearchQueryRepository,
         config: AppConfig,
     ) -> AnalyticsService:
         # admin_ids — примитив из конфига (как webapp_url у рассылок), поэтому явный
         # метод: сервис получает список id, а не весь AppConfig.
         return AnalyticsService(
-            users, events, movies, reports, milestones, config.bot.admin_user_ids
+            users, events, movies, reports, milestones, searches, config.bot.admin_user_ids
         )
 
     @provide

@@ -11,8 +11,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from html import escape
 
 from app.domain.analytics.percent import share
+from app.domain.analytics.search import SearchSummary
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,8 +61,31 @@ def day_window(now: datetime) -> tuple[datetime, datetime]:
     return now - timedelta(hours=24), now
 
 
-def render_report(report: DailyReport) -> str:
-    """Текст отчёта для личек админов (HTML-безопасен: только цифры и наши подписи).
+def _demand_block(summary: SearchSummary) -> str:
+    """Блок «іздеп, таппағаны»: сколько искали, сколько зря и что именно не нашли.
+
+    Главная строка отчёта для наполнения каталога: люди прямым текстом называют, за чем
+    пришли и ушли ни с чем. Показываем ТОП нулевых, а не весь поиск, — успешный поиск
+    решений не меняет, а длинный список никто не дочитает.
+
+    ⚠️ Запрос — текст ОТ ЧЕЛОВЕКА, и отчёт уходит как HTML: экранируем здесь. Без этого
+    поиск по «<Шрек>» ломает разметку и отчёт не доставляется вообще.
+    """
+    if summary.searches == 0:
+        return "🔎 Іздеу: сұрау болмады"
+    lines = [f"🔎 Іздеу: {summary.searches} сұрау, {summary.missing} нәтижесіз"]
+    if summary.top:
+        lines.append("<b>Іздеп, таппағаны</b> (дауыстау кезегі):")
+        lines += [
+            f"{i}. {escape(demand.query)} — {demand.hits}× / {demand.people} адам"
+            for i, demand in enumerate(summary.top, start=1)
+        ]
+    return "\n".join(lines)
+
+
+def render_report(report: DailyReport, demand: SearchSummary | None = None) -> str:
+    """Текст отчёта для личек админов (HTML-безопасен: цифры, наши подписи и
+    экранированные поисковые запросы).
 
     Проценты считаются тут же, не в `AnalyticsService` и не хранятся в БД: это
     производные величины (снимок несёт только числители/знаменатели), а формула
@@ -68,7 +93,7 @@ def render_report(report: DailyReport) -> str:
     """
     open_rate = share(report.opens_unique, report.starts)
     convert_rate = share(report.subscribes, report.paywalls)
-    return (
+    body = (
         f"📊 <b>Күнделікті есеп</b> · {report.day:%d.%m.%Y}\n"
         "———\n"
         f"👥 Барлық қолданушы: {report.users_total} (бүгін +{report.users_new})\n"
@@ -88,3 +113,8 @@ def render_report(report: DailyReport) -> str:
         f"{f' — конверсия {convert_rate}%' if convert_rate is not None else ''}\n"
         f"⌛️ Мерзімі бітті: {report.expires}"
     )
+    # Спрос — отдельный блок и необязательный аргумент: он не из снимка, а из живого
+    # запроса по журналу поисков, и отчёт обязан собираться и без него.
+    if demand is None:
+        return body
+    return f"{body}\n———\n{_demand_block(demand)}"
