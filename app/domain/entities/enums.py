@@ -15,7 +15,6 @@ class UserStatus(StrEnum):
 class PaymentMethod(StrEnum):
     KASPI = "kaspi"   # ручной перевод + скриншот чека
     STARS = "stars"   # Telegram Stars (в т.ч. авто-подписка)
-    FIAT = "fiat"     # платёжный провайдер (KZT на ИП) — задел
 
 
 class PaymentStatus(StrEnum):

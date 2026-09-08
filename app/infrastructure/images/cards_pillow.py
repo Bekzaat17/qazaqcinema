@@ -80,12 +80,15 @@ class PillowCardRenderer:
                       fill=_hex(st.muted))
 
         # Адрес канала — внизу справа, золотая черта над ним как единый «подвал».
-        handle_font = self._font(_FONT_SEMIBOLD, st.handle_size)
-        handle_w = draw.textlength(st.handle, font=handle_font)
-        hy = st.height - st.padding - st.handle_size
-        draw.line([(x, hy - 18), (st.width - st.padding, hy - 18)], fill=_hex(st.accent), width=2)
-        draw.text((st.width - st.padding - handle_w, hy), st.handle, font=handle_font,
-                  fill=_hex(st.muted))
+        # Канал не настроен (`style.handle` пуст) → подвала нет.
+        if st.handle:
+            handle_font = self._font(_FONT_SEMIBOLD, st.handle_size)
+            handle_w = draw.textlength(st.handle, font=handle_font)
+            hy = st.height - st.padding - st.handle_size
+            draw.line([(x, hy - 18), (st.width - st.padding, hy - 18)],
+                      fill=_hex(st.accent), width=2)
+            draw.text((st.width - st.padding - handle_w, hy), st.handle, font=handle_font,
+                      fill=_hex(st.muted))
 
         out = BytesIO()
         canvas.convert("RGB").save(out, format="JPEG", quality=st.quality, optimize=True)

@@ -22,6 +22,7 @@ from aiogram import Bot
 
 from app.application.ports.channel import ChannelPost
 from app.config.settings import load_config
+from app.domain.channel.cards import style_for_channel
 from app.domain.channel.content.render import RENDERERS
 from app.infrastructure.content.yaml_loader import load_items
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
@@ -44,7 +45,9 @@ async def _run(slugs: list[str], delete_ids: list[int], content_dir: Path) -> in
                     ok = await publisher.delete(message_id)
                     _log.info("удалён %s: %s", message_id, ok)
                 return 0
-            cards = PillowCardRenderer(content_dir / "fonts")
+            cards = PillowCardRenderer(
+                content_dir / "fonts", style_for_channel(config.bot.public_channel_username)
+            )
             items = {i.slug: i for i in load_items(content_dir, Path(tmp), cards)}
             sent: list[int] = []
             for slug in slugs:

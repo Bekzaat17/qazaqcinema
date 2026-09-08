@@ -16,6 +16,7 @@ from pathlib import Path
 
 from app.application.services.content_seed_service import ContentSeedService, SeedError
 from app.config.settings import AppConfig
+from app.domain.channel.cards import style_for_channel
 from app.infrastructure.content.yaml_loader import load_items
 from app.infrastructure.di.providers import build_container
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
@@ -27,7 +28,9 @@ async def _run(content_dir: Path, check_only: bool) -> int:
     container = build_container()
     try:
         config = await container.get(AppConfig)
-        cards = PillowCardRenderer(content_dir / "fonts")
+        cards = PillowCardRenderer(
+            content_dir / "fonts", style_for_channel(config.bot.public_channel_username)
+        )
         items = load_items(
             content_dir, Path(config.media.root), cards, copy_images=not check_only
         )

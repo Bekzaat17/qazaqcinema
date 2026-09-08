@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from app.application.services.content_seed_service import SeedError
-from app.domain.channel.cards import DEFAULT_STYLE, CardSpec
+from app.domain.channel.cards import DEFAULT_STYLE, CardSpec, style_for_channel
 from app.domain.channel.content.item import CAPTION_LIMIT, MESSAGE_LIMIT, ContentItem
 from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.render import RENDERERS
@@ -81,6 +81,22 @@ def test_card_is_a_jpeg_of_the_template_size() -> None:
     image = Image.open(BytesIO(jpeg))
     assert image.format == "JPEG"
     assert image.size == (DEFAULT_STYLE.width, DEFAULT_STYLE.height)
+
+
+def test_channel_handle_comes_from_config_not_code() -> None:
+    assert style_for_channel("qazaqcinema_kz").handle == "@qazaqcinema_kz"
+    assert style_for_channel("@qazaqcinema_kz").handle == "@qazaqcinema_kz"
+    # Канал не настроен → подвала на карточке нет (адреса в коде домена не держим).
+    assert style_for_channel("").handle == ""
+    assert DEFAULT_STYLE.handle == ""
+
+
+def test_card_renders_with_and_without_channel_footer() -> None:
+    spec = CardSpec(title="Бірінші сөз", portrait="authors/abai.jpg")
+    with_footer = PillowCardRenderer(FONTS, style_for_channel("qazaqcinema_kz"))
+    without = PillowCardRenderer(FONTS)
+    assert Image.open(BytesIO(with_footer.render(spec, _portrait()))).format == "JPEG"
+    assert Image.open(BytesIO(without.render(spec, _portrait()))).format == "JPEG"
 
 
 def test_card_rejects_broken_portrait() -> None:

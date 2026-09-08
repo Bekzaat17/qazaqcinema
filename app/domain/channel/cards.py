@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,8 +38,16 @@ class CardStyle:
     label_size: int = 26
     subtitle_size: int = 30
     handle_size: int = 26
-    handle: str = "@qazaqcinema_kz"
+    # Адрес канала в подвале карточки. Пусто — подвала нет: конкретный @-хэндл живёт в
+    # env (BOT_PUBLIC_CHANNEL_USERNAME), а не в коде домена.
+    handle: str = ""
     quality: int = 88
 
 
 DEFAULT_STYLE = CardStyle()
+
+
+def style_for_channel(username: str) -> CardStyle:
+    """Стиль с адресом канала из конфига. Канал не настроен → карточка без подвала."""
+    handle = username.strip().lstrip("@")
+    return replace(DEFAULT_STYLE, handle=f"@{handle}") if handle else DEFAULT_STYLE
