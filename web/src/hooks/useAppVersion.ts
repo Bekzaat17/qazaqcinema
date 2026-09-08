@@ -15,6 +15,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useOnResume } from "./useOnResume";
+
 /** Как часто проверять в фоне. Редко: основной триггер — возврат в приложение. */
 const CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -62,17 +64,15 @@ export function useAppVersion(): boolean {
     const timer = setInterval(() => {
       if (!document.hidden) void check();
     }, CHECK_INTERVAL_MS);
-    const onResume = () => {
-      if (!document.hidden) void check();
-    };
-    document.addEventListener("visibilitychange", onResume);
-    window.addEventListener("focus", onResume);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", onResume);
-      window.removeEventListener("focus", onResume);
-    };
+    return () => clearInterval(timer);
   }, [check]);
+
+  // Возврат в приложение — основной триггер проверки: свежий деплой чаще всего случается
+  // как раз пока приложение свёрнуто.
+  const onResume = useCallback(() => {
+    void check();
+  }, [check]);
+  useOnResume(true, onResume);
 
   return updateReady;
 }

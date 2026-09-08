@@ -1,7 +1,9 @@
-// Оркестратор Mini App: загрузка (auth + каталог + тарифы), главный экран, поиск и стек
-// оверлеев (карточка → пэйволл, профиль, хэндофф-модалка). Один экран, навигация — состоянием.
+// Оркестратор Mini App: главный экран, стек оверлеев (карточка → пэйволл, профиль,
+// хэндофф-модалка) и правила продукта — кому что показать на «Көру». Один экран,
+// навигация — состоянием. Как добываются данные, ищутся фильмы и просится право писать —
+// в хуках `useAppData`, `useSearch`, `useWriteAccessPrompt`.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import BotStartSheet from "./components/BotStartSheet";
 import CatalogView from "./components/CatalogView";
@@ -29,69 +31,17 @@ import {
 import StatusBanner from "./components/StatusBanner";
 import TopBar from "./components/TopBar";
 import Toast from "./components/Toast";
+import { useAppData } from "./hooks/useAppData";
 import { useAppVersion } from "./hooks/useAppVersion";
 import { FavoritesProvider } from "./hooks/useFavorites";
+import { useOnResume } from "./hooks/useOnResume";
+import { useSearch } from "./hooks/useSearch";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
-import {
-  ApiError,
-  NetworkError,
-  SessionExpiredError,
-  api,
-  type Auth,
-  type Movie,
-  type Shelf as ShelfData,
-  type Tariff,
-  type UserStatus,
-} from "./lib/api";
-import { loadLastPage, saveLastPage } from "./lib/lastPage";
-import { getInitData, getStartMovieId, haptic, requestWriteAccess } from "./lib/telegram";
+import { useWriteAccessPrompt } from "./hooks/useWriteAccessPrompt";
+import { ApiError, NetworkError, api, type Movie } from "./lib/api";
+import { saveLastPage } from "./lib/lastPage";
+import { haptic } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
-
-// Как часто переспрашивать статус, пока чек «на проверке». Решение админа (✅/❌) приходит
-// извне приложения, поэтому фронт узнаёт о нём только опросом. 20 с — незаметно для юзера
-// и всего 3 запроса в минуту (лимит `/api/me` — 120/мин на IP, см. api/routers/me.py).
-const STATUS_POLL_MS = 20_000;
-
-// Не чаще этого перезапрашиваем каталог при возврате в приложение. Полминуты хватает,
-// чтобы новинка, добавленная админом, появилась сама, и при этом «свернул-развернул»
-// десять раз подряд не превращается в десять запросов.
-const CONTENT_REFRESH_MS = 30_000;
-
-// Пауза перед попапом «разрешить боту писать». Нужна, чтобы человек успел увидеть, КУДА
-// он попал: системный запрос поверх голого скелета выглядит как требование неизвестно от
-// кого, и его закрывают не читая. Полсекунды — главная уже отрисована, приложение ещё не
-// пролистано.
-const WRITE_ACCESS_PROMPT_MS = 600;
-
-// Через сколько тишины в наборе считаем запрос ЗАКОНЧЕННЫМ и пишем его в спрос.
-// Заметно больше дебаунса поиска (300 мс) — и в этом весь смысл: набирая «кунг фу
-// панда», человек по пути отправляет серверу «кун», «кунг ф», «кунг фу пан», и в
-// статистику спроса такие огрызки попадать не должны — иначе очередь на озвучку
-// («искали, но не нашли») состояла бы из недонабранных слов. Таймер сбрасывается на
-// каждое изменение запроса, поэтому доживает до конца только та строка, на которой
-// человек реально остановился.
-const SEARCH_TRACK_MS = 1_200;
-
-/**
- * Авторизация с одной повторной попыткой. `null` — не доехала (сеть).
- *
- * `SessionExpiredError` наружу пропускаем специально: её повторять бессмысленно (тот же
- * просроченный initData даст тот же ответ), и обработать её обязан вызывающий — своим
- * экраном, а не тихим `null`.
- */
-async function retryAuth(): Promise<Auth | null> {
-  try {
-    return await api.auth();
-  } catch (e) {
-    if (e instanceof SessionExpiredError) throw e;
-    try {
-      return await api.auth();
-    } catch (retryError) {
-      if (retryError instanceof SessionExpiredError) throw retryError;
-      return null;
-    }
-  }
-}
 
 /**
  * Текст ошибки для тоста. Каждый случай — свой совет, потому что действия разные:
@@ -111,27 +61,7 @@ function failureText(e: unknown): string {
 }
 
 export default function App() {
-  // `session_expired` — отдельная фаза, а не разновидность `error`: лечение у неё другое
-  // (переоткрыть Mini App, а не «повторить»), и без неё приложение оставалось бы с виду
-  // рабочим, отвечая «қате шықты» на каждое нажатие (см. `SessionExpiredError`).
-  const [phase, setPhase] = useState<
-    "loading" | "ready" | "error" | "no_telegram" | "session_expired"
-  >("loading");
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [shelves, setShelves] = useState<ShelfData[]>([]);
-  const [tariffs, setTariffs] = useState<Tariff[]>([]);
-  const [hero, setHero] = useState<Movie | null>(null);
-  // До какого момента hero (он же фильм дня) бесплатен. null → каталог пуст либо бэк
-  // старой версии: hero тогда обычная витрина, без бейджа и таймера.
-  const [heroFreeUntil, setHeroFreeUntil] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("home");
-
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Movie[] | null>(null);
-  const [searching, setSearching] = useState(false);
-  // Отдельно от `results === []`: «не нашлось» и «не смог спросить» — разные ответы юзеру.
-  const [searchFailed, setSearchFailed] = useState(false);
-
   const [selected, setSelected] = useState<Movie | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [paywallMovie, setPaywallMovie] = useState<Movie | null>(null);
@@ -146,6 +76,23 @@ export default function App() {
   const [watching, setWatching] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Сеттеры состояния (стабильные) — то, чем хук данных открывает карточку по deep-link,
+  // возвращает прошлую вкладку и сообщает о решении по чеку.
+  const {
+    phase,
+    auth,
+    setAuth,
+    status,
+    shelves,
+    tariffs,
+    hero,
+    heroFreeUntil,
+    reload,
+    refreshAuth,
+    refreshContent,
+  } = useAppData({ onOpenMovie: setSelected, onRestoreTab: setTab, onToast: setToast });
+  const search = useSearch();
+
   // Объявлены здесь, а не рядом с местом использования: на них завязан эффект «возврат в
   // приложение» ниже, а обращение к const из его списка зависимостей до объявления —
   // ошибка времени выполнения (временная мёртвая зона), а не просто нестройность.
@@ -159,7 +106,6 @@ export default function App() {
     !!selected ||
     profileOpen;
 
-  const status = auth?.status ?? "new";
   const hasAccess = auth?.has_access ?? false;
   // Подарочный первый фильм. Пока авторизация не доехала, считаем подарок недоступным:
   // ложное приглашение с последующим 403 хуже, чем пэйволл, который сервер подтвердит.
@@ -173,152 +119,21 @@ export default function App() {
   // «откройте бота» тем, у кого всё в порядке, хуже, чем один честный 409 от сервера.
   const botStarted = auth?.bot_started ?? true;
 
-  const load = useCallback(async () => {
-    // Вне Telegram (открыли URL в обычном браузере) initData пуст → авторизация и весь
-    // каталог невозможны. Показываем понятный экран «откройте через Telegram», а не общую
-    // ошибку загрузки. В DEV мок бэкенда работает без initData — там не гейтим.
-    if (!import.meta.env.DEV && !getInitData()) {
-      setPhase("no_telegram");
+  // Возврат из чата с ботом (там же приходит DM об активации) — самый частый момент,
+  // когда статус уже поменялся, а экран об этом ещё не знает.
+  const onResume = useCallback(() => {
+    // Вышла новая версия приложения — применяем её ИМЕННО ЗДЕСЬ. Человек только что
+    // вернулся в приложение, ничего не заполняет, и перезагрузка для него неотличима
+    // от обычного открытия. Но не поверх открытой шторки: посреди оплаты или загрузки
+    // чека reload стёр бы наполовину пройденный шаг.
+    if (updateReady && !anyOverlay) {
+      window.location.reload();
       return;
     }
-    setPhase("loading");
-    try {
-      const [authRes, homeRes, tariffsRes] = await Promise.all([
-        // Авторизация не должна ронять весь экран — каталог смотрят и без неё. Но одну
-        // повторную попытку делаем: моргнувшая сеть на первом же запросе иначе лишала бы
-        // человека подарка и попапа write-access на весь заход, а починить это могло
-        // только свернуть-развернуть приложение (о чём юзер не догадается).
-        // `SessionExpiredError` НЕ глушим — она обязана дойти до `catch` ниже.
-        retryAuth(),
-        api.home(), // hero + все фильмы одним кэшируемым ответом (Фаза 11.2)
-        api.tariffs(),
-      ]);
-      setAuth(authRes);
-      setShelves(homeRes.shelves);
-      setTariffs(tariffsRes);
-      setHero(homeRes.hero);
-      setHeroFreeUntil(homeRes.hero_free_until ?? null);
-      contentAt.current = Date.now(); // каталог только что свежий — не тянуть его повторно
-      setPhase("ready");
-      // Deep-link (t.me/<bot>?startapp=m_<id>) с SEO-страницы или из поста канала: сразу
-      // открываем карточку нужного фильма. Он главнее сохранённого экрана — юзер пришёл
-      // по конкретной ссылке.
-      //
-      // Сбой ОБЪЯСНЯЕМ, а не глотаем: человек нажал кнопку под конкретным фильмом, и
-      // молча оказаться на главной для него выглядит как «ссылка не работает». 404 —
-      // фильма больше нет; всё остальное — сеть, и стоит попробовать снова.
-      const startId = getStartMovieId();
-      if (startId !== null) {
-        api
-          .getMovie(startId)
-          .then((movie) => setSelected(movie))
-          .catch((e) => {
-            setToast(
-              e instanceof ApiError && e.status === 404
-                ? "Бұл фильм қазір қолжетімсіз. Каталогтан іздеп көріңіз."
-                : "Фильмді ашу мүмкін болмады. Байланысты тексеріңіз.",
-            );
-          });
-        return;
-      }
-      // Иначе продолжаем с того места, где юзера прервали (если это было недавно).
-      const last = loadLastPage();
-      if (!last) return;
-      setTab(last.tab);
-      if (last.movieId !== null) {
-        api
-          .getMovie(last.movieId)
-          .then((movie) => setSelected(movie))
-          .catch(() => {}); // фильм удалили — просто открываем вкладку
-      }
-    } catch (e) {
-      // Сессия и initData просрочены вместе — «Қайталау» тут не поможет, поможет только
-      // переоткрыть Mini App. Своя фаза и свой экран.
-      setPhase(e instanceof SessionExpiredError ? "session_expired" : "error");
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // ── Свежесть статуса подписки ──
-  // Решение по чеку принимает админ ВНЕ приложения (кнопки ✅/❌ у бота), поэтому фронт
-  // сам ходит за актуальным статусом: пока «на проверке» — по таймеру, и всегда при
-  // возврате на экран. Раньше юзер видел «тексерілуде» до полного перезахода в Mini App.
-  const statusRef = useRef<UserStatus>(status);
-  useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
-
-  const refreshAuth = useCallback(async () => {
-    const before = statusRef.current;
-    let fresh: Auth;
-    try {
-      fresh = await api.me();
-    } catch {
-      return; // сеть моргнула — попробуем на следующем тике, экран не трогаем
-    }
-    setAuth(fresh);
-    if (before !== "pending_review" || fresh.status === before) return;
-    // Модератор только что вынес решение — сообщаем прямо сейчас, не молча.
-    if (fresh.has_access) {
-      haptic.success();
-      setToast("Жазылым қосылды! Көруге болады");
-    } else {
-      haptic.error();
-      setToast("Чек расталмады. Қолдауға жазыңыз");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (phase !== "ready" || status !== "pending_review") return;
-    const timer = setInterval(() => {
-      if (!document.hidden) void refreshAuth(); // свёрнутое приложение не опрашиваем
-    }, STATUS_POLL_MS);
-    return () => clearInterval(timer);
-  }, [phase, status, refreshAuth]);
-
-  // Каталог, загруженный при входе, устаревает: админ добавляет фильмы, пока приложение
-  // висит свёрнутым. Обновляем его на возврате, но не чаще CONTENT_REFRESH_MS.
-  const contentAt = useRef(0);
-  const refreshContent = useCallback(async () => {
-    if (Date.now() - contentAt.current < CONTENT_REFRESH_MS) return;
-    contentAt.current = Date.now();
-    try {
-      const fresh = await api.home();
-      setShelves(fresh.shelves);
-      setHero(fresh.hero);
-      setHeroFreeUntil(fresh.hero_free_until ?? null);
-    } catch {
-      /* не достучались — оставляем то, что уже показано */
-    }
-  }, []);
-
-  useEffect(() => {
-    if (phase !== "ready") return;
-    // Возврат из чата с ботом (там же приходит DM об активации) — самый частый момент,
-    // когда статус уже поменялся, а экран об этом ещё не знает.
-    const onResume = () => {
-      if (document.hidden) return;
-      // Вышла новая версия приложения — применяем её ИМЕННО ЗДЕСЬ. Человек только что
-      // вернулся в приложение, ничего не заполняет, и перезагрузка для него неотличима
-      // от обычного открытия. Но не поверх открытой шторки: посреди оплаты или загрузки
-      // чека reload стёр бы наполовину пройденный шаг.
-      if (updateReady && !anyOverlay) {
-        window.location.reload();
-        return;
-      }
-      void refreshAuth();
-      void refreshContent();
-    };
-    document.addEventListener("visibilitychange", onResume);
-    window.addEventListener("focus", onResume);
-    return () => {
-      document.removeEventListener("visibilitychange", onResume);
-      window.removeEventListener("focus", onResume);
-    };
-  }, [phase, refreshAuth, refreshContent, updateReady, anyOverlay]);
+    void refreshAuth();
+    void refreshContent();
+  }, [updateReady, anyOverlay, refreshAuth, refreshContent]);
+  useOnResume(phase === "ready", onResume);
 
   // Человек сходил в бота и вернулся — шторка «Ботты ашу» больше не нужна и должна уйти
   // сама. Держать её открытой поверх готового к работе приложения значит требовать ещё
@@ -327,37 +142,8 @@ export default function App() {
     if (botStarted) setBotStartOpen(false);
   }, [botStarted]);
 
-  // Право боту писать в личку — просим САМИ, на входе, нативным попапом Telegram.
-  //
-  // Без этого права кинотеатр для человека не работает вообще: фильм уходит сообщением, а
-  // первым бот писать не вправе. Раньше единственной дорогой был поход в чат за кнопкой
-  // START — и по живым данным на нём останавливались 34 человека из 123, ни один из
-  // которых не посмотрел ни одного фильма. Попап решает то же самое одним нажатием, не
-  // сворачивая приложение.
-  //
-  // Спрашиваем один раз за заход (ref, а не state — перерисовка не должна открывать попап
-  // заново) и только когда права ещё нет. Отказ и старый клиент оставляют всё как было:
-  // шторка `BotStartSheet` с дорогой в чат никуда не делась и покажется на «Көру».
-  const writeAccessAsked = useRef(false);
-  useEffect(() => {
-    if (phase !== "ready" || botStarted || writeAccessAsked.current) return;
-    writeAccessAsked.current = true;
-    const timer = setTimeout(() => {
-      void (async () => {
-        if (!(await requestWriteAccess())) return;
-        haptic.success();
-        try {
-          setAuth(await api.grantWriteAccess());
-        } catch {
-          // Сеть моргнула на записи факта — состояние всё равно поднимаем: отправка
-          // видео от признака не зависит, а успешная доставка чинит флаг на бэке сама
-          // (`PlaybackService` проставляет его при первой же удачной выдаче).
-          setAuth((prev) => (prev ? { ...prev, bot_started: true } : prev));
-        }
-      })();
-    }, WRITE_ACCESS_PROMPT_MS);
-    return () => clearTimeout(timer);
-  }, [phase, botStarted]);
+  // Право писать в личку просим сами, на входе: без него фильм человеку не отправить.
+  useWriteAccessPrompt(phase === "ready" && !botStarted, setAuth);
 
   // Запоминаем экран (вкладка + открытая карточка) — чтобы вернуть его при заходе в
   // ближайший час. Пишем на каждое изменение: заход можно и не «закрыть» по-человечески.
@@ -365,67 +151,6 @@ export default function App() {
     if (phase !== "ready") return;
     saveLastPage({ tab, movieId: selected?.id ?? null });
   }, [phase, tab, selected]);
-
-  // Поиск с дебаунсом; гонки гасим монотонным reqId.
-  const reqId = useRef(0);
-  // Счётчик ручных повторов: запрос тот же, а эффект перезапустить надо (кнопка
-  // «Қайталау» на сбое поиска). Через deps — а не вызовом функции поиска напрямую,
-  // чтобы повтор шёл ровно тем же путём, что и обычный ввод.
-  const [searchNonce, setSearchNonce] = useState(0);
-  const retrySearch = useCallback(() => {
-    setSearchFailed(false);
-    setSearchNonce((n) => n + 1);
-  }, []);
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults(null);
-      setSearchFailed(false);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    const id = ++reqId.current;
-    const timer = setTimeout(() => {
-      api
-        .searchMovies(q)
-        .then((res) => {
-          if (id !== reqId.current) return;
-          setSearchFailed(false);
-          setResults(res);
-        })
-        .catch(() => {
-          // ⚠️ НЕ `setResults([])`: пустой массив рисует «Ештеңе табылмады», то есть
-          // приложение уверенно сообщало бы «такого фильма у нас нет» на обычном обрыве
-          // связи. Для человека, пришедшего за конкретным названием, это дезинформация —
-          // он уйдёт, решив, что фильма нет. Ошибку показываем ошибкой.
-          if (id !== reqId.current) return;
-          setSearchFailed(true);
-          setResults(null);
-        })
-        .finally(() => {
-          if (id === reqId.current) setSearching(false);
-        });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query, searchNonce]);
-
-  // Спрос словами: пишем запрос и сколько по нему нашлось. Отдельным эффектом от самого
-  // поиска, с собственной, более длинной паузой (SEARCH_TRACK_MS) — сервер по своим
-  // запросам не может отличить законченный запрос от префикса недонабранного слова.
-  // Ноль результатов здесь — самая ценная строка: человек назвал, за чем пришёл, и ушёл
-  // ни с чем, а из таких запросов и собирается очередь на озвучку.
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2 || results === null) return;
-    const found = results.length;
-    const timer = setTimeout(() => {
-      // Фоном и молча: аналитика спроса не имеет права ни задержать выдачу результатов,
-      // ни всплыть ошибкой перед человеком (тот же принцип, что у trackPaywall).
-      void api.trackSearch(q, found).catch(() => {});
-    }, SEARCH_TRACK_MS);
-    return () => clearTimeout(timer);
-  }, [query, results]);
 
   // Единая нативная кнопка «назад»: закрывает оверлеи (сверху вниз), а на вкладке
   // «Каталог» без оверлеев — возвращает на «Басты» (таб — не оверлей, но выход логичен).
@@ -582,27 +307,28 @@ export default function App() {
     <div className="min-h-screen bg-bg pb-[calc(72px+var(--safe-bottom))]">
       <TopBar status={status} onProfile={() => setProfileOpen(true)} />
 
-      {phase === "ready" && tab === "home" && <SearchBar value={query} onChange={setQuery} />}
+      {phase === "ready" && tab === "home" && (
+        <SearchBar value={search.query} onChange={search.setQuery} />
+      )}
       {phase === "ready" && tab === "home" && status === "pending_review" && <StatusBanner />}
 
       {phase === "loading" && <HomeSkeleton />}
-      {phase === "error" && <LoadError onRetry={load} />}
+      {phase === "error" && <LoadError onRetry={reload} />}
       {phase === "no_telegram" && <NotInTelegram />}
       {phase === "session_expired" && <SessionExpired />}
 
       {phase === "ready" &&
         tab === "home" &&
-        // `searchFailed` тоже открывает панель поиска: на сбое `results` = null, и без
-        // этого условия юзер вместо объяснения увидел бы главную с полками — как будто
-        // поиск и не запускался.
-        (results !== null || searchFailed ? (
+        // Сбой поиска тоже открывает панель: на нём `results` = null, и без этого
+        // условия юзер вместо объяснения увидел бы главную с полками — как будто поиск
+        // и не запускался.
+        (search.results !== null || search.failed ? (
           <SearchResults
-            query={query}
-            results={results ?? []}
-            searching={searching}
-            failed={searchFailed}
-            // Повтор без нового ввода: дёргаем тот же запрос заново, меняя reqId.
-            onRetry={retrySearch}
+            query={search.query}
+            results={search.results ?? []}
+            searching={search.searching}
+            failed={search.failed}
+            onRetry={search.retry}
             onSelect={setSelected}
           />
         ) : shelves.length === 0 && !hero ? (

@@ -67,8 +67,9 @@ app/
     di/providers.py    # composition root; scheduler.py — все фоновые джобы
   config/settings.py   # pydantic-settings: BOT_/DB_/REDIS_/PAY_/API_/MEDIA_ + PUBLIC_ORIGIN
   main.py (бот, polling/webhook)  worker.py (рассылки)  tools/ (seed_content, preview_post)
-web/src/               # App.tsx, components/, hooks/, lib/ (api, telegram, catalog, lastPage,
-                       #   devMock), ui/, index.css (@theme — дизайн-токены)
+web/src/               # App.tsx (экран и правила показа), hooks/ (данные, поиск, возврат в
+                       #   приложение, версия сборки), components/, lib/ (api, telegram,
+                       #   catalog, lastPage, devMock), ui/, index.css (@theme — токены)
 content/               # пул канала: *.yaml + images/ + fonts/
 migrations/            # Alembic, имена файлов yyyymmdd_<slug>
 ```
