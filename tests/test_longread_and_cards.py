@@ -6,6 +6,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from app.application.ports.cards import CardRenderer
 from app.application.services.content_seed_service import SeedError
 from app.domain.channel.cards import DEFAULT_STYLE, CardSpec, style_for_channel
 from app.domain.channel.content.item import CAPTION_LIMIT, MESSAGE_LIMIT, ContentItem
@@ -13,6 +14,7 @@ from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.render import RENDERERS
 from app.domain.channel.content.render.longread import LongreadRenderer
 from app.infrastructure.content.yaml_loader import load_items
+from app.infrastructure.di.providers import build_container
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from PIL import Image
 
@@ -97,6 +99,22 @@ def test_card_renders_with_and_without_channel_footer() -> None:
     without = PillowCardRenderer(FONTS)
     assert Image.open(BytesIO(with_footer.render(spec, _portrait()))).format == "JPEG"
     assert Image.open(BytesIO(without.render(spec, _portrait()))).format == "JPEG"
+
+
+async def test_container_builds_card_renderer_from_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Порт `CardRenderer` собирается в composition root, хэндл приходит из env."""
+    monkeypatch.setenv("BOT_PUBLIC_CHANNEL_USERNAME", "qazaqcinema_kz")
+    monkeypatch.setenv("MEDIA_CONTENT_ROOT", str(FONTS.parent))
+    container = build_container()
+    try:
+        renderer = await container.get(CardRenderer)
+        assert isinstance(renderer, PillowCardRenderer)
+        jpeg = renderer.render(CardSpec(title="Бірінші сөз"), None)
+        assert Image.open(BytesIO(jpeg)).size == (DEFAULT_STYLE.width, DEFAULT_STYLE.height)
+    finally:
+        await container.close()
 
 
 def test_card_rejects_broken_portrait() -> None:

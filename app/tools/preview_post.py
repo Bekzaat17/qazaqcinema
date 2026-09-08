@@ -20,23 +20,26 @@ from pathlib import Path
 
 from aiogram import Bot
 
+from app.application.ports.cards import CardRenderer
 from app.application.ports.channel import ChannelPost
-from app.config.settings import load_config
-from app.domain.channel.cards import style_for_channel
+from app.config.settings import AppConfig
 from app.domain.channel.content.render import RENDERERS
 from app.infrastructure.content.yaml_loader import load_items
-from app.infrastructure.images.cards_pillow import PillowCardRenderer
+from app.infrastructure.di.providers import build_container
 from app.infrastructure.telegram.channel import AiogramChannelPublisher
 
 _log = logging.getLogger("qazaqcinema.preview")
 
 
-async def _run(slugs: list[str], delete_ids: list[int], content_dir: Path) -> int:
-    config = load_config()
+async def _run(slugs: list[str], delete_ids: list[int]) -> int:
+    container = build_container()
+    config = await container.get(AppConfig)
     if not config.bot.public_channel_id:
         _log.error("BOT_PUBLIC_CHANNEL_ID не задан — некуда постить")
+        await container.close()
         return 1
-    bot = Bot(config.bot.token.get_secret_value())
+    bot = await container.get(Bot)
+    content_dir = Path(config.media.content_root)
     try:
         with tempfile.TemporaryDirectory() as tmp:
             publisher = AiogramChannelPublisher(bot, config.bot.public_channel_id, tmp)
@@ -45,9 +48,7 @@ async def _run(slugs: list[str], delete_ids: list[int], content_dir: Path) -> in
                     ok = await publisher.delete(message_id)
                     _log.info("удалён %s: %s", message_id, ok)
                 return 0
-            cards = PillowCardRenderer(
-                content_dir / "fonts", style_for_channel(config.bot.public_channel_username)
-            )
+            cards = await container.get(CardRenderer)
             items = {i.slug: i for i in load_items(content_dir, Path(tmp), cards)}
             sent: list[int] = []
             for slug in slugs:
@@ -72,7 +73,9 @@ async def _run(slugs: list[str], delete_ids: list[int], content_dir: Path) -> in
             _log.info("Удалить всё: python -m app.tools.preview_post --delete %s", ids)
             return 0
     finally:
+        # Bot приходит из контейнера, но сессию он не закрывает (как и в main.py).
         await bot.session.close()
+        await container.close()
 
 
 def main() -> None:
@@ -80,12 +83,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Предпросмотр постов канала")
     parser.add_argument("slugs", nargs="*", help="slug'и элементов из content/*.yaml")
     parser.add_argument("--delete", default="", help="id сообщений через запятую — удалить")
-    parser.add_argument("--content", default="content")
     args = parser.parse_args()
     ids = [int(x) for x in args.delete.split(",") if x.strip()]
     if not args.slugs and not ids:
         parser.error("укажи slug'и или --delete")
-    sys.exit(asyncio.run(_run(args.slugs, ids, Path(args.content))))
+    sys.exit(asyncio.run(_run(args.slugs, ids)))
 
 
 if __name__ == "__main__":

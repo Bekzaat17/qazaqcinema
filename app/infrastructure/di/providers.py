@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
+from pathlib import Path
 
 from aiogram import Bot
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
@@ -17,6 +18,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.application.ports.broadcast import BroadcastQueue
+from app.application.ports.cards import CardRenderer
 from app.application.ports.catalog_cache import CatalogCache
 from app.application.ports.channel import ChannelPublisher
 from app.application.ports.content import (
@@ -70,6 +72,7 @@ from app.application.services.subscription_service import SubscriptionService
 from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
+from app.domain.channel.cards import style_for_channel
 from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.render import RENDERERS, ContentRenderer
 from app.domain.entities.enums import PaymentMethod
@@ -102,6 +105,7 @@ from app.infrastructure.db.repositories import (
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
+from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from app.infrastructure.images.pillow import PillowImageProcessor
 from app.infrastructure.payments.kaspi import KaspiManualProvider
 from app.infrastructure.payments.stars import TelegramStarsProvider
@@ -209,6 +213,18 @@ class AppProvider(Provider):
     @provide
     def poster_storage(self, config: AppConfig) -> PosterStorage:
         return LocalPosterStorage(config.media)
+
+    @provide
+    def card_renderer(self, config: AppConfig) -> CardRenderer:
+        """Карточки постов канала: шрифты из каталога контента, адрес канала — из env.
+
+        Провайдер, а не сборка в CLI: конфиг читается в одном месте, и сидер с
+        предпросмотром гарантированно рисуют одинаковые карточки.
+        """
+        return PillowCardRenderer(
+            Path(config.media.content_root) / "fonts",
+            style_for_channel(config.bot.public_channel_username),
+        )
 
     @provide
     def image_processor(self) -> ImageProcessor:

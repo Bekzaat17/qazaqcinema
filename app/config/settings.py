@@ -130,6 +130,9 @@ class MediaConfig(BaseSettings):
 
     root: str = "uploads"               # каталог на диске (постеры и прочая статика)
     posters_url_base: str = "/posters"  # публичный префикс URL постера (mount StaticFiles)
+    # Каталог с контентом канала: `*.yaml`, `images/`, `fonts/` (в образе — /app/content).
+    # Читают сидер и предпросмотр; шрифты отсюда же берёт генератор карточек.
+    content_root: str = "content"
 
 
 class AppConfig(BaseSettings):
