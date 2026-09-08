@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.domain.catalog.categories import Category, get_category
+from app.domain.catalog.daily import TZ
 from app.domain.entities.movie import Movie
 from app.domain.seo.slug import movie_slug
 
@@ -604,4 +605,9 @@ class SeoBuilder:
 
 
 def _iso_date(dt: datetime | None) -> str:
-    return dt.date().isoformat() if dt is not None else datetime.now().date().isoformat()
+    """Дата для микроразметки. Нет `created_at` (старые строки) → сегодняшняя МЕСТНАЯ.
+
+    Именно местная и именно aware: контейнеры живут в UTC, и наивный `now()` рисовал бы
+    в разметке вчерашний день с полуночи до 05:00 по Казахстану.
+    """
+    return (dt if dt is not None else datetime.now(TZ)).date().isoformat()

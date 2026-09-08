@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from app.application.ports.security import InitDataError, TelegramUser
@@ -177,12 +177,12 @@ async def test_silence_about_write_access_does_not_revoke_it() -> None:
     """Поле есть не во всех клиентах: его отсутствие — «не знаю», а не «доступа нет»."""
     repo = _FakeUserRepo()
     known = User(telegram_id=7, status=UserStatus.ACTIVE)
-    known.bot_started_at = datetime(2026, 8, 20)
+    known.bot_started_at = datetime(2026, 8, 20, tzinfo=UTC)
     repo.store[7] = known
     events = FakeEvents()
     service = _service(TelegramUser(id=7), repo, events)
 
     user = await service.authenticate("valid")
 
-    assert user.bot_started_at == datetime(2026, 8, 20)
+    assert user.bot_started_at == datetime(2026, 8, 20, tzinfo=UTC)
     assert events.added == []

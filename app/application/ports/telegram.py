@@ -13,6 +13,7 @@ from enum import StrEnum
 from typing import Protocol
 
 from app.application.ports.broadcast import BroadcastMessage
+from app.domain.errors import AppError
 
 
 class DeleteOutcome(StrEnum):
@@ -43,7 +44,7 @@ class ProofRef:
     is_document: bool
 
 
-class RecipientUnreachableError(Exception):
+class RecipientUnreachableError(AppError):
     """Получатель недоступен для бота (не открыл чат / заблокировал → «chat not found»).
 
     Бросает адаптер `send_protected_video`, ловит `PlaybackService` — чтобы отдать
@@ -51,7 +52,7 @@ class RecipientUnreachableError(Exception):
     """
 
 
-class TelegramTemporarilyUnavailableError(Exception):
+class TelegramTemporarilyUnavailableError(AppError):
     """Telegram не принял отправку СЕЙЧАС, но примет позже: флуд-лимит, сеть, 5xx.
 
     Отличается от `RecipientUnreachableError` тем, что дело не в получателе: чат открыт,
@@ -65,7 +66,7 @@ class TelegramTemporarilyUnavailableError(Exception):
     """
 
 
-class AdminsUnreachableError(Exception):
+class AdminsUnreachableError(AppError):
     """Сообщение админам не дошло НИ ДО КОГО (все заблокировали бота либо список пуст).
 
     Бросает адаптер `notify_admins`. Нужен обращению в поддержку: там недоставка —

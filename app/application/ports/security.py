@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from app.domain.errors import AppError
+
 
 @dataclass(slots=True)
 class TelegramUser:
@@ -21,7 +23,7 @@ class TelegramUser:
     is_premium: bool = False
 
 
-class InitDataError(ValueError):
+class InitDataError(AppError, ValueError):
     """initData не прошёл валидацию (подделка/протух/битый)."""
 
 

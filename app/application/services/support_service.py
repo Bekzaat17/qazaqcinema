@@ -14,6 +14,7 @@ from html import escape
 
 from app.application.ports.telegram import TelegramNotifier
 from app.domain.entities.user import User
+from app.domain.errors import AppError
 from app.domain.mention import mention_html
 
 # Сколько символов сообщения доносим до админа (данные). Лимит подписи Telegram — 4096
@@ -21,7 +22,7 @@ from app.domain.mention import mention_html
 MAX_MESSAGE_LEN = 2000
 
 
-class EmptySupportMessageError(Exception):
+class EmptySupportMessageError(AppError):
     """Пустое (или из одних пробелов) сообщение — отправлять нечего."""
 
 

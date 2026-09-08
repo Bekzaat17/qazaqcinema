@@ -22,10 +22,11 @@ from app.application.ports.telegram import TelegramNotifier
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
+from app.domain.errors import AppError
 from app.domain.tariffs.catalog import get_tariff
 
 
-class PaymentError(Exception):
+class PaymentError(AppError):
     """Ошибка оплаты уровня приложения; презентация мапит её в 4xx."""
 
 

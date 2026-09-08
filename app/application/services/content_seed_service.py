@@ -14,11 +14,12 @@ from app.application.ports.content import ContentRepository
 from app.domain.channel.content.item import ContentItem
 from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.topics import get_topic
+from app.domain.errors import AppError
 
 logger = logging.getLogger(__name__)
 
 
-class SeedError(ValueError):
+class SeedError(AppError, ValueError):
     """Элемент не проходит проверку — сидер останавливается ДО записи (всё или ничего)."""
 
 

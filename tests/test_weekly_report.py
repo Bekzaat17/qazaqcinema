@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
@@ -99,7 +99,9 @@ def test_render_weekly_report_notes_missing_history_without_previous() -> None:
 
 def test_render_weekly_report_lists_milestones_inside_the_period() -> None:
     current = [_daily(date(2026, 8, 23))]
-    milestones = [Milestone(1, datetime(2026, 8, 20, 12, 0), "Күн фильмі іске қосылды", 1)]
+    milestones = [
+        Milestone(1, datetime(2026, 8, 20, 12, 0, tzinfo=UTC), "Күн фильмі іске қосылды", 1)
+    ]
     report = build_weekly_report(date(2026, 8, 23), current, [], milestones)
 
     text = render_weekly_report(report)
@@ -119,7 +121,9 @@ def test_render_weekly_report_omits_milestones_section_when_empty() -> None:
 def test_render_weekly_report_escapes_milestone_label() -> None:
     """Метка — свободный текст админа: сырые `<`/`>` сломали бы HTML-разбор в Telegram."""
     current = [_daily(date(2026, 8, 23))]
-    milestones = [Milestone(1, datetime(2026, 8, 20, 12, 0), "<script>тест</script>", 1)]
+    milestones = [
+        Milestone(1, datetime(2026, 8, 20, 12, 0, tzinfo=UTC), "<script>тест</script>", 1)
+    ]
     report = build_weekly_report(date(2026, 8, 23), current, [], milestones)
 
     text = render_weekly_report(report)

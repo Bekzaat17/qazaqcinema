@@ -57,6 +57,8 @@ target-version = "py313"
 line-length = 100
 src = ["app", "tests"]
 
+# Часть правил из CODESTYLE.md проверяется машиной — чтобы «единообразно» не зависело
+# от того, кто пишет код (человек или агент). Остальное — там же словами.
 [tool.ruff.lint]
 select = [
     "E", "F", "W",   # pyflakes / pycodestyle
@@ -66,15 +68,49 @@ select = [
     "C4",            # comprehensions
     "SIM",           # simplify
     "RUF",           # ruff-specific
+    "N",             # pep8-naming: snake_case / PascalCase / UPPER_SNAKE — без исключений
+    "PTH",           # pathlib вместо os.path
+    "RET",           # единая форма return (без лишних else/None)
+    "DTZ",           # datetime ТОЛЬКО с таймзоной (наивный now() ронял даты в UTC-контейнере)
+    "LOG", "G",      # логирование: свой logger и %-формат, без f-строк в вызове лога
+    "ASYNC",         # без блокирующих вызовов внутри async
+    "T20",           # никаких print в приложении — только logging
+    "PIE", "RSE",    # мелкие анти-паттерны и `raise X()` вместо `raise X`
+    "TID",           # запрет импортов чужого слоя (ниже) + относительных импортов
+    "SLF",           # без обращения к _приватному снаружи объекта
 ]
 ignore = [
     "RUF001", "RUF002", "RUF003",  # «неоднозначный» Unicode: проект на русском, это норма
 ]
 
+# ⚠️ Направление зависимостей — машинная проверка главного правила архитектуры:
+# домен и application НЕ знают про фреймворки. Импорт любой из этих библиотек вне
+# infrastructure/bot/api/tools — ошибка линта, а не тема для обсуждения на ревью.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"aiogram".msg = "aiogram — только в infrastructure/telegram и bot/ (DIP: см. CODESTYLE.md §1)"
+"aiogram.types".msg = "aiogram — только в infrastructure/telegram и bot/ (CODESTYLE.md §1)"
+"sqlalchemy".msg = "SQLAlchemy — только в infrastructure/db (CODESTYLE.md §1)"
+"fastapi".msg = "FastAPI — только в api/ (CODESTYLE.md §1)"
+"redis".msg = "Redis-клиент — только в infrastructure/cache (CODESTYLE.md §1)"
+"redis.asyncio".msg = "Redis-клиент — только в infrastructure/cache (CODESTYLE.md §1)"
+"PIL".msg = "Pillow — только в infrastructure/images (CODESTYLE.md §1)"
+"yaml".msg = "PyYAML — только в infrastructure/content (CODESTYLE.md §1)"
+"apscheduler".msg = "APScheduler — только в infrastructure/scheduler.py (CODESTYLE.md §1)"
+"dishka".msg = "DI-контейнер — только в infrastructure/di, api, bot и tools (CODESTYLE.md §1)"
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]            # re-export в пакетах — это норма
 "app/api/routers/*" = ["B008"]      # Form()/File()/Depends() в дефолтах — паттерн FastAPI
 "app/api/deps/*" = ["B008"]         # Depends() в дефолтах зависимостей — тот же паттерн FastAPI
+# Слои, которым фреймворки как раз и положены (запрет выше действует на domain/application).
+"app/infrastructure/*" = ["TID251"]
+"app/api/*" = ["TID251"]
+"app/bot/*" = ["TID251"]
+"app/tools/*" = ["TID251"]
+"app/main.py" = ["TID251"]
+"app/worker.py" = ["TID251"]
+"app/config/*" = ["TID251"]
+"tests/*" = ["TID251", "SLF001"]    # тесты собирают адаптеры и заглядывают в фейки
 
 # ---------------------------------------------------------------------------
 # Типизация (strict)
