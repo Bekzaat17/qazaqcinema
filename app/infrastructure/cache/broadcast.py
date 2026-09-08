@@ -43,7 +43,7 @@ def _dump_message(message: BroadcastMessage) -> str:
     return json.dumps(
         {
             "text": message.text,
-            "photo_url": message.photo_url,
+            "photo_path": message.photo_path,
             "button_text": message.button_text,
             "button_url": message.button_url,
         }
@@ -54,7 +54,7 @@ def _load_message(raw: str) -> BroadcastMessage:
     data = json.loads(raw)
     return BroadcastMessage(
         text=data["text"],
-        photo_url=data.get("photo_url"),
+        photo_path=data.get("photo_path"),
         button_text=data.get("button_text"),
         button_url=data.get("button_url"),
     )

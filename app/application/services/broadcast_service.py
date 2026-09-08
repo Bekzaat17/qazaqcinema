@@ -5,15 +5,15 @@
 Telegram). Сервисы-триггеры (ingest → новинка, бот-команда `/broadcast`) зовут этот
 сервис, а не очередь напрямую — контент и аудитория считаются в одном месте.
 
-Зависит только от портов (`BroadcastQueue`, `UserRepository`) + URL Web App (для кнопки).
+Зависит только от портов (`BroadcastQueue`, `UserRepository`, `PosterStorage`) + URL
+Web App (для кнопки).
 """
 
 from __future__ import annotations
 
-from urllib.parse import urljoin
-
 from app.application.ports.broadcast import BroadcastMessage, BroadcastQueue
 from app.application.ports.repositories import UserRepository
+from app.application.ports.storage import PosterStorage
 from app.domain.entities.movie import Movie
 
 _NEW_MOVIE_INTRO = "🎬 Жаңа фильм қосылды!"
@@ -30,23 +30,23 @@ def _clip(text: str, limit: int) -> str:
 
 class BroadcastService:
     def __init__(
-        self, queue: BroadcastQueue, users: UserRepository, webapp_url: str
+        self,
+        queue: BroadcastQueue,
+        users: UserRepository,
+        posters: PosterStorage,
+        webapp_url: str,
     ) -> None:
         self._queue = queue
         self._users = users
+        self._posters = posters
         self._webapp_url = webapp_url
 
-    def _poster_public_url(self, poster_url: str) -> str | None:
-        """Абсолютный URL постера для Telegram (тот сам качает картинку по URL).
-
-        `poster_url` — относительный (`/posters/x.jpg`); склеиваем с origin Web App.
-        Web App не сконфигурен (локаль) → None, шлём текстом.
-        """
-        if not self._webapp_url.startswith("http"):
-            return None
-        return urljoin(self._webapp_url, poster_url)
-
     def _new_movie_message(self, movie: Movie) -> BroadcastMessage:
+        """Письмо о новинке: постер ФАЙЛОМ С ДИСКА + текст + кнопка Web App.
+
+        Именно файлом, а не ссылкой (см. `BroadcastMessage.photo_path`). Файла на диске
+        нет → `local_path` вернёт None, письмо уйдёт текстом (не ошибка).
+        """
         title = f"«{movie.title_kk}»"
         if movie.year is not None:
             title += f" ({movie.year})"
@@ -54,7 +54,7 @@ class BroadcastService:
         button_url = self._webapp_url or None
         return BroadcastMessage(
             text=text,
-            photo_url=self._poster_public_url(movie.poster_url),
+            photo_path=self._posters.local_path(movie.poster_url),
             button_text=_WATCH_BUTTON if button_url else None,
             button_url=button_url,
         )

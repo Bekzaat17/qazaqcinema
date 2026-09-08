@@ -188,7 +188,10 @@ class AppProvider(Provider):
 
     @provide
     def notifier(self, bot: Bot, config: AppConfig) -> TelegramNotifier:
-        return AiogramNotifier(bot, config.bot.admin_chat_id, config.bot.admin_user_ids)
+        # media.root — постер рассылки уходит файлом с диска, как фото в канал.
+        return AiogramNotifier(
+            bot, config.bot.admin_chat_id, config.bot.admin_user_ids, config.media.root
+        )
 
     @provide
     def channel_publisher(self, bot: Bot, config: AppConfig) -> ChannelPublisher:
@@ -351,11 +354,15 @@ class RequestProvider(Provider):
 
     @provide
     def broadcast(
-        self, queue: BroadcastQueue, users: UserRepository, config: AppConfig
+        self,
+        queue: BroadcastQueue,
+        users: UserRepository,
+        posters: PosterStorage,
+        config: AppConfig,
     ) -> BroadcastService:
         # webapp_url — примитив (как kaspi_number у провайдера), поэтому явный метод,
         # а не auto-wire: сервис получает чистую строку, не весь конфиг.
-        return BroadcastService(queue, users, config.bot.webapp_url)
+        return BroadcastService(queue, users, posters, config.bot.webapp_url)
 
 
 def build_container() -> AsyncContainer:

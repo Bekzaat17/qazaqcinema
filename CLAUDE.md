@@ -57,7 +57,8 @@ app/
     db/                # models (ORM), engine, sql, content_repositories, content_codec,
                        #   repositories/ (catalog, users, payments, analytics)
     cache/             # Redis: session, catalog, lock, rate_limiter, broadcast (очередь), daily_pin
-    telegram/          # init_data (HMAC), notifier, channel (публикатор), discussion (группа)
+    telegram/          # init_data (HMAC), notifier, channel (публикатор), discussion (группа),
+                       #   media (фото с диска: канал и рассылка)
     payments/          # kaspi (ручной чек), stars
     images/            # pillow (постеры), cards_pillow (карточки канала)
     storage/local.py   # постеры на диске (том uploads, StaticFiles /posters)
@@ -198,9 +199,9 @@ Git: коммитить и пушить прямо в `main`, без фича-в
   тумблеру НЕ подчиняется (см. «Публичный канал»).
 - Рассылка в личку и пост в канал — разные механизмы: `web_app`-кнопка в каналах не работает,
   там только `url` на `t.me/<bot>?startapp=m_<id>`.
-- ⚠️ Постер в рассылке пока уходит ссылкой (`BroadcastMessage.photo_url`) и по той же причине,
-  что и в канале, до Telegram не доезжает → письмо уходит текстом. Чтобы починить, нужен
-  том `uploads` у сервиса `worker` и путь с диска в payload очереди.
+- Постер в рассылке уходит ФАЙЛОМ с диска (`BroadcastMessage.photo_path`, как в канале):
+  по ссылке Telegram его не скачает. Поэтому воркеру смонтирован том `uploads`, а в payload
+  очереди лежит путь относительно медиа-корня. Файла на диске нет → письмо уходит текстом.
 
 ### Визард `/add`
 - Навигация данными: порядок шагов — `_ORDER`, тексты — `_PROMPTS`, меню правки — `EDIT_FIELDS`
@@ -308,7 +309,8 @@ Git: коммитить и пушить прямо в `main`, без фича-в
   Списки из env — `NoDecode` + валидатор. Alembic берёт DSN из `DatabaseConfig`
   (`-x dsn=...` переопределяет).
 - Compose: лимиты памяти на сервис — предохранители, логи json-file 10m×3. Тома: `pgdata`,
-  `uploads` (постеры + `channel/` карточки), `caddy_data` (сертификаты).
+  `uploads` (постеры + `channel/` карточки; смонтирован api/bot/worker — все трое шлют
+  картинки с диска), `caddy_data` (сертификаты).
 - Джобы (`infrastructure/scheduler.py`, все в процессе бота): `expire_due` 15 мин · `purge_stale`
   60 мин · дневной отчёт 22:00 · недельный вс 22:10 · фильм дня в канал 10:00 · `content_post`
   каждый час :00 · `quiz_results` каждый час :00.

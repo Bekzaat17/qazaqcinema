@@ -152,6 +152,8 @@ services:
       migrate:
         condition: service_completed_successfully
     command: python -m app.worker
+    volumes:
+      - uploads:/app/uploads   # постер рассылки уходит файлом с диска, а не ссылкой
     restart: unless-stopped
     logging: *default-logging
     deploy:

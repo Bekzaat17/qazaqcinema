@@ -6,10 +6,8 @@
 в джобах нет условия «если канал есть» — локальная разработка и тесты просто идут без
 канала, ничего не отключая руками.
 
-Фото — всегда С ДИСКА (`photo_path` + `FSInputFile`; корень — `MediaConfig.root`,
-домен путь до диска не знает): и карточки контента, и постеры фильмов. Отправка по URL
-не годится — картинку по ссылке качает сам Telegram, а входящий трафик с его диапазонов
-к нам режет хостер (см. `BOT_FORCE_POLLING` в DEPLOY.md).
+Фото — всегда С ДИСКА (`photo_path` + `FSInputFile`, см. `telegram/media.py`; корень —
+`MediaConfig.root`, домен путь до диска не знает): и карточки контента, и постеры фильмов.
 """
 
 from __future__ import annotations
@@ -19,9 +17,10 @@ from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
-from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.application.ports.channel import ChannelPost
+from app.infrastructure.telegram.media import photo_from_disk
 
 logger = logging.getLogger(__name__)
 
@@ -49,22 +48,13 @@ class AiogramChannelPublisher:
         self._channel_id = channel_id
         self._media_root = Path(media_root)
 
-    def _photo(self, post: ChannelPost) -> FSInputFile | None:
-        if post.photo_path is not None:
-            path = self._media_root / post.photo_path
-            if path.is_file():
-                return FSInputFile(path)
-            # Файл не доехал до диска (сидер запущен без картинок) — пост важнее картинки.
-            logger.warning("Картинка %s не найдена, публикуем текстом", path)
-        return None
-
     async def publish(self, post: ChannelPost) -> int | None:
         if not self._channel_id:
             # Канал не настроен — это НЕ ошибка (dev/test живут без него).
             logger.debug("Публичный канал не настроен, пост пропущен")
             return None
         keyboard = _keyboard(post)
-        photo = self._photo(post)
+        photo = photo_from_disk(self._media_root, post.photo_path)
         try:
             if photo is not None:
                 try:
@@ -80,7 +70,7 @@ class AiogramChannelPublisher:
                 except TelegramBadRequest:
                     # Битый файл либо подпись длиннее лимита. Пост важнее картинки —
                     # уходим текстом, как это делает `send_broadcast`.
-                    logger.warning("Фото %s не ушло в канал, публикуем текстом", photo)
+                    logger.warning("Фото %s не ушло в канал, публикуем текстом", photo.path)
             sent = await self._bot.send_message(
                 self._channel_id,
                 post.text,

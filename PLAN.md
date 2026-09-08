@@ -66,18 +66,15 @@
 | 4 | Адрес канала на карточках — из `BOT_PUBLIC_CHANNEL_USERNAME` (был константой в домене), убран `PaymentMethod.FIAT` |
 | 5 | `CardRenderer` через composition root, каталог контента — `MEDIA_CONTENT_ROOT` (был дефолтом CLI-флага `--content`, флаг убран) |
 | 6 | `db/repositories.py` (1042 строки) → пакет по агрегатам: `catalog`, `users`, `payments`, `analytics`; общий `rowcount` — в `db/sql.py`, оттуда же его берёт `content_repositories` (был дубль `cast`) |
+| 7 | Постер рассылки в личку — файлом с диска (`photo_path` вместо `photo_url`): том `uploads` воркеру, путь в payload очереди, `FSInputFile` в нотификаторе; отправка картинки с диска — общий `telegram/media.photo_from_disk` для канала и рассылки |
 
 Дальше, в порядке ценности:
 
-1. **Постер в рассылке в личку** — уходит ссылкой и по той же причине, что в канале, до
-   Telegram не доезжает, письмо идёт текстом (молча, без лога). Нужны: том `uploads` сервису
-   `worker` в compose, `photo_path` в `BroadcastMessage` и payload очереди, медиа-корень в
-   `AiogramNotifier`. Тесты `test_broadcast_service.py` ждут `photo_url` — переписать.
-2. **`web/src/App.tsx`** — 728 строк, вся навигация, дип-линки, поиск и опрос статуса в одном
+1. **`web/src/App.tsx`** — 728 строк, вся навигация, дип-линки, поиск и опрос статуса в одном
    компоненте. Вынести хуки: дип-линк, восстановление экрана, опрос `/api/me`.
-3. **`seo_service.py`** — 607 строк, данные (суффиксы, теги, шаблоны) и логика в одном файле.
+2. **`seo_service.py`** — 607 строк, данные (суффиксы, теги, шаблоны) и логика в одном файле.
    Данные просятся в отдельный модуль-справочник.
-4. **`logrotate` на хосте** — `/etc/logrotate.d/qazaqcinema` указывает на мёртвый лог
+3. **`logrotate` на хосте** — `/etc/logrotate.d/qazaqcinema` указывает на мёртвый лог
    `qazaqcinema/backups/backup.log`; живые `/root/backups/*.log` и `/root/logs/*.log` не
    ротируются. Готовый конфиг — в DEPLOY.md §7 (файл в системе, `git pull` его не принесёт).
 

@@ -1,10 +1,15 @@
-"""Адаптер исходящих уведомлений поверх aiogram Bot (реализует TelegramNotifier)."""
+"""Адаптер исходящих уведомлений поверх aiogram Bot (реализует TelegramNotifier).
+
+Постер рассылки уходит файлом из тома `uploads` (`telegram/media.py`) — по URL Telegram
+его не скачает, поэтому адаптеру нужен медиа-корень.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 from html import escape
+from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import (
@@ -35,6 +40,7 @@ from app.application.ports.telegram import (
 # reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
 from app.bot.keyboards.moderation import moderation_keyboard
 from app.domain.mention import mention_html
+from app.infrastructure.telegram.media import photo_from_disk
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +61,13 @@ def _broadcast_keyboard(message: BroadcastMessage) -> InlineKeyboardMarkup | Non
 
 
 class AiogramNotifier:
-    def __init__(self, bot: Bot, admin_chat_id: int, admin_user_ids: list[int]) -> None:
+    def __init__(
+        self, bot: Bot, admin_chat_id: int, admin_user_ids: list[int], media_root: str
+    ) -> None:
         self._bot = bot
         self._admin_chat_id = admin_chat_id
         self._admin_user_ids = admin_user_ids
+        self._media_root = Path(media_root)
 
     async def notify_user(self, telegram_id: int, text: str) -> None:
         await self._bot.send_message(telegram_id, text)
@@ -98,17 +107,18 @@ class AiogramNotifier:
 
     async def send_broadcast(self, chat_id: int, message: BroadcastMessage) -> None:
         keyboard = _broadcast_keyboard(message)
-        if message.photo_url is not None:
+        photo = photo_from_disk(self._media_root, message.photo_path)
+        if photo is not None:
             try:
                 await self._bot.send_photo(
-                    chat_id, message.photo_url, caption=message.text, reply_markup=keyboard
+                    chat_id, photo, caption=message.text, reply_markup=keyboard
                 )
                 return
             except TelegramBadRequest:
-                # Telegram не смог забрать постер по URL (или подпись длиннее лимита) →
-                # шлём текстом, чтобы не потерять уведомление. RetryAfter/Forbidden сюда
-                # не попадают (это отдельные классы) — их обрабатывает worker.
-                pass
+                # Битый файл либо подпись длиннее лимита → шлём текстом, чтобы не потерять
+                # уведомление (как это делает публикация в канал). RetryAfter/Forbidden
+                # сюда не попадают (это отдельные классы) — их обрабатывает worker.
+                logger.warning("Постер %s не ушёл в рассылку, шлём текстом", photo.path)
         await self._bot.send_message(chat_id, message.text, reply_markup=keyboard)
 
     async def send_protected_video(

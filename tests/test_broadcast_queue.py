@@ -33,7 +33,7 @@ class _BrokenRedis:
 
 
 _MSG = BroadcastMessage(
-    text="Жаңа фильм", photo_url="https://x/p.jpg", button_text="Көру", button_url="https://x"
+    text="Жаңа фильм", photo_path="posters/p.jpg", button_text="Көру", button_url="https://x"
 )
 
 

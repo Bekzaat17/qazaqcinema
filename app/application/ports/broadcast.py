@@ -20,10 +20,17 @@ from typing import Protocol
 @dataclass(frozen=True, slots=True)
 class BroadcastMessage:
     """Контент одной рассылки (шлётся многим). Presentation-agnostic — как отправлять,
-    решает адаптер нотификатора."""
+    решает адаптер нотификатора.
+
+    `photo_path` — путь постера ОТНОСИТЕЛЬНО медиа-корня (как у `ChannelPost`): корень
+    знает адаптер, сервис о раскладке файлов не знает. Отправки по URL здесь нет
+    намеренно — картинку по ссылке качает сам Telegram, а входящий трафик с его
+    диапазонов к нам режет хостер (тот же повод, что у `BOT_FORCE_POLLING`), поэтому
+    постер молча не доезжал и письмо уходило текстом.
+    """
 
     text: str
-    photo_url: str | None = None    # абсолютный URL постера; None → текстом
+    photo_path: str | None = None   # постер на диске; None → текстом
     button_text: str | None = None  # подпись inline-кнопки; None → без кнопки
     button_url: str | None = None   # URL Web App для кнопки (открывается в личке с ботом)
 
