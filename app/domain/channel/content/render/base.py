@@ -72,9 +72,14 @@ def compose(item: ContentItem, body_html: str) -> str:
     return "\n\n".join(part for part in (header(item), body_html.strip(), footer(item)) if part)
 
 
-def frame(item: ContentItem, body_html: str, limit: int) -> str:
-    """То же, но ≤ `limit`. Не влезает — режется ТЕЛО (с «…»), не подвал с хэштегами."""
-    head = header(item)
+def frame(item: ContentItem, body_html: str, limit: int, *, head: str | None = None) -> str:
+    """То же, но ≤ `limit`. Не влезает — режется ТЕЛО (с «…»), не подвал с хэштегами.
+
+    `head` — своя шапка вместо рубрики: поздравлению нужно название праздника, а рубрика
+    у всех поздравлений одна («Мереке») и в шапке ничего не сказала бы.
+    """
+    if head is None:
+        head = header(item)
     foot = footer(item)
     overhead = len(head) + len(foot) + 4  # два разделителя «\n\n»
     room = limit - overhead

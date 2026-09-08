@@ -6,6 +6,7 @@ Strategy по `kind` через `Registry` (`domain/registry.py`): каждый 
 """
 
 from app.domain.channel.content.render import (  # регистрация форм
+    greeting,
     longread,
     quiz,
     saying,
@@ -27,6 +28,7 @@ __all__ = [
     "RenderedPost",
     "compose",
     "frame",
+    "greeting",
     "longread",
     "quiz",
     "saying",

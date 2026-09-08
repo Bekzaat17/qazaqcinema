@@ -34,6 +34,13 @@ class ContentRepository(Protocol):
 
     async def get(self, item_id: int) -> ContentItem | None: ...
 
+    async def by_slug(self, slug: str) -> ContentItem | None:
+        """Элемент по натуральному ключу — им поздравление находит свой текст.
+
+        Ротация здесь ни при чём: какой пост нужен 21 наурыз, решает календарь
+        (`domain/channel/holidays.py`), а не LRU-очередь пула."""
+        ...
+
     async def upsert_many(self, items: list[ContentItem]) -> int:
         """Сидер: вставить/обновить по `slug` (натуральный ключ YAML). Состояние ротации
         (`last_posted_at`, `post_count`) НЕ трогает — правка текста не сбрасывает историю.

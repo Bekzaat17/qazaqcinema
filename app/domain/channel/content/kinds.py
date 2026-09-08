@@ -25,6 +25,11 @@ class ContentKind(StrEnum):
     SAYING = "saying"
     # Список «термин → значение» (атаулары: жылқы жасы, туыстық атаулар, киім…).
     TERM_LIST = "term_list"
+    # Поздравление с праздником (`domain/channel/holidays.py`): картинка + 2–4 строки
+    # тёплого текста. Без inline-кнопки НАМЕРЕННО — пост с кнопками Telegram не
+    # пересылает в группу обсуждений, а праздник ровно тот случай, когда люди
+    # поздравляют друг друга сами (см. CLAUDE.md, «Публичный канал»).
+    GREETING = "greeting"
 
     @property
     def is_quiz(self) -> bool:

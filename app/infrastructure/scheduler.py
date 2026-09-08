@@ -39,6 +39,12 @@
    (другая ответственность), но тот же час: квиз закрывается в 21:00, и разбор уходит
    ровно тогда, когда обещано в посте.
 
+8. `holiday_post_HHMM` — поздравления с праздниками. Джобов столько, сколько РАЗЛИЧНЫХ
+   времён в календаре (`domain/channel/holidays.POST_TIMES`: 00:01 для Нового года,
+   09:00 для остальных); все зовут один обработчик, а он спрашивает у календаря, какой
+   сегодня праздник. Так «во сколько поздравлять» остаётся данными: новая дата —
+   строка в справочнике, кода не касается. В праздник обычный слот сетки молчит.
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
@@ -64,6 +70,7 @@ from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.analytics.report import render_report
 from app.domain.analytics.weekly_report import render_weekly_report
+from app.domain.channel.holidays import POST_TIMES as HOLIDAY_POST_TIMES
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +143,13 @@ async def _content_post_job(container: AsyncContainer) -> None:
         posting = await request_container.get(ContentPostingService)
         if await posting.post_slot(datetime.now(UTC)):
             logger.info("Пост контент-плана опубликован в канале")
+
+
+async def _holiday_post_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        posting = await request_container.get(ContentPostingService)
+        if await posting.post_holiday(datetime.now(UTC)):
+            logger.info("Поздравление с праздником опубликовано в канале")
 
 
 async def _quiz_results_job(container: AsyncContainer) -> None:
@@ -214,6 +228,20 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         misfire_grace_time=3000,
         coalesce=True,
     )
+    # По одному джобу на КАЖДОЕ различное время из календаря праздников (сейчас 00:01 и
+    # 09:00): ежечасный `content_post` стреляет в :00 и «поздравить первым, пока лента
+    # пустая» не поймал бы. Во сколько поздравлять — данные, а не третий джоб в коде.
+    for hour, minute in HOLIDAY_POST_TIMES:
+        scheduler.add_job(
+            _holiday_post_job,
+            CronTrigger(hour=hour, minute=minute, timezone=REPORT_TZ),
+            args=[container],
+            id=f"holiday_post_{hour:02d}{minute:02d}",
+            # Как у поста в канал: рестарт внутри окна догоняет поздравление, а
+            # `coalesce` + UNIQUE slot_key не дают отправить его дважды.
+            misfire_grace_time=3000,
+            coalesce=True,
+        )
     scheduler.add_job(
         _quiz_results_job,
         CronTrigger(minute=0, timezone=REPORT_TZ),

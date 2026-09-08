@@ -92,6 +92,13 @@ class PgContentRepository:
         model = await self._session.get(ContentItemModel, item_id)
         return _item_to_domain(model) if model else None
 
+    async def by_slug(self, slug: str) -> ContentItem | None:
+        stmt = select(ContentItemModel).where(
+            ContentItemModel.slug == slug, ContentItemModel.is_active.is_(True)
+        )
+        model = await self._session.scalar(stmt)
+        return _item_to_domain(model) if model else None
+
     async def upsert_many(self, items: list[ContentItem]) -> int:
         """INSERT … ON CONFLICT (slug) DO UPDATE содержимого; ротация не трогается."""
         if not items:

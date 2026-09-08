@@ -1,0 +1,299 @@
+# Мерекелік құттықтаулар — форма `greeting`, рубрика `meiram`.
+#
+# slug ӘРҚАШАН күнтізбедегі мереке slug-імен бірдей: `app/domain/channel/holidays.py`
+# сол slug арқылы мәтінді табады. Жаңа мереке = күнтізбеге бір жол + осында бір элемент.
+#
+# Суреттер: `images/holidays/` — Wikimedia Commons (қоғамдық игілік / CC), автор мен
+# лицензия `image_credit`-те және посттың астында басылады. Фотосы жоқ күндерге —
+# арнаның Pillow-карточкасы (`card`). Өз фотоңызды қоссаңыз: файлды
+# `content/images/holidays/` ішіне салып, `image:` жолын ауыстырыңыз.
+#
+# ⚠️ Подпись 900 таңбадан аспауы керек (Telegram фото подписі — 1024).
+
+- slug: zhana-zhyl
+  kind: greeting
+  topic: meiram
+  title: Жаңа жыл құтты болсын!
+  body: |
+    Жаңа жыл — жаңа үміт, жаңа бастама. Отбасыңызға амандық, дастарқаныңызға береке,
+    көңіліңізге қуаныш тілеймін.
+    Жаңа жылда бір-бірімізге жылы сөз айтудан жалықпайық!
+  image: holidays/fireworks.jpg
+  image_credit: "Фото: Wilfredor, Wikimedia Commons, CC0"
+
+- slug: rozhdestvo
+  kind: greeting
+  topic: meiram
+  title: Рождество мерекесі құтты болсын!
+  body: |
+    Бүгін христиан бауырларымыз Рождество мерекесін атап отыр. Әр үйде тыныштық,
+    әр жүректе шыдам мен мейірім болсын.
+    Ел бірлігі — әртүрлі сенімнің бір-біріне деген құрметінен басталады.
+  image: holidays/zenkov_cathedral.jpg
+  image_credit: "Фото: Bgag, Wikimedia Commons, CC0"
+
+- slug: aigys-aitu
+  kind: greeting
+  topic: meiram
+  title: Алғыс айту күні құтты болсын!
+  body: |
+    1 наурыз — Алғыс айту күні. Қазақ жері ауыр жылдарда жүзден асқан халықты бауырына
+    басты, олар бұл жерді Отан деп таныды.
+    «Рақмет» деген сөзге сылтау керек емес: бүгін ата-анаңызға, ұстазыңызға, көршіңізге
+    алғыс айтыңыз.
+  card:
+    title: Алғыс айту күні құтты болсын!
+    label: Мереке
+
+- slug: halyqaralyq-aiel
+  kind: greeting
+  topic: meiram
+  title: Халықаралық әйелдер күні құтты болсын!
+  body: |
+    Аналарымыз, апаларымыз, қарындастарымыз — мереке құтты болсын! Сіздердің жылуыңыз
+    бар жерде үй шырайлы, бала бақытты.
+    Көктемнің сыйы — қызғалдақ пен жылы сөз. Бүгін екеуін де сыйлаңыз.
+  image: holidays/tulipa_greigii.jpg
+  image_credit: "Сурет: Eduard Regel, «Gartenflora» (1873), Wikimedia Commons, қоғамдық игілік"
+
+- slug: nauryz
+  kind: greeting
+  topic: meiram
+  title: Наурыз мейрамы құтты болсын!
+  body: |
+    Ұлыс оң болсын! Наурыз — жаңа жылдың, жаңа тіршіліктің басы: қар суы жерге сіңіп,
+    дала көгереді.
+    Дастарқаныңыз мол, көңіліңіз ақ, отбасыңыз аман болсын. Наурыз көже ішіп, ренішті
+    ұмытатын күн — осы күн!
+  image: holidays/nauryz_kozhe.jpg
+  image_credit: "Фото: Игорь Улитин, Wikimedia Commons, CC BY-SA 4.0"
+
+- slug: birlik
+  kind: greeting
+  topic: meiram
+  title: Қазақстан халқының бірлігі күні құтты болсын!
+  body: |
+    Бір дастарқанның басына жүзден асқан халық жиналатын ел — біздің елміз. Бірлік бар
+    жерде береке бар.
+    Тілі мен дәстүрі әртүрлі болса да, тілегі бір болған халқымызға мың алғыс. Мереке
+    құтты болсын!
+  image: holidays/dastarkhan.jpg
+  image_credit: "Фото: Symbat Bolatova, Wikimedia Commons, CC BY-SA 4.0"
+
+- slug: otan-qorgaushy
+  kind: greeting
+  topic: meiram
+  title: Отан қорғаушы күні құтты болсын!
+  body: |
+    Отан қорғау — ұлдың ғана емес, әркімнің парызы. Бүгін ел шекарасын күзетіп жүрген
+    жауынгерлерге алғыс айтамыз.
+    Аспанымыз ашық, шекарамыз тыныш болсын!
+  image: holidays/parade.jpg
+  image_credit: "Фото: Kalabaha1969, Wikimedia Commons, CC BY 4.0"
+
+- slug: zhenis
+  kind: greeting
+  topic: meiram
+  title: Жеңіс күні құтты болсын!
+  body: |
+    Жеңіс — 1418 күн бойы шыдаған жандардың еңбегі. Аталарымыздың батырлығы,
+    әжелеріміздің төзімі — бүгінгі тыныштығымыздың бағасы.
+    Ардагерлерімізге мың алғыс. Ешкім де, ешнәрсе де ұмытылмайды.
+  image: holidays/eternal_flame.jpg
+  image_credit: "Фото: Мазур Владимир, Wikimedia Commons, CC BY-SA 4.0"
+
+- slug: balalar
+  kind: greeting
+  topic: meiram
+  title: Балаларды қорғау күні құтты болсын!
+  body: |
+    Бала — үйдің қуанышы, елдің болашағы. Оларға керегі — көп сыйлық емес, бірге
+    өткізген уақыт.
+    Бүгін балаңызбен қатар отырып бір мультфильм көріңіз, бір ертегі айтыңыз. Есте
+    қалатыны — осы.
+  image: holidays/family_screen.jpg
+  image_credit: "Фото: Alexander Dummer, Wikimedia Commons (Unsplash), CC0"
+
+- slug: ramizder
+  kind: greeting
+  topic: meiram
+  title: Мемлекеттік рәміздер күні құтты болсын!
+  body: |
+    Көк ту, алтын күн, қалықтаған қыран — бұл жай ғана сурет емес, елдіктің белгісі.
+    Рәмізді сыйлау — Отанды сыйлау. Мереке құтты болсын!
+  card:
+    title: Мемлекеттік рәміздер күні
+    label: Мереке
+
+- slug: ake-kuni
+  kind: greeting
+  topic: meiram
+  title: Әке күні құтты болсын!
+  body: |
+    Әке — үйдің тірегі, баланың тұңғыш ұстазы. Ақыл айтқаны да, үнсіз қалғаны да тәрбие.
+    Бүгін әкеңізге қоңырау шалыңыз. Бір ауыз жылы сөз — олар үшін ең қымбат сыйлық.
+  image: holidays/father_child.jpg
+  image_credit: "Фото: Naassom Azevedo, Wikimedia Commons (Unsplash), CC0"
+
+- slug: astana
+  kind: greeting
+  topic: meiram
+  title: Астана күні құтты болсын!
+  body: |
+    Дала ортасында бас көтерген қала — елдің қайраты мен сенімінің белгісі.
+    Астанамыз көркейе берсін, шаһарымызда шаттық болсын. Мереке құтты болсын!
+  image: holidays/baiterek_night.jpg
+  image_credit: "Фото: Dauren Nabijan, Wikimedia Commons, CC0"
+
+- slug: abai
+  kind: greeting
+  topic: meiram
+  title: Абай күні құтты болсын!
+  body: |
+    10 тамыз — Абай туған күн. «Адам болам десеңіз...» деген сөз бір ғасырдан кейін де
+    айнымай тұр.
+    Бүгін бір қара сөзді қайта оқып шығыңыз: Абай әр оқығанда басқаша сөйлейді.
+  card:
+    title: Абай күні құтты болсын!
+    portrait: authors/abai.jpg
+    label: Мереке
+    subtitle: Абай Құнанбайұлы · 1845–1904
+  image_credit: "Фото: Wikimedia Commons, қоғамдық игілік"
+
+- slug: zhastar
+  kind: greeting
+  topic: meiram
+  title: Жастар күні құтты болсын!
+  body: |
+    Жастық — асығатын кез емес, үйренетін кез. Оқы, ізден, қателес — бәрі жолдың бір
+    бөлігі.
+    Арманы биік жастарға сәтті жол тілеймін. Мереке құтты болсын!
+  card:
+    title: Жастар күні құтты болсын!
+    label: Мереке
+
+- slug: konstitutsiya
+  kind: greeting
+  topic: meiram
+  title: Конституция күні құтты болсын!
+  body: |
+    Конституция — елдің ортақ келісімі: құқығың да, парызың да сонда жазылған.
+    Заң берік болса, ел тыныш. Мереке құтты болсын!
+  image: holidays/winter_almaty.jpg
+  image_credit: "Фото: Dan Lundberg, Wikimedia Commons, CC BY-SA 2.0"
+
+- slug: bilim
+  kind: greeting
+  topic: meiram
+  title: Білім күні құтты болсын!
+  body: |
+    1 қыркүйек — мектеп қоңырауы соғатын күн. Оқушыларға табысты жыл, ұстаздарға шыдам,
+    ата-аналарға қуаныш тілеймін.
+    Білім — таусылмайтын байлық, оны ешкім тартып ала алмайды.
+  card:
+    title: Білім күні құтты болсын!
+    label: Мереке
+
+- slug: til
+  kind: greeting
+  topic: meiram
+  title: Қазақстан халқы тілдері күні құтты болсын!
+  body: |
+    5 қыркүйек — Ахмет Байтұрсынұлы туған күн. Ұлт ұстазы қазақ әліпбиін жасап, тілді
+    сақтап қалды.
+    Тіл үйрену — үлкен науқан емес, күнделікті әдет. Бүгін бір фильмді қазақша көріңіз!
+  card:
+    title: Тіл — халықтың жаны
+    portrait: authors/baitursynuly.jpg
+    label: Тілдер күні
+    subtitle: Ахмет Байтұрсынұлы · 1872–1938
+  image_credit: "Фото: Wikimedia Commons, қоғамдық игілік"
+
+- slug: otbasy
+  kind: greeting
+  topic: meiram
+  title: Отбасы күні құтты болсын!
+  body: |
+    Отбасы — адамның ең алғашқы және ең соңғы тірегі. Бақыт үлкен үйде емес, бір-бірін
+    тыңдайтын үйде.
+    Бүгін бәріңіз бір дастарқанның басына жиналыңыз. Қалғанының бәрі күте алады.
+  image: holidays/family_lake.jpg
+  image_credit: "Фото: Andre Hunter, Wikimedia Commons (Unsplash), CC0"
+
+- slug: ana-kuni
+  kind: greeting
+  topic: meiram
+  title: Ана күні құтты болсын!
+  body: |
+    Ананың алақаны — әлемдегі ең жылы жер. Ұйықтамай күткен түндер, айтылмай қалған
+    алаңдаулар — бәрі бала үшін.
+    Анаңызға телефон шалыңыз, қолын алыңыз, рақмет айтыңыз. Кешікпейік.
+  image: holidays/mother_child.jpg
+  image_credit: "Фото: Thiago Cerqueira, Wikimedia Commons (Unsplash), CC0"
+
+- slug: qarttar
+  kind: greeting
+  topic: meiram
+  title: Қарттар күні құтты болсын!
+  body: |
+    Ақсақал бар үйде ақыл бар, әже бар үйде мейір бар. Қарттарымыздың дұғасы — біздің
+    қорғанымыз.
+    Бүгін атаңызға, әжеңізге барыңыз. Олар сыйлықты емес, сізді күтеді.
+  card:
+    title: Қарттар күні құтты болсын!
+    label: Мереке
+
+- slug: ustaz
+  kind: greeting
+  topic: meiram
+  title: Ұстаз күні құтты болсын!
+  body: |
+    Ыбырай Алтынсарин ашқан бір мектептен бүкіл ұлттың оқуы басталды. Ұстаз бір ұрпақты
+    емес, бірнеше ұрпақты тәрбиелейді.
+    Барлық ұстаздарға алғыс! Шыдамдарыңыз мол, шәкірттеріңіз мақтан болсын.
+  card:
+    title: Ұстаз күні құтты болсын!
+    portrait: authors/altynsarin.jpg
+    label: Мереке
+    subtitle: Ыбырай Алтынсарин · 1841–1889
+  image_credit: "Фото: Wikimedia Commons, қоғамдық игілік"
+
+- slug: respublika
+  kind: greeting
+  topic: meiram
+  title: Республика күні құтты болсын!
+  body: |
+    25 қазан — Егемендік туралы декларация қабылданған күн, тәуелсіздігіміздің басы.
+    Еліміз тыныш, халқымыз ынтымақты болсын. Мереке құтты болсын!
+  image: holidays/almaty_valley.jpg
+  image_credit: "Фото: Nessi Gileva, Wikimedia Commons (Unsplash), CC0"
+
+- slug: tauelsizdik
+  kind: greeting
+  topic: meiram
+  title: Тәуелсіздік күні құтты болсын!
+  body: |
+    Тәуелсіздік — сыйға тартылған нәрсе емес, ұрпақтар аңсаған үміт.
+    Жеріміз тұтас, тіліміз тірі, елі бірлікте болсын. Мереке құтты болсын, Қазақстан!
+  image: holidays/kazakh_eli.jpg
+  image_credit: "Фото: Bernard Gagnon, Wikimedia Commons, CC0"
+
+- slug: oraza-ait
+  kind: greeting
+  topic: meiram
+  title: Ораза айт құтты болсын!
+  body: |
+    Айт мүбәрак болсын! Бір ай бойы ұстаған оразаңыз қабыл, дұғаңыз жерде қалмасын.
+    Бүгін үлкенге сәлем беріп, кішіге тілек айтыңыз. Ренішті кешіретін күн — осы күн.
+  image: holidays/mosque_almaty_inside.jpg
+  image_credit: "Фото: Davide Mauro, Wikimedia Commons, CC BY-SA 4.0"
+
+- slug: qurban-ait
+  kind: greeting
+  topic: meiram
+  title: Құрбан айт құтты болсын!
+  body: |
+    Айт мүбәрак болсын! Құрбандық — мал сою емес, жүректің тазалығы мен жомарттығы.
+    Үлестірген етіңіз мол, көңіліңіз ақ, отбасыңыз аман болсын. Мереке құтты болсын!
+  image: holidays/mosque_hazrat_sultan.jpg
+  image_credit: "Фото: t_y_l, Wikimedia Commons, CC BY-SA 2.0"
