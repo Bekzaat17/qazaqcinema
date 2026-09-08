@@ -158,11 +158,12 @@ async def test_ingest_stores_exactly_one_image() -> None:
     assert images.calls == [(b"poster", POSTER)]   # и нормализован он один раз
 
 
-async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
-    """Админ выбрал «🔕 Жоқ» → фильм сохраняется, но рассылка НЕ ставится.
+async def test_ingest_without_notify_keeps_the_queue_silent_but_posts_to_channel() -> None:
+    """Админ выбрал «🔕 Жоқ» → рассылки в личку нет, а пост в канале ЕСТЬ.
 
     Ради этого шаг и заведён: каталог заливают пачками, и безусловная рассылка давала
-    десятки пушей за вечер каждому подписчику — прямой путь в блокировку бота.
+    десятки пушей за вечер каждому подписчику — прямой путь в блокировку бота. Канал
+    к этому выбору не относится: там витрина, и лента обязана повторять каталог.
     """
     movies, broadcast, cache = _FakeMovies(), _FakeBroadcast(), _FakeCache()
     channel = _FakeChannel()
@@ -186,14 +187,12 @@ async def test_ingest_without_notify_keeps_the_queue_silent() -> None:
 
     assert movie.id == 1              # фильм в каталоге
     assert cache.invalidated == 1     # и виден сразу (кэш сброшен)
-    assert broadcast.notified == []   # но никого не разбудили
-    # Канал молчит по тому же флагу: решение «объявлять ли новинку» админ принимает
-    # ОДИН раз на шаге визарда, второго тумблера отдельно под канал нет.
-    assert channel.posted == []
+    assert broadcast.notified == []   # в личку никого не разбудили
+    assert channel.posted == [movie]  # а в канале пост есть — тумблер его не касается
 
 
 async def test_ingest_episode_of_existing_season_reuses_its_fields() -> None:
-    """Серия УЖЕ СУЩЕСТВУЮЩЕГО сезона (решение 2026-08-28): постер/категории/описание
+    """Серия УЖЕ СУЩЕСТВУЮЩЕГО сезона: постер/категории/описание
     берутся с сезона (визард их не спрашивал), номер серии — следующий по счёту, название
     авто-генерируется «<сезон> — N-бөлім»; постер повторно не нормализуется/не сохраняется.
     """

@@ -6,9 +6,10 @@
 в джобах нет условия «если канал есть» — локальная разработка и тесты просто идут без
 канала, ничего не отключая руками.
 
-Фото — двумя путями: `photo_url` (постер фильма, Telegram качает сам) и `photo_path`
-(карточки контента с диска, `FSInputFile`; корень — `MediaConfig.root`, домен путь до
-диска не знает).
+Фото — всегда С ДИСКА (`photo_path` + `FSInputFile`; корень — `MediaConfig.root`,
+домен путь до диска не знает): и карточки контента, и постеры фильмов. Отправка по URL
+не годится — картинку по ссылке качает сам Telegram, а входящий трафик с его диапазонов
+к нам режет хостер (см. `BOT_FORCE_POLLING` в DEPLOY.md).
 """
 
 from __future__ import annotations
@@ -48,9 +49,7 @@ class AiogramChannelPublisher:
         self._channel_id = channel_id
         self._media_root = Path(media_root)
 
-    def _photo(self, post: ChannelPost) -> str | FSInputFile | None:
-        if post.photo_url is not None:
-            return post.photo_url
+    def _photo(self, post: ChannelPost) -> FSInputFile | None:
         if post.photo_path is not None:
             path = self._media_root / post.photo_path
             if path.is_file():
@@ -79,8 +78,7 @@ class AiogramChannelPublisher:
                     )
                     return sent.message_id
                 except TelegramBadRequest:
-                    # Telegram не смог забрать постер по URL (домен недоступен снаружи,
-                    # битый файл) либо подпись длиннее лимита. Пост важнее картинки —
+                    # Битый файл либо подпись длиннее лимита. Пост важнее картинки —
                     # уходим текстом, как это делает `send_broadcast`.
                     logger.warning("Фото %s не ушло в канал, публикуем текстом", photo)
             sent = await self._bot.send_message(

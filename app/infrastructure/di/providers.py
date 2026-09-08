@@ -308,13 +308,15 @@ class RequestProvider(Provider):
 
     @provide
     def channel(
-        self, publisher: ChannelPublisher, daily: DailyMovieService, config: AppConfig
+        self,
+        publisher: ChannelPublisher,
+        daily: DailyMovieService,
+        posters: PosterStorage,
+        config: AppConfig,
     ) -> ChannelService:
-        # webapp_url и username бота — примитивы из конфига (как у BroadcastService):
-        # сервис получает строки, а не весь AppConfig.
-        return ChannelService(
-            publisher, daily, config.bot.webapp_url, config.bot.username
-        )
+        # Из конфига — только @-имя бота для кнопки (как у BroadcastService: сервис
+        # получает строку, а не весь AppConfig). Постер сервис берёт через PosterStorage.
+        return ChannelService(publisher, daily, posters, config.bot.username)
     milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
     content_posting = provide(ContentPostingService)  # контент-план канала: ежечасный джоб
     content_seed = provide(ContentSeedService)  # заливка пула из YAML (tools/seed_content)

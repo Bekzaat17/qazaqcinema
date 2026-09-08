@@ -53,6 +53,17 @@ class _FakePublisher:
         return True
 
 
+class _FakePosters:
+    """Хранилище постеров: `/posters/x.jpg` → `posters/x.jpg`; `missing` — файла нет."""
+
+    async def save(self, data: bytes) -> str:
+        return "/posters/new.jpg"
+
+    def local_path(self, poster_url: str) -> str | None:
+        name = poster_url.rsplit("/", 1)[-1]
+        return None if name == "missing.jpg" else f"posters/{name}"
+
+
 class _FakeDaily:
     def __init__(self, movie: Movie | None) -> None:
         self._movie = movie
@@ -65,7 +76,7 @@ def _service(publisher: _FakePublisher, movie: Movie | None = None) -> ChannelSe
     return ChannelService(
         publisher,
         _FakeDaily(movie),  # type: ignore[arg-type]
-        webapp_url="https://qazaqcinema.kz/",
+        _FakePosters(),
         bot_username="qazaqcinema_bot",
     )
 
@@ -150,7 +161,28 @@ async def test_post_button_is_a_deep_link_to_the_movie() -> None:
     post = publisher.posts[0]
     assert post.button_url == "https://t.me/qazaqcinema_bot?startapp=m_42"
     assert post.button_text
-    assert post.photo_url == "https://qazaqcinema.kz/posters/x.jpg"
+
+
+async def test_post_carries_the_poster_as_a_file_not_a_url() -> None:
+    """Постер уходит ФАЙЛОМ С ДИСКА: по ссылке Telegram его не скачает.
+
+    Входящий трафик с диапазонов Telegram к нам режет хостер (тот же повод, что у
+    `BOT_FORCE_POLLING`), поэтому `photo_url` молча не доезжал и пост уходил текстом.
+    """
+    publisher = _FakePublisher()
+    await _service(publisher).publish_new_movie(_movie())
+
+    post = publisher.posts[0]
+    assert post.photo_path == "posters/x.jpg"
+
+
+async def test_post_without_the_poster_file_still_goes_out() -> None:
+    """Файла на диске нет → пост уходит текстом, а не отменяется."""
+    publisher = _FakePublisher()
+    await _service(publisher).publish_new_movie(_movie(poster_url="/posters/missing.jpg"))
+
+    assert publisher.posts[0].photo_path is None
+    assert publisher.posts[0].text
 
 
 async def test_daily_post_takes_the_same_movie_as_playback() -> None:
@@ -180,7 +212,7 @@ async def test_post_without_bot_username_has_no_button() -> None:
     service = ChannelService(
         publisher,  # type: ignore[arg-type]
         _FakeDaily(None),  # type: ignore[arg-type]
-        webapp_url="https://qazaqcinema.kz/",
+        _FakePosters(),
         bot_username="",
     )
 
