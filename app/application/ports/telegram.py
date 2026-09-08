@@ -91,7 +91,7 @@ class TelegramNotifier(Protocol):
         ...
 
     async def send_broadcast(self, chat_id: int, message: BroadcastMessage) -> None:
-        """Отправить одно сообщение рассылки (Фаза 12): фото+подпись или текст, опц. кнопка.
+        """Отправить одно сообщение рассылки: фото+подпись или текст, опц. кнопка.
 
         Ошибки Telegram (RetryAfter/Forbidden) НЕ глушим — их обрабатывает worker
         (спит на RetryAfter, помечает заблокировавших). Глушим лишь падение отправки

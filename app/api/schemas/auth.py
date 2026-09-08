@@ -14,10 +14,10 @@ class AuthOut(BaseModel):
     status: str
     expires_at: datetime | None = None
     has_access: bool
-    # Сессионный токен (Фаза 11.1): клиент кладёт его в localStorage и шлёт в Authorization
+    # Сессионный токен: клиент кладёт его в localStorage и шлёт в Authorization
     # вместо initData. None — Redis недоступен, клиент остаётся на initData (fail-open).
     token: str | None = None
-    # Начальное состояние тумблера рассылок (Фаза 12) — фронт рисует профиль без доп. запроса.
+    # Начальное состояние тумблера рассылок — фронт рисует профиль без доп. запроса.
     notifications_enabled: bool = True
     # Подарочный первый фильм. Фронт по этим двум полям решает, что показать вместо
     # пэйволла: приглашение «первый фильм за наш счёт» (подарок цел) или бейдж «Сыйлық»

@@ -1,4 +1,4 @@
-"""Redis-адаптеры инфраструктуры кэша/координации (Фаза 11).
+"""Redis-адаптеры инфраструктуры кэша/координации.
 
 Реализации портов `Lock`/`RateLimiter` (и позже `SessionStore`/`CatalogCache`)
 поверх `redis.asyncio`. Namespace-префиксы ключей (`lock:`, `ratelimit:`, …) живут

@@ -1,4 +1,4 @@
-"""Redis-адаптер порта `BroadcastQueue` — надёжная очередь рассылок (Фаза 12).
+"""Redis-адаптер порта `BroadcastQueue` — надёжная очередь рассылок.
 
 Устройство (reliable queue на Redis List):
   • `broadcast:pending`      — очередь заданий (RPUSH в хвост, LMOVE из головы → FIFO);

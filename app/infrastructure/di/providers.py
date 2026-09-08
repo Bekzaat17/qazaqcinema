@@ -134,7 +134,7 @@ class AppProvider(Provider):
     @provide
     async def redis(self, config: AppConfig) -> AsyncIterator[Redis]:
         # APP-scope синглтон-пул к Redis. Фундамент под сессии/кэш/rate-limit/локи
-        # (Фаза 11). Закрывается при остановке контейнера (graceful).
+        #. Закрывается при остановке контейнера (graceful).
         client = Redis.from_url(config.redis.dsn, decode_responses=True)
         try:
             yield client
@@ -143,22 +143,22 @@ class AppProvider(Provider):
 
     @provide
     def lock(self, redis: Redis) -> Lock:
-        # Стейтлес-обёртка над APP-scope Redis → синглтон (Фаза 11.4, анти-двойной-клик).
+        # Стейтлес-обёртка над APP-scope Redis → синглтон (анти-двойной-клик).
         return RedisLock(redis)
 
     @provide
     def rate_limiter(self, redis: Redis) -> RateLimiter:
-        # Тоже стейтлес-обёртка над Redis (Фаза 11.3, защита API от выкачки/спама).
+        # Тоже стейтлес-обёртка над Redis (защита API от выкачки/спама).
         return RedisRateLimiter(redis)
 
     @provide
     def session_store(self, redis: Redis) -> SessionStore:
-        # Серверные сессии Web App (Фаза 11.1): initData → токен в Redis, TTL 24 ч.
+        # Серверные сессии Web App: initData → токен в Redis, TTL 24 ч.
         return RedisSessionStore(redis)
 
     @provide
     def catalog_cache(self, redis: Redis) -> CatalogCache:
-        # Cache-aside каталога (Фаза 11.2/13): namespace catalog:* (home/categories/browse),
+        # Cache-aside каталога: namespace catalog:* (home/categories/browse),
         # инвалидация на /add чистит весь namespace.
         return RedisCatalogCache(redis)
 
@@ -170,7 +170,7 @@ class AppProvider(Provider):
 
     @provide
     def broadcast_queue(self, redis: Redis) -> BroadcastQueue:
-        # Надёжная очередь рассылок (Фаза 12): worker забирает пачками, соблюдая лимиты TG.
+        # Надёжная очередь рассылок: worker забирает пачками, соблюдая лимиты TG.
         return RedisBroadcastQueue(redis)
 
     @provide

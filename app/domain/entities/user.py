@@ -15,7 +15,7 @@ class User:
     status: UserStatus = UserStatus.NEW
     expires_at: datetime | None = None
     selected_tariff: str | None = None
-    notifications_enabled: bool = True  # рассылки о новинках; opt-out, по умолчанию ВКЛ (Фаза 12)
+    notifications_enabled: bool = True  # рассылки о новинках; opt-out, по умолчанию ВКЛ
     # Открыт ли чат с ботом. Telegram не даёт боту написать первым, а всё видео уходит
     # именно в чат — значит без этого факта человек физически не может получить фильм,
     # хотя каталог в Mini App ему виден (зашёл по ссылке/из браузера, /start не нажимал).

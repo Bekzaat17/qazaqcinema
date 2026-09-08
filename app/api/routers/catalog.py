@@ -68,7 +68,7 @@ async def browse_movies(
     page: int = 1,
     limit: int = 24,
 ) -> Response:
-    """Страница каталога: мультифильтр `?categories=a,b`, сортировка, пагинация (Фаза 13).
+    """Страница каталога: мультифильтр `?categories=a,b`, сортировка, пагинация.
 
     Cache-aside (Redis, короткий TTL): ключ детерминирован по параметрам (категории дедупим и
     сортируем — порядок не влияет). Хит → сырой JSON; промах → БД + кэш. Клампы page/limit — в
@@ -110,7 +110,7 @@ async def catalog_home(
     catalog: FromDishka[CatalogService],
     _user: User = Depends(get_current_user),
 ) -> Response:
-    """Главный экран одним ответом (hero + готовые полки), cache-aside (Фаза 11.2/13).
+    """Главный экран одним ответом (hero + готовые полки), cache-aside.
 
     Хит — отдаём готовый JSON из Redis; промах — собираем из БД (полки уже ограничены N
     на бэке), кладём в кэш. Инвалидируется при `/add`. Определён ДО `/{movie_id}`.

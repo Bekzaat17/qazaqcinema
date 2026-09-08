@@ -2,7 +2,7 @@
 
 Тонкий aiogram-хендлер (`bot/handlers/moderation.py`) парсит callback и вызывает этот
 use-case. Грант подписки делегируется `SubscriptionService.activate` — единая точка
-Фазы 6, не дублируем. Идемпотентность: обрабатываем ТОЛЬКО `PENDING`-заявку (повторный
+гранта, не дублируем. Идемпотентность: обрабатываем ТОЛЬКО `PENDING`-заявку (повторный
 клик → `ALREADY_HANDLED`), чтобы одобрение не выдало подписку дважды.
 """
 
@@ -60,7 +60,7 @@ class PaymentModerationService:
         if tariff is None or user is None:
             return ModerationResult(ModerationOutcome.NOT_FOUND)
         await self._payments.set_status(request_id, PaymentStatus.APPROVED, now)
-        # Грант подписки (ACTIVE + expires_at + DM юзеру) — ядро Фазы 6.
+        # Грант подписки (ACTIVE + expires_at + DM юзеру) — единая точка активации.
         await self._subscription.activate(user, tariff, now)
         return ModerationResult(
             ModerationOutcome.APPROVED,

@@ -39,7 +39,7 @@ class UserModel(Base):
     status: Mapped[str] = mapped_column(String(20), default=UserStatus.NEW.value)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     selected_tariff: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    # Рассылки о новинках (Фаза 12): opt-out, по умолчанию ВКЛ. server_default → backfill
+    # Рассылки о новинках: opt-out, по умолчанию ВКЛ. server_default → backfill
     # существующих строк в True при миграции без отдельного UPDATE.
     notifications_enabled: Mapped[bool] = mapped_column(
         Boolean, server_default=text("true"), nullable=False
@@ -176,7 +176,7 @@ class SeriesModel(Base):
 
 class SeasonModel(Base):
     """Сезон — держатель постера/названия/категорий/описания на ВСЕ свои серии
-    (решение 2026-08-28): это спрашивается один раз при создании сезона, как у
+   : это спрашивается один раз при создании сезона, как у
     обычного фильма. Серии внутри своего названия не имеют — только номер
     (`MovieModel.episode_number`); при сохранении серии эти поля копируются сюда же.
     """
@@ -213,7 +213,7 @@ class MovieModel(Base):
     year: Mapped[int | None] = mapped_column(nullable=True)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
     hero_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Счётчик просмотров (Фаза 13): +1 при успешной выдаче видео; сортировка «Танымал»
+    # Счётчик просмотров: +1 при успешной выдаче видео; сортировка «Танымал»
     # и каталога «по просмотрам». server_default 0 → backfill без отдельного UPDATE.
     play_count: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
     # Счётчик избранного — денормализация, как и play_count: сортировка «Танымал» идёт по
@@ -222,7 +222,7 @@ class MovieModel(Base):
     favorites_count: Mapped[int] = mapped_column(
         BigInteger, server_default=text("0"), nullable=False
     )
-    # Сериалы (решение 2026-08-28): NULL у обоих — обычный самостоятельный фильм.
+    # Сериалы: NULL у обоих — обычный самостоятельный фильм.
     # Заполнены — строка есть серия конкретного сезона (`SeasonModel`); ON DELETE SET
     # NULL у FK — снос сезона не должен молча утащить за собой сами серии.
     season_id: Mapped[int | None] = mapped_column(

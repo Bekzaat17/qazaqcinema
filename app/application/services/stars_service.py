@@ -3,7 +3,7 @@
 Инвойс создаёт провайдер (infra), а подтверждает оплату бот: `pre_checkout_query`
 (быстрая валидация payload — без БД, чтобы уложиться в лимит Telegram ~10 c) →
 `successful_payment` → `confirm` (запись `PaymentRequest(APPROVED)` + грант через
-`SubscriptionService.activate` — Фаза 6, не дублируем). Авто-продление (recurring)
+`SubscriptionService.activate`, не дублируем). Авто-продление (recurring)
 прилетает тем же `successful_payment` и так же продлевает подписку — отдельной ветки нет.
 
 Payload инвойса — `<user_id>:<slug>` (пишет `infrastructure/payments/stars.build_payload`,

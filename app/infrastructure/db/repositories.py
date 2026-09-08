@@ -537,7 +537,7 @@ class PgUserRepository:
         await self._session.commit()
 
     async def list_notifiable(self) -> list[int]:
-        """telegram_id всех, кто согласен на рассылки о новинках (аудитория Фазы 12).
+        """telegram_id всех, кто согласен на рассылки о новинках (аудитория рассылки).
 
         Отдаём только id (не полные User) — рассылке больше ничего не нужно, а список
         может быть большим.

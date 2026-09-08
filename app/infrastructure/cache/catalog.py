@@ -1,7 +1,7 @@
 """Redis-адаптер порта `CatalogCache` — cache-aside каталога под namespace `catalog:*`.
 
-Ключи (логические, префикс `catalog:` навешивает адаптер): `home`, `categories`, `browse:…`
-(Фаза 13). TTL задаёт вызывающий (политика кэша — данные в роутере). **Fail-open:** Redis
+Ключи (логические, префикс `catalog:` навешивает адаптер): `home`, `categories`, `browse:…`.
+TTL задаёт вызывающий (политика кэша — данные в роутере). **Fail-open:** Redis
 недоступен → `get` → None (эндпоинт соберёт из БД), `set`/`invalidate` — тихий no-op. Т.е.
 падение Redis лишь снимает ускорение, отдачу каталога не ломает. `invalidate` чистит весь
 namespace (`SCAN catalog:*` → `DEL`) — после `/add` устаревает и главная, и чипы, и страницы.

@@ -21,7 +21,7 @@ async def authenticate(
     sessions: FromDishka[SessionStore],
     authorization: str = Header(..., description="Telegram WebApp initData"),
 ) -> AuthOut:
-    """Bootstrap-вход по initData (HMAC) → заводим серверную сессию, отдаём токен (Фаза 11.1).
+    """Bootstrap-вход по initData (HMAC) → заводим серверную сессию, отдаём токен.
 
     Токен — идентификатор сессии в Redis (TTL 24 ч); клиент дальше шлёт его вместо initData.
     Redis недоступен → `create` вернёт None, клиент останется на initData (fail-open).
