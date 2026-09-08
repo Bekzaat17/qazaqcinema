@@ -1,6 +1,9 @@
 # Контент канала
 
-Пул постов для `@qazaqcinema_kz` (PLAN.md §4). Один YAML на рубрику, картинки — в `images/`.
-Формат элемента — в докстринге `app/infrastructure/content/yaml_loader.py`.
-Заливка: `./start.sh seed` (идемпотентно, upsert по `slug`). Проверка без БД:
-`python -m app.tools.seed_content --check`.
+Пул постов для `@qazaqcinema_kz`: один YAML на рубрику, картинки — в `images/`, шрифты для
+карточек — в `fonts/`. Формат элемента — в докстринге
+`app/infrastructure/content/yaml_loader.py`; сетка слотов и ротация — в
+`app/domain/channel/content/plan.py` (см. CLAUDE.md, «Публичный канал»).
+
+Заливка: `./start.sh seed` (идемпотентно, upsert по `slug`).
+Проверка YAML без БД: `./start.sh seed --check`.

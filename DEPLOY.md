@@ -1,139 +1,147 @@
-# DEPLOY.md — вывод QazaqCinema в прод
+# DEPLOY.md — прод
 
-Прод — тот же Docker-стек, что и локально (`./start.sh`), отличие ТОЛЬКО в env-файле
-(`.env.prod`). Этот файл — пошаговый чеклист «с нуля до живого бота на домене».
+Прод — тот же Docker-стек, что локально, отличие только в env-файле (`.env.prod`).
+Живёт на `https://qazaqcinema.kz`. Разделы 0–4 — развёртывание с нуля, 5–9 — то, что уже
+настроено на текущем сервере и должно быть повторено при переезде.
 
-Что даёт прод-режим сверх локального (всё — от ОДНОЙ переменной `PUBLIC_ORIGIN`):
-- **Авто-TLS (:443)** — обязателен для Telegram Mini App. **Caddy сам выпускает и продлевает**
-  сертификат Let's Encrypt. Никакого certbot, никаких cron — заполнил env и забыл.
-- **Webhook вместо polling** — бот слушает апдейты по HTTPS (включается схемой `https://` в `PUBLIC_ORIGIN`).
-- **Caddy** — раздаёт SPA и проксирует `/api`, `/posters`, вебхук `/tg/` — всё на одном домене.
+Всё прод-поведение включается ОДНОЙ переменной `PUBLIC_ORIGIN=https://домен`:
+- **авто-TLS** — Caddy сам выпускает и продлевает сертификат Let's Encrypt, certbot и cron не нужны;
+- **webhook вместо polling** — включается схемой `https://`;
+- **CORS и URL Mini App** — выводятся оттуда же.
 
 ---
 
 ## 0. Предпосылки
-- VPS (Ubuntu/Debian) с публичным IP, установлены **Docker** + **docker compose v2**.
-  Рекомендация: **2 ГБ RAM, 1–2 vCPU, ~40 ГБ SSD** (+ желательно 2 ГБ swap на время сборки образов).
-  Весь стек в простое ест ~900 МБ; видео раздаёт Telegram (не VPS) → сервер остаётся лёгким.
-  1 ГБ RAM технически заведётся, но три Python-процесса + Postgres впритык и сборка может уйти в OOM.
-- **Домен** (или поддомен), например `qazaqcinema.kz`.
-- Порты **80 и 443** открыты наружу (Caddy берёт по ним ACME-челлендж). ⚠️ Свежий Ubuntu-VPS
-  часто идёт с активным ufw, где разрешён ТОЛЬКО OpenSSH — тогда Let's Encrypt не достучится
-  и сертификат не выпустится. Открой ДО первого `./start.sh prod` (неудачные попытки бьются
-  об rate-limit LE):
+- VPS (Ubuntu/Debian) с публичным IP, Docker + docker compose v2.
+  Рекомендация: 2 ГБ RAM, 1–2 vCPU, ~40 ГБ SSD (+ 2 ГБ swap на время сборки образов). Стек в
+  простое ест ~900 МБ; видео раздаёт Telegram, не VPS.
+- Домен с A-записью на IP VPS: `dig +short qazaqcinema.kz` должен вернуть этот IP.
+  Без корректного DNS сертификат не выпустится.
+- Порты 80 и 443 открыты наружу — по ним идёт ACME-челлендж. ⚠️ На свежем Ubuntu часто активен
+  ufw с одним OpenSSH; открыть ДО первого запуска (неудачные попытки бьются об rate-limit
+  Let's Encrypt):
   ```bash
-  ufw status                      # если "Status: active" — разреши порты:
-  ufw allow 80/tcp && ufw allow 443/tcp
+  ufw status && ufw allow 80/tcp && ufw allow 443/tcp
   ```
-- Прод-бот от [@BotFather](https://t.me/BotFather) (отдельный от dev), канал-архив, чат модерации.
+- Прод-бот от @BotFather (отдельный от dev), канал-архив, чат модерации, публичный канал и
+  группа обсуждений к нему.
 
-## 1. DNS
-Заведи **A-запись** (под)домена на IP VPS:
-```
-qazaqcinema.kz.  A  <IP_VPS>
-```
-Проверь: `dig +short qazaqcinema.kz` → должен вернуть IP VPS. Это условие авто-выпуска
-сертификата — без корректного DNS Caddy не получит TLS.
-
-## 2. Код и секреты
+## 1. Код и секреты
 ```bash
-git clone <repo> qazaqcinema && cd qazaqcinema
+git clone git@github.com:Bekzaat17/qazaqcinema.git && cd qazaqcinema
 cp .env.prod.example .env.prod
 ```
-Заполни `.env.prod` РЕАЛЬНЫМИ значениями (файл в git не коммитится — секреты):
-- **`PUBLIC_ORIGIN=https://qazaqcinema.kz`** — ЕДИНЫЙ адрес. Из него выводятся авто-TLS,
-  CORS, URL Mini App и режим бота (webhook). Схема `https://` обязательна — это и есть флаг прода.
-- **`ACME_EMAIL=you@example.com`** — твой e-mail для Let's Encrypt (контакт/уведомления).
-- `BOT_TOKEN` — прод-токен от @BotFather.
-- `BOT_ADMIN_CHAT_ID`, `BOT_ADMIN_USER_IDS`, `BOT_ARCHIVE_CHANNEL_ID`.
-- `BOT_WEBHOOK_SECRET` — сгенерируй: `openssl rand -hex 32`.
-- `DB_PASSWORD` — сильный пароль: `openssl rand -hex 24`.
-- `PAY_KASPI_*`.
+Заполнить `.env.prod` (в git не коммитится):
+- `PUBLIC_ORIGIN=https://qazaqcinema.kz` — единый адрес, схема `https://` и есть флаг прода.
+- `ACME_EMAIL` — контакт для Let's Encrypt (непустой; пустая строка ломает парсинг Caddyfile).
+- `BOT_TOKEN`, `BOT_ADMIN_CHAT_ID`, `BOT_ADMIN_USER_IDS`, `BOT_ARCHIVE_CHANNEL_ID`.
+- `BOT_PUBLIC_CHANNEL_ID`, `BOT_PUBLIC_CHANNEL_USERNAME`, `BOT_DISCUSSION_GROUP_ID`
+  (бот — админ канала с правом публикации и админ группы с правом удаления сообщений).
+- `BOT_WEBHOOK_SECRET` и `DB_PASSWORD` — сгенерировать: `openssl rand -hex 32` / `-hex 24`.
+- `PAY_KASPI_NUMBER`, `PAY_KASPI_NAME`, `PAY_KASPI_LINK` (пустое поле просто скрывает способ).
+- `LEGACY_ORIGINS` — старые домены, если есть: Caddy редиректит их permanent на `PUBLIC_ORIGIN`.
 
-> Домен теперь в ОДНОМ месте — `PUBLIC_ORIGIN`. Отдельные `BOT_WEBAPP_URL`/`BOT_WEBHOOK_URL`/
-> `API_CORS_ORIGINS`/`WEB_SERVER_NAME` больше не нужны (выводятся из `PUBLIC_ORIGIN`).
+Отдельных `BOT_WEBAPP_URL` / `BOT_WEBHOOK_URL` / `API_CORS_ORIGINS` / `WEB_SERVER_NAME` нет —
+всё выводится из `PUBLIC_ORIGIN`.
 
-## 3. Запуск (сертификат выпустится сам)
+## 2. Запуск
 ```bash
 ./start.sh prod
 ```
-Caddy на старте увидит `https://`-домен, сходит в Let's Encrypt по ACME (порт 80/443) и получит
-сертификат — **автоматически, за секунды**. Затем сам поднимет :443 и редирект с :80.
+Caddy увидит `https://`-домен, сходит в Let's Encrypt по ACME и получит сертификат за секунды,
+затем поднимет :443 и редирект с :80. Сертификаты живут в томе `caddy_data` и переживают
+пересборку и `git pull`.
 
-Проверь:
 ```bash
-curl https://qazaqcinema.kz/api/health   # {"status":"ok",...}
-curl -I http://qazaqcinema.kz            # 308 redirect → https
+curl https://qazaqcinema.kz/api/health   # {"status":"ok","db":"ok","redis":"ok"}
+curl -I http://qazaqcinema.kz            # 308 → https
 ```
-Если сертификат не выпустился — смотри логи Caddy: `./start.sh logs web` (частые причины —
-DNS ещё не распространился или закрыт порт 80/443; см. Траблшутинг).
+Сертификат не выпустился — `./start.sh logs web` (частые причины в Траблшутинге).
 
-## 4. Вебхук
-Схема `https://` в `PUBLIC_ORIGIN` включает webhook-режим: бот-контейнер сам вызывает `set_webhook`
-на старте (`app/main.py`), Caddy проксирует `https://qazaqcinema.kz/tg/webhook` → `bot:8080`.
-Проверь регистрацию:
+## 3. Вебхук
+Схема `https://` включает webhook: бот-контейнер сам зовёт `set_webhook` на старте, Caddy
+проксирует `https://домен/tg/webhook` → `bot:8080`.
 ```bash
 curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"
 ```
-Должны быть твой URL и `pending_update_count` близко к 0. Открой Web App в Telegram — каталог
-грузится, «Көру» шлёт видео.
+Должны быть ваш URL и `pending_update_count` около нуля.
 
-### Аварийный обход: `BOT_FORCE_POLLING` (если Telegram не достучится до вебхука)
-Webhook требует, чтобы **Telegram извне** установил TCP-соединение с VPS на :443. Некоторые
-KZ-хостеры/транзиты **режут входящий трафик именно с диапазонов Telegram** (`149.154.160.0/20`,
-`91.108.4.0/22`) — тогда `getWebhookInfo` показывает `last_error_message: "Connection timed out"`
-и растущий `pending_update_count`, хотя сервер доступен со всего остального интернета (проверяется,
-например, через check-host.net) и код/TLS/CORS исправны. Диагностический признак: **таймаут именно
-на TCP-подключении** (не `Wrong response ...`) — запрос не доходит до приложения, значит виноват
-сетевой путь, а не бот.
+### Аварийный обход: `BOT_FORCE_POLLING`
+Webhook требует, чтобы Telegram извне открыл TCP-соединение к :443. Некоторые KZ-хостеры и
+транзиты режут входящий трафик именно с диапазонов Telegram (`149.154.160.0/20`,
+`91.108.4.0/22`). Признак: `getWebhookInfo` показывает `Connection timed out` и растущий
+`pending_update_count`, при этом сервер доступен со всего остального интернета (check-host.net).
+Таймаут именно на TCP-подключении означает, что запрос не доходит до приложения — виноват
+сетевой путь, а не код.
 
-Исходящий путь (бот → Telegram) при этом обычно работает, поэтому лечится переключением на polling
-(бот сам ходит `getUpdates`). В `.env.prod`:
+Исходящий путь при этом обычно жив, поэтому лечится polling'ом. В `.env.prod`:
 ```dotenv
 BOT_FORCE_POLLING=1
 ```
-и `./start.sh prod`. Флаг перебивает вывод из `PUBLIC_ORIGIN`: `webhook_url` пустеет → бот на старте
-снимает webhook и уходит в polling, **при этом Web App/CORS остаются на https** (`PUBLIC_ORIGIN` не
-трогаем). В логах бота (`./start.sh logs bot`) — `Run polling for bot ...`; `getWebhookInfo` покажет
-пустой `url`. Правильный фикс — попросить хостера разблокировать диапазоны Telegram; когда починят,
-верни `BOT_FORCE_POLLING=0` (webhook-код никуда не делся).
+и `./start.sh prod`. Флаг перебивает вывод из `PUBLIC_ORIGIN`: `webhook_url` пустеет, бот снимает
+webhook и уходит в `getUpdates`, а Mini App и CORS остаются на https. Правильный фикс — попросить
+хостера разблокировать диапазоны; после этого вернуть `0`.
 
-## 5. Бэкапы БД (cron)
-Ручной дамп: `./start.sh backup` → `backups/qazaqcinema-YYYYmmdd-HHMMSS.sql.gz`
-(ротация: **за последние 14 дней**, по возрасту файла — ручные дампы перед обновлением не
-вытесняют суточные). Чистка идёт ТОЛЬКО после успешного нового дампа → сломанный крон
-ничего не удаляет.
-
-Ежедневно в 03:30 (crontab от root на VPS). `start.sh` сам делает `cd` в свой каталог,
-поэтому достаточно абсолютного пути:
+## 4. Контент канала
+Пул постов лежит в git (`content/*.yaml` + картинки) и заливается в БД сидером — на проде это
+нужно после каждого пополнения:
 ```bash
-crontab -e
+./start.sh seed --check   # валидация YAML без БД
+./start.sh seed           # upsert по slug + картинки в том uploads
 ```
+Идемпотентно: повторный прогон не плодит дублей.
+
+## 5. Бэкапы
+На сервере работает `/root/backup_qazaqcinema.sh` (в репозитории его нет — при переезде
+перенести вручную). Каждый запуск собирает ОДИН архив: дамп Postgres, том `uploads` (постеры и
+карточки канала — их нет в Telegram, восстановить неоткуда), том `caddy_data` (сертификаты),
+`.env.prod` и `docker-compose.yml`. Локально хранятся последние 10, `rclone sync` зеркалит папку
+в Google Drive (`gdrive:qazaqcinema_backup`) — в облаке ровно те же 10. При сбое (лежал postgres,
+rclone не обновил токен, полон диск) скрипт пишет админу в Telegram напрямую через Bot API.
+
 ```cron
-30 3 * * * /root/qazaqcinema/start.sh backup >> /root/qazaqcinema/backups/backup.log 2>&1
+0 5 * * * /root/backup_qazaqcinema.sh >> /root/backups/cron.log 2>&1
 ```
-Проверь, что заведётся именно ПОД КРОНОМ (урезанный `PATH`, без TTY — частая причина
-«руками работает, по расписанию молчит»):
+
+Встроенная `./start.sh backup` — только дамп БД в `backups/`, без томов и без облака; годится
+как ручной снимок перед крупным обновлением.
+
+**Восстановление** (перезапишет данные):
 ```bash
-env -i PATH=/usr/bin:/bin HOME=/root /bin/sh -c '/root/qazaqcinema/start.sh backup'
+gunzip -c dump.sql.gz | ENV_FILE=.env.prod docker compose --env-file .env.prod \
+  exec -T postgres psql -U qazaqcinema -d qazaqcinema
 ```
 
-## 5.1 Логи: ротация (чтобы не забить диск)
-**Логи контейнеров — уже настроены, делать ничего не нужно.** Якорь `x-logging` в
-`docker-compose.yml`: json-file `max-size 10m` × `max-file 3` = **жёсткий потолок ≤30 МБ
-на сервис** (~180 МБ на весь стек), превысить невозможно при любом трафике.
-⚠️ Docker ротирует по РАЗМЕРУ, а не по времени — «хранить логи 3 месяца» дословно
-недостижимо, и подключать сюда logrotate НЕЛЬЗЯ (драйвер держит свои смещения в файле).
-Нужна именно временнáя отсечка — это смена драйвера на `journald` + `MaxRetentionSec`.
+## 6. Мониторинг
+`/root/monitor_qazaqcinema.sh` раз в 5 минут проверяет, что все контейнеры (postgres, redis, api,
+bot, worker, web) запущены и что `/api/health` отвечает `status:ok`. Если нет — сам пробует
+поднять стек (`docker compose up -d`), ждёт 20 секунд и перепроверяет; и только если не
+поднялось, шлёт админу в Telegram. Сообщение уходит на СМЕНЕ состояния (файл `monitor.state`),
+поэтому спама нет. Алерт идёт напрямую в `api.telegram.org`, а не через своего бота: бот и есть
+то, что могло лечь.
 
-**А вот `backups/backup.log` (лог крона) растёт без ротации** — его закрываем logrotate.
-Создай `/etc/logrotate.d/qazaqcinema`:
+```cron
+*/5 * * * * /root/monitor_qazaqcinema.sh
 ```
-/root/qazaqcinema/backups/backup.log {
+
+⚠️ Чего этот способ не поймает: падение самого VPS и отвал сети — крон умрёт вместе с ними. Для
+этого нужен внешний пингер (UptimeRobot, Healthchecks.io, BetterStack — у всех есть бесплатный
+тариф). Одно другого не заменяет: свой крон видит «стек болен, сервер жив», внешний — «сервера нет».
+
+## 7. Логи
+**Логи контейнеров настроены в compose и трогать их не нужно**: якорь `x-logging`, json-file
+`max-size 10m` × `max-file 3` = жёсткий потолок ≤30 МБ на сервис (~180 МБ на стек). ⚠️ Docker
+ротирует по РАЗМЕРУ, а не по времени, и подключать сюда logrotate НЕЛЬЗЯ — драйвер держит свои
+смещения в файле. Нужна временная отсечка — это смена драйвера на `journald` + `MaxRetentionSec`.
+
+**Логи хостовых скриптов растут сами** (`/root/backups/backup.log`, `cron.log`, `monitor.log`,
+`/root/logs/*.log`) — их закрывает logrotate. ⚠️ Действующий `/etc/logrotate.d/qazaqcinema`
+указывает на `/root/qazaqcinema/backups/backup.log` — это лог старой встроенной `./start.sh
+backup`, в который больше никто не пишет; живые логи не ротируются. Актуальный конфиг:
+```
+/root/backups/*.log /root/logs/*.log {
     monthly
-    # 3 архива + текущий → история ~3 месяца
     rotate 3
-    # страховка по возрасту
     maxage 90
     compress
     delaycompress
@@ -142,69 +150,82 @@ env -i PATH=/usr/bin:/bin HOME=/root /bin/sh -c '/root/qazaqcinema/start.sh back
     su root root
 }
 ```
-⚠️ **logrotate не понимает комментарии в конце строки директивы** (`rotate 3  # ...` →
-`bad rotation count`, и весь конфиг молча пропускается). Только отдельными строками.
-Проверь конфиг — должно быть `Handling 1 logs` и ни одного `error`:
+⚠️ logrotate не понимает комментарий в конце строки директивы (`rotate 3  # ...` →
+`bad rotation count`, и весь файл молча пропускается). Только отдельными строками.
+Проверка (`Handling 1 logs` и ни одного `error`):
 ```bash
 logrotate -d /etc/logrotate.d/qazaqcinema
 ```
-Гоняет системный `logrotate.timer` (`systemctl is-active logrotate.timer`), отдельный
-крон не нужен.
+Гоняет системный `logrotate.timer`, отдельный крон не нужен.
 
-> Крон и logrotate живут в СИСТЕМЕ, а не в репозитории — `git pull` их не принесёт.
-> При переезде на новый сервер оба шага (5 и 5.1) повторить руками.
+## 8. SEO-крон на хосте
+Два скрипта в `/root` (тоже вне репозитория):
+- `google_indexer.py` — читает `sitemap.xml`, помнит в state-файле, что уже отправлял, и шлёт в
+  Google Indexing API только новое и изменившееся по `<lastmod>`, держась суточной квоты 200 URL.
+- `searchconsole_report.py` — ежедневный SEO-отчёт из Search Console в Telegram: показы, клики,
+  позиция за сутки и за неделю против предыдущего периода, разбор запросов.
 
-**Восстановление** (осторожно — перезапишет данные):
-```bash
-gunzip -c backups/qazaqcinema-ГГГГ.sql.gz | \
-  docker compose --env-file .env.prod exec -T postgres psql -U qazaqcinema -d qazaqcinema
+```cron
+20 3 * * * /root/google_indexer.py >/dev/null 2>>/root/logs/google_indexer.cron.log
+35 21 * * * /root/searchconsole_report.py >/dev/null 2>>/root/logs/searchconsole_report.cron.log
 ```
 
-## 6. Продление сертификата
-**Ничего делать не нужно.** Caddy продлевает сертификат автоматически (~за 30 дней до истечения)
-и держит его в томе `caddy_data` — переживает пересборку и `git pull`.
-
-## 7. Обновление кода
+## 9. Обновление кода
 ```bash
 git pull
-./start.sh prod        # пересоберёт образы, применит миграции (сервис migrate), перезапустит
+./start.sh prod        # пересоберёт образы, применит миграции, перезапустит
 ```
-Миграции идут автоматически (сервис `migrate` ПЕРЕД api/bot). Сертификат из тома `caddy_data`
-никуда не девается. Перед крупным обновлением — `./start.sh backup`.
+Миграции идут автоматически сервисом `migrate` ПЕРЕД api/bot. Перед крупным обновлением —
+`./start.sh backup`. Пополнили `content/` — после деплоя `./start.sh seed`.
 
-> ⚠️ **`./start.sh test` НА ПРОД-СЕРВЕРЕ НЕ ЗАПУСКАТЬ.** Тесты идут в том же compose-проекте, поэтому
-> docker ПЕРЕСОЗДАЁТ боевой контейнер postgres (другой env-файл → другая конфигурация) — это обрыв
-> обслуживания на несколько секунд, плюс рядом с рабочей БД появляется `qazaqcinema_test`. Данные
-> уцелеют (том `pgdata` переживает пересоздание), но прод на это время моргнёт. Тесты — на машине
-> разработчика. Если проверить надо именно здесь — гоняй образ standalone, мимо compose:
-> ```bash
-> docker build --target test -t qc-test .
-> docker run --rm --env-file .env.test qc-test sh -c "ruff check app tests && mypy app && pytest"
-> ```
-> Без сети к боевому postgres интеграционные тесты сами пропустятся (guard в `conftest`), а ruff/mypy/
-> юнит-тесты отработают.
+⚠️ **Ручной `docker compose up` рвёт креды к БД.** Compose резолвит `env_file: ${ENV_FILE:-.env}`,
+и `--env-file` на эту переменную НЕ влияет — она уйдёт в дефолт `.env` (dev-пароль), тогда как
+живой Postgres хранит прод-пароль, заданный при инициализации тома. Итог —
+`InvalidPasswordError` у migrate и api. Нужны оба флага разом:
+```bash
+ENV_FILE=.env.prod docker compose --env-file .env.prod -f docker-compose.yml up -d <сервис>
+```
+Проще и надёжнее — всегда `./start.sh prod`, она идемпотентна.
 
-## 8. Управление / диагностика
+⚠️ **`./start.sh test` на прод-сервере не запускать.** Ветка `test` поднимает postgres с
+`.env.test`, где `DB_NAME=qazaqcinema_test` → меняется `POSTGRES_DB` в `environment:` → compose
+пересоздаёт боевой контейнер БД. Данные в томе выживают, но сайт моргает, а контейнер остаётся
+с тестовым env до следующего `./start.sh prod`. Проверки здесь гонять в одноразовом контейнере,
+мимо compose:
+```bash
+docker build --target test -t qc-checks:local .
+docker run --rm -v $PWD/app:/app/app -v $PWD/tests:/app/tests qc-checks:local \
+  sh -c "ruff check app tests && mypy app"
+# pytest — против ОТДЕЛЬНОЙ qazaqcinema_test в том же живом постгресе
+docker run --rm --network host --env-file .env.test -e DB_HOST=127.0.0.1 -e REDIS_HOST=127.0.0.1 \
+  -e DB_PASSWORD="$(grep ^DB_PASSWORD= .env.prod | cut -d= -f2-)" \
+  -v $PWD/app:/app/app -v $PWD/tests:/app/tests qc-checks:local pytest -q
+```
+Тест-БД после смены схемы пересоздать (`create_all` не добавляет колонки в существующие таблицы):
+```bash
+docker exec qazaqcinema-postgres-1 sh -c "dropdb -U qazaqcinema qazaqcinema_test && createdb -U qazaqcinema qazaqcinema_test"
+```
+
+## 10. Диагностика
 ```bash
 ./start.sh ps                 # статус контейнеров
-./start.sh logs bot           # логи бота (webhook/ошибки)
-./start.sh logs web           # логи Caddy (выпуск сертификата, TLS, проксирование)
-./start.sh down               # остановить (тома с БД/постерами/сертификатами сохраняются)
-curl https://qazaqcinema.kz/api/health   # redis+db+status
+./start.sh logs bot           # webhook, джобы, ошибки
+./start.sh logs web           # Caddy: выпуск сертификата, TLS, проксирование
+curl https://qazaqcinema.kz/api/health
 ```
 
-## Траблшутинг
-- **Сертификат не выпускается** — `./start.sh logs web` (ищи ACME-ошибки). Частое: DNS ещё не
-  указывает на VPS (`dig +short <домен>`), закрыт порт 80/443 (ufw/облачный firewall), или упёрся
-  в rate-limit Let's Encrypt после многих рестартов с ошибкой (подожди час или используй staging-CA).
-- **Вебхук не приходит** — `getWebhookInfo` (`last_error_message`). Частое: TLS ещё не поднялся
-  (бот шлёт `set_webhook`, но Telegram не достучался по HTTPS) — дождись сертификата; либо
-  `PUBLIC_ORIGIN` не совпал с реальным доменом. Если `last_error_message: "Connection timed out"`,
-  а сервер при этом доступен со всего интернета (check-host.net) — хостер/транзит режет входящие с
-  диапазонов Telegram: см. **Аварийный обход `BOT_FORCE_POLLING`** в §4.
-- **«chat not found» при отправке видео** — `BOT_ARCHIVE_CHANNEL_ID` должен быть `-100…`, бот — админ канала.
-- **CORS-ошибки** — в проде всё same-origin (Caddy), CORS не должен срабатывать; если да — проверь,
-  что `PUBLIC_ORIGIN` = реальный домен, а фронт не ходит напрямую на `:8000`.
+- **Сертификат не выпускается** — `./start.sh logs web`, искать ACME-ошибки. Частое: DNS ещё не
+  указывает на VPS, закрыт 80/443, или rate-limit Let's Encrypt после серии неудач (подождать час
+  или взять staging-CA).
+- **Вебхук не приходит** — `getWebhookInfo` и `last_error_message`. Частое: TLS ещё не поднялся,
+  `PUBLIC_ORIGIN` не совпал с реальным доменом, либо хостер режет диапазоны Telegram (см. §3).
+- **«chat not found» при отправке видео** — `BOT_ARCHIVE_CHANNEL_ID` должен быть `-100…`, бот —
+  админ канала.
+- **Под постами канала нет комментариев** — у поста inline-клавиатура: Telegram не пересылает
+  такие посты в группу обсуждений. Либо кнопки, либо комментарии (см. CLAUDE.md, «Публичный канал»).
+- **CORS-ошибки** — в проде всё same-origin через Caddy; если срабатывает, значит фронт ходит
+  напрямую на `:8000` или `PUBLIC_ORIGIN` не тот.
+- **Тесты падают с `ProgrammingError` про колонку** — пересоздать `qazaqcinema_test` (см. §9).
 
-## Осталось за рамками (не блокеры)
-- Мониторинг/алерты (uptime `/api/health`), off-site копия бэкапов, fail2ban/ufw на VPS.
+## Осталось за рамками
+Внешний пингер (см. §6), off-site копия дампов вне Google Drive, fail2ban.

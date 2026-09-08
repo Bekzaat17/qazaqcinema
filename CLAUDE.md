@@ -1,582 +1,297 @@
-# CLAUDE.md — гайд для будущих сессий
+# CLAUDE.md — гайд по проекту
 
-Этот файл — память проекта. Прочитай его первым, потом загляни в [PLAN.md](PLAN.md): там отмечено,
-**где остановились и что делать дальше**.
+Читать первым. Что осталось сделать — в [PLAN.md](PLAN.md), живой прод — в [DEPLOY.md](DEPLOY.md).
 
 ## Что это
-**QazaqCinema** — онлайн-кинотеатр (Netflix-style) внутри Telegram Web App: редкие мультфильмы
-и аниме с казахской озвучкой. Видео лежит в приватном **канале-архиве** Telegram (бэкенд не
-стримит тяжёлое видео), защита через `protect_content=True`, монетизация — подписка (Kaspi-чеки +
-Telegram Stars). Контент наполняет админ через бот-визард `/add` (видео + постер + метаданные
-пошагово); видео уходит в канал-архив, постеры — статикой на VPS.
+**QazaqCinema** — онлайн-кинотеатр внутри Telegram Mini App: мультфильмы и аниме с казахской
+озвучкой. Видео лежит в приватном канале-архиве Telegram и выдаётся ботом в личку с
+`protect_content=True`; бэкенд видео не стримит. Монетизация — подписка (Kaspi-чек с ручной
+модерацией + Telegram Stars). Каталог наполняет админ визардом `/add`. Публичный канал
+`@qazaqcinema_kz` ведётся автоматически: фильм дня, новинки, контент про казахский язык и квизы.
+Прод: `https://qazaqcinema.kz`, бот `@qazaqcinema_bot`.
 
-## Стек (зафиксирован)
-- **Python 3.13**
-- **aiogram 3.x** — бот. **Тумблер polling/webhook** по схеме `PUBLIC_ORIGIN` (http → polling локально;
-  https → aiohttp-вебхук за Caddy в проде, Фаза 10)
-- **FastAPI** — API для Web App
-- **SQLAlchemy 2.0 async + asyncpg + Alembic** — PostgreSQL
-- **dishka** — DI-контейнер (composition root)
-- **apscheduler** — фоновые задачи (сброс просроченных подписок)
-- **redis (`redis.asyncio`)** — клиент в DI (APP-scope, graceful close) + health-ping + `GET /api/health`.
-  **Фазы 11 и 12 закрыты:** сессии (`SessionStore`), кэш каталога (`CatalogCache`), rate-limit, локи,
-  **очередь рассылок (`BroadcastQueue`, Фаза 12)** — мелкие порты `application/ports/` + адаптеры
-  `infrastructure/cache/`, все **fail-open** (Redis down ничего не роняет: сессии→initData-фолбэк,
-  кэш→прямая БД, rate-limit/локи→пропускают, рассылка→enqueue no-op). Очередь — reliable Redis-list
-  (crash-safe, at-least-once), разбирает отдельный `worker`-процесс (`app/worker.py`).
-- **React 19 + Vite 6 + TypeScript + Tailwind v4** — Web App (`web/`)
-- **UI-кит фронта:** иконки — **`lucide-react`** (открытый ISC-набор; единственный источник иконок,
-  эмодзи-заглушки заменены на векторные); шрифт — **Inter** (Google Fonts, покрывает казахскую
-  кириллицу ә/ғ/қ/ң/ө/ұ/ү/і); компоненты — свои на Tailwind-токенах (философия shadcn/ui, без
-  тяжёлой рантайм-библиотеки → лёгкий бандл для мобильной сети); анимации/карусели — нативный CSS
-  (scroll-snap, CSS-шторки; уважают `prefers-reduced-motion`)
-- **Docker Compose** — **одна топология** для dev/prod/test (postgres, redis, `migrate`, api, bot,
-  web (Caddy, авто-TLS); `test` — profile-gated; + `worker` — Фаза 12), отличие сред ТОЛЬКО в env-файле
-  (12-factor; TLS/webhook — тоже по env). Единый запуск — **`./start.sh`** (всё в Docker; тесты — тоже
-  в контейнере, образ-стадия `test`; `./start.sh backup` — дамп БД)
+## Стек
+- **Python 3.13**, aiogram 3 (бот), FastAPI (API + SSR SEO-страницы на Jinja2), SQLAlchemy 2.0
+  async + asyncpg + Alembic (PostgreSQL 16), dishka (DI), apscheduler, redis.asyncio, Pillow, PyYAML.
+- **Web App:** React 19 + Vite 6 + TypeScript + Tailwind v4; иконки `lucide-react`, шрифт Inter.
+- **Инфра:** Docker Compose, одна топология для dev/prod/test (postgres, redis, migrate, api, bot,
+  worker, web=Caddy). Разница сред — только env-файл. Проверки: ruff + mypy(strict) + pytest.
 
-## Архитектура: Clean / Hexagonal + DDD-lite
-Принцип: **домен не знает про aiogram/FastAPI/Postgres**. Зависимости направлены внутрь (DIP).
-Bot и API — два «presentation»-входа, оба тонкие: достать данные → делегировать сервису → отдать ответ.
+## Архитектура: Clean / Hexagonal
+Домен не знает про aiogram/FastAPI/Postgres. Bot и API — тонкие входы: достать данные →
+сервис → ответ. Сервисы зависят от `application.ports.*`, никогда от `infrastructure.*`.
 
 ```
 app/
-  bot/            # Presentation #1. ТОЛЬКО здесь импортируется aiogram
-    handlers/     # start, add_movie (визард /add), broadcast (/broadcast), inline_query, moderation (✅/❌), stars (оплата)
-    keyboards/    # webapp-кнопка, клавиатура модерации
-  api/            # Presentation #2. FastAPI
-    routers/      # auth (initData), catalog (фильмы), payments (тарифы/чек), me (статус + тумблер рассылок
-                  # + write-access), events (пэйволл: шаг воронки, видимый только фронту),
-                  # support (письмо админам), public_seo (SSR-страницы), health
-    schemas/      # pydantic DTO — БЕЗ telegram_file_id наружу
-    deps/         # auth: get_current_user + require_active_access (initData-гейт)
-  domain/         # Ядро. Без внешних зависимостей. POPO + dataclass
-    entities/     # Movie, User (+ has_active_access), PaymentRequest, enums
-    tariffs/      # Tariff (VO) + catalog.py (тарифная сетка как данные)
-    parsing/      # caption_parser (чистая функция #title… → ParsedMovie)
-    catalog/      # справочник категорий (данные, не enum) + daily.pick_daily_id (фильм дня)
-    subscription/ # expiry.compute_expiry (чистый расчёт срока)
-    analytics/    # виды значимых событий (данные) + DailyReport/render_report (чистый отчёт)
-    registry.py   # generic Registry[T] (PEP 695) — задел для slug-плагинов
-  application/    # Use-cases
-    ports/        # Protocol-интерфейсы: repositories, payments, telegram, security, broadcast  ← границы DIP/ISP
-    services/     # Auth, Catalog, MovieIngestion, Subscription, Payment, Broadcast, Support,
-                  # UserActivity (/start → юзер в БД), Analytics (цифры отчёта) — только порты
-  infrastructure/ # Адаптеры (реализации портов)
-    db/           # models (ORM) + engine + repositories (мапят ORM↔domain)
-    telegram/     # init_data (HMAC-валидатор) + notifier (поверх aiogram Bot)
-    payments/     # kaspi (ручная), stars (Telegram Stars) — реализации PaymentProvider
-    cache/        # Redis-адаптеры: session, catalog, lock, rate_limiter, broadcast (все fail-open)
-    analytics/    # admin_filter: декоратор журнала событий, отсекающий действия админов
-    di/           # providers.py — composition root (dishka)
-    scheduler.py  # apscheduler (истечение подписок, чистка видео, отчёт админам в 22:00)
-  config/         # pydantic-settings, load_config()
-  main.py         # сборка контейнера, polling/webhook
-  worker.py       # процесс-worker рассылок (Redis-очередь → Bot API, Фаза 12)
+  bot/                 # aiogram. handlers: start, add_movie (/add), broadcast, daily (/daily),
+                       #   milestone (/milestone), inline_query, moderation (✅/❌ чеков), quiz
+                       #   (кнопки квиза + комментарии группы), stars. keyboards/, security.is_admin
+  api/                 # FastAPI. routers: auth, catalog (/api/movies), favorites, me, payments,
+                       #   events (paywall/search — метрики с фронта), support, public_seo
+                       #   (/m/<slug>, /catalog, /sitemap.xml, /robots.txt), health
+                       # schemas — DTO без telegram_file_id; deps — get_current_user, rate_limit
+  domain/              # ядро без зависимостей
+    entities/          # Movie, User, Series/Season, PaymentRequest, Delivery, enums
+    catalog/           # categories (данные), daily.pick_daily_id (фильм дня), popularity
+    tariffs/           # тарифная сетка (данные)
+    subscription/      # compute_expiry
+    analytics/         # EventKind, DailyReport/render_report, weekly_report, milestone, percent
+    seo/slug.py        # <id>-<translit>
+    channel/           # post.py (тексты постов о фильмах), cards.py (спека карточек),
+                       #   content/ (kinds, topics, item, plan=сетка слотов, split,
+                       #   render/ (Registry рендереров), answers/ (нормализация, чекеры, разбор))
+    mention.py, registry.py
+  application/
+    ports/             # Protocol: repositories, payments, telegram, security, session, lock,
+                       #   rate_limit, catalog_cache, broadcast, storage, images, channel,
+                       #   discussion, content, cards, daily_pin
+    services/          # use-cases (auth, catalog, playback, subscription, payment, stars,
+                       #   moderation, ingestion, series, broadcast, favorite, support, activity,
+                       #   analytics, milestone, daily, seo, channel, content_posting,
+                       #   content_seed, quiz, video_retention)
+  infrastructure/
+    db/                # models (ORM), engine, repositories, content_repositories, content_codec
+    cache/             # Redis: session, catalog, lock, rate_limiter, broadcast (очередь), daily_pin
+    telegram/          # init_data (HMAC), notifier, channel (публикатор), discussion (группа)
+    payments/          # kaspi (ручной чек), stars
+    images/            # pillow (постеры), cards_pillow (карточки канала)
+    storage/local.py   # постеры на диске (том uploads, StaticFiles /posters)
+    content/           # yaml_loader (content/*.yaml → домен)
+    analytics/         # admin_filter — журнал событий без действий админов
+    di/providers.py    # composition root; scheduler.py — все фоновые джобы
+  config/settings.py   # pydantic-settings: BOT_/DB_/REDIS_/PAY_/API_/MEDIA_ + PUBLIC_ORIGIN
+  main.py (бот, polling/webhook)  worker.py (рассылки)  tools/ (seed_content, preview_post)
+web/src/               # App.tsx, components/, hooks/, lib/ (api, telegram, catalog, lastPage,
+                       #   devMock), ui/, index.css (@theme — дизайн-токены)
+content/               # пул канала: *.yaml + images/ + fonts/
+migrations/            # Alembic, имена файлов yyyymmdd_<slug>
 ```
 
-## Модель гибкости (понять до правок)
-Две оси, разными механизмами:
-- **ДАННЫЕ** (меняются правкой одной строки, без миграции): тарифы (`tariffs/catalog.py`),
-  категории (`catalog/categories.py`). В БД категория/статус/способ — **VARCHAR**, не PG-ENUM,
-  поэтому новое значение не требует миграции типа.
-- **КОД** (что вообще существует как поведение): способы оплаты (`PaymentProvider` —
-  Strategy-адаптеры), ключи парсера (`KNOWN_KEYS`), будущие slug-плагины через `registry.py`.
-  Добавить = новый класс/запись, без правок существующих (OCP).
+**Данные vs код.** Тарифы, категории, темы контента, сетка слотов, лимиты — данные (правка
+строки, без миграции; в БД это VARCHAR, не PG-ENUM). Способы оплаты, формы контента
+(рендереры) — код: новый класс, без правки существующих.
 
-## Паттерны (где искать)
-| Паттерн | Файл |
-|---|---|
-| Repository + DIP | `application/ports/repositories.py` ↔ `infrastructure/db/repositories.py` |
-| Strategy (оплата) | `application/ports/payments.py` ↔ `infrastructure/payments/{kaspi,stars}.py` |
-| Strategy/данные (тарифы) | `domain/tariffs/catalog.py` |
-| Чистая функция-парсер | `domain/parsing/caption_parser.py` |
-| Чистый расчёт срока | `domain/subscription/expiry.py` |
-| DTO + защита данных | `api/schemas/*` (нет `telegram_file_id`) |
-| Валидатор initData (HMAC) | `infrastructure/telegram/init_data.py` |
-| Generic Registry (PEP 695) | `domain/registry.py` |
-| Reliable-queue (Redis) + worker | `application/ports/broadcast.py` ↔ `infrastructure/cache/broadcast.py`, `app/worker.py` |
-| DI / composition root | `infrastructure/di/providers.py`, `main.py`, `api/app.py` |
-| Миграции БД (async) | `alembic.ini`, `migrations/env.py` |
-
-## SOLID-чеклист при добавлении кода
-- **S**: хендлер/роутер не содержит бизнес-логику; сервис не лезет в aiogram/FastAPI.
-- **O**: новый способ оплаты/категория/тариф = новый класс/запись, без правок существующего.
-- **L**: все `PaymentProvider`/репозитории взаимозаменяемы через свой Protocol.
-- **I**: порты мелкие и раздельные (MovieRepository ≠ UserRepository ≠ PaymentRepository).
-- **D**: сервисы импортируют `application.ports.*`, НЕ `infrastructure.*`.
+**Fail-open.** Все Redis-адаптеры и журнал событий деградируют молча: Redis лёг → сессии
+откатываются на initData, кэш промахивается, лок/лимитер пропускают, очередь рассылок
+no-op. Публикация в канал и запись событий не имеют права уронить основной путь.
 
 ## Команды
 ```bash
-./start.sh                       # локально: весь стек в Docker (env=.env), миграции авто
-./start.sh prod                  # ТЕ ЖЕ контейнеры, env=.env.prod (отличие сред — только env-файл)
-./start.sh test                  # ruff+mypy+pytest В КОНТЕЙНЕРЕ (env=.env.test, БД qazaqcinema_test)
-./start.sh logs / ps / down / migrate    # логи / статус / стоп (--clean стирает тома) / миграции
-# Web → http://localhost/  |  API/docs → :8000/docs  |  health → :8000/api/health
-
-# Гранулярно на хосте (нужен .venv; для hot-reload подними в Docker только postgres+redis):
-.venv/bin/pytest                 # тесты домена (без БД); интеграционные — нужен postgres
-.venv/bin/ruff check app tests   # линт
-.venv/bin/mypy app               # типы (strict)
-.venv/bin/alembic upgrade head   # применить миграции (offline DDL: + --sql)
-.venv/bin/uvicorn app.api.app:app --reload   # API с автоперезагрузкой (host-venv)
+./start.sh                # dev: весь стек в Docker (env=.env), миграции авто
+./start.sh prod           # те же контейнеры, env=.env.prod (единственный правильный способ деплоя)
+./start.sh test           # ruff+mypy+pytest в контейнере, БД qazaqcinema_test — НЕ на прод-сервере
+./start.sh seed [--check] # content/*.yaml → БД + картинки в том uploads (идемпотентно, upsert по slug)
+./start.sh logs|ps|down|migrate|backup
 ```
+На прод-сервере проверки гонять в одноразовом контейнере, мимо compose (иначе пересоздаётся
+боевой postgres):
+```bash
+docker build --target test -t qc-checks:local .
+docker run --rm -v $PWD/app:/app/app -v $PWD/tests:/app/tests qc-checks:local sh -c "ruff check app tests && mypy app"
+docker run --rm --network host --env-file .env.test -e DB_HOST=127.0.0.1 -e REDIS_HOST=127.0.0.1 \
+  -e DB_PASSWORD="$(grep ^DB_PASSWORD= .env.prod | cut -d= -f2-)" \
+  -v $PWD/app:/app/app -v $PWD/tests:/app/tests qc-checks:local pytest -q
+```
+Тесты репозиториев идут через `create_all` + TRUNCATE в БД с именем на `_test` (conftest
+отказывается работать с другой). После смены схемы тест-БД пересоздать: `dropdb` → `createdb`.
+Ручной `docker compose up` на проде — только как `ENV_FILE=.env.prod docker compose --env-file
+.env.prod ...`, иначе контейнеры получат dev-пароль к БД.
 
-## Состояние: MVP готов (Фазы 0–13 закрыты). Детали и что осталось — в [PLAN.md](PLAN.md)
+Git: коммитить и пушить прямо в `main`, без фича-веток.
 
-Весь код готов и зелёный (`./start.sh test`: ruff + mypy(strict) + pytest в контейнере). Все 13 фаз
-закрыты: каркас (SOLID) → БД+репозитории → авторизация (сессии поверх initData-bootstrap) →
-добавление фильмов (бот-визард `/add`) → каталог+API → защищённая выдача видео (`protect_content`) →
-подписка+контроль доступа → оплата (Kaspi ручной чек + Telegram Stars авто-подписка) → фронтенд Mini
-App → прод-конфиг (webhook/TLS по env) → Redis (сессии/кэш/rate-limit/локи, все fail-open) → рассылки
-(Redis-очередь + worker + opt-out) → каталог (браузинг по категориям + сортировка + таб-навигация).
+## Инварианты и решения
+Коротко, по областям. Это то, что легко сломать, не зная почему оно так.
 
-**Осталось только живое** (не код, за пользователем): деплой на VPS по [DEPLOY.md](DEPLOY.md) (домен,
-DNS, заполнить `PUBLIC_ORIGIN`=https://домен — Caddy сам выпустит TLS, webhook включится схемой) и e2e в Telegram (реальные initData/оплата/
-рассылка/выдача видео на @qazaqcinema_bot). Юнит/интеграционные тесты и браузер-превью — зелёные.
+### Безопасность и доступ
+- `telegram_file_id` — только боту; в API-DTO его нет. Видео идёт исключительно
+  `send_video(protect_content=True)` в личку; `POST /api/movies/{id}/play` лишь триггер.
+  Inline-режим видео не отдаёт (inline-результаты `protect_content` не умеют).
+- Авторизация Web App: initData валидируется HMAC + TTL 24 ч по `auth_date` один раз в
+  `POST /api/auth` → сессия в Redis (`session:<uuid>`, 24 ч) → клиент шлёт токен.
+  `get_current_user` двухрежимный: токен или сырой initData (различаем по `=`). Токен
+  непрозрачный, статус доступа всегда свежий из БД. JWT нет.
+- Админ-действия (модерация чеков, `/add`, `/broadcast`, `/daily`, `/milestone`) — под
+  `bot/security.is_admin` по `BOT_ADMIN_USER_IDS`, не только через видимость кнопок.
+- Rate-limit — FastAPI-зависимость, ключ по IP из `X-Forwarded-For`; лимиты — данные в роутерах.
+  У `GET /api/me` лимит щедрый (120/мин): мобильные юзеры сидят за общим CGNAT.
 
-⚠️ После правок схемы БД — миграция (`alembic upgrade head`, авто через сервис `migrate`); тест-БД при
-смене схемы пересоздать (`dropdb qazaqcinema_test` → `./start.sh test`; `create_all` не добавляет
-колонки в существующие таблицы).
+### Пользователь и чат с ботом
+- Без открытого чата с ботом кинотеатр не работает (бот не может написать первым).
+  Признак — `users.bot_started_at`: ставит `/start` и успешная выдача, снимает только реальная
+  недоставка (`RecipientUnreachableError`). Ещё его ставит `allows_write_to_pm` из initData и
+  `POST /api/me/write-access` после `WebApp.requestWriteAccess()` (попап показывается один раз за
+  заход, с задержкой после готовности экрана). Отсутствие флага в initData ничего не снимает.
+- `UserRepository.upsert` НИКОГДА не трогает `notifications_enabled`, `free_view_*`,
+  `bot_started_at` — только точечные сеттеры. Иначе вход в Mini App затирал бы выбор юзера.
+- Шторка `BotStartSheet` (`t.me/<bot>?start=web`, через `openTelegramLink`) показывается
+  превентивно только там, где на кону подарок; у подписки/фильма дня сначала пробуем отправить,
+  шторку рисует обработчик 409 — флаг может быть устаревшим.
+- `/start` заводит юзера в БД (`UserActivityService`, под try/except — БД не должна оставить
+  человека без приветствия). `/start` регистрируется через `set_my_commands`: кнопка-меню занята
+  Mini App, а большую кнопку START Telegram рисует только тем, кто бота не запускал.
 
-## Решения, которые уже приняты (не пересматривать без причины)
-- **Python 3.13**. Backend — **FastAPI** (не Django/PHP): ложится на async-стек.
-- **БД — PostgreSQL** (asyncpg + Alembic). ORM-модели отделены от доменных сущностей намеренно.
-- `telegram_file_id` — **только боту**, в API-DTO отсутствует. Видео отдаётся ТОЛЬКО ботом через
-  `send_video(protect_content=True)` (inline-результаты `protect_content` НЕ умеют — проверено на
-  aiogram 3.29); API `/play` лишь триггерит отправку после initData-гейта. Это ядро безопасности.
-- **Постеры — файлами на VPS** (не Telegram file_id/прокси): постер публичен (витрина), крошечный,
-  нужен стабильный URL под `<img>`. Порт `PosterStorage` → `LocalPosterStorage` + StaticFiles
-  `/posters`; видео остаётся в канале-архиве. Постер скачивается один раз при `/add`.
-- **Изображения — нормализуются через порт `ImageProcessor`** (Pillow-адаптер, решение 2026-07-04):
-  постер → 2:3, hero-баннер → 3:2, пере-кодирование в JPEG (`ImageOps.fit`); битая картинка →
-  `ValueError` (ловит визард). Размеры/качество — данные (`POSTER`/`HERO` в `ports/images.py`).
-- ~~Hero главной — курируется~~ **ОТМЕНЕНО 2026-08-19** (см. «Hero = фильм дня» ниже): курирование
-  через `is_featured` убрано вместе с шагом визарда, колонка в БД осталась мёртвой (сносить ради
-  флага — лишний риск). Горизонтальный баннер `hero_image_url` остался, но стал НЕобязательным.
-- **initData — с TTL** (решение 2026-07-04): HMAC + проверка `auth_date` (24 ч) против реплея;
-  модерация оплат — под явным админ-гейтом (`app/bot/security.is_admin`, не только видимость кнопок).
-- **Названия фильма — мультиязычные**: `title_kk` (основное, казахское), `title_ru`,
-  `title_original` (оба nullable). Фронт показывает казахское основным.
-- **Поиск каталога — pg_trgm + unaccent** (не FTS): триграммы дают опечатки/подстроку и **работают
-  для казахского** (у Postgres FTS нет казахского словаря). Immutable-обёртка `f_unaccent` (stock
-  `unaccent` лишь STABLE → в индекс по выражению нельзя); один и тот же `f_unaccent` в запросе и в
-  GIN-индексе, иначе индекс не используется.
-- **Наполнение каталога — бот-визард `/add` (FSM)**, не подпись-#ключи; `caption_parser` — утилита.
-- **Визард `/add` — навигация данными, а не «только вперёд»** (решение 2026-08-14): опечатка в
-  названии или случайный `/skip` больше не заставляют начинать заново. Порядок шагов — список
-  `_ORDER` + тексты `_PROMPTS` в `handlers/add_movie.py`, поэтому «⬅️ Артқа» (шаг назад, введённое
-  сохраняется), «➡️ Әрі қарай» (оставить значение как есть) и меню «✏️ Түзету» на сводке (прыжок к
-  ОДНОМУ полю → сразу обратно к сводке, флаг `edit` в FSM-data) работают на всех шагах одинаково;
-  новый шаг = +1 строка в `_ORDER`/`_PROMPTS`/`EDIT_FIELDS`, а не новый хендлер. **Условных шагов
-  больше нет** (2026-08-19): вопрос «показывать на главной?» убран вместе с курированием hero, а
-  hero-баннер спрашивают у КАЖДОГО фильма (пропускается через `/skip` — без баннера фронт строит
-  фон из размытого постера). Последний шаг — «🔔 Хабарлама» (рассылать ли новинку).
-  Шаг показывает текущее значение («Қазір: …», у пропущенных — «— (өткізілген)»), кнопка «Әрі қарай»
-  есть только там, где значение уже введено. **Ошибка сохранения больше НЕ чистит FSM** — админ
-  жмёт «Сақтау» повторно или правит поле (раньше сброс стирал всю введённую карточку).
-- Тесты репозиториев идут через `create_all` (не миграции): conftest сам заводит `pg_trgm`/
-  `unaccent`/`f_unaccent` и делает drop+create (иначе дрейф схемы от старых прогонов).
-- Категория/статус/способ оплаты в БД — **VARCHAR**, не PG-ENUM (добавить значение без миграции).
-- **Мультикатегорийность** (решение 2026-07-20): фильм относится к НЕСКОЛЬКИМ категориям (напр.
-  fantasy + мультфильм). В БД — массив `categories VARCHAR(32)[]` (не одиночная колонка) с **GIN-
-  индексом** под overlap; фильтр браузинга — `categories && ARRAY[...]` (`.overlap()`, «хотя бы одна
-  из выбранных»), счётчики чипов — `unnest`+group (каждая категория фильма даёт +1). Массив, а не
-  join-таблица — сохраняет философию «категория = свободные данные, значение без миграции». `Movie.
-  categories: list[str]`, `MovieOut.categories`, фронт рисует чипы (`categoryLabels`). Визард `/add` —
-  **мультивыбор чекбоксами** (тумблер-кнопки с ✅ + «Дайын»; нужна ≥1). `ParsedMovie` (утилита
-  caption-парсера, не в потоке визарда) намеренно остался одиночным.
-- `users.telegram_id` и `payment_requests.user_id` — **BIGINT** без автоинкремента (Telegram ID).
-- **Оплата — Strategy-порт** `PaymentProvider`: Kaspi (MVP, ручной чек) + Telegram Stars
-  (авто-подписка, **только помесячная** по ограничению Telegram). **Тарифа два** (решение
-  2026-06-29): `1_day` — разовый тестовый доступ; `1_month` — основной (`recurring=True`, пригоден
-  под авто-подписку Stars). `3_months` убран. Менять сетку — `domain/tariffs/catalog.py` (данные).
-  Цифровой контент по политике Telegram продаётся через Stars (сверяться с актуальной докой!).
-- **Kaspi: способ перевода — по заполненности env** (решение 2026-07-11, «данные», не код): внутри
-  Kaspi два независимых способа — **перевод по номеру** (`PAY_KASPI_NUMBER`) и **оплата по ссылке**
-  Kaspi Pay (`PAY_KASPI_LINK`). Доступность выводится из ЗАПОЛНЕННОСТИ: пусто → `None` (`KaspiManual
-  Provider.initiate`: `self._x or None`) → способ скрыт на пэйволле. Заданы оба → доступны оба (кнопка
-  «Kaspi-ге өту» + карточка «Аудару нөмірі» с разделителем «немесе»); задан один — только он. Массива
-  способов в env НЕТ намеренно — переключение = правка тех же строк, без нового флага и без кода.
-- **Telegram Stars — сверенные константы** (Фаза 8, docs `core.telegram.org/bots/payments-stars`):
-  валюта `currency="XTR"`; `provider_token=""` (для Stars пусто); `amount` в XTR = число звёзд
-  напрямую (XTR без дробной части, не ×100); `subscription_period=2592000` (30 дней) — единственный
-  допустимый период Stars-подписки. **Цена в звёздах — данные тарифа** `price_xtr` (1_day=50,
-  1_month=250; бизнес-значения, подкрутить в `domain/tariffs/catalog.py`). Активация — только на
-  `successful_payment` (не на `initiate`): `StarsPaymentService.confirm` → `SubscriptionService.
-  activate`; авто-продление recurring идёт тем же хендлером. Payload `<user_id>:<slug>`.
-- **Заявки на оплату** — единая таблица `payment_requests` (аудит), универсальная по способу:
-  `proof_file_id` для Kaspi, `external_charge_id` для Stars/фиата.
-- **Авторизация Web App — сессии поверх initData-bootstrap** (Фаза 11.1, 2026-07-05; ранее было
-  «stateless initData на каждый запрос»): initData валидируется HMAC один раз в `POST /api/auth` →
-  серверная сессия в Redis (`session:<uuid>`, TTL 24 ч) → клиент шлёт токен. `get_current_user` —
-  **двухрежимный**: токен (Redis) ИЛИ initData (stateless-фолбэк, различаем по `=` в строке). initData
-  НЕ выкинут — он bootstrap И fail-open фолбэк (Redis down → вход по HMAC работает). JWT по-прежнему нет
-  (токен — непрозрачный id сессии, данных доступа в нём нет; статус/срок всегда свежие из БД).
-- **Без открытого чата с ботом кинотеатр не работает — и фронт знает это заранее**
-  (решение 2026-08-19, `users.bot_started_at`): Telegram не даёт боту написать первым, а видео
-  уходит ТОЛЬКО в личку. Люди, попавшие в Mini App по ссылке (из браузера/поиска/SEO), каталог
-  видят, но получить кино не могут — по живым данным это было 14 из 25 посетителей, и ни один
-  из них фильма не получил. Факт проставляет `/start` (`UserActivityService`), снимает
-  недоставка (`PlaybackService` ловит `RecipientUnreachableError`) — одна ручка
-  `UserRepository.set_bot_started(id, at|None)`, точечный UPDATE. В `upsert` его НЕТ намеренно
-  (как `notifications_enabled` и `free_view_*`): вход в Mini App затирал бы открытый чат в NULL.
-  Наружу — `AuthOut.bot_started`; фронт по нему показывает шторку `BotStartSheet` с синей кнопкой
-  `t.me/<bot>?start=web` (`openTelegramLink`, а не `openLink` — иначе t.me уедет в браузер).
-  Возврат из чата ловит существующий `visibilitychange` → статус освежается сам.
-  ⚠️ Шторка показывается ПРЕВЕНТИВНО только там, где на кону подарок. У подписки, фильма дня и
-  повторной выдачи попытка ничего не стоит — пробуем отправить, а шторку покажет обработчик 409:
-  флаг может быть устаревшим, и гнать в бота человека, у которого чат давно открыт, нельзя.
-  Успешная отправка сама чинит флаг (`set_bot_started(now)` в `PlaybackService`).
-  ⚠️ Большую кнопку START Telegram рисует ТОЛЬКО тем, кто бота ни разу не запускал; у остальных в
-  чате не видно ничего, а кнопка-меню занята Mini App (`MenuButtonWebApp`) — списка команд там нет.
-  Поэтому `_setup_commands` в `main.py` регистрирует `/start` через `set_my_commands` (видна по «/»
-  и в профиле бота), а шторка называет этот путь вторым шагом.
-- **Тарифы/категории — данные** (словарь), не классы; способы оплаты/ключи парсера — код (OCP).
-- **DI — dishka**, composition root в `infrastructure/di/providers.py`. APP-scope: config, движок,
-  Bot, провайдеры оплаты; REQUEST-scope: сессия БД, репозитории, сервисы.
-- Каждая секция конфига объявляет свой `env_file=".env"` и `env_prefix` (вложенные BaseSettings
-  через `default_factory` НЕ наследуют env_file родителя). Списки из env — через `NoDecode` +
-  валидатор (иначе pydantic-settings пытается JSON-декодить).
-- Alembic берёт DSN из `DatabaseConfig` (для миграций BOT_TOKEN не нужен); переопределение
-  `alembic -x dsn=...`.
-- **Единый запуск + dev/prod-паритет — `./start.sh` (решение 2026-07-04, уточнено 2026-07-05):** весь
-  стек в Docker, **ОДНА топология** (единый `docker-compose.yml`, без оверлеев) — dev/prod/test
-  отличаются ТОЛЬКО env-файлом (`.env`/`.env.prod`/`.env.test`; 12-factor, решение пользователя).
-  Порты БД/Redis/API — на 127.0.0.1 (одинаково везде). Миграции — сервис `migrate` ПЕРЕД api/bot.
-  `ENV_FILE` + `--env-file` управляют и `env_file:` сервисов, и интерполяцией `${...}`. **Тесты — в
-  контейнере** (мультистейдж-образ, стадия `test`), БД `qazaqcinema_test` (footgun «тесты в рабочей БД»
-  закрыт). Hot-reload — не в контейнере (dev==prod), а host-venv поверх Docker-инфры (README).
-- **Единый `PUBLIC_ORIGIN` — ОДИН источник правды для домена** (решение 2026-07-11, замена россыпи
-  `BOT_WEBAPP_URL`/`BOT_WEBHOOK_URL`/`API_CORS_ORIGINS`/`WEB_SERVER_NAME`): в env домен пишется РАЗ,
-  со схемой (`https://qazaqcinema.kz` прод / `http://localhost` локально). Из него
-  `AppConfig._derive_from_public_origin` (валидатор pydantic, `settings.py`) выводит: `api.cors_origins`
-  (= [origin]), `bot.webapp_url` (= origin+"/"), `bot.webhook_url` (= origin при https, иначе "").
-  Схема — флаг среды: **https ⟹ TLS + webhook**, http ⟹ без TLS + polling (Telegram и так требует HTTPS
-  для webhook). Та же переменная уходит в Caddy как site address (compose `environment:`). Поля
-  `webapp_url`/`webhook_url`/`cors_origins` напрямую из env НЕ задаются — лишь хранилище результата.
-- **Прод — авто-TLS через Caddy, webhook по env** (решение 2026-07-11, замена nginx+certbot): **web —
-  один образ Caddy** (`web/Caddyfile` + `web/Dockerfile`), раздаёт SPA и проксирует `/api`,`/posters`,
-  `/tg/`. **HTTPS полностью автоматический** — Caddy сам выпускает и продлевает сертификат Let's Encrypt
-  (никакого `certbot`/cron/скриптов-селекторов; «курица-яйцо» и ручной выпуск сняты в принципе). Сертификаты
-  живут в томе `caddy_data` (переживают пересборку/`git pull`). Дев/прод отличаются ТОЛЬКО значением
-  `PUBLIC_ORIGIN` (http://localhost → HTTP :80; https://домен → авто-TLS :443 + редирект). **webhook** —
-  включается схемой `https` в `PUBLIC_ORIGIN`; aiohttp-сервер вебхука живёт В процессе бота (не
-  FastAPI-роут), чтобы бот сохранял владение диспетчером+шедулером, а api оставался чистым. Секреты
-  приложения в Caddy-контейнер НЕ пробрасываем (только `PUBLIC_ORIGIN` + `ACME_EMAIL` через
-  `environment:`, не `env_file`). `ACME_EMAIL` — контакт Let's Encrypt (dev/test = `test@testmail.com`,
-  непустой намеренно: пустая env-строка ломает парсинг `email` в Caddyfile — проверено `caddy validate`).
-  Бэкапы — `./start.sh backup` (`pg_dump|gzip`, ротация 14). Живой деплой — по **DEPLOY.md**.
-- **Лимиты ресурсов и логов в compose** (решение 2026-07-11, под дешёвый VPS): у каждого сервиса
-  `deploy.resources.limits.memory` (postgres 512М, api/bot 384М, worker/migrate 256М, redis 192М,
-  web 128М) — потолки-ПРЕДОХРАНИТЕЛИ от разрастания, не резервирования; реальный простой ~900М.
-  Логи — якорь `x-logging` (json-file, `max-size 10m` × `max-file 3` = ≤30М/сервис). Docker ротирует
-  по РАЗМЕРУ, не по времени — «логи на 3 месяца» дословно невозможно, но при нашем трафике 30М это
-  перекрывает с запасом. Целевой VPS — **2 ГБ RAM / 1–2 vCPU / ~40 ГБ SSD** (видео раздаёт Telegram
-  через `protect_content`, не VPS → бэкенд лёгкий; тяжёлого трафика на сервере нет).
-- **Redis подключён как фундамент (Фаза 11.0, 2026-07-05):** клиент `redis.asyncio` в DI (APP-scope,
-  graceful `aclose`), health-ping на старте api/bot (**fail-open** — недоступность Redis не роняет
-  старт), `GET /api/health` пингует Redis+БД. Фичи (сессии/кэш/rate-limit/локи) — поверх этого через
-  свои порты+адаптеры (Фаза 11.1+), сервисы про Redis не знают (DIP).
-- **Redis-фичи — fail-open + адаптер владеет ключами** (Фаза 11, 2026-07-05): каждый концерн —
-  мелкий порт (`Lock`, `RateLimiter`, `SessionStore`, `CatalogCache`; ISP) + адаптер в
-  `infrastructure/cache/`. **Деградация — в адаптере**: Redis недоступен → лок/лимитер пропускают
-  (`acquire`/`hit` → True), кэш → промах (`get` → None), сессии → None (клиент откатывается на initData) —
-  чтобы Redis не ронял основной путь (лучше повторная отправка/пропуск лимита/сбор из БД, чем отказ).
-  Namespace-префиксы (`lock:`, `ratelimit:`, `session:`, `catalog:`) — в адаптере, домен их не знает.
-  Лок отправки видео живёт ВНУТРИ `PlaybackService.deliver` (не в роутере — «не двойным клиентом», а
-  самим use-case'ом), ключ `send_video:<user>:<movie>`, release по TTL. Rate-limit — FastAPI-зависимость
-  (`api/deps/rate_limit.py`), ключ по IP из `X-Forwarded-For`; лимиты — данные в роутерах. **Сессии
-  (11.1):** initData → bootstrap → токен; `get_current_user` двухрежимный (токен ИЛИ initData-фолбэк,
-  различаем по `=`); токен непрозрачный, доступ всегда свежий из БД. **Кэш каталога (11.2/13):**
-  cache-aside в namespace `catalog:*` — ключи `home` (EX 600), `categories` (EX 600), `browse:…`
-  (EX 60; много комбинаций фильтр×сортировка×страница + дрейф сорта «по просмотрам» → короткий TTL).
-  Порт `CatalogCache` — ключевой (`get(key)/set(key,payload,ttl)/invalidate`), namespace-префикс в
-  адаптере; **инвалидация в `MovieIngestionService.ingest`** чистит ВЕСЬ namespace (`SCAN catalog:*`
-  → `DEL`), иначе новинка не видна до TTL. Тесты кэш-адаптеров — на **fakeredis** (dev-зависимость).
-- **Рассылки — свой Redis-list reliable-queue + отдельный worker, БЕЗ arq** (Фаза 12, 2026-07-06):
-  план флагнул «arq vs своё» — выбрали своё (нет новой зависимости, ровно паттерн `infrastructure/
-  cache/` порт+адаптер, философия проекта). Очередь `BroadcastQueue` (`broadcast:pending` List) —
-  **crash-safe**: `reserve`=`LMOVE` в `broadcast:processing` (задание не теряется до `ack`=`LREM`),
-  `recover` при старте возвращает незавершённые (**at-least-once**: `ack` идёт ПОСЛЕ отправки → лучше
-  повтор, чем потеря). Payload — раз на рассылку (`broadcast:msg:<uuid>` EX 24ч), задания хранят лишь
-  `{mid,chat}`. **Fail-open** (Redis down → enqueue no-op, /add не падает). Разбирает **отдельный
-  процесс** `app/worker.py` (сервис `worker` в compose) — глобальный лимит Telegram (~25 msg/s) в ОДНОМ
-  месте, не блокирует бота/API. Реалии TG: `RetryAfter`→пауза+повтор, `Forbidden/BadRequest`→снять с
-  рассылок. **Opt-out `notifications_enabled`** (по умолчанию ВКЛ): инвариант — `upsert` НЕ трогает флаг
-  (не в on_conflict set_), меняет только точечный `set_notifications` (логин/оплата не сбрасывают выбор).
-  Рассылка о новинке — **по выбору админа на КАЖДОМ фильме** (шаг визарда «🔔 Иә/Жоқ», решение
-  2026-08-19; раньше уходила автоматически на каждый `ingest`). Причина — живой факт: каталог
-  заливают пачками, 17.08 за вечер ушло 38 пушей, и 3 из 11 стартовавших заблокировали бота
-  (worker снял их с рассылок по `Forbidden`). Аудитория при этом всегда фильтруется тумблером
-  профиля — `list_notifiable()` берёт только `notifications_enabled = true`. Ручная — `/broadcast`.
-- **Каталог/навигация (Фаза 13, 2026-07-06):** UI — **две вкладки через фиксированный нижний таб-бар**
-  (`Басты | Каталог`), НЕ оверлей и НЕ кнопка (каталог — равноправная витрина; масштабируется под будущие
-  вкладки). **Главная = hero + 2 полки** (Жаңа түскен + Танымал), категорийные ряды с главной убраны —
-  браузинг по категориям живёт в табе «Каталог» (чипы-мультивыбор + сортировка + пагинация-подгрузка).
-  **«Барлығы →» на полках главной НЕ показываем**: New/Popular — сортировки, а не категории, вести им
-  некуда; вход во «весь каталог» — только таб. Правило: «Барлығы →» принадлежит КАТЕГОРИЙНЫМ рядам (если
-  такие вернут на главную). **Популярность = счётчик просмотров `play_count`** (не рейтинг, не ручной
-  флаг): `+1` на реальной доставке видео; «Танымал»/сорт-по-просмотрам — `ORDER BY play_count DESC,
-  rating DESC NULLS LAST, id DESC` (холодный старт сам падает на рейтинг→новизну — полка не пустеет).
-  **Вся выборка/лимит/сортировка — на бэке** (ответ `/home` = O(полки×14), не растёт с каталогом; сорт —
-  Literal-белый-список, сырой строки в SQL нет, тай-брейк `id DESC`). Пагинация — подгрузка-при-скролле
-  (не нумерация); карусели остаются нативным scroll-snap (бесконечный JS-луп отклонён — принцип «без
-  JS-каруселей»).
-- **Имена миграций — `yyyymmdd_<slug>`** (через `file_template` в alembic.ini). Случайный hex от
-  Alembic — лишь уникальный `revision id` (по нему связи `down_revision`/`alembic_version`), дата в
-  имени файла — для людей; id внутри файла при переименовании не трогаем.
-- **Подписка — отдельный «движок доступа» ДО оплаты** (Фаза 6): `SubscriptionService.activate/
-  expire_due` + `has_active_access` — единая точка грант/ревок/проверки. Способы оплаты (Kaspi/Stars)
-  лишь вызывают `activate`; не размазывать активацию по платёжным хендлерам.
-  **Доступ пропадает НЕ по джобу**: `has_active_access` считает `expires_at > now` в реальном времени
-  на каждом запросе → 403 приходит секунда-в-секунду. `expire_due` (15 мин) лишь проставляет статус,
-  шлёт DM и забирает видео — «бесплатных 15 минут» не бывает.
-- **Выданные видео живут 40 часов, чистка ПО ВОЗРАСТУ** (решение 2026-07-15, `VideoRetentionService`):
-  ⚠️ **Telegram не даёт боту удалить сообщение старше 48 часов** (Bot API `deleteMessage`, проверено по
-  доке). Поэтому исходная схема «удалим всё при истечении подписки» на месячном тарифе физически НЕ
-  работала: к 30-му дню почти все выдачи неудаляемы, юзер оставался с коллекцией навсегда — а `suppress`
-  в адаптере делал провал невидимым (ошибка «>48 ч» выглядела как успех). Решение: ежечасный джоб
-  `purge_stale` сносит выдачи старше `STALE_AFTER=40 ч` (запас 8 ч до потолка на случай простоя джоба).
-  Побочно чинится и `purge_for_user` при истечении: в таблице теперь НЕТ ничего старше ~41 ч → удаление
-  всегда попадает в окно. Для подписчика не потеря: подписка жива → жмёт «Көру» и получает видео снова.
-  Чистка идёт ПАЧКАМИ (`list_due(cutoff, now, BATCH_SIZE=100)` в цикле) — в память попадает одна пачка;
-  BATCH_SIZE — лимит ОДНОГО запроса, а не потолок работы за прогон (цикл выгребает всё).
-- **Ретраи удаления — по исходу, ровным интервалом** (решение 2026-07-15): `delete_message` возвращает
-  **`DeleteOutcome`** (3 состояния, не bool), классификация — в АДАПТЕРЕ (единственный слой, знающий
-  aiogram; `RetryAfter` он сперва пережидает сам):
-  • `REFUSED` — постоянный отказ (>48 ч, сообщения нет, бот заблокирован) → строку сносим, повтор
-    бессмыслен; • `FAILED` — временный (сеть/5xx; раньше НЕ ловились и роняли джоб) → строку
-    ОСТАВЛЯЕМ, `attempts+=1`, `next_attempt_at=+1 ч`; исчерпали `MAX_ATTEMPTS=6` → сносим.
-  ⚠️ **`next_attempt_at` — не украшение, а условие корректности**: без него сбойная строка возвращалась
-  бы тем же `list_due` внутри одного прогона → вечный цикл, и она же забивала бы голову очереди, не
-  пуская свежие выдачи. Срок в будущем убирает строку из выборки → цикл всегда движется.
-  **Интервал РОВНЫЙ (1 ч), не растущий — намеренно**: после 40 ч до потолка Telegram остаётся жёсткое
-  окно 8 ч. Экспонента (5м→10м→…→160м) растянула бы попытки и сожгла окно, дав их 6; ровный часовой
-  даёт 6–8 и его не надо писать — ежечасный джоб УЖЕ является циклом ретраев (отдельная таблица-очередь
-  поэтому не нужна: оставленная строка и есть очередь). `purge_for_user` тоже не сносит `FAILED`-строки —
-  иначе потерялся бы единственный след и видео осталось бы в чате навсегда.
-  Менять срок/пачку/попытки — данные в `video_retention_service.py`.
-- **Фронтенд Mini App** (решения 2026-06-30, детали в PLAN.md Фаза 9): каталог/поиск/карточка —
-  свободны всем (только initData), гейт подписки ТОЛЬКО на «Көру» (`POST /play` → 403). Видео не
-  играется в Mini App (`protect_content`) → «Көру» шлёт его в чат с ботом, фронт показывает модалку
-  «видео отправлено» + кнопка «Жабу» (`WebApp.close()`), НЕ авто-закрытие. Тема — фиксированная
-  тёмная брендовая (не тема Telegram). Язык UI — казахский (`title_kk` основной). Пэйволл — bottom
-  sheet, 2 тарифа, **Kaspi первым/акцентным**, Stars вторым. Постеры: полка 2:3, hero 3:2
-  (горизонталь под мобилку — решение 2026-07-04, не 16:9).
-- **UI-кит фронта (решение 2026-07-04):** иконки — **`lucide-react`** (открытый ISC-набор; ставим ЕГО,
-  а не эмодзи/дефолтные глифы — единый источник иконок). Шрифт — **Inter** (Google Fonts; критично —
-  покрывает казахскую кириллицу, т.к. все тайтлы `title_kk`). Компоненты — **свои** на Tailwind v4
-  дизайн-токенах (`@theme` в `web/src/index.css`), философия shadcn/ui: владеем кодом, без тяжёлой
-  рантайм-UI-библиотеки → лёгкий бандл для мобильной сети. Анимации/карусели — **нативный CSS**
-  (scroll-snap-полки, CSS-шторки; `prefers-reduced-motion`), без JS-каруселей. Менять акцент/палитру —
-  правкой токенов в `@theme` (одно место).
-- **Dev-инфра фронта:** Vite-прокси `/api`+`/posters` → бэкенд (`API_TARGET` — env-переменная в
-  `web/vite.config.ts`; в Docker-dev `http://api:8000`, на хосте `http://localhost:8000`) →
-  фронт на своём origin, CORS не нужен (прод — Caddy, Фаза 10). Вне Telegram в DEV работает мок
-  бэкенда `web/src/lib/devMock.ts` (динамический import под `import.meta.env.DEV && !initData` →
-  из прод-бандла вырезается) — можно открыть Mini App в браузере без бэка; статус юзера в моке
-  переключается константой `AUTH.status`.
-- **SEO — публичные SSR-страницы, НЕ индексируемый SPA** (решение 2026-07-20): Google не видит
-  Mini App (контент рисует JS после initData-гейта → краулер получает пустую оболочку). Поэтому
-  рядом со SPA бэкенд отдаёт НАСТОЯЩИЙ серверный HTML по человекочитаемым URL: `/m/<id>-<slug>`
-  (страница фильма), `/catalog` (хаб с внутренними ссылками), `/sitemap.xml`, `/robots.txt` —
-  `app/api/routers/public_seo.py` (без авторизации, без `/api`-префикса; Caddy проксирует эти пути
-  на api ДО SPA-фолбэка). «Автогенерация при загрузке» = рендер из БД на лету: как только `/add`
-  сохранил фильм, его страница и строка sitemap появляются сразу и всегда свежие (никаких статических
-  файлов, источник правды один — БД). Вся SEO-логика — в `SeoBuilder` (`application/services/seo_service.py`,
-  чистая, зависит лишь от домена + адреса сайта + `BOT_USERNAME`): билингвальный заголовок
-  («Шрек қазақша», рядом ru/original — как просил заказчик «Shrek kazaksha»), meta description
-  (≤160, kk+ru), **широкая генерация ключевых запросов** (≤`_KEYWORDS_MAX`): каждое название
-  (ru/kk/оригинал) × суффиксы `_NAME_SUFFIXES` («қазақша/смотреть на казахском/онлайн/telegram»…) +
-  теги по категориям `_CATEGORY_TAGS` («қазақша disney мультфильмдері», «мультики для детей») +
-  комбинации `_CATEGORY_PATTERNS` + универсальный спрос `_BROAD_TAGS` («фильмы telegram»…) — всё
-  ДАННЫЕ в `seo_service.py`, дополнять без правки логики; курированный видимый блок «Осыны да іздейді»
-  (`seo.tags`, ~12, без переспама). Open Graph + Twitter (og:image = hero→постер, абсолютный),
-  микроразметка **schema.org/Movie** (JSON-LD с `aggregateRating`/`WatchAction`/`keywords`; `<>&`
-  экранированы под встраивание в `<script>`).
-  Slug — `<id>-<translit>` (`domain/seo/slug.py`, транслит kk+ru→латиница); id — единственный
-  источник правды, хвост только для людей → `/m/42` и старый хвост канонично 301-редиректят на
-  актуальный. CTA «Telegram-да көру» → `t.me/<BOT_USERNAME>?startapp=m_<id>`; фронт читает
-  `start_param`/`#m<id>` (`web/lib/telegram.getStartMovieId`) и открывает карточку фильма, бот
-  `/start m_<id>` — фолбэк. Живые шаги (Search Console, BotFather Main Mini App) — за пользователем.
-- **Hero главной = ФИЛЬМ ДНЯ, бесплатный для всех** (решение 2026-08-19, заменяет «hero курируется»
-  и «hero ротируется по дням»): раньше наверху висела красивая карточка, которая упиралась в
-  пэйволл, — лучшее место экрана ничего не обещало (за 6 дней: 25 посетителей, 0 возвратов,
-  0 событий `paywall`). Теперь hero показывает кино, которое сегодня можно посмотреть даром.
-  • Правило — **чистая функция** `domain/catalog/daily.pick_daily_id` (не SQL: проверяется тестом
-  без БД), пул — `MovieRepository.list_rotation_ids()` = **ВЕСЬ каталог** (только id; фильтра по
-  баннеру нет — иначе пул резался бы втрое). • Выбор **детерминированный по суткам**: главная
-  кэшируется и одна на всех, случайность «на запрос» давала бы разным людям разное кино, а F5
-  менял бы бесплатный фильм под рукой. Внутри круга — перестановка (`Random(cycle).shuffle`) →
-  за круг каждый фильм выходит ровно раз, два дня подряд одно и то же невозможно. • **Граница
-  суток — местная (Asia/Almaty), не UTC**: «сегодня бесплатно» человек читает по своим часам, и
-  таймер «қалды» обязан сходиться с его вечером (по UTC смена падала бы на 05:00). Ключ кэша
-  главной — `home:<местный день>`. • Источник правды ОДИН на витрину и на выдачу —
-  `DailyMovieService`: `PlaybackService._resolve_gift` пускает этот фильм основанием `_Gift.DAILY`
-  (подписка не нужна, **подарок не тратится**), иначе кнопка «Тегін көру» приводила бы к 403.
-  Порядок оснований: подписка → фильм дня → свой подаренный → захват подарка → пэйволл (подписка
-  первой, чтобы оплаченный спрос не уезжал в счётчик бесплатных показов). Своё событие
-  `EventKind.DAILY_PLAY` — подарок меряет «попробовал продукт», фильм дня меряет возвраты.
-  • Срок бесплатности считает бэк (`daily.free_until` → `CatalogHomeOut.hero_free_until`), фронт
-  только форматирует: правило суток живёт в одном месте. • **Закреп админом** — `/daily <id>`
-  (порт `DailyPin` → Redis-адаптер, fail-open): на особый день (новинка, праздник, реклама)
-  можно объявить фильм дня вручную. Ключ живёт до местной полуночи и пропадает САМ — «забыть
-  снять» невозможно, к ручному курированию главной это не возвращает. Хранение в Redis, а не
-  колонкой: у записи нет ни истории, ни жизненного цикла, а колонка стала бы вечным флагом.
-- **Картинка у фильма ОДНА — постер; широкий баннер не собирается** (решение 2026-08-19): в
-  ротацию фильма дня входит весь каталог, а `hero_image_url` был лишь у 55 из 158, и просить у
-  админа вторую картинку к каждому из сотен фильмов — работа, которая ничего не добавляет.
-  Шаг баннера убран из `/add`, `ImageSpec HERO` удалён, `MovieOut` его больше не отдаёт. Поле
-  `Movie.hero_image_url` и колонка ОСТАЛИСЬ ради SEO: у полусотни старых фильмов горизонтальная
-  картинка лучше как og:image в соцсетях, чем портретный постер (`SeoBuilder`: hero → фолбэк постер).
-  **Hero рисуется из постера**: фоном идёт ТОТ ЖЕ файл, увеличенный (`scale` обязателен — иначе
-  blur даёт полосы по краям) и размытый, поверх лежит его чёткая копия 2:3 с кольцом и тенью.
-  Постер 2:3 нельзя ни растянуть, ни обрезать до 3:2 — кадр скомпонован вертикально, центр-кроп
-  режет лицо и название; поэтому широкой делается ПОВЕРХНОСТЬ, а не постер. Подложка берёт цвета
-  самого фильма → блок каждый день выглядит нарисованным под сегодняшнее кино. Контраст текста
-  гарантируют скримы (сверху и снизу — верхний обязателен, иначе подложка обрывается ровной
-  линией под поиском), а не удача с картинкой. Пульс (`anim-pulse-ring`) — только на CTA и только
-  когда кино реально бесплатно; «дыхание» фона — `anim-breathe`; обе анимации уважают
-  `prefers-reduced-motion`.
-- **Поддержка внутри Mini App — сообщение, а не тикет** (решение 2026-08-06): `POST /api/support`
-  → `SupportService` → `notify_admins` в личку админам. **Таблицы намеренно нет**: у обращения ни
-  статуса, ни жизненного цикла, ни денег (в отличие от `payment_requests`) — переписка живёт в
-  Telegram, админ жмёт на `@username` из карточки и отвечает. Появятся тикеты со статусами —
-  появится и таблица. Побочно поправлен `notify_admins`: доставка теперь **независимая по админам**
-  (раньше первый же 403 от админа, не нажавшего /start, обрывал цикл и глушил остальных), а наверх
-  летит `AdminsUnreachableError` только если не дошло НИ ДО КОГО → роутер отдаёт 502, и юзер видит
-  правду вместо ложного «жіберілді». Лимит 5/10 мин на IP: ручка дешёвая для клиента и дорогая для
-  чужой лички. Вход — в профиле (туда и так идут с вопросом «где моя подписка»).
-- **Статус подписки фронт обновляет сам** (решение 2026-08-06): решение модератора (✅/❌) приходит
-  ИЗВНЕ приложения, поэтому Mini App опрашивает `GET /api/me` каждые 20 с, пока статус
-  `pending_review`, и всегда при возврате на экран (`visibilitychange`/`focus` — самый частый момент,
-  когда статус уже сменился). Раньше «тексерілуде» висело до полного перезахода. Ручка **отдельная
-  от `POST /api/auth`**: тот на каждый вызов заводит новую сессию в Redis — опрос засыпал бы его
-  мусором с TTL 24 ч. Лимит у неё свой и **щедрый (120/мин)**: ключ лимитера — IP, а мобильные юзеры
-  сидят за общим CGNAT, и скромные 30/мин ловили бы 429 на десятке человек с одной вышки.
-- **Последний экран запоминается на 60 минут** (решение 2026-08-06, `web/lib/lastPage.ts`): вкладка
-  + открытая карточка пишутся в localStorage на каждое изменение и восстанавливаются при входе, если
-  прошло меньше `LAST_PAGE_TTL_MS`. Mini App живёт короткими заходами (свернул → ушёл в чат с ботом
-  за видео → вернулся), и каждый раз начинать с главной значило долистывать заново. Deep-link
-  (`startapp=m_<id>`) **главнее** сохранённого экрана: по ссылке пришли за конкретным фильмом.
-- **Гостю из поиска — кнопка, а не инструкция** (решение 2026-08-06): корень домена отдаёт SPA, и
-  вне Telegram юзер видел только текст «найдите бота @…» — тупик. Теперь экран `NotInTelegram` — это
-  прежде всего ссылка `t.me/<bot>?start=web` (payload `web` отличает такие заходы; `/start` его
-  игнорирует и просто здоровается) плюс запасной путь в SSR-`/catalog`. `BOT_USERNAME` на фронте —
-  одно место (`web/lib/telegram`), значение по умолчанию совпадает с бэком. В `sitemap.xml`
-  **приоритет 1.0 у `/catalog`**, а не у корня: корень для краулера почти пуст (SPA), а `/catalog` —
-  настоящая серверная страница с контентом и перелинковкой на карточки фильмов.
-- **Право писать в личку просим САМИ, попапом внутри Mini App** (решение 2026-08-25, дополняет
-  «без открытого чата с ботом кинотеатр не работает»): поход в чат за кнопкой START оставался
-  обязательным шагом, и на нём стояли **34 человека из 123 — ни один не посмотрел ни одного
-  фильма**, причём доля росла вместе с SEO-трафиком (23.08: 7 из 24 новых). Теперь тот же доступ
-  берётся двумя дорогами, обе без ухода из приложения: • **автоматически** — `allows_write_to_pm`
-  приходит в подписанном initData, `AuthService._sync_write_access` признаёт по нему чат открытым
-  (для всех, кто разрешение уже давал, шторки больше нет вообще); • **попапом** —
-  `WebApp.requestWriteAccess()` (Bot API 6.9) показывается на входе один раз за заход, через
-  `WRITE_ACCESS_PROMPT_MS` после готовности экрана (поверх голого скелета системный запрос
-  закрывают не читая), согласие уходит в `POST /api/me/write-access`. Ручка нужна именно отдельная:
-  initData у открытого приложения уже подписан и о свежем согласии не узнает до следующего захода.
-  ⚠️ **Молчание Telegram о флаге НЕ снимает признак** — поля нет в старых клиентах, его отсутствие
-  значит «не знаю»; снимает только реальная недоставка (`PlaybackService`). Слову клиента в ручке
-  верим осознанно: соврать он может лишь себе во вред (упрётся в 403 от Telegram, флаг тут же
-  снимется), а проверка стоила бы вызова Bot API на каждом входе. Отказ и старый клиент оставляют
-  прежний путь — `BotStartSheet` с дорогой в чат никуда не делась. Событие — свой вид
-  `EventKind.WRITE_ACCESS` (не `start`: дорога другая, и конверсию двух надо уметь сравнивать),
-  `meta` = "auto" | "prompt".
-- **Пэйволл считает ФРОНТ, потому что сервер о нём не знает** (решение 2026-08-25): событие
-  `paywall` существовало с 13.08 и за всё время не записалось **ни разу** — метрика выглядела
-  собранной, а воронка в самой важной точке была слепой. Причина: решение «доступа нет, подарок
-  потрачен» фронт принимает сам и рисует шторку, не спрашивая сервер; серверная запись в
-  `PlaybackService` ловит лишь тех, у кого доступ протух между открытием карточки и нажатием
-  «Көру» — единицы. Добавлена ручка `POST /api/events/paywall` (`api/routers/events.py`, 204, без
-  гейта подписки — пишет как раз тот, у кого доступа нет), фронт зовёт её **из `openPaywall`** —
-  единственного места, через которое проходят все дороги к шторке. Дубль с серверной записью снят
-  флагом `openPaywall(movie, track=false)` на ветке 403. Запрос идёт фоном: метрика не имеет права
-  задержать шторку или уронить её показ.
-- **Фундамент аналитики: юзер фиксируется на `/start`, событий — пять** (решение 2026-08-13):
-  до этого юзер попадал в БД только открыв Mini App (`AuthService`), а нажавшие `/start` (в т.ч.
-  пришедшие из SEO) не существовали ни в статистике, ни как аудитория рассылок — теперь `/start`
-  заводит строку через `UserActivityService` (хендлер остаётся тонким; вызов под try/except —
-  недоступная БД не должна оставлять человека без приветствия). Появились `users.created_at` и
-  таблица `user_events`. Пишем **не полную историю поведения, а пять значимых фактов**:
-  `start / open / play / subscribe / expire` (`domain/analytics/events.EventKind`, VARCHAR в БД —
-  новый вид без миграции; `meta` — свободная привязка: id фильма у play, slug тарифа у subscribe).
-  Клики по каталогу намеренно НЕ пишем: на вопросы, ради которых заведена таблица, они не отвечают,
-  а объёма дали бы на порядок больше. Запись **fail-open в адаптере** (как у Redis-адаптеров):
-  сбой журнала не имеет права уронить выдачу видео или активацию подписки, `rollback` обязателен —
-  иначе аварийная транзакция уронила бы следующий запрос в той же сессии.
-  `open` пишется в `AuthService.bootstrap` (только `POST /api/auth`), а НЕ в `authenticate`: ту
-  дёргает `get_current_user` на initData-фолбэке, то есть на каждом запросе при лежащем Redis —
-  метрика превратилась бы в счётчик HTTP-запросов.
-- **Действия админов в статистику не попадают** (решение 2026-08-13): админ ходит по кинотеатру
-  служебно (проверяет новинки, тестирует выдачу) и на малых числах полностью искажал бы картину.
-  Отсекаем **на записи** — декоратор `AdminBlindEventRepository` поверх порта (`infrastructure/
-  analytics/`), а не флаг внутри Pg-адаптера и не вычитание при подсчёте: админский шум не копится
-  в таблице вообще, и любой будущий запрос к истории (воронка, когорты, рефералка) чист без риска
-  забыть фильтр. В `users` строки админов нужны (доступ), поэтому счётчики людей исключают их явно —
-  `exclude` в `count_all/count_created_since/count_active`. Источник правды — `BOT_ADMIN_USER_IDS`.
-- **Ежевечерний отчёт админам в 22:00 по Алматы** (решение 2026-08-13, время и окно уточнены
-  2026-08-26): короткая сводка в личку — всего юзеров (+сколько сегодня), активных подписок,
-  открытий кинотеатра (уникальных/всего), выданных видео, активаций и истечений. Считает БД
-  (`COUNT` по индексам), наружу идут только числа — стоимость отчёта не растёт с базой.
-  **Часовой пояс задан явно** (`REPORT_TZ = ZoneInfo("Asia/Almaty")` в `scheduler.py`):
-  контейнеры живут в UTC, и «22:00» ушло бы в 3 утра по Казахстану.
-  `misfire_grace_time=3600 + coalesce` — перезапуск бота в 22:05 не съедает отчёт и не шлёт его
-  дважды. Планировщик поднимает только процесс бота, поэтому отчёт уходит один раз.
-  **Окно отчёта — скользящие 24 ч до момента отправки** (`day_window`, было — «с местной
-  полуночи»): фиксированная полночь при вечерней отправке обрубала хвост между отправкой и
-  полуночью — эти события не попадали НИ В ОДИН отчёт (следующий день снова считал от своей
-  полуночи), и на выходных, когда люди активны допоздна, это была заметная потеря. Скользящее
-  окно `[now-24ч, now)` дыр не оставляет и не привязано к конкретному часу — время отчёта можно
-  двигать свободно. Активные подписки считаются по факту `expires_at > now`, а не по колонке
-  статуса: джоб гашения ходит раз в 15 минут, а сводка обязана быть правдой на момент отправки.
-  Активность считается **уникальными людьми**: `/api/auth` вызывается ещё и при 401-ре-авторизации,
-  поэтому `opens_total` может слегка завышать число заходов, а `opens_unique` — нет.
-- **История отчётов + лента вех роста** (решение 2026-08-28, `daily_reports` + `milestones`):
-  до этого ежевечерний отчёт (см. выше) считался на лету и уходил только текстом в Telegram —
-  ничего не сохранялось, и сравнить «месяц назад / сегодня» можно было лишь пересчётом сырых
-  `user_events`, а **размер каталога и аудитории на тот момент так уже не восстановить**
-  (`movies`/`users` растут). Теперь `AnalyticsService.daily_report` тем же вызовом, которым
-  собирает текст для админов, пишет снимок в `daily_reports` (`PgDailyReportRepository.save`,
-  **upsert по `day`** — повторный прогон/misfire не плодит дубликат). В снимок добавлены
-  `catalog_size` (фильмов в каталоге на конец дня — знаменатель для нормировки: рост открытий
-  сам по себе ничего не значит без контекста, что каталог за то же время вырос втрое и просто
-  даёт больше SEO-страниц в индексе Google), `starts` (верх воронки — нажавшие `/start`, включая
-  пришедших из SEO) и `daily_plays` (фильм дня, `EventKind.DAILY_PLAY`) — раньше эта цифра нигде
-  не считалась, хотя ради самого сравнения двух крючков конверсии (разовый подарок vs регулярный
-  фильм дня) всё и заводится. **Проценты не хранятся** — `render_report` считает их из чисел
-  снимка на лету (`_percent`, `None` при пустом знаменателе — молчим, а не 0%): формула может
-  поменяться, а снимку незачем тянуть за собой миграцию из-за правки формулы.
-  **Вехи роста — НЕ состояние.** Соблазн завести поле «текущая модель монетизации» отклонён:
-  подарочный фильм и фильм дня работают ОДНОВРЕМЕННО (порядок оснований в `PlaybackService`:
-  подписка → фильм дня → свой подарок → пэйволл), значит одно значение на дату было бы неправдой.
-  Вместо этого — лента меток `milestones` (`domain/analytics/milestone.Milestone`), админ пишет
-  их командой `/milestone <текст>` (без аргумента — последние 10; дата берётся ТОЛЬКО текущим
-  моментом, задним числом не проставляется — веха фиксирует, когда фичу реально вкатили, а не
-  восстанавливается по памяти). Сравнение «до/после» — ручное, глазами по датам рядом с историей
-  `daily_reports`; отдельный инструмент сравнения периодов сознательно не строится (v1 — копить
-  историю, а не считать за админа: было решено, что для одного человека это преждевременно).
-- **Еженедельный дайджест поверх той же истории** (решение 2026-08-28, `domain/analytics/
-  weekly_report`): «сравнение руками по датам» из v1 выше через неделю захотелось автоматизировать —
-  это и есть сравнение периодов, которое v1 сознательно откладывал. `weekly_report` — джоб раз в
-  неделю (воскресенье 22:10 по Алматы, на 10 минут позже дневного — чтобы сегодняшний снимок
-  `daily_reports` уже точно был записан), считает АГРЕГАТ из уже сохранённых снимков
-  (`DailyReportRepository.list_range`), а НЕ заново ходит в `user_events`: снимки для этого и
-  заводились. Окно — скользящие 7 суток (`week_range`/`previous_week_range`), тот же принцип
-  «без разрывов», что у дневного `day_window` (2026-08-26) — день запуска джоба можно двигать
-  свободно. Что в дайджесте: • сравнение к прошлым 7 суткам в % (`percent.change`, вынесен из
-  `report.py` в общий `domain/analytics/percent.py` — обоим отчётам нужна одна формула);
-  • нормировка на размер каталога («открытий на 100 фильмов»; `catalog_size`/`catalog_size_prev`
-  берутся из ПОСЛЕДНЕГО снимка каждого окна — это состояние на момент, не сумма, и взять его
-  неоткуда, кроме истории снимков) — прямой ответ на то, что рост каталога сам по себе раздувает
-  органику через SEO-страницы, и без нормировки это выглядело бы ростом продукта; • вехи
-  `MilestoneRepository.list_between` внутри периода — контекст «почему цифры сдвинулись».
-  ⚠️ **`opens_unique` за неделю — сумма дневных уникальных, не точный недельный охват**
-  (задокументировано в докстринге `weekly_report.py`): человек, заходивший и в понедельник, и во
-  вторник, даст +1 в оба дня. Точный охват потребовал бы отдельного запроса к `user_events` с
-  7-суточным окном — сознательно не делаем, снимков достаточно для «сколько раз/на скольких разных
-  днях», усложнять ради строгой уникальности в v1 незачем. Отдельной таблицы под еженедельный
-  отчёт нет: он не факт, а вычисление над фактами (`daily_reports` + `milestones`), пересчитывается
-  заново при каждом запуске.
+### Каталог
+- Названия мультиязычные: `title_kk` основное, `title_ru`/`title_original` nullable.
+- Категории — массив `categories VARCHAR[]` + GIN, фильтр `&&` («хотя бы одна»). Массив, а не
+  join-таблица: категория остаётся свободными данными.
+- Поиск — pg_trgm + unaccent через immutable-обёртку `f_unaccent` (и в запросе, и в
+  GIN-индексе, иначе индекс не используется). FTS не годится: у Postgres нет казахского словаря.
+- Популярность — `play_count` (+1 на реальной доставке) и `favorites_count`, формула в
+  `domain/catalog/popularity.py`; `ORDER BY ... , rating DESC NULLS LAST, id DESC`.
+- Главная = hero + две полки (Жаңа түскен, Танымал), всё лимитируется на бэке. Браузинг по
+  категориям, сортировка и пагинация подгрузкой — в табе «Каталог»; третий таб «Таңдаулы»
+  (избранное без гейта подписки). Сортировка — Literal-белый-список, сырых строк в SQL нет.
+- Кэш каталога — cache-aside в namespace `catalog:*` (`home:<местный день>` 600 с,
+  `categories` 600 с, `browse:*` 60 с). `MovieIngestionService.ingest` чистит весь namespace.
+- Сериалы: `Series` — только название; постер/названия/категории живут на `Season` и копируются
+  на каждую серию при `ingest`; серия имеет только номер. FK `season_id` — `ON DELETE SET NULL`.
+- Картинка у фильма одна — постер 2:3 (`ImageProcessor`, Pillow, `ImageOps.fit`). Hero
+  рисуется из него же (размытый увеличенный фон + чёткая копия). `hero_image_url` остался
+  только как og:image для старых фильмов; шага баннера в визарде нет.
+
+### Фильм дня
+- Hero главной = фильм дня, бесплатный для всех. Выбор — чистая функция
+  `domain/catalog/daily.pick_daily_id`: детерминированный по МЕСТНЫМ суткам (Asia/Almaty),
+  перестановка внутри круга (каждый фильм ровно раз за круг), пул — весь каталог.
+- Источник правды один на витрину и выдачу — `DailyMovieService`. Порядок оснований в
+  `PlaybackService`: подписка → фильм дня → свой подарок → захват подарка → пэйволл.
+  Фильм дня подарок не тратит; событие `daily_play`.
+- Закреп админом `/daily <id>` — порт `DailyPin` (Redis, живёт до местной полуночи, снимается
+  сам). Срок бесплатности считает бэк (`hero_free_until`), фронт только форматирует.
+
+### Подписка и оплата
+- `SubscriptionService.activate/expire_due/has_active_access` — единственная точка гранта,
+  ревока и проверки; способы оплаты только зовут `activate`. Доступ считается по `expires_at > now`
+  в реальном времени, джоб `expire_due` (15 мин) лишь проставляет статус, шлёт DM и забирает видео.
+- Тарифы — данные `domain/tariffs/catalog.py`: `1_day` (разовый), `1_month` (`recurring`,
+  под Stars). Цены в тенге и в звёздах (`price_xtr`) — там же.
+- Kaspi: два способа по заполненности env — `PAY_KASPI_NUMBER` (перевод по номеру) и
+  `PAY_KASPI_LINK` (Kaspi Pay). Пусто → способ скрыт на пэйволле. Чек → `payment_requests` →
+  админам карточка с ✅/❌ (`ModerationService`).
+- Stars: `currency="XTR"`, `provider_token=""`, сумма = число звёзд, `subscription_period=2592000`
+  (единственный допустимый). Активация только на `successful_payment`; payload `<user_id>:<slug>`.
+- `payment_requests` — единая аудит-таблица по всем способам (`proof_file_id` у Kaspi,
+  `external_charge_id` у Stars).
+
+### Выдача и удаление видео
+- Telegram не даёт боту удалить сообщение старше 48 ч, поэтому выдачи чистятся ПО ВОЗРАСТУ:
+  ежечасный `purge_stale` сносит старше `STALE_AFTER=40 ч` пачками (`BATCH_SIZE` — размер одного
+  запроса, цикл выгребает всё). Подписчик просто жмёт «Көру» ещё раз.
+- `delete_message` возвращает `DeleteOutcome` (DELETED / REFUSED / FAILED), классификация в адаптере.
+  `FAILED` оставляет строку с `attempts+=1`, `next_attempt_at=+1 ч` (без него сбойная строка
+  зациклила бы `list_due`), после `MAX_ATTEMPTS=6` сносим. Интервал ровный, не экспонента: до
+  потолка Telegram остаётся 8 ч.
+- Лок отправки живёт внутри `PlaybackService.deliver` (`send_video:<user>:<movie>`).
+
+### Рассылки
+- Своя reliable-очередь на Redis-list (`broadcast:pending` → `LMOVE` в `processing` → `ack` после
+  отправки, `recover` на старте; at-least-once). Payload раз на рассылку (`broadcast:msg:<uuid>`,
+  24 ч). Разбирает отдельный процесс `worker.py`: один глобальный лимит Telegram, `RetryAfter` →
+  пауза, `Forbidden/BadRequest` → снять с рассылок.
+- Рассылка о новинке — по выбору админа на каждом фильме (шаг «🔔» визарда), не автоматически.
+  Аудитория всегда `notifications_enabled = true`; ручная — `/broadcast`.
+- Рассылка в личку и пост в канал — разные механизмы: `web_app`-кнопка в каналах не работает,
+  там только `url` на `t.me/<bot>?startapp=m_<id>`.
+
+### Визард `/add`
+- Навигация данными: порядок шагов — `_ORDER`, тексты — `_PROMPTS`, меню правки — `EDIT_FIELDS`
+  в `handlers/add_movie.py`. Новый шаг = строка в этих трёх, не новый хендлер. «Артқа», «Әрі
+  қарай» и «Түзету» (прыжок к одному полю и назад к сводке, флаг `edit`) работают одинаково везде.
+- Ошибка сохранения НЕ чистит FSM — админ повторяет «Сақтау» или правит поле.
+- Порядок: видео → категории (мультивыбор чекбоксами, ≥1) → сериал/сезон → постер → названия →
+  год → рейтинг → описание → рассылка → сводка. Выбрана серия существующего сезона — постер,
+  категории, названия и описание пропускаются (`_SEASON_SKIP`): их несёт сам сезон.
+
+### Аналитика и отчёты
+- Событий — короткий список значимых фактов (`domain/analytics/events.EventKind`: start, open,
+  play, free_play, daily_play, subscribe, expire, write_access, paywall, …; VARCHAR в БД). Клики по
+  каталогу не пишем. `open` пишется только в `AuthService.bootstrap`, не в `authenticate`
+  (тот дёргается на каждом запросе при лежащем Redis).
+- `paywall` шлёт ФРОНТ (`POST /api/events/paywall` из `openPaywall`): решение «доступа нет»
+  принимает клиент, сервер видит лишь единицы. Дубль с серверной записью снят флагом `track=false`
+  на ветке 403. Поиск логируется тоже с фронта (`POST /api/events/search`, после дебаунса).
+- Действия админов в статистику не попадают: декоратор `AdminBlindEventRepository` на записи;
+  счётчики людей исключают админов явно (`exclude`).
+- Ежевечерний отчёт в 22:00 по Алматы (`REPORT_TZ` явно: контейнеры в UTC), окно — скользящие
+  24 ч до отправки. Снимок пишется в `daily_reports` upsert по `day`; проценты не хранятся,
+  `render_report` считает их из чисел (`None` при пустом знаменателе). `misfire_grace_time=3600 +
+  coalesce`. Планировщик живёт только в процессе бота.
+- Еженедельный дайджест (вс 22:10) агрегирует снимки `daily_reports`, а не сырые события:
+  состояние на момент (`catalog_size`, `users_total`) из сырья не восстановить. `opens_unique`
+  за неделю — сумма дневных уникальных, не недельный охват (осознанно).
+- Вехи — `/milestone <текст>` (лента `milestones`, дата только текущая). Модель монетизации не
+  хранится как состояние: подарок и фильм дня работают одновременно.
+- Спрос — `search_queries` (append-only журнал поисков, включая нулевые результаты) — очередь на
+  озвучку. Пока в отчёт не входит (PLAN.md).
+
+### SEO и вход извне
+- Google не видит Mini App, поэтому бэкенд отдаёт настоящий SSR: `/m/<id>-<slug>`, `/catalog`,
+  `/catalog/<категория>`, `/sitemap.xml` (приоритет 1.0 у `/catalog`, корень — пустая SPA),
+  `/robots.txt`. Caddy проксирует эти пути на api до SPA-фолбэка. Рендер из БД на лету.
+- Вся SEO-логика в `SeoBuilder` (`seo_service.py`): билингвальный title, description ≤160,
+  ключевые запросы и теги — ДАННЫЕ в том же файле; OG/Twitter, JSON-LD schema.org/Movie.
+- Slug `<id>-<translit>`: id — источник правды, старый хвост и `/m/42` → 301 на актуальный.
+- Deep-link `t.me/<bot>?startapp=m_<id>`: фронт читает `start_param`/`#m<id>`
+  (`web/lib/telegram.getStartMovieId`), бот `/start m_<id>` — фолбэк. Deep-link главнее
+  сохранённого экрана. Гостю в браузере — экран `NotInTelegram` с кнопкой `t.me/<bot>?start=web`.
+- `LEGACY_ORIGINS` в env — старые домены, Caddy редиректит их permanent на `PUBLIC_ORIGIN`.
+
+### Публичный канал
+- Публикация — порт `ChannelPublisher` (`infrastructure/telegram/channel.py`), канал не настроен
+  (`BOT_PUBLIC_CHANNEL_ID=0`) → тихий no-op; ошибки Telegram глушатся (канал — витрина).
+  `publish` возвращает `message_id` (нужен для разбора квиза и комментариев).
+- ⚠️ Пост с inline-клавиатурой Telegram НЕ пересылает в группу обсуждений → под ним нет
+  комментариев. Место под постом одно: либо кнопки, либо «Комментарии». Посты о фильмах сейчас
+  с url-кнопкой (комментариев нет), квизы с вариантами — callback-кнопки (комментарии не нужны),
+  жұмбақ — без кнопок (ответы в комментариях).
+- Группа обсуждений: Telegram авто-форвардит пост в группу (`is_automatic_forward`,
+  `forward_origin.message_id` = id в канале); комментарии несут `message_thread_id` = id форварда.
+  Порт `DiscussionGroup` (удалить комментарий, ответить в ветку); `BOT_DISCUSSION_GROUP_ID=0` →
+  хендлер инертен. Комментировать можно без вступления в группу (галочка «Вступить для отправки
+  сообщений» в группе должна быть выключена).
+- Контент-план без LLM в рантайме: пул в `content/*.yaml` + `content/images/`, сидер
+  (`./start.sh seed`) льёт в `content_items` upsert по `slug`. `kind` = ФОРМА поста
+  (`quiz_choice`, `quiz_open`, `longread`, `saying`, `term_list` — пять рендереров в
+  `Registry`), `topic` = тема (данные). `payload` JSONB ↔ типизированные dataclass'ы через
+  `content_codec`.
+- Сетка (`domain/channel/content/plan.py`, время Алматы): Пн квиз 12:00 → разбор 21:00 · Вт нақыл
+  сөз 19:00 · Ср атаулары 19:00 · Чт квиз 12:00 → 21:00 · Вс қара сөз 19:00 (фолбэк — saying, когда
+  45 қара сөз без повторов кончатся). Фильм дня — 10:00. Один ежечасный джоб спрашивает
+  `slot_for(now)`. Ротация — LRU по `last_posted_at` в SQL; `scheduled_for` — редакторский пин.
+- Идемпотентность в схеме: `channel_post_log.slot_key` UNIQUE, `quiz_answers (post_id, user_id)`
+  UNIQUE (засчитывается первый ответ).
+- Квиз: `quiz_choice` — callback-кнопки A–E, всплывашка видна только нажавшему; `quiz_open` — бот
+  читает комментарий, записывает, удаляет (антиспойлер), отвечает в ветку. Проверка ответа —
+  нормализация (регистр, пунктуация, свёртка қ→к ө→о ұ/ү→у ә→а і→и ң→н ғ→г, латиница) + `accept[]`
+  + допуск 1 опечатки на слово ≥5 букв. Разбор генерируется из ответов и уходит reply на пост,
+  кнопки снимаются.
+- Картинки: карточки-цитаты кодом (Pillow, шаблон в стиле Mini App), портреты и фото предметов —
+  Wikimedia Commons с автором и лицензией в YAML (печатаются в подвале). Авторы — с истёкшими
+  правами (†до 1955) + фольклор; Момышұлы — короткие цитаты как цитирование. Әуезов не берём.
+- `longread` длиннее 4096 → `split_text` режет по абзацам, части уходят подряд; карточка первой.
+
+### Фронтенд
+- Фиксированная тёмная брендовая тема (не тема Telegram), язык UI — казахский. Компоненты свои на
+  токенах `@theme` в `index.css`; без рантайм-UI-библиотек и JS-каруселей (scroll-snap,
+  `prefers-reduced-motion`).
+- Пэйволл — bottom sheet, Kaspi первым. «Көру» шлёт видео в чат и показывает `HandoffModal` с
+  кнопкой «Жабу» (`WebApp.close()`), без авто-закрытия.
+- Статус подписки фронт освежает сам: опрос `GET /api/me` каждые 20 с пока `pending_review`, и
+  всегда на `visibilitychange`/`focus`. Не через `POST /api/auth` — тот плодит сессии.
+- Последний экран запоминается на 60 мин (`lib/lastPage.ts`, localStorage).
+- Вне Telegram в DEV работает мок бэкенда `lib/devMock.ts` (динамический import, из прод-бандла
+  вырезается). Vite-прокси `/api`+`/posters` → `API_TARGET`.
+
+### Инфраструктура и конфиг
+- `PUBLIC_ORIGIN` — единственный источник правды для домена: из него выводятся CORS,
+  `bot.webapp_url`, `bot.webhook_url` (https ⟹ webhook + авто-TLS Caddy, http ⟹ polling без TLS).
+  `BOT_FORCE_POLLING=1` — аварийный обход, если хостер режет входящие с диапазонов Telegram.
+- Вебхук — aiohttp-сервер внутри процесса бота (`/tg/webhook`, порт 8080 за Caddy), не роут FastAPI.
+- Каждая секция конфига — свой `BaseSettings` с `env_prefix` и `env_file` (вложенные не наследуют).
+  Списки из env — `NoDecode` + валидатор. Alembic берёт DSN из `DatabaseConfig`
+  (`-x dsn=...` переопределяет).
+- Compose: лимиты памяти на сервис — предохранители, логи json-file 10m×3. Тома: `pgdata`,
+  `uploads` (постеры + `channel/` карточки), `caddy_data` (сертификаты).
+- Джобы (`infrastructure/scheduler.py`, все в процессе бота): `expire_due` 15 мин · `purge_stale`
+  60 мин · дневной отчёт 22:00 · недельный вс 22:10 · фильм дня в канал 10:00 · `content_post`
+  каждый час :00 · `quiz_results` каждый час :00.
