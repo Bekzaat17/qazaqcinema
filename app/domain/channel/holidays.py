@@ -34,6 +34,14 @@ class HolidayDate(Protocol):
         """Дата праздника в этом году. `None` — в этом году даты нет (см. `Lunar`)."""
         ...
 
+    def review(self, year: int) -> str | None:
+        """Что не так с датой этого года: нет её вовсе, не подтверждена. `None` — всё в порядке.
+
+        Метод правила, а не `if` по типу праздника: вычисляемым правилам сверять нечего,
+        а лунному есть что — и ровно оно попадает в ежегодное напоминание админам.
+        """
+        ...
+
 
 @dataclass(frozen=True, slots=True)
 class Fixed:
@@ -44,6 +52,9 @@ class Fixed:
 
     def date_in(self, year: int) -> date | None:
         return date(year, self.month, self.day)
+
+    def review(self, year: int) -> str | None:
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +82,9 @@ class NthWeekday:
         except IndexError:  # 5-го такого дня в этом месяце не бывает
             return None
 
+    def review(self, year: int) -> str | None:
+        return None
+
 
 @dataclass(frozen=True, slots=True)
 class Lunar:
@@ -83,11 +97,21 @@ class Lunar:
     """
 
     dates: tuple[tuple[int, int, int], ...]   # (год, месяц, день)
+    # Год, до которого даты ОБЪЯВЛЕНЫ ДУМК. Всё, что после, — астрономический прогноз:
+    # он и попадает в ежегодное напоминание админам, а не остаётся комментарием в коде.
+    announced_through: int = 0
 
     def date_in(self, year: int) -> date | None:
         for table_year, month, day in self.dates:
             if table_year == year:
                 return date(year, month, day)
+        return None
+
+    def review(self, year: int) -> str | None:
+        if self.date_in(year) is None:
+            return f"{year} жылға дата жоқ — поздравления не будет"
+        if year > self.announced_through:
+            return f"{year} жылғы дата — прогноз, сверить с muftyat.kz"
         return None
 
 
@@ -144,24 +168,30 @@ HOLIDAYS: tuple[Holiday, ...] = (
     Holiday("ustaz", "Ұстаз күні", NthWeekday(10, calendar.SUNDAY, 1), hour=12),
     Holiday("respublika", "Республика күні", Fixed(10, 25)),
     Holiday("tauelsizdik", "Тәуелсіздік күні", Fixed(12, 16)),
-    # ⚠️ Лунные праздники. 2026–2027 — объявленные ДУМК даты; 2028–2030 — астрономический
-    # ПРОГНОЗ, его надо подтверждать по muftyat.kz, когда ДУМК публикует календарь года
-    # (расхождение бывает в один день). Года нет в таблице → поздравления не будет.
+    # ⚠️ Лунные праздники: даты объявляет ДУМК, `announced_through` отделяет объявленные
+    # от прогноза. Года нет в таблице → поздравления не будет (пропуск лучше поздравления
+    # не в тот день). Раз в год об этом напоминает джоб `holiday_calendar_review`.
     Holiday(
         "oraza-ait",
         "Ораза айт",
-        Lunar((
-            (2026, 3, 20), (2027, 3, 9),                    # ДУМК
-            (2028, 2, 26), (2029, 2, 14), (2030, 2, 4),     # прогноз
-        )),
+        Lunar(
+            dates=(
+                (2026, 3, 20), (2027, 3, 9),
+                (2028, 2, 26), (2029, 2, 14), (2030, 2, 4),
+            ),
+            announced_through=2027,
+        ),
     ),
     Holiday(
         "qurban-ait",
         "Құрбан айт",
-        Lunar((
-            (2026, 5, 27), (2027, 5, 16),                   # ДУМК
-            (2028, 5, 5), (2029, 4, 24), (2030, 4, 13),     # прогноз
-        )),
+        Lunar(
+            dates=(
+                (2026, 5, 27), (2027, 5, 16),
+                (2028, 5, 5), (2029, 4, 24), (2030, 4, 13),
+            ),
+            announced_through=2027,
+        ),
     ),
 )
 
@@ -207,3 +237,20 @@ def holiday_slot_key(holiday: Holiday, now: datetime) -> str:
     повторный запуск не дадут второго поздравления в канале.
     """
     return f"{now.astimezone(TZ).date().isoformat()}:holiday-{holiday.slug}"
+
+
+def review_notes(now: datetime) -> tuple[str, ...]:
+    """Замечания по календарю на СЛЕДУЮЩИЙ год — текст ежегодного напоминания админам.
+
+    Проверяем то, что проверяется машиной: есть ли у каждого праздника дата и подтверждена
+    ли она. Сверка списка с законом — работа человека (закон меняется: Конституция күні
+    переехал с 30 тамыз на 15 наурыз), поэтому напоминание уходит и при пустом списке
+    замечаний.
+    """
+    year = now.astimezone(TZ).year + 1
+    notes: list[str] = []
+    for holiday in HOLIDAYS:
+        note = holiday.when.review(year)
+        if note is not None:
+            notes.append(f"{holiday.title_kk}: {note}")
+    return tuple(notes)

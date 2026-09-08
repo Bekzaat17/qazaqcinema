@@ -45,6 +45,10 @@
    сегодня праздник. Так «во сколько поздравлять» остаётся данными: новая дата —
    строка в справочнике, кода не касается. В праздник обычный слот сетки молчит.
 
+9. `holiday_calendar_review` (раз в год, 1 декабря 10:00) — напоминание админам сверить
+   календарь праздников: список по официальному календарю (закон меняется) и даты айтов по
+   ДУМК. Машинную часть — чего в справочнике не хватает — считает `holidays.review_notes`.
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
@@ -55,6 +59,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from html import escape
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -71,6 +76,7 @@ from app.application.services.video_retention_service import VideoRetentionServi
 from app.domain.analytics.report import render_report
 from app.domain.analytics.weekly_report import render_weekly_report
 from app.domain.channel.holidays import POST_TIMES as HOLIDAY_POST_TIMES
+from app.domain.channel.holidays import review_notes
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +89,11 @@ PURGE_VIDEOS_INTERVAL_MINUTES = 60
 REPORT_TZ = ZoneInfo("Asia/Almaty")
 REPORT_HOUR = 22
 REPORT_MINUTE = 0
+# Сверка календаря праздников — 1 декабря: год ещё не кончился, ДУМК к этому времени
+# обычно публикует даты айтов, и до Жаңа жыл есть месяц на правки.
+CALENDAR_REVIEW_MONTH = 12
+CALENDAR_REVIEW_DAY = 1
+CALENDAR_REVIEW_HOUR = 10
 # 10 минут после дневного отчёта того же дня — сегодняшний снимок `daily_reports`
 # к этому моменту уже точно записан (weekly_report только читает историю, не считает
 # заново). Воскресенье — просто конец недели, окно самого отчёта скользящее и от
@@ -150,6 +161,31 @@ async def _holiday_post_job(container: AsyncContainer) -> None:
         posting = await request_container.get(ContentPostingService)
         if await posting.post_holiday(datetime.now(UTC)):
             logger.info("Поздравление с праздником опубликовано в канале")
+
+
+async def _holiday_calendar_review_job(container: AsyncContainer) -> None:
+    """Раз в год напомнить админам сверить календарь праздников на следующий год.
+
+    Машина проверяет заполненность (даты айтов), человек — сам список: закон о праздниках
+    меняется, и пропущенная поправка означает поздравление в неверную дату.
+    """
+    async with container() as request_container:
+        notifier: TelegramNotifier = await request_container.get(TelegramNotifier)
+        notes = review_notes(datetime.now(UTC))
+        lines = [
+            "🗓 <b>Мереке күнтізбесін сверить</b>",
+            "",
+            "1. Список праздников — по официальному календарю (закон меняется).",
+            "2. Ораза/Құрбан айт на следующий год — по muftyat.kz.",
+        ]
+        if notes:
+            lines += ["", "<b>Что не заполнено:</b>", *(f"• {escape(note)}" for note in notes)]
+        lines += ["", "Файлы: <code>domain/channel/holidays.py</code>, "
+                  "<code>content/holidays.yaml</code>"]
+        try:
+            await notifier.notify_admins("\n".join(lines))
+        except AdminsUnreachableError:
+            logger.warning("Напоминание о календаре праздников не доставлено админам")
 
 
 async def _quiz_results_job(container: AsyncContainer) -> None:
@@ -242,6 +278,21 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
             misfire_grace_time=3000,
             coalesce=True,
         )
+    scheduler.add_job(
+        _holiday_calendar_review_job,
+        CronTrigger(
+            month=CALENDAR_REVIEW_MONTH,
+            day=CALENDAR_REVIEW_DAY,
+            hour=CALENDAR_REVIEW_HOUR,
+            timezone=REPORT_TZ,
+        ),
+        args=[container],
+        id="holiday_calendar_review",
+        # Сутки: напоминание раз в год, и пропустить его из-за рестарта бота нельзя —
+        # следующего шанса не будет до декабря.
+        misfire_grace_time=86400,
+        coalesce=True,
+    )
     scheduler.add_job(
         _quiz_results_job,
         CronTrigger(minute=0, timezone=REPORT_TZ),

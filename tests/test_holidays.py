@@ -23,6 +23,7 @@ from app.domain.channel.holidays import (
     holiday_for,
     holiday_slot_key,
     holiday_today,
+    review_notes,
 )
 
 CONTENT = Path(__file__).resolve().parents[1] / "content"
@@ -159,6 +160,36 @@ def test_two_holidays_on_one_day_are_greeted_at_different_hours() -> None:
             assert len(hours) == len(set(hours)), (
                 f"{year}-{when}: {[h.slug for h in same_day]} поздравляются в один час"
             )
+
+
+# ── ежегодная сверка ──────────────────────────────────────────────────────────
+def test_lunar_review_flags_a_missing_year_and_a_forecast() -> None:
+    """Машинная часть сверки: чего нет и что не подтверждено ДУМК."""
+    rule = Lunar(dates=((2027, 3, 9), (2028, 2, 26)), announced_through=2027)
+
+    assert rule.review(2027) is None                       # объявленная дата — вопросов нет
+    assert "прогноз" in (rule.review(2028) or "")          # есть, но не подтверждена
+    assert "дата жоқ" in (rule.review(2031) or "")         # нет вовсе → поста не будет
+
+
+def test_computed_rules_have_nothing_to_review() -> None:
+    assert Fixed(3, 15).review(2031) is None
+    assert NthWeekday(9, calendar.SUNDAY, 3).review(2031) is None
+
+
+def test_review_notes_look_at_the_next_year() -> None:
+    """Напоминание уходит 1 декабря и говорит про СЛЕДУЮЩИЙ год — тот, который вот-вот
+    начнётся и на который даты айтов уже должны быть объявлены."""
+    notes = review_notes(datetime(2030, 12, 1, 5, tzinfo=UTC))  # 10:00 Алматы
+
+    assert any("Ораза айт" in note for note in notes)   # 2031-го в таблице нет
+    assert any("Құрбан айт" in note for note in notes)
+
+
+def test_review_notes_are_empty_when_the_year_is_confirmed() -> None:
+    notes = review_notes(datetime(2026, 12, 1, 5, tzinfo=UTC))  # сверяем 2027-й
+
+    assert notes == ()
 
 
 def _greetings() -> dict[str, dict[str, object]]:
