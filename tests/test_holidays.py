@@ -105,6 +105,40 @@ def test_post_times_are_derived_from_the_data_without_duplicates() -> None:
 
 
 # ── целостность справочника и контента ────────────────────────────────────────
+def test_calendar_matches_the_official_one() -> None:
+    """Даты сверены с официальным производственным календарём и объявлениями ДУМК.
+
+    Тест держит именно ту сверку, которую руками делают раз в год: Конституция күні —
+    15 наурыз (закон перенёс его с 30 тамыз), Құрбан айт 2027 — 16 мамыр. Правка этих
+    чисел «на глаз» ломает тест, а не ленту канала.
+    """
+    expected = {
+        "halyqaralyq-aiel": date(2027, 3, 8),
+        "konstitutsiya": date(2027, 3, 15),
+        "oraza-ait": date(2027, 3, 9),
+        "nauryz": date(2027, 3, 21),
+        "birlik": date(2027, 5, 1),
+        "otan-qorgaushy": date(2027, 5, 7),
+        "zhenis": date(2027, 5, 9),
+        "qurban-ait": date(2027, 5, 16),
+        "astana": date(2027, 7, 6),
+        "respublika": date(2027, 10, 25),
+        "tauelsizdik": date(2027, 12, 16),
+    }
+    by_slug = {h.slug: h for h in HOLIDAYS}
+    for slug, when in expected.items():
+        assert by_slug[slug].when.date_in(2027) == when, slug
+
+
+def test_lunar_table_runs_out_after_the_filled_years() -> None:
+    """Айты заполнены по 2030-й: дальше поздравления не выйдут, пока таблицу не пополнят
+    по объявлению ДУМК. Тест — напоминание, а не запрет."""
+    for slug in ("oraza-ait", "qurban-ait"):
+        holiday = next(h for h in HOLIDAYS if h.slug == slug)
+        assert holiday.when.date_in(2030) is not None, slug
+        assert holiday.when.date_in(2031) is None, slug
+
+
 def test_holiday_slugs_are_unique() -> None:
     slugs = [h.slug for h in HOLIDAYS]
     assert len(slugs) == len(set(slugs))
