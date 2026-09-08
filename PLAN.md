@@ -65,23 +65,19 @@
 | 3 | Докстринги: убраны 41 упоминание фаз и 24 даты решений, смысл «почему так» оставлен |
 | 4 | Адрес канала на карточках — из `BOT_PUBLIC_CHANNEL_USERNAME` (был константой в домене), убран `PaymentMethod.FIAT` |
 | 5 | `CardRenderer` через composition root, каталог контента — `MEDIA_CONTENT_ROOT` (был дефолтом CLI-флага `--content`, флаг убран) |
+| 6 | `db/repositories.py` (1042 строки) → пакет по агрегатам: `catalog`, `users`, `payments`, `analytics`; общий `rowcount` — в `db/sql.py`, оттуда же его берёт `content_repositories` (был дубль `cast`) |
 
 Дальше, в порядке ценности:
 
-1. **Разбить `infrastructure/db/repositories.py`** — 1042 строки и 11 классов в одном файле.
-   Пакет `db/repositories/` по агрегатам: `catalog.py` (movies, series, seasons, favorites),
-   `users.py`, `payments.py` (payments, video deliveries), `analytics.py` (events, search,
-   daily reports, milestones), `_mapping.py` (общие `*_to_domain`), `__init__.py` с
-   ре-экспортом — чтобы импорты в DI и тестах не менялись.
-2. **Постер в рассылке в личку** — уходит ссылкой и по той же причине, что в канале, до
+1. **Постер в рассылке в личку** — уходит ссылкой и по той же причине, что в канале, до
    Telegram не доезжает, письмо идёт текстом (молча, без лога). Нужны: том `uploads` сервису
    `worker` в compose, `photo_path` в `BroadcastMessage` и payload очереди, медиа-корень в
    `AiogramNotifier`. Тесты `test_broadcast_service.py` ждут `photo_url` — переписать.
-3. **`web/src/App.tsx`** — 728 строк, вся навигация, дип-линки, поиск и опрос статуса в одном
+2. **`web/src/App.tsx`** — 728 строк, вся навигация, дип-линки, поиск и опрос статуса в одном
    компоненте. Вынести хуки: дип-линк, восстановление экрана, опрос `/api/me`.
-4. **`seo_service.py`** — 607 строк, данные (суффиксы, теги, шаблоны) и логика в одном файле.
+3. **`seo_service.py`** — 607 строк, данные (суффиксы, теги, шаблоны) и логика в одном файле.
    Данные просятся в отдельный модуль-справочник.
-5. **`logrotate` на хосте** — `/etc/logrotate.d/qazaqcinema` указывает на мёртвый лог
+4. **`logrotate` на хосте** — `/etc/logrotate.d/qazaqcinema` указывает на мёртвый лог
    `qazaqcinema/backups/backup.log`; живые `/root/backups/*.log` и `/root/logs/*.log` не
    ротируются. Готовый конфиг — в DEPLOY.md §7 (файл в системе, `git pull` его не принесёт).
 

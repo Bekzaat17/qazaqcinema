@@ -1,7 +1,7 @@
 """Pg-реализации портов контента канала (`application/ports/content`).
 
-Отдельный модуль от `repositories.py` (там уже 1000+ строк) — та же роль: мапят
-ORM ↔ домен, коммитят сами (один вызов = одна транзакция).
+Отдельный модуль от пакета `repositories/` — та же роль: мапят ORM ↔ домен,
+коммитят сами (один вызов = одна транзакция).
 """
 
 from __future__ import annotations
@@ -9,9 +9,8 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from datetime import date, datetime
-from typing import Any, cast
 
-from sqlalchemy import ColumnElement, CursorResult, case, func, select, update
+from sqlalchemy import ColumnElement, case, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +20,7 @@ from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.plan import Source
 from app.infrastructure.db.content_codec import payload_from_json, payload_to_json
 from app.infrastructure.db.models import ChannelPostLogModel, ContentItemModel, QuizAnswerModel
+from app.infrastructure.db.sql import rowcount
 
 logger = logging.getLogger(__name__)
 
@@ -193,16 +193,14 @@ class PgPostLogRepository:
         return _log_to_domain(model) if model else None
 
     async def bind_group_message(self, channel_message_id: int, group_message_id: int) -> bool:
-        result = cast(
-            CursorResult[Any],
-            await self._session.execute(
-                update(ChannelPostLogModel)
-                .where(ChannelPostLogModel.channel_message_id == channel_message_id)
-                .values(group_message_id=group_message_id)
-            ),
+        bound = await rowcount(
+            self._session,
+            update(ChannelPostLogModel)
+            .where(ChannelPostLogModel.channel_message_id == channel_message_id)
+            .values(group_message_id=group_message_id),
         )
         await self._session.commit()
-        return bool(result.rowcount)
+        return bool(bound)
 
     async def list_due_results(self, now: datetime) -> list[PostLogEntry]:
         stmt = (

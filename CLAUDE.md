@@ -54,7 +54,8 @@ app/
                        #   analytics, milestone, daily, seo, channel, content_posting,
                        #   content_seed, quiz, video_retention)
   infrastructure/
-    db/                # models (ORM), engine, repositories, content_repositories, content_codec
+    db/                # models (ORM), engine, sql, content_repositories, content_codec,
+                       #   repositories/ (catalog, users, payments, analytics)
     cache/             # Redis: session, catalog, lock, rate_limiter, broadcast (очередь), daily_pin
     telegram/          # init_data (HMAC), notifier, channel (публикатор), discussion (группа)
     payments/          # kaspi (ручной чек), stars

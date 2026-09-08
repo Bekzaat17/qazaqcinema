@@ -1,7 +1,7 @@
 """Порты репозиториев (DIP). Сервисы зависят от этих Protocol, не от инфраструктуры.
 
 Интерфейсы намеренно мелкие и раздельные (ISP): MovieRepository ≠ UserRepository ≠
-PaymentRepository. Реализации — в app/infrastructure/db/repositories.py.
+PaymentRepository. Реализации — в app/infrastructure/db/repositories/.
 """
 
 from __future__ import annotations
