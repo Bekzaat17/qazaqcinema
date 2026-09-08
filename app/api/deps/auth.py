@@ -11,10 +11,8 @@ initData — это query-string (всегда содержит `=`), токен
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from dishka import AsyncContainer
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Header, HTTPException, Request
 
 from app.application.ports.repositories import UserRepository
 from app.application.ports.security import InitDataError
@@ -47,13 +45,3 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="session_expired")
     return user
 
-
-async def require_active_access(user: User = Depends(get_current_user)) -> User:
-    """Гейт «только подписчикам»: 403, если нет активной подписки.
-
-    Единый источник правды — `User.has_active_access` (Фаза 6). Просмотр каталога
-    свободный, поэтому вешается точечно на эндпоинты с контентом по подписке.
-    """
-    if not user.has_active_access(datetime.now(UTC)):
-        raise HTTPException(status_code=403, detail="no_access")
-    return user

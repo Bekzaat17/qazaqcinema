@@ -45,9 +45,5 @@ def get_category(slug: str) -> Category | None:
     return CATEGORIES.get(slug)
 
 
-def is_known_category(slug: str) -> bool:
-    return slug in CATEGORIES
-
-
 def all_categories() -> list[Category]:
     return list(CATEGORIES.values())

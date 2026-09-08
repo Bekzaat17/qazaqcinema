@@ -104,19 +104,6 @@ async def search_movies(
     return [MovieOut.from_domain(movie) for movie in movies]
 
 
-@router.get("/hero", response_model=MovieOut | None)
-async def hero_movie(
-    catalog: FromDishka[CatalogService],
-    _user: User = Depends(get_current_user),
-) -> MovieOut | None:
-    """Фильм дня — он же hero главного экрана (выбор на бэкенде, см. domain/catalog/daily).
-
-    Определён ДО `/{movie_id}`, иначе путь `hero` матчился бы как movie_id.
-    """
-    movie = await catalog.get_hero(datetime.now(UTC))
-    return MovieOut.from_domain(movie) if movie is not None else None
-
-
 @router.get("/home", response_model=CatalogHomeOut)
 async def catalog_home(
     cache: FromDishka[CatalogCache],

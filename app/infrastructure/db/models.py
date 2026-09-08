@@ -212,12 +212,6 @@ class MovieModel(Base):
     telegram_file_id: Mapped[str] = mapped_column(Text)
     year: Mapped[int | None] = mapped_column(nullable=True)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # Наследие курируемого hero (до 2026-08-19). Читателей больше нет — hero стал
-    # фильмом дня и берёт весь каталог по очереди. Колонку не сносим: она с
-    # server_default, вставкам не мешает, а миграция ради мёртвого флага — лишний риск.
-    is_featured: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), nullable=False
-    )
     hero_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Счётчик просмотров (Фаза 13): +1 при успешной выдаче видео; сортировка «Танымал»
     # и каталога «по просмотрам». server_default 0 → backfill без отдельного UPDATE.
