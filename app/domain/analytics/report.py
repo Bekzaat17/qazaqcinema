@@ -61,8 +61,11 @@ def day_window(now: datetime) -> tuple[datetime, datetime]:
     return now - timedelta(hours=24), now
 
 
-def _demand_block(summary: SearchSummary) -> str:
+def render_demand_block(summary: SearchSummary) -> str:
     """Блок «іздеп, таппағаны»: сколько искали, сколько зря и что именно не нашли.
+
+    Один текст на дневной отчёт и недельный дайджест: вопрос там один и тот же — чего в
+    каталоге нет, — а период понятен из шапки самого отчёта.
 
     Главная строка отчёта для наполнения каталога: люди прямым текстом называют, за чем
     пришли и ушли ни с чем. Показываем ТОП нулевых, а не весь поиск, — успешный поиск
@@ -117,4 +120,4 @@ def render_report(report: DailyReport, demand: SearchSummary | None = None) -> s
     # запроса по журналу поисков, и отчёт обязан собираться и без него.
     if demand is None:
         return body
-    return f"{body}\n———\n{_demand_block(demand)}"
+    return f"{body}\n———\n{render_demand_block(demand)}"

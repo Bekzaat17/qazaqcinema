@@ -86,13 +86,21 @@ class AnalyticsService:
         сутки берутся тем же `day_window`, иначе цифры отчёта и спроса разъехались бы.
         """
         since, until = day_window(now)
+        return await self._demand(since, until, limit)
+
+    async def _demand(
+        self, since: datetime, until: datetime, limit: int
+    ) -> SearchSummary:
+        """Сводка спроса за любое окно — три запроса по журналу поисков."""
         return SearchSummary(
             searches=await self._searches.count(since, until),
             missing=await self._searches.count_missing(since, until),
             top=tuple(await self._searches.top_missing(since, until, limit)),
         )
 
-    async def weekly_report(self, now: datetime, tz: tzinfo) -> WeeklyReport:
+    async def weekly_report(
+        self, now: datetime, tz: tzinfo, demand_top: int = 0
+    ) -> WeeklyReport:
         """Дайджест за последние 7 суток из уже сохранённых снимков `daily_reports`.
 
         Запускать ПОСЛЕ `daily_report` того же дня: иначе сегодняшний снимок ещё не
@@ -106,4 +114,9 @@ class AnalyticsService:
         previous_days = await self._reports.list_range(prev_start, prev_end)
         window_start = datetime.combine(cur_start, time.min, tzinfo=tz)
         milestones = await self._milestones.list_between(window_start, now)
-        return build_weekly_report(today, current_days, previous_days, milestones)
+        # Спрос — тем же окном, что вехи: иначе список «искали и не нашли» относился бы
+        # к другому периоду, чем цифры дайджеста. `demand_top=0` → сводку не запрашиваем.
+        demand = (
+            await self._demand(window_start, now, demand_top) if demand_top else None
+        )
+        return build_weekly_report(today, current_days, previous_days, milestones, demand)

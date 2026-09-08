@@ -27,7 +27,8 @@ from html import escape
 
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.percent import change, share
-from app.domain.analytics.report import DailyReport
+from app.domain.analytics.report import DailyReport, render_demand_block
+from app.domain.analytics.search import SearchSummary
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,9 @@ class WeeklyReport:
     current: WeekTotals
     previous: WeekTotals | None    # None — за предыдущие 7 суток снимков не набралось
     milestones: list[Milestone]    # вехи внутри текущего периода, по возрастанию времени
+    # Спрос за период — живой запрос по журналу поисков, как и вехи: в снимках его нет и
+    # быть не должно (см. `SearchSummary`). `None` — сводку не запрашивали.
+    demand: SearchSummary | None = None
 
 
 def week_range(today: date) -> tuple[date, date]:
@@ -80,6 +84,7 @@ def build_weekly_report(
     current_days: list[DailyReport],
     previous_days: list[DailyReport],
     milestones: list[Milestone],
+    demand: SearchSummary | None = None,
 ) -> WeeklyReport:
     """Чистая сборка отчёта из уже прочитанных снимков (запросы — забота сервиса)."""
     period_start, period_end = week_range(today)
@@ -98,6 +103,7 @@ def build_weekly_report(
         current=_sum_totals(current_days),
         previous=_sum_totals(previous_days) if previous_days else None,
         milestones=sorted(milestones, key=lambda m: m.occurred_at),
+        demand=demand,
     )
 
 
@@ -177,6 +183,12 @@ def render_weekly_report(report: WeeklyReport) -> str:
         lines += [
             f"• {m.occurred_at:%d.%m} — {escape(m.label)}" for m in report.milestones
         ]
+
+    # Спрос за НЕДЕЛЮ сильнее дневного: по нему и планируют озвучку, поэтому в дайджесте
+    # он тот же список, но с недельной частотой.
+    if report.demand is not None:
+        lines.append("———")
+        lines.append(render_demand_block(report.demand))
 
     return "\n".join(lines)
 

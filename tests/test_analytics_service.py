@@ -218,3 +218,31 @@ async def test_search_demand_respects_the_top_limit() -> None:
     assert demand.missing == 15
     assert len(demand.top) == MISSING_TOP   # длинный хвост в отчёт не тащим
 
+
+async def test_weekly_report_carries_the_weekly_search_demand() -> None:
+    """Дайджест несёт спрос за то же окно, что и вехи: список «искали и не нашли» не
+    должен относиться к другому периоду, чем цифры рядом."""
+    sunday = datetime(2026, 8, 23, 17, 10, tzinfo=UTC)
+    searches = FakeSearches()
+    await searches.add(USER, "көліктер", found=0)
+    await searches.add(3, "көліктер", found=0)
+
+    report = await _service(
+        reports=FakeReports(seed=[_snapshot(date(2026, 8, 23))]), searches=searches
+    ).weekly_report(sunday, ALMATY, MISSING_TOP)
+
+    assert report.demand is not None
+    assert (report.demand.searches, report.demand.missing) == (2, 2)
+    assert [d.query for d in report.demand.top] == ["көліктер"]
+
+
+async def test_weekly_report_skips_demand_when_not_asked() -> None:
+    """`demand_top=0` — три запроса по журналу не делаем вовсе."""
+    sunday = datetime(2026, 8, 23, 17, 10, tzinfo=UTC)
+
+    report = await _service(
+        reports=FakeReports(seed=[_snapshot(date(2026, 8, 23))])
+    ).weekly_report(sunday, ALMATY)
+
+    assert report.demand is None
+

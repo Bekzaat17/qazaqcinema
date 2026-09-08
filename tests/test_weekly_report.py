@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
+from app.domain.analytics.search import SearchDemand, SearchSummary
 from app.domain.analytics.weekly_report import (
     build_weekly_report,
     previous_week_range,
@@ -130,3 +131,28 @@ def test_render_weekly_report_escapes_milestone_label() -> None:
 
     assert "<script>" not in text
     assert "&lt;script&gt;" in text
+
+
+# ── спрос за неделю ───────────────────────────────────────────────────────────
+def test_weekly_digest_lists_what_people_searched_and_did_not_find() -> None:
+    """За неделю сигнал сильнее дневного — по нему и планируют озвучку."""
+    current = [_daily(date(2026, 8, 23), catalog_size=100)]
+    demand = SearchSummary(
+        searches=310, missing=94,
+        top=(SearchDemand(query="көліктер 3", hits=21, people=17),),
+    )
+
+    report = build_weekly_report(date(2026, 8, 23), current, [], [], demand)
+    text = render_weekly_report(report)
+
+    assert "🔎 Іздеу: 310 сұрау, 94 нәтижесіз" in text
+    assert "1. көліктер 3 — 21× / 17 адам" in text
+
+
+def test_weekly_digest_without_demand_has_no_search_block() -> None:
+    """Спрос необязателен: дайджест обязан собираться и без живого запроса."""
+    report = build_weekly_report(date(2026, 8, 23), [_daily(date(2026, 8, 23))], [], [])
+
+    assert report.demand is None
+    assert "Іздеу" not in render_weekly_report(report)
+

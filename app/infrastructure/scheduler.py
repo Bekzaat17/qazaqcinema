@@ -146,7 +146,7 @@ async def _weekly_report_job(container: AsyncContainer) -> None:
     async with container() as request_container:
         analytics = await request_container.get(AnalyticsService)
         notifier: TelegramNotifier = await request_container.get(TelegramNotifier)
-        report = await analytics.weekly_report(datetime.now(UTC), REPORT_TZ)
+        report = await analytics.weekly_report(datetime.now(UTC), REPORT_TZ, MISSING_TOP)
         try:
             await notifier.notify_admins(render_weekly_report(report))
         except AdminsUnreachableError:
