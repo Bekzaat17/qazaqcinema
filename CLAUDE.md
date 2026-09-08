@@ -40,7 +40,8 @@ app/
     tariffs/           # тарифная сетка (данные)
     subscription/      # compute_expiry
     analytics/         # EventKind, DailyReport/render_report, weekly_report, milestone, percent
-    seo/slug.py        # <id>-<translit>
+    seo/               # slug.py (<id>-<translit>), keywords.py (как ищут: бренд, суффиксы,
+                       #   теги категорий), landing.py (тексты страниц категорий)
     channel/           # post.py (тексты постов о фильмах), cards.py (спека карточек),
                        #   content/ (kinds, topics, item, plan=сетка слотов, split,
                        #   render/ (Registry рендереров), answers/ (нормализация, чекеры, разбор))
@@ -240,7 +241,8 @@ Git: коммитить и пушить прямо в `main`, без фича-в
   `/catalog/<категория>`, `/sitemap.xml` (приоритет 1.0 у `/catalog`, корень — пустая SPA),
   `/robots.txt`. Caddy проксирует эти пути на api до SPA-фолбэка. Рендер из БД на лету.
 - Вся SEO-логика в `SeoBuilder` (`seo_service.py`): билингвальный title, description ≤160,
-  ключевые запросы и теги — ДАННЫЕ в том же файле; OG/Twitter, JSON-LD schema.org/Movie.
+  OG/Twitter, JSON-LD schema.org/Movie. Формулировки спроса и тексты посадочных страниц —
+  ДАННЫЕ в `domain/seo/keywords.py` и `landing.py` (новая фраза = строка, без правки логики).
 - Slug `<id>-<translit>`: id — источник правды, старый хвост и `/m/42` → 301 на актуальный.
 - Deep-link `t.me/<bot>?startapp=m_<id>`: фронт читает `start_param`/`#m<id>`
   (`web/lib/telegram.getStartMovieId`), бот `/start m_<id>` — фолбэк. Deep-link главнее
