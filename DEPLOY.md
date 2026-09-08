@@ -134,12 +134,16 @@ bot, worker, web) запущены и что `/api/health` отвечает `sta
 ротирует по РАЗМЕРУ, а не по времени, и подключать сюда logrotate НЕЛЬЗЯ — драйвер держит свои
 смещения в файле. Нужна временная отсечка — это смена драйвера на `journald` + `MaxRetentionSec`.
 
-**Логи хостовых скриптов растут сами** (`/root/backups/backup.log`, `cron.log`, `monitor.log`,
-`/root/logs/*.log`) — их закрывает logrotate. ⚠️ Действующий `/etc/logrotate.d/qazaqcinema`
-указывает на `/root/qazaqcinema/backups/backup.log` — это лог старой встроенной `./start.sh
-backup`, в который больше никто не пишет; живые логи не ротируются. Актуальный конфиг:
+**Логи хостовых скриптов** закрывает logrotate — двумя конфигами, по владельцу логов
+(файлы в системе, `git pull` их не приносит):
+
+| Конфиг | Что ротирует | Как |
+|---|---|---|
+| `/etc/logrotate.d/qazaqcinema` | `/root/backups/*.log` — бэкапы, их крон, мониторинг | `monthly`, 3 архива, `maxage 90` |
+| `/etc/logrotate.d/google_indexer` | `/root/logs/*.log` — SEO-крон (индексатор, отчёт) | `weekly`, 8 архивов, `copytruncate` |
+
 ```
-/root/backups/*.log /root/logs/*.log {
+/root/backups/*.log {
     monthly
     rotate 3
     maxage 90
@@ -150,11 +154,16 @@ backup`, в который больше никто не пишет; живые �
     su root root
 }
 ```
+⚠️ **Один файл в двух конфигах — `duplicate log entry`**, после которого logrotate бросает
+обработку. Поэтому `/root/logs/*.log` в конфиг `qazaqcinema` не добавлять: их уже ведёт
+`google_indexer`.
+
 ⚠️ logrotate не понимает комментарий в конце строки директивы (`rotate 3  # ...` →
 `bad rotation count`, и весь файл молча пропускается). Только отдельными строками.
-Проверка (`Handling 1 logs` и ни одного `error`):
+Проверка — свой конфиг (`Handling 1 logs`, ни одного `error`) и весь набор на дубли:
 ```bash
 logrotate -d /etc/logrotate.d/qazaqcinema
+logrotate -d /etc/logrotate.conf | grep -i error
 ```
 Гоняет системный `logrotate.timer`, отдельный крон не нужен.
 
