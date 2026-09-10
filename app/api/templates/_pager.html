@@ -1,16 +1,23 @@
-{# Навигация по страницам хаба. Общая для каталога и разделов: правило «как выглядит
-   ссылка на страницу N» одно, и живёт оно в `domain/seo/pagination`.
+{# Листалка. Ссылки — обычные <a href>: только по ним краулер доходит до карточек,
+   которые видны лишь со второй страницы (кнопка «показать ещё» на JS такого пути не даёт).
 
-   Ссылки — обычные <a href>, и это principal: именно по ним краулер доходит до карточек,
-   которые видны только со второй страницы. Кнопка «показать ещё» на JS такой путь не даёт. #}
+   Номера скрыты на телефоне (CSS, класс `num`): двадцать одна страница не влезает в
+   360 px, а «назад — где я — вперёд» влезает. Из разметки они при этом не исчезают,
+   поэтому обход не страдает. Где мы находимся — подписью ПОД листалкой, по центру:
+   раньше это висело слева над сеткой и читалось как часть заголовка. #}
 {% if pager and pager.has_pages %}
 <nav class="pager" aria-label="Беттер">
-  {% if pager.prev_url %}<a class="pg" href="{{ pager.prev_url }}" rel="prev">← Артқа</a>{% endif %}
+  {% if pager.prev_url %}
+  <a class="pg edge" href="{{ pager.prev_url }}" rel="prev">← Артқа</a>
+  {% endif %}
   {% for number in pager.numbers %}
     {%- if number is none %}<span class="gap">…</span>
-    {%- elif number == pager.page %}<span class="pg cur" aria-current="page">{{ number }}</span>
-    {%- else %}<a class="pg" href="{{ pager.url(number) }}">{{ number }}</a>{% endif -%}
+    {%- elif number == pager.page %}<span class="pg cur num" aria-current="page">{{ number }}</span>
+    {%- else %}<a class="pg num" href="{{ pager.url(number) }}">{{ number }}</a>{% endif -%}
   {% endfor %}
-  {% if pager.next_url %}<a class="pg" href="{{ pager.next_url }}" rel="next">Әрі қарай →</a>{% endif %}
+  {% if pager.next_url %}
+  <a class="pg edge" href="{{ pager.next_url }}" rel="next">Әрі қарай →</a>
+  {% endif %}
 </nav>
+<p class="pagenote">{{ pager.page }} / {{ pager.pages }} бет</p>
 {% endif %}

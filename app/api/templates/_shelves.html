@@ -1,22 +1,29 @@
-{# Врезки подборок («Жаңа түскен», «Танымал») — перелинковка на страницы подборок.
+{# Полки-карусели «Жаңа түскен» / «Танымал» — перелинковка на страницы подборок.
 
-   Блок короткий намеренно: его задача — дать ссылки, а не показать вторую витрину.
-   Заголовок каждой врезки сам ведёт на подборку, откуда краулер уходит дальше по её
-   пагинации. Рисуется только на первой странице хаба (см. роутер). #}
+   Прокрутка горизонтальная и на CSS (`overflow-x` + `scroll-snap`): полка не растягивает
+   страницу вниз и не требует скрипта. Заголовок полки сам ведёт на подборку, откуда
+   краулер уходит дальше по её пагинации.
+
+   Полки стоят ПОД основным списком, то есть ниже сгиба: их постеры `loading="lazy"`
+   браузер не грузит, пока до них не доскроллят, — поэтому вес первого экрана они не
+   увеличивают, хотя карточек добавляют. #}
 {% for shelf in shelves %}
-<section class="shelf">
-  <h2><a href="{{ shelf.path }}">{{ shelf.title }} <span class="more">барлығы →</span></a></h2>
-  <div class="grid">
+<section class="block">
+  <div class="rail-head">
+    <a href="{{ shelf.path }}"><h2>{{ shelf.title }} <span class="more">барлығы →</span></h2></a>
+  </div>
+  <div class="rail">
     {% for it in shelf.items %}
     <a class="card" href="{{ it.seo.path }}">
-      <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
-           width="140" height="210" loading="lazy" decoding="async" />
-      <div class="t">{{ it.seo.heading }}</div>
-      <div class="s">
-        {%- if it.movie.year %}{{ it.movie.year }}{% endif -%}
-        {%- if it.movie.year and it.movie.rating is not none %} · {% endif -%}
-        {%- if it.movie.rating is not none %}★ {{ "%.1f"|format(it.movie.rating) }}{% endif -%}
-      </div>
+      <span class="shot">
+        <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
+             width="132" height="198" loading="lazy" decoding="async" />
+        {% if it.movie.rating is not none %}
+        <span class="rate">★ {{ "%.1f"|format(it.movie.rating) }}</span>
+        {% endif %}
+      </span>
+      <span class="t">{{ it.seo.heading }}</span>
+      {% if it.movie.year %}<span class="s">{{ it.movie.year }}</span>{% endif %}
     </a>
     {% endfor %}
   </div>

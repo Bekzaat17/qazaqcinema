@@ -143,15 +143,51 @@ async def _shelves(
     return shelves
 
 
-def _year_links(
-    year_counts: dict[int, int], *, exclude: str | None = None
-) -> list[tuple[str, str]]:
+def _year_links(year_counts: dict[int, int]) -> list[tuple[str, str]]:
     """Ссылки на страницы годов: (подпись, путь). Только годы, у которых страница есть."""
-    return [
-        (str(year), f"{_CATALOG_PATH}/{year}")
-        for year in indexable_years(year_counts)
-        if str(year) != exclude
-    ]
+    return [(str(year), f"{_CATALOG_PATH}/{year}") for year in indexable_years(year_counts)]
+
+
+@dataclass(frozen=True, slots=True)
+class _Nav:
+    """Навигация страницы: то, что шаблон рисует одинаково везде."""
+
+    orders: list[tuple[str, str]]
+    categories: list[_CategoryLink]
+    years: list[tuple[str, str]]
+    shelves: list[_Shelf]
+    active: str | None
+
+    @property
+    def context(self) -> dict[str, object]:
+        """Разложить в контекст шаблона (в Jinja эти имена лежат на верхнем уровне)."""
+        return {
+            "orders": self.orders,
+            "categories": self.categories,
+            "years": self.years,
+            "shelves": self.shelves,
+            "active": self.active,
+        }
+
+
+async def _nav(catalog: CatalogService, seo: SeoBuilder, *, active: str | None) -> _Nav:
+    """Общая навигация страницы: фильтры (порядок, разделы, годы) + полки подборок.
+
+    Одинакова на ВСЕХ публичных страницах, включая вторые страницы пагинации и карточки
+    фильмов: человек, пришедший из поиска на `/catalog/kids?page=3`, попадает туда же,
+    куда и на первую, а краулер получает одни и те же связи с любой точки входа.
+
+    Вес это не удорожает: полки стоят ниже сгиба, их постеры `loading="lazy"`, и браузер
+    не берёт их, пока до полок не доскроллят. `active` — слаг текущего хаба: его чип
+    подсвечивается, а своя подборка из полок убирается (иначе тот же список дважды).
+    """
+    return _Nav(
+        orders=[(c.slug, c.shelf_kk) for c in COLLECTIONS.values()],
+        categories=_category_links(await catalog.category_counts()),
+        years=_year_links(await catalog.year_counts()),
+        shelves=await _shelves(catalog, seo, exclude=active),
+        active=active,
+    )
 
 
 def _newest(movies: list[Movie]) -> str | None:
@@ -225,29 +261,29 @@ async def movie_page(
         if m.id is not None
     ]
 
-    # Ссылки-выходы со страницы: год выпуска и подборки. Карточек тут не рисуем — их
-    # место в блоке похожих; страница фильма набирает ссылки, а не вес.
-    #
-    # Год становится ссылкой только если его страница существует (порог
-    # `hubs.YEAR_MIN_MOVIES`): ссылка на 404 хуже отсутствия ссылки.
-    year_path: str | None = None
-    if movie.year is not None:
-        counts = await catalog.year_counts()
-        if movie.year in indexable_years(counts):
-            year_path = f"{_CATALOG_PATH}/{movie.year}"
+    nav = await _nav(catalog, seo, active=None)
+    # Год выпуска становится ссылкой только если его страница существует (порог
+    # `hubs.YEAR_MIN_MOVIES`): ссылка на 404 хуже отсутствия ссылки. Список
+    # индексируемых годов уже собран навигацией — второй запрос за ним не нужен.
+    year_labels = {label for label, _ in nav.years}
+    year_path = (
+        f"{_CATALOG_PATH}/{movie.year}"
+        if movie.year is not None and str(movie.year) in year_labels
+        else None
+    )
 
     return _TEMPLATES.TemplateResponse(
         request,
         "movie.html",
         {
+            **nav.context,
             "movie": movie,
             "seo": meta,
             "related": related,
             "year_path": year_path,
-            "collections": [
-                (c.heading_kk, collection_hub(c).path) for c in COLLECTIONS.values()
-            ],
             "site_url": config.public_origin.rstrip("/"),
+            "bot_username": config.bot.username.lstrip("@"),
+            "site_jsonld": seo.site_jsonld(),
         },
     )
 
@@ -273,7 +309,6 @@ async def catalog_page(
         "site_url": site,
         "bot_username": config.bot.username.lstrip("@"),
         "site_jsonld": seo.site_jsonld(),
-        "categories": _category_links(await catalog.category_counts()),
         "query": query,
     }
 
@@ -285,8 +320,8 @@ async def catalog_page(
             _CatalogItem(m, seo.movie_seo(m)) for m in found[:_SEARCH_LIMIT] if m.id is not None
         ]
         # `noindex, follow`: страницу в индекс не пускаем, но ссылки с неё краулер
-        # обходит — карточки фильмов от этого только выигрывают. Врезки и годы здесь
-        # тоже ни к чему: человек ищет конкретное, а ссылки краулер собирает с хабов.
+        # обходит — карточки фильмов от этого только выигрывают. Фильтров тут нет: они
+        # относятся к каталогу, а не к выборке по запросу, и сбрасывали бы сам запрос.
         return _TEMPLATES.TemplateResponse(
             request,
             "catalog.html",
@@ -294,30 +329,32 @@ async def catalog_page(
                 **common,
                 "items": items,
                 "pager": None,
+                "total": 0,
                 "robots": "noindex, follow",
                 "jsonld": "",
                 "shelves": [],
+                "categories": [],
                 "years": [],
+                "orders": [],
+                "active": None,
             },
         )
 
     if (redirect := _page_gate(request, _CATALOG_PATH, page)) is not None:
         return redirect
-    items, pager, _ = await _paged(catalog, seo, hub=None, path=_CATALOG_PATH, page=page)
+    items, pager, total = await _paged(catalog, seo, hub=None, path=_CATALOG_PATH, page=page)
 
     return _TEMPLATES.TemplateResponse(
         request,
         "catalog.html",
         {
             **common,
+            **(await _nav(catalog, seo, active=None)).context,
             "items": items,
             "pager": pager,
+            "total": total,
             "robots": "index, follow, max-image-preview:large",
             "jsonld": _catalog_jsonld(site, items, pager),
-            # Врезки и годы — только на первой странице: на второй они дают те же ссылки
-            # ещё раз, а вес добавляют каждой.
-            "shelves": await _shelves(catalog, seo) if pager.page == 1 else [],
-            "years": _year_links(await catalog.year_counts()) if pager.page == 1 else [],
         },
     )
 
@@ -357,31 +394,23 @@ async def hub_page(
         raise HTTPException(status_code=404, detail="hub is empty")
 
     meta = seo.hub_seo(hub, count=total, page_suffix=pager.title_suffix)
-    counts = await catalog.category_counts()
     site = config.public_origin.rstrip("/")
 
     return _TEMPLATES.TemplateResponse(
         request,
         "hub.html",
         {
+            **(await _nav(catalog, seo, active=slug)).context,
             "items": items,
             "pager": pager,
             # Счётчик в подписи — по ВСЕМУ хабу, а не по видимым карточкам: иначе
             # на второй странице «186 фильм» превратилось бы в «48 фильм».
             "total": total,
             "seo": meta,
-            "siblings": [c for c in _category_links(counts) if c.category.slug != slug],
             "site_url": site,
             "bot_username": config.bot.username.lstrip("@"),
             "jsonld": _hub_jsonld(site, meta, items, pager),
             "site_jsonld": seo.site_jsonld(),
-            # Врезки и годы — только на первой странице (см. `catalog_page`).
-            "shelves": await _shelves(catalog, seo, exclude=slug) if pager.page == 1 else [],
-            "years": (
-                _year_links(year_counts or await catalog.year_counts(), exclude=slug)
-                if pager.page == 1
-                else []
-            ),
         },
     )
 

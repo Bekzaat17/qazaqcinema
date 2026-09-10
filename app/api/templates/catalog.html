@@ -1,14 +1,16 @@
-<!doctype html>
-<html lang="kk">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    {% if query %}
-    <title>«{{ query }}» — іздеу нәтижесі | QazaqCinema</title>
-    {% else %}
-    <title>Қазақша мультфильмдер мен аниме онлайн{{ pager.title_suffix }} — QazaqCinema</title>
-    {% endif %}
-    <meta name="description" content="QazaqCinema — қазақ тіліндегі мультфильмдер, аниме және фильмдер каталогы. Барлығын Telegram-да онлайн көріңіз. Мультфильмы и аниме на казахском языке." />
+{% extends "base.html" %}
+
+{# Хаб-каталог и страница результатов поиска: разметка у них общая, различаются
+   заголовок, мета-теги и наличие фильтров. #}
+
+{% block title %}
+  {%- if query %}«{{ query }}» — іздеу нәтижесі | QazaqCinema
+  {%- else %}Қазақша мультфильмдер мен аниме онлайн{{ pager.title_suffix }} — QazaqCinema{% endif -%}
+{% endblock %}
+
+{% block description %}QazaqCinema — қазақ тіліндегі мультфильмдер, аниме және фильмдер каталогы. Барлығын Telegram-да онлайн көріңіз. Мультфильмы и аниме на казахском языке.{% endblock %}
+
+{% block head %}
     <meta name="keywords" content="қазақша мультфильмдер, аниме қазақша, фильмдер қазақша, мультфильмы на казахском, аниме на казахском, казахская озвучка, QazaqCinema" />
     <meta name="robots" content="{{ robots }}" />
     {# Страница пагинации канонична САМА СЕБЕ: canonical на первую выбросил бы из индекса
@@ -16,153 +18,49 @@
     <link rel="canonical" href="{{ site_url }}/catalog{{ pager.canonical_suffix if pager else '' }}" />
     {% if pager and pager.prev_url %}<link rel="prev" href="{{ site_url }}{{ pager.prev_url }}" />{% endif %}
     {% if pager and pager.next_url %}<link rel="next" href="{{ site_url }}{{ pager.next_url }}" />{% endif %}
-    <meta name="theme-color" content="#09090b" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="QazaqCinema" />
-    <meta property="og:locale" content="kk" />
     <meta property="og:url" content="{{ site_url }}/catalog{{ pager.canonical_suffix if pager else '' }}" />
     <meta property="og:title" content="Қазақша мультфильмдер мен аниме онлайн — QazaqCinema" />
     <meta property="og:description" content="Қазақ тіліндегі мультфильмдер, аниме және фильмдер каталогы. Telegram-да онлайн көріңіз." />
-    <meta property="og:image" content="{{ site_url }}/logo.png" />
-
     {% if jsonld %}<script type="application/ld+json">{{ jsonld | safe }}</script>{% endif %}
-    <!-- Кто мы и как нас ещё пишут («казак синема», «qazaq cinema») — alternateName -->
+    <!-- Кто мы, как нас ещё пишут («казак синема») и где искать — alternateName + SearchAction -->
     <script type="application/ld+json">{{ site_jsonld | safe }}</script>
+{% endblock %}
 
-    <style>
-      :root {
-        --bg: #09090b; --card: #131316; --line: #26262b;
-        --fg: #fafafa; --muted: #a1a1aa; --accent: #e11d48;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0; background: var(--bg); color: var(--fg);
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        -webkit-font-smoothing: antialiased;
-      }
-      a { color: inherit; text-decoration: none; }
-      .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 18px 56px; }
-      header.site { display: flex; align-items: center; gap: 10px; padding: 6px 0 18px; }
-      header.site img { width: 30px; height: 30px; border-radius: 7px; }
-      header.site b { font-weight: 700; }
-      h1 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 6px 0 6px; }
-      .lead { color: var(--muted); margin: 0 0 26px; max-width: 640px; }
-      .grid {
-        display: grid; gap: 16px;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      }
-      .card { display: block; }
-      .card img {
-        width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 12px;
-        border: 1px solid var(--line); background: var(--card); display: block;
-      }
-      .card .t { font-size: 0.9rem; font-weight: 600; margin: 8px 2px 0; line-height: 1.3; }
-      .card .s { font-size: 0.78rem; color: var(--muted); margin: 2px 2px 0; }
-      .empty { color: var(--muted); padding: 40px 0; }
-      .sections { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
-      .sec {
-        font-size: 0.85rem; padding: 6px 12px; border-radius: 999px;
-        background: var(--card); border: 1px solid var(--line); color: var(--fg);
-      }
-      .sec b { color: var(--muted); font-weight: 500; }
-      .search { display: flex; gap: 8px; margin: 0 0 20px; max-width: 480px; }
-      .search input {
-        flex: 1; padding: 11px 14px; border-radius: 11px; font: inherit;
-        background: var(--card); border: 1px solid var(--line); color: var(--fg);
-      }
-      .search input::placeholder { color: var(--muted); }
-      .search input:focus { outline: none; border-color: var(--accent); }
-      .search button {
-        padding: 11px 16px; border-radius: 11px; font: inherit; cursor: pointer;
-        background: var(--accent); border: 1px solid var(--accent); color: #fff;
-      }
-      .nohits { color: var(--muted); padding: 24px 0; }
-      .pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 30px 0 0; }
-      .pg {
-        min-width: 38px; text-align: center; font-size: 0.88rem; padding: 8px 12px;
-        border-radius: 10px; background: var(--card); border: 1px solid var(--line);
-      }
-      .pg.cur { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-      .gap { color: var(--muted); padding: 0 2px; }
-      .total { color: var(--muted); font-size: 0.85rem; margin: 0 0 16px; }
-      .shelf { margin: 34px 0 0; }
-      .shelf h2 { font-size: 1.02rem; margin: 0 0 12px; }
-      .shelf .more { color: var(--muted); font-weight: 500; font-size: 0.88rem; }
-      .tags { margin: 30px 0 0; }
-      .tags h2 { font-size: 1.02rem; margin: 0 0 10px; }
-      footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
-        color: var(--muted); font-size: 0.85rem; }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <header class="site">
-        <a href="/catalog"><img src="/logo.png" alt="QazaqCinema" /></a>
-        <b>QazaqCinema</b>
-      </header>
+{% block body %}
+      <div class="head">
+        {% if query %}
+        <h1>«{{ query }}» бойынша іздеу</h1>
+        <p class="lead">Каталогтан табылғаны. — Результаты поиска по каталогу.</p>
+        {% else %}
+        <h1>Қазақша фильмдер, мультфильмдер мен аниме{{ pager.title_suffix }}</h1>
+        <p class="sub">Мультфильмы, аниме и фильмы на казахском языке</p>
+        <p class="lead">
+          Қазақ тіліндегі сирек мультфильмдер мен аниме коллекциясы. Кез келген фильмді
+          таңдап, Telegram-да онлайн көріңіз. — Редкие мультфильмы и аниме с казахской
+          озвучкой, смотреть онлайн.
+        </p>
+        {% if total %}<span class="count">Каталогта {{ total }} фильм</span>{% endif %}
+        {% endif %}
+      </div>
 
-      {% if query %}
-      <h1>«{{ query }}» бойынша іздеу</h1>
-      <p class="lead">Каталогтан табылғаны. — Результаты поиска по каталогу.</p>
-      {% else %}
-      <h1>Қазақша фильмдер, мультфильмдер мен аниме{{ pager.title_suffix }}</h1>
-      <p class="lead">
-        Қазақ тіліндегі сирек мультфильмдер мен аниме коллекциясы. Кез келген фильмді таңдап,
-        Telegram-да онлайн көріңіз. — Редкие мультфильмы и аниме с казахской озвучкой.
-      </p>
-      {% endif %}
-
-      {# Форма отправляется НА СЕРВЕР: страницы листаются, и поиск по отрисованным
-         карточкам нашёл бы только текущие 48 из всего каталога. #}
-      <form class="search" action="/catalog" method="get" role="search">
-        <label for="q" hidden>Іздеу</label>
-        <input id="q" name="q" type="search" value="{{ query }}" autocomplete="off"
-               placeholder="Фильм іздеу… / Поиск по названию" />
-        <button type="submit">Іздеу</button>
-      </form>
-
-      {% if categories %}
-      <nav class="sections">
-        {% for c in categories %}
-        <a class="sec" href="{{ c.path }}">{{ c.category.title_kk }} <b>{{ c.count }}</b></a>
-        {% endfor %}
-      </nav>
-      {% endif %}
+      {# На странице результатов фильтров нет: они относятся к каталогу, а не к выборке
+         по запросу — и сбрасывали бы сам запрос. #}
+      {% if not query %}{% include "_filters.html" %}{% endif %}
 
       {% if items %}
-      {% if pager and pager.has_pages %}
-      <p class="total">{{ pager.page }} / {{ pager.pages }} бет</p>
-      {% endif %}
-
       <div class="grid">
-        {% for it in items %}
-        <a class="card" href="{{ it.seo.path }}">
-          <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
-               width="140" height="210" loading="lazy" decoding="async" />
-          <div class="t">{{ it.seo.heading }}</div>
-          <div class="s">
-            {%- if it.movie.year %}{{ it.movie.year }}{% endif -%}
-            {%- if it.movie.year and it.movie.rating is not none %} · {% endif -%}
-            {%- if it.movie.rating is not none %}★ {{ "%.1f"|format(it.movie.rating) }}{% endif -%}
-          </div>
-        </a>
-        {% endfor %}
+        {% for it in items %}{% include "_card.html" %}{% endfor %}
       </div>
 
       {% include "_pager.html" %}
-
       {% include "_shelves.html" %}
-
-      {% include "_years.html" %}
       {% elif query %}
-      <p class="nohits">Ештеңе табылмады. Ничего не найдено. <a href="/catalog">Барлық фильмдер →</a></p>
+      <p class="empty">
+        «{{ query }}» бойынша ештеңе табылмады.<br />По этому запросу ничего не нашлось.<br />
+        <a href="/catalog">← Барлық фильмдерге</a>
+      </p>
       {% else %}
       <p class="empty">Каталог толықтырылып жатыр.</p>
       {% endif %}
-
-      <footer>© QazaqCinema — қазақша контент · <a href="https://t.me/{{ bot_username }}" rel="nofollow">Telegram-да ашу</a></footer>
-    </div>
-  </body>
-</html>
+{% endblock %}

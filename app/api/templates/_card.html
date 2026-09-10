@@ -1,0 +1,17 @@
+{# Карточка сетки. Оценка — бейджем поверх постера: под названием и без неё тесно,
+   а на витрине оценка нужна взглядом, а не строкой текста.
+
+   Внутри <a> только строчные элементы (span, а не div): ссылка с блоками внутри
+   валидна в HTML5, но `-webkit-line-clamp` на div внутри inline-контекста ведёт себя
+   по-разному в WebView, а именно там страницу и открывают чаще всего. #}
+<a class="card" href="{{ it.seo.path }}">
+  <span class="shot">
+    <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
+         width="142" height="213" loading="lazy" decoding="async" />
+    {% if it.movie.rating is not none %}
+    <span class="rate">★ {{ "%.1f"|format(it.movie.rating) }}</span>
+    {% endif %}
+  </span>
+  <span class="t">{{ it.seo.heading }}</span>
+  {% if it.movie.year %}<span class="s">{{ it.movie.year }}</span>{% endif %}
+</a>

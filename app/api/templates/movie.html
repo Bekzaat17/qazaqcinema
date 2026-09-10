@@ -1,213 +1,120 @@
-<!doctype html>
-<html lang="kk">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>{{ seo.title_tag }}</title>
-    <meta name="description" content="{{ seo.description }}" />
+{% extends "base.html" %}
+
+{% block title %}{{ seo.title_tag }}{% endblock %}
+{% block description %}{{ seo.description }}{% endblock %}
+
+{% block head %}
     <meta name="keywords" content="{{ seo.keywords }}" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="canonical" href="{{ seo.canonical_url }}" />
-    <meta name="theme-color" content="#09090b" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-
-    <!-- Open Graph (превью в мессенджерах/соцсетях) -->
     <meta property="og:type" content="video.movie" />
-    <meta property="og:site_name" content="QazaqCinema" />
-    <meta property="og:locale" content="kk" />
-    <meta property="og:locale:alternate" content="ru" />
     <meta property="og:url" content="{{ seo.canonical_url }}" />
-    <meta property="og:title" content="{{ seo.title_tag }}" />
+    <meta property="og:title" content="{{ seo.heading }}" />
     <meta property="og:description" content="{{ seo.description }}" />
-    <meta property="og:image" content="{{ seo.og_image }}" />
-    {% if movie.year %}<meta property="video:release_date" content="{{ movie.year }}" />{% endif %}
-
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="{{ seo.title_tag }}" />
+    <meta name="twitter:title" content="{{ seo.heading }}" />
     <meta name="twitter:description" content="{{ seo.description }}" />
     <meta name="twitter:image" content="{{ seo.og_image }}" />
-
-    <!-- Микроразметка фильма (расширенный сниппет Google) -->
     <script type="application/ld+json">{{ seo.jsonld | safe }}</script>
-    <!-- Хлебные крошки: Google показывает путь «Каталог › Раздел › Фильм» вместо голого URL -->
     <script type="application/ld+json">{{ seo.crumbs_jsonld | safe }}</script>
+    <script type="application/ld+json">{{ site_jsonld | safe }}</script>
+{% endblock %}
 
-    <style>
-      :root {
-        --bg: #09090b; --card: #131316; --line: #26262b;
-        --fg: #fafafa; --muted: #a1a1aa; --accent: #e11d48; --accent-2: #f43f5e;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0; background: var(--bg); color: var(--fg);
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        line-height: 1.55; -webkit-font-smoothing: antialiased;
-      }
-      a { color: inherit; }
-      .wrap { max-width: 880px; margin: 0 auto; padding: 20px 18px 56px; }
-      header.site { display: flex; align-items: center; gap: 10px; padding: 6px 0 22px; }
-      header.site img { width: 30px; height: 30px; border-radius: 7px; }
-      header.site b { font-weight: 700; letter-spacing: -0.01em; }
-      .hero { display: grid; grid-template-columns: 200px 1fr; gap: 22px; }
-      .poster {
-        width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 14px;
-        border: 1px solid var(--line); background: var(--card);
-      }
-      h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.02em; }
-      .alt { color: var(--muted); font-size: 0.98rem; margin: 0 0 14px; }
-      .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
-      .chip {
-        font-size: 0.82rem; padding: 5px 11px; border-radius: 999px;
-        background: var(--card); border: 1px solid var(--line); color: var(--muted);
-        text-decoration: none;
-      }
-      .chip.star { color: #fbbf24; border-color: #4d3d10; }
-      .cta {
-        display: inline-flex; align-items: center; gap: 10px; margin: 6px 0 10px;
-        background: linear-gradient(135deg, var(--accent), var(--accent-2));
-        color: #fff; font-weight: 700; font-size: 1.02rem; text-decoration: none;
-        padding: 14px 26px; border-radius: 12px;
-      }
-      .note { color: var(--muted); font-size: 0.86rem; margin: 4px 0 0; }
-      .desc { margin: 26px 0 0; }
-      .desc h2 { font-size: 1.05rem; margin: 0 0 8px; }
-      .desc p { color: #d4d4d8; margin: 0; white-space: pre-line; }
-      nav.crumbs { font-size: 0.84rem; color: var(--muted); margin: 0 0 16px; }
-      nav.crumbs a { text-decoration: underline; text-underline-offset: 2px; }
-      nav.crumbs span + span::before { content: " / "; color: var(--line); }
-      .related { margin: 30px 0 0; }
-      .related h2 { font-size: 1.05rem; margin: 0 0 12px; }
-      .rgrid {
-        display: grid; gap: 14px;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      }
-      .rgrid a { display: block; text-decoration: none; }
-      .rgrid img {
-        width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 11px;
-        border: 1px solid var(--line); background: var(--card); display: block;
-      }
-      .rgrid .t { font-size: 0.85rem; font-weight: 600; margin: 7px 2px 0; line-height: 1.3; }
-      .tags { margin: 26px 0 0; }
-      .tags h2 { font-size: 1.05rem; margin: 0 0 10px; }
-      .taglist { display: flex; flex-wrap: wrap; gap: 8px; }
-      .tag {
-        font-size: 0.82rem; color: var(--muted); padding: 5px 11px; border-radius: 999px;
-        background: var(--card); border: 1px solid var(--line);
-      }
-      /* Тег-ссылка отличается от тега-подписи: по первому можно перейти. */
-      .tag.link { color: var(--fg); }
-      footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
-        color: var(--muted); font-size: 0.85rem; display: flex; gap: 16px; flex-wrap: wrap; }
-      /* Телефон. Постер и текст рядом сюда не помещаются: под обложку уходит половина
-         экрана, ей самой остаётся ширина превьюшки, а в оставшейся колонке заголовок
-         ломается по два слова и кнопка не влезает в строку. Поэтому ставим одно под
-         другим — обложке нормальный размер, тексту вся ширина — и ужимаем шрифты с
-         кнопкой под маленький экран. */
-      @media (max-width: 560px) {
-        .hero { grid-template-columns: 1fr; gap: 14px; text-align: center; }
-        .poster { width: 180px; margin: 0 auto; }
-        h1 { font-size: 1.3rem; }
-        .alt { font-size: 0.9rem; margin-bottom: 12px; }
-        .meta { justify-content: center; gap: 6px; }
-        .chip { font-size: 0.78rem; padding: 4px 10px; }
-        .cta { padding: 12px 22px; font-size: 0.94rem; gap: 8px; }
-        .note { font-size: 0.8rem; }
-        .desc { margin-top: 22px; }
-        .desc p { font-size: 0.94rem; }
-        .desc h2, .related h2, .tags h2 { font-size: 1rem; }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <header class="site">
-        <a href="/catalog"><img src="/logo.png" alt="QazaqCinema" /></a>
-        <b>QazaqCinema</b>
-      </header>
-
-      <nav class="crumbs">
+{% block body %}
+      <nav class="crumbs" aria-label="Навигация">
         {% for c in seo.crumbs %}
         <span>{% if c.path %}<a href="{{ c.path }}">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %}</span>
         {% endfor %}
       </nav>
 
-      <article class="hero">
-        <img class="poster" src="{{ site_url }}{{ movie.poster_url }}"
-             alt="{{ seo.heading }} постер" width="200" height="300" loading="eager" />
-        <div>
+      {# Первый экран карточки. Постер здесь — единственная картинка выше сгиба, поэтому
+         он грузится КРУПНОЙ копией и без lazy: это главный элемент страницы и её LCP. #}
+      <article class="movie">
+        <div class="movie-art">
+          <img src="{{ site_url }}{{ movie.poster_url }}" alt="{{ seo.heading }} постер"
+               width="260" height="390" loading="eager" fetchpriority="high" decoding="async" />
+        </div>
+        <div class="movie-info">
           <h1>{{ seo.heading }}</h1>
           {% if seo.names|length > 1 %}
-          <p class="alt">{{ seo.names | join(" · ") }}</p>
+          <p class="sub">{{ seo.names | join(" · ") }}</p>
           {% endif %}
 
-          <div class="meta">
+          <div class="chips facts">
             {%- if movie.year %}
             {% if year_path %}<a class="chip" href="{{ year_path }}">{{ movie.year }}</a>
             {% else %}<span class="chip">{{ movie.year }}</span>{% endif %}
             {%- endif %}
-            {% if movie.rating is not none %}<span class="chip star">★ {{ "%.1f"|format(movie.rating) }}</span>{% endif %}
+            {% if movie.rating is not none %}
+            <span class="chip star">★ {{ "%.1f"|format(movie.rating) }}</span>
+            {% endif %}
             {% for cat in seo.categories %}
             <a class="chip" href="/catalog/{{ cat.slug }}">{{ cat.title_kk }}</a>
             {% endfor %}
           </div>
 
-          <a class="cta" href="{{ seo.telegram_url }}" rel="nofollow">
-            ▶ Telegram-да көру
-          </a>
+          <a class="cta" href="{{ seo.telegram_url }}" rel="nofollow">▶ Telegram-да көру</a>
           <p class="note">
-            Видео Telegram-бот арқылы жіберіледі · Смотреть можно в Telegram, на казахском языке.
+            Видео Telegram-бот арқылы жіберіледі. Күн сайын бір фильм тегін.<br />
+            Смотреть можно в Telegram, на казахском языке — один фильм в день бесплатно.
           </p>
+
+          {% if movie.description %}
+          <div class="desc">
+            <h2 class="blockh">Сюжеті</h2>
+            <p>{{ movie.description }}</p>
+          </div>
+          {% endif %}
         </div>
       </article>
 
-      {% if movie.description %}
-      <section class="desc">
-        <h2>Сюжеті</h2>
-        <p>{{ movie.description }}</p>
-      </section>
-      {% endif %}
-
       {% if related %}
-      <section class="related">
-        <h2>Ұқсас фильмдер</h2>
-        <div class="rgrid">
+      <section class="block">
+        <div class="rail-head"><h2>Ұқсас фильмдер</h2></div>
+        <div class="rail">
           {% for it in related %}
-          <a href="{{ it.seo.path }}">
-            <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
-                 width="120" height="180" loading="lazy" decoding="async" />
-            <div class="t">{{ it.seo.heading }}</div>
+          <a class="card" href="{{ it.seo.path }}">
+            <span class="shot">
+              <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
+                   width="132" height="198" loading="lazy" decoding="async" />
+              {% if it.movie.rating is not none %}
+              <span class="rate">★ {{ "%.1f"|format(it.movie.rating) }}</span>
+              {% endif %}
+            </span>
+            <span class="t">{{ it.seo.heading }}</span>
+            {% if it.movie.year %}<span class="s">{{ it.movie.year }}</span>{% endif %}
           </a>
           {% endfor %}
         </div>
       </section>
       {% endif %}
 
-      {% if collections %}
-      <section class="tags">
-        <h2>Тағы қараңыз</h2>
+      {% include "_shelves.html" %}
+
+      {# Навигация по каталогу — ссылками, без карточек: у карточки фильма своя задача,
+         и второй каталог внутри неё только утяжелил бы страницу. #}
+      {% if categories or years %}
+      <section class="block">
+        <h2 class="blockh">Каталог бойынша шолу</h2>
         <div class="taglist">
-          {% for title, path in collections %}
-          <a class="tag link" href="{{ path }}">{{ title }}</a>
+          {% for c in categories %}
+          <a class="chip" href="{{ c.path }}">{{ c.category.title_kk }} <b>{{ c.count }}</b></a>
           {% endfor %}
         </div>
+        {% if years %}
+        <div class="taglist" style="margin-top: 10px">
+          {% for label, path in years %}<a class="chip" href="{{ path }}">{{ label }}</a>{% endfor %}
+        </div>
+        {% endif %}
       </section>
       {% endif %}
 
       {% if seo.tags %}
-      <section class="tags">
-        <h2>Осыны да іздейді</h2>
+      <section class="block">
+        <h2 class="blockh">Осыны да іздейді</h2>
         <div class="taglist">
           {% for tag in seo.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
         </div>
       </section>
       {% endif %}
-
-      <footer>
-        <a href="/catalog">Барлық фильмдер</a>
-        <a href="{{ seo.telegram_url }}" rel="nofollow">Telegram-да ашу</a>
-        <span>© QazaqCinema — қазақша мультфильмдер мен аниме</span>
-      </footer>
-    </div>
-  </body>
-</html>
+{% endblock %}
