@@ -594,3 +594,86 @@ async def test_milestone_list_between_respects_window(session: AsyncSession) -> 
     window = await repo.list_between(now - timedelta(days=7), now)
 
     assert [m.label for m in window] == ["Осы аптадағы веха"]
+
+
+# ── похожие фильмы: правило «больше общих категорий — выше» живёт в SQL ────────
+async def _seed_related(session: AsyncSession) -> PgMovieRepository:
+    repo = PgMovieRepository(session)
+    await repo.add(
+        Movie(
+            title_kk="Текущий",
+            description="d",
+            categories=["disney", "kids"],
+            poster_url="/posters/a.jpg",
+            telegram_file_id="f1",
+        )
+    )
+    await repo.add(
+        Movie(
+            title_kk="Одна общая",
+            description="d",
+            categories=["disney"],
+            poster_url="/posters/b.jpg",
+            telegram_file_id="f2",
+        )
+    )
+    await repo.add(
+        Movie(
+            title_kk="Две общие",
+            description="d",
+            categories=["disney", "kids"],
+            poster_url="/posters/c.jpg",
+            telegram_file_id="f3",
+        )
+    )
+    await repo.add(
+        Movie(
+            title_kk="Ни одной",
+            description="d",
+            categories=["anime"],
+            poster_url="/posters/d.jpg",
+            telegram_file_id="f4",
+        )
+    )
+    return repo
+
+
+async def test_list_related_ranks_by_number_of_shared_categories(
+    session: AsyncSession,
+) -> None:
+    repo = await _seed_related(session)
+
+    found = await repo.list_related(categories=["disney", "kids"], exclude_id=1, limit=6)
+
+    assert [m.title_kk for m in found] == ["Две общие", "Одна общая"]
+
+
+async def test_list_related_excludes_the_movie_itself(session: AsyncSession) -> None:
+    repo = await _seed_related(session)
+
+    found = await repo.list_related(categories=["disney", "kids"], exclude_id=1, limit=6)
+
+    assert all(m.id != 1 for m in found)
+
+
+async def test_list_related_respects_the_limit(session: AsyncSession) -> None:
+    """Подвал карточки — перелинковка, а не второй каталог."""
+    repo = await _seed_related(session)
+
+    found = await repo.list_related(categories=["disney", "kids"], exclude_id=1, limit=1)
+
+    assert len(found) == 1
+
+
+async def test_list_page_sorted_by_newest_puts_the_last_added_first(
+    session: AsyncSession,
+) -> None:
+    """Порядок SEO-страниц: свежее выше, и он стабилен между запросами."""
+    repo = await _seed_related(session)
+
+    items, total = await repo.list_page(
+        categories=[], sort="newest", direction="desc", limit=10, offset=0
+    )
+
+    assert total == 4
+    assert [m.title_kk for m in items] == ["Ни одной", "Две общие", "Одна общая", "Текущий"]

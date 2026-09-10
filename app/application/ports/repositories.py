@@ -24,7 +24,8 @@ from app.domain.entities.user import User
 
 # Сортировка каталога — контракт между роутером, сервисом и репозиторием.
 # Значения — белый список: репозиторий маппит их в колонки, сырую строку в SQL не пускаем.
-SortField = Literal["year", "rating", "views"]  # year→год выпуска, rating→rating, views→play_count
+# newest→по новизне (id): порядок публичных SEO-страниц, где свежее должно быть выше.
+SortField = Literal["year", "rating", "views", "newest"]
 SortDir = Literal["asc", "desc"]
 
 
@@ -57,6 +58,17 @@ class MovieRepository(Protocol):
         offset: int,
     ) -> tuple[list[Movie], int]: ...
     async def category_counts(self) -> dict[str, int]: ...
+    async def list_related(
+        self, *, categories: list[str], exclude_id: int, limit: int
+    ) -> list[Movie]:
+        """Фильмы, делящие с данным хотя бы одну категорию; больше общих категорий — выше.
+
+        Отдельный запрос, а не фильтрация выгруженного каталога: блок «похожих» рисуется
+        на КАЖДОЙ странице фильма, и краулер обходит их все — выгрузка витрины ради шести
+        ссылок росла бы линейно с базой на каждый хит.
+        """
+        ...
+
     async def increment_play_count(self, movie_id: int) -> None: ...
     async def count_all(self) -> int:
         """Размер каталога — знаменатель для нормировки метрик отчёта (не растёт с базой:

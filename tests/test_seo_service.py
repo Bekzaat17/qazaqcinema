@@ -296,3 +296,41 @@ def test_site_jsonld_links_website_to_its_publisher() -> None:
 
     assert site["publisher"]["@id"] == org["@id"]
     assert org["sameAs"] == ["https://t.me/qazaqcinema_bot"]
+
+
+# ── title страниц пагинации ───────────────────────────────────────────────────
+def test_category_pages_get_distinct_titles() -> None:
+    """Один <title> на все страницы раздела — это дубли в выдаче."""
+    category = get_category("kids")
+    first = _seo().category_seo(category, count=186)  # type: ignore[arg-type]
+    second = _seo().category_seo(  # type: ignore[arg-type]
+        category, count=186, page_suffix=" — 2-бет"
+    )
+
+    assert first.title_tag != second.title_tag
+    assert second.title_tag.endswith(" — 2-бет")
+
+
+def test_page_number_survives_the_title_clip() -> None:
+    """⚠️ Место под номер вычитается ДО обрезки: иначе его срезало бы у длинной категории.
+
+    «kids» — как раз такая: её заголовок не влезает в лимит целиком даже без номера.
+    """
+    long_named = get_category("kids")
+
+    meta = _seo().category_seo(  # type: ignore[arg-type]
+        long_named, count=186, page_suffix=" — 10-бет"
+    )
+
+    assert "10-бет" in meta.title_tag
+    assert len(meta.title_tag) <= 65
+
+
+def test_first_page_title_is_unchanged_by_the_suffix_rule() -> None:
+    """Пустой суффикс не должен ничего сдвигать: первая страница живёт как жила."""
+    category = get_category("anime")
+
+    assert (
+        _seo().category_seo(category, count=5).title_tag  # type: ignore[arg-type]
+        == _seo().category_seo(category, count=5, page_suffix="").title_tag  # type: ignore[arg-type]
+    )

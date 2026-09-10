@@ -1,0 +1,16 @@
+{# Навигация по страницам хаба. Общая для каталога и разделов: правило «как выглядит
+   ссылка на страницу N» одно, и живёт оно в `domain/seo/pagination`.
+
+   Ссылки — обычные <a href>, и это principal: именно по ним краулер доходит до карточек,
+   которые видны только со второй страницы. Кнопка «показать ещё» на JS такой путь не даёт. #}
+{% if pager and pager.has_pages %}
+<nav class="pager" aria-label="Беттер">
+  {% if pager.prev_url %}<a class="pg" href="{{ pager.prev_url }}" rel="prev">← Артқа</a>{% endif %}
+  {% for number in pager.numbers %}
+    {%- if number is none %}<span class="gap">…</span>
+    {%- elif number == pager.page %}<span class="pg cur" aria-current="page">{{ number }}</span>
+    {%- else %}<a class="pg" href="{{ pager.url(number) }}">{{ number }}</a>{% endif -%}
+  {% endfor %}
+  {% if pager.next_url %}<a class="pg" href="{{ pager.next_url }}" rel="next">Әрі қарай →</a>{% endif %}
+</nav>
+{% endif %}

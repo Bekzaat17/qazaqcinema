@@ -187,17 +187,25 @@ class SeoBuilder:
             crumbs_jsonld=self._crumbs_jsonld(crumbs),
         )
 
-    def category_seo(self, category: Category, count: int = 0) -> CategorySeo:
+    def category_seo(
+        self, category: Category, count: int = 0, page_suffix: str = ""
+    ) -> CategorySeo:
         """Посадочная страница раздела: H1/текст под ШИРОКИЙ запрос, а не под название фильма.
 
         Тексты — данные (`domain/seo/landing.py`), включая дефолт для категории без записи.
+
+        `page_suffix` — хвост номера страницы (`Pagination.title_suffix`). Место под него
+        вычитается из лимита ДО обрезки: иначе на длинной категории номер срезало бы
+        вместе с брендом, и у всех страниц пагинации оказался бы один и тот же <title> —
+        то есть дубли в выдаче.
         """
         landing = landing_for(category)
         heading, heading_ru, intro = landing.heading_kk, landing.heading_ru, landing.intro
 
         path = f"/catalog/{category.slug}"
         canonical = f"{self._site}{path}"
-        title_tag = _clip(f"{heading} — {heading_ru} | {BRAND}", 65)
+        title_tag = _clip(f"{heading} — {heading_ru} | {BRAND}", 65 - len(page_suffix))
+        title_tag += page_suffix
 
         # В description сразу обе формулировки + число позиций: сниппет отвечает на запрос
         # («сколько их и что это»), а не повторяет заголовок.

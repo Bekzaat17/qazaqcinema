@@ -1,4 +1,4 @@
-"""Pillow-реализация ImageProcessor: центр-кроп до нужной пропорции + ресайз + JPEG.
+"""Pillow-реализация ImageProcessor: центр-кроп до нужной пропорции + ресайз + кодирование.
 
 `ImageOps.fit` сам делает «заполнить рамку с центр-кропом» — ровно нужная нормализация.
 Pillow синхронный и CPU-bound, поэтому обработку уводим в поток (как запись постера в
@@ -26,8 +26,11 @@ class PillowImageProcessor:
             image.load()  # форсим декодирование — ловим обрезанные/битые файлы
         except (OSError, ValueError) as exc:  # UnidentifiedImageError ⊂ OSError
             raise ValueError("не удалось декодировать изображение") from exc
-        rgb = image.convert("RGB")  # убираем альфу/палитру → корректный JPEG
+        rgb = image.convert("RGB")  # убираем альфу/палитру → корректный JPEG/WebP
         fitted = ImageOps.fit(rgb, (spec.width, spec.height), method=Image.Resampling.LANCZOS)
         out = BytesIO()
-        fitted.save(out, format="JPEG", quality=spec.quality, optimize=True)
+        # `method=6` — самый медленный и самый плотный режим WebP-энкодера. Постер
+        # кодируется один раз при заливке, а отдаётся тысячи раз: время здесь дешевле
+        # байтов. Для JPEG параметр игнорируется, отдельной ветки он не стоит.
+        fitted.save(out, format=spec.fmt, quality=spec.quality, optimize=True, method=6)
         return out.getvalue()

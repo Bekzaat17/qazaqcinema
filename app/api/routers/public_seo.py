@@ -6,14 +6,24 @@ Google не индексирует SPA Mini App (контент рисует JS 
 
 Маршруты (Caddy проксирует их на api ДО SPA-фолбэка):
   GET /m/<id>-<slug>   — страница фильма (canonical-редирект, если хвост slug не совпал)
-  GET /catalog         — хаб-каталог: ссылки на разделы и на все страницы фильмов
+  GET /catalog         — хаб-каталог: разделы + страница карточек (`?page=N`)
+  GET /catalog?q=…     — результаты поиска: та же страница под `noindex, follow`
   GET /catalog/<slug>  — посадочная страница раздела (широкие запросы + 2-й уровень связей)
-  GET /sitemap.xml     — карта сайта (главная + каталог + разделы + все фильмы)
+  GET /sitemap.xml     — карта сайта (главная + хабы со всеми их страницами + все фильмы)
   GET /robots.txt      — разрешение обхода + ссылка на sitemap
 
 Перелинковка устроена в три уровня: каталог → раздел → фильм → похожие фильмы. Раньше
 карточка фильма была тупиком (единственная ссылка вела назад в каталог), а на весь сайт
 приходилась одна хаб-страница — по широким запросам ранжироваться было нечему.
+
+⚠️ **Хабы листаются, а не растут.** Страница отдаёт `SEO_PAGE_SIZE` карточек: каждая тянет
+свой постер, и один документ на весь каталог тяжелел с каждым залитым фильмом — на сотне
+карточек это уже мегабайты картинок, которые краулер бросает не догрузив. Правила самой
+пагинации (canonical, `?page=1`, номера) — в `domain/seo/pagination`.
+
+⚠️ **Ни одна страница не читает каталог целиком.** Свой срез страница берёт запросом с
+`LIMIT`, счётчики разделов — одним `GROUP BY`, похожие — отдельным запросом. Единственное
+исключение — sitemap: он обязан перечислить каждый URL.
 
 «Автогенерация при загрузке» — это и есть рендер из БД на лету: как только `/add` сохранил
 фильм, его страница и строка sitemap появляются сразу и всегда свежие (без файлов на диске).
@@ -23,21 +33,23 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.application.ports.storage import thumb_url
-from app.application.services.catalog_service import CatalogService
+from app.application.services.catalog_service import SEO_PAGE_SIZE, CatalogService
 from app.application.services.seo_service import CategorySeo, MovieSeo, SeoBuilder
 from app.config.settings import AppConfig
-from app.domain.catalog.categories import CATEGORIES, Category, get_category
+from app.domain.catalog.categories import Category, get_category
 from app.domain.entities.movie import Movie
+from app.domain.seo.pagination import Pagination, page_count, paginate
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,7 +70,7 @@ class _CategoryLink:
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 # Фильтр `thumb`: в сетках страниц постер показывается в 120–200 px, и грузить туда
-# крупную копию (вдвое тяжелее) незачем — на странице каталога их полсотни. Правило
+# крупную копию (вдвое тяжелее) незачем — на странице их несколько десятков. Правило
 # имени берём из контракта хранилища, чтобы шаблон не сочинял пути сам.
 _TEMPLATES.env.filters["thumb"] = thumb_url
 _LEADING_ID = re.compile(r"^(\d+)")
@@ -67,18 +79,25 @@ _LEADING_ID = re.compile(r"^(\d+)")
 # а перелинковка: без него каждая страница фильма была тупиком, из которого краулер
 # уходил только назад в каталог.
 _RELATED_LIMIT = 6
+# Сколько результатов поиска рисуем. Страница поиска не индексируется, листать её незачем —
+# но и бесконечной она быть не должна: у неё те же постеры, что у каталога.
+_SEARCH_LIMIT = SEO_PAGE_SIZE
+# Ниже этой длины поиск не запускаем: одна буква совпадает почти со всем каталогом.
+_SEARCH_MIN_LEN = 2
+
+_CATALOG_PATH = "/catalog"
 
 
-def _category_links(movies: list[Movie]) -> list[_CategoryLink]:
-    """Непустые категории со счётчиками, в каноничном порядке справочника."""
-    counts: dict[str, int] = {}
-    for m in movies:
-        for slug in m.categories:
-            counts[slug] = counts.get(slug, 0) + 1
+def _category_links(counts: Sequence[tuple[str, int]]) -> list[_CategoryLink]:
+    """Непустые разделы со счётчиками. Порядок задаёт сервис (каноничный по справочнику).
+
+    Слаг, которого нет в справочнике, ссылки не получает — вести его некуда (страницы
+    такого раздела не существует, `category_page` отдаст 404).
+    """
     return [
-        _CategoryLink(CATEGORIES[slug], f"/catalog/{slug}", counts[slug])
-        for slug in CATEGORIES
-        if counts.get(slug)
+        _CategoryLink(category, f"{_CATALOG_PATH}/{slug}", count)
+        for slug, count in counts
+        if (category := get_category(slug)) is not None
     ]
 
 
@@ -92,18 +111,28 @@ def _newest(movies: list[Movie]) -> str | None:
     return max(dates).isoformat() if dates else None
 
 
-def _related(movies: list[Movie], current: Movie) -> list[Movie]:
-    """Фильмы, делящие с текущим хотя бы одну категорию. Больше общих категорий — выше."""
-    own = set(current.categories)
-    if not own:
-        return []
-    scored = [
-        (len(own & set(m.categories)), m)
-        for m in movies
-        if m.id is not None and m.id != current.id and own & set(m.categories)
-    ]
-    scored.sort(key=lambda pair: (-pair[0], -(pair[1].id or 0)))
-    return [m for _, m in scored[:_RELATED_LIMIT]]
+async def _paged(
+    catalog: CatalogService,
+    seo: SeoBuilder,
+    *,
+    category: str | None,
+    path: str,
+    page: int,
+) -> tuple[list[_CatalogItem], Pagination]:
+    """Срез хаба + его пагинация. Страница за последней — 404 (пустых страниц не отдаём)."""
+    slice_ = await catalog.seo_page(category=category, page=page)
+    pager = paginate(path=path, page=page, total=slice_.total, size=slice_.limit)
+    if page > pager.pages:
+        raise HTTPException(status_code=404, detail="page out of range")
+    items = [_CatalogItem(m, seo.movie_seo(m)) for m in slice_.items if m.id is not None]
+    return items, pager
+
+
+def _canonical_page(request: Request, path: str, page: int) -> RedirectResponse | None:
+    """301 с `?page=1` на чистый URL: один документ обязан иметь один адрес."""
+    if page == 1 and request.query_params.get("page") is not None:
+        return RedirectResponse(url=path, status_code=301)
+    return None
 
 router = APIRouter(tags=["seo"], route_class=DishkaRoute, include_in_schema=False)
 
@@ -130,8 +159,11 @@ async def movie_page(
     if slug != meta.slug:
         return RedirectResponse(url=meta.path, status_code=301)
 
-    all_movies = await catalog.all_movies()
-    related = [_CatalogItem(m, seo.movie_seo(m)) for m in _related(all_movies, movie)]
+    related = [
+        _CatalogItem(m, seo.movie_seo(m))
+        for m in await catalog.related(movie, _RELATED_LIMIT)
+        if m.id is not None
+    ]
 
     return _TEMPLATES.TemplateResponse(
         request,
@@ -151,23 +183,53 @@ async def catalog_page(
     catalog: FromDishka[CatalogService],
     seo: FromDishka[SeoBuilder],
     config: FromDishka[AppConfig],
+    page: int = Query(1, ge=1),
+    q: str = Query("", max_length=100),
 ) -> Response:
-    """Хаб-каталог: карточки-ссылки на все страницы фильмов (внутренняя перелинковка для SEO)."""
-    site = config.public_origin.rstrip("/")
-    movies = await catalog.all_movies()
-    items = [_CatalogItem(m, seo.movie_seo(m)) for m in movies if m.id is not None]
+    """Хаб-каталог: разделы + страница карточек. С `?q=` — результаты серверного поиска.
 
-    jsonld = _catalog_jsonld(site, items)
+    Поиск живёт здесь, а не на своём пути: страницу результатов Google индексировать не
+    рекомендует (`noindex`), поэтому отдельный адрес ей ничего не даёт, а `/catalog` уже
+    проксируется на api и уже описан в robots.
+    """
+    site = config.public_origin.rstrip("/")
+    query = " ".join(q.split())
+    common = {
+        "site_url": site,
+        "bot_username": config.bot.username.lstrip("@"),
+        "site_jsonld": seo.site_jsonld(),
+        "categories": _category_links(await catalog.category_counts()),
+        "query": query,
+    }
+
+    if query:
+        found = (
+            await catalog.search_movies(query) if len(query) >= _SEARCH_MIN_LEN else []
+        )
+        items = [
+            _CatalogItem(m, seo.movie_seo(m)) for m in found[:_SEARCH_LIMIT] if m.id is not None
+        ]
+        # `noindex, follow`: страницу в индекс не пускаем, но ссылки с неё краулер
+        # обходит — карточки фильмов от этого только выигрывают.
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "catalog.html",
+            {**common, "items": items, "pager": None, "robots": "noindex, follow", "jsonld": ""},
+        )
+
+    if (redirect := _canonical_page(request, _CATALOG_PATH, page)) is not None:
+        return redirect
+    items, pager = await _paged(catalog, seo, category=None, path=_CATALOG_PATH, page=page)
+
     return _TEMPLATES.TemplateResponse(
         request,
         "catalog.html",
         {
+            **common,
             "items": items,
-            "categories": _category_links(movies),
-            "site_url": site,
-            "bot_username": config.bot.username.lstrip("@"),
-            "jsonld": jsonld,
-            "site_jsonld": seo.site_jsonld(),
+            "pager": pager,
+            "robots": "index, follow, max-image-preview:large",
+            "jsonld": _catalog_jsonld(site, items, pager),
         },
     )
 
@@ -179,6 +241,7 @@ async def category_page(
     catalog: FromDishka[CatalogService],
     seo: FromDishka[SeoBuilder],
     config: FromDishka[AppConfig],
+    page: int = Query(1, ge=1),
 ) -> Response:
     """Посадочная страница раздела.
 
@@ -190,27 +253,34 @@ async def category_page(
     if category is None:
         raise HTTPException(status_code=404, detail="category not found")
 
-    movies = await catalog.all_movies()
-    picked = [m for m in movies if m.id is not None and slug in m.categories]
+    path = f"{_CATALOG_PATH}/{slug}"
+    if (redirect := _canonical_page(request, path, page)) is not None:
+        return redirect
+
+    counts = await catalog.category_counts()
+    total = dict(counts).get(slug, 0)
     # Пустой раздел страницы не получает: тонкая страница без контента только вредит
     # (и в sitemap она тоже не попадёт — там тот же фильтр по непустым).
-    if not picked:
+    if not total:
         raise HTTPException(status_code=404, detail="category is empty")
 
-    site = config.public_origin.rstrip("/")
-    items = [_CatalogItem(m, seo.movie_seo(m)) for m in picked]
-    meta = seo.category_seo(category, count=len(items))
+    items, pager = await _paged(catalog, seo, category=slug, path=path, page=page)
+    meta = seo.category_seo(category, count=total, page_suffix=pager.title_suffix)
 
     return _TEMPLATES.TemplateResponse(
         request,
         "category.html",
         {
             "items": items,
+            "pager": pager,
+            # Счётчик в подписи — по ВСЕМУ разделу, а не по видимым карточкам: иначе
+            # на второй странице «186 фильм» превратилось бы в «48 фильм».
+            "total": total,
             "seo": meta,
-            "siblings": [c for c in _category_links(movies) if c.category.slug != slug],
-            "site_url": site,
+            "siblings": [c for c in _category_links(counts) if c.category.slug != slug],
+            "site_url": config.public_origin.rstrip("/"),
             "bot_username": config.bot.username.lstrip("@"),
-            "jsonld": _category_jsonld(site, meta, items),
+            "jsonld": _category_jsonld(config.public_origin.rstrip("/"), meta, items, pager),
             "site_jsonld": seo.site_jsonld(),
         },
     )
@@ -222,7 +292,10 @@ async def sitemap(
     seo: FromDishka[SeoBuilder],
     config: FromDishka[AppConfig],
 ) -> Response:
-    """XML-карта: главная + каталог + все фильмы (с датой и постером-картинкой)."""
+    """XML-карта: главная + хабы (со всеми страницами пагинации) + все фильмы.
+
+    Единственное место, которому нужен весь каталог: карта обязана перечислить каждый URL.
+    """
     site = config.public_origin.rstrip("/")
     movies = await catalog.all_movies()
 
@@ -237,22 +310,28 @@ async def sitemap(
     # свои разделы. Дата хаба = дата самого свежего фильма внутри него.
     urls: list[str] = [
         _url_entry(
-            f"{site}/catalog", priority="1.0", changefreq="daily", lastmod=_newest(movies)
+            f"{site}{_CATALOG_PATH}", priority="1.0", changefreq="daily", lastmod=_newest(movies)
         ),
         _url_entry(f"{site}/", priority="0.9", changefreq="daily", lastmod=_newest(movies)),
     ]
+    # ⚠️ Страницы пагинации в карте обязательны: карточки, до которых можно дойти только
+    # со второй страницы, иначе остаются без единой ссылки в карте — а именно по ней
+    # Google узнаёт о новых URL быстрее всего.
+    urls += _pagination_entries(f"{site}{_CATALOG_PATH}", len(movies), _newest(movies))
+
     # Разделы идут ВЫШЕ карточек (0.9): по широким запросам ранжируются именно они.
     # Только непустые — ровно те, что реально отдают 200 (см. `category_page`).
-    for link in _category_links(movies):
-        in_category = [m for m in movies if link.category.slug in m.categories]
+    for slug, count in await catalog.category_counts():
+        if get_category(slug) is None:
+            continue
+        path = f"{_CATALOG_PATH}/{slug}"
+        in_category = [m for m in movies if slug in m.categories]
+        lastmod = _newest(in_category)
         urls.append(
-            _url_entry(
-                f"{site}{link.path}",
-                priority="0.9",
-                changefreq="weekly",
-                lastmod=_newest(in_category),
-            )
+            _url_entry(f"{site}{path}", priority="0.9", changefreq="weekly", lastmod=lastmod)
         )
+        urls += _pagination_entries(f"{site}{path}", count, lastmod)
+
     for movie in movies:
         if movie.id is None:
             continue
@@ -287,9 +366,27 @@ async def robots(config: FromDishka[AppConfig]) -> PlainTextResponse:
         "Allow: /\n"
         "Disallow: /api/\n"
         "Disallow: /tg/\n"
+        # Результаты поиска и так под `noindex`; закрыть их и здесь — чтобы краулер не
+        # тратил бюджет обхода на бесконечные комбинации запросов.
+        "Disallow: /catalog?q=\n"
         f"Sitemap: {site}/sitemap.xml\n"
     )
     return PlainTextResponse(content=body)
+
+
+def _pagination_entries(loc: str, total: int, lastmod: str | None) -> list[str]:
+    """Строки карты для страниц 2..N хаба. Первая уже перечислена по чистому URL.
+
+    `loc` — абсолютный адрес хаба: правило «как выглядит URL страницы N» одно на карту
+    и на сами страницы, поэтому URL строит та же `Pagination`, а не конкатенация здесь.
+    """
+    pages = page_count(total, SEO_PAGE_SIZE)
+    pager = Pagination(path=loc, page=1, pages=pages)
+    return [
+        # Приоритет ниже, чем у первой страницы хаба: это тот же раздел, но глубже.
+        _url_entry(pager.url(number), priority="0.7", changefreq="weekly", lastmod=lastmod)
+        for number in range(2, pages + 1)
+    ]
 
 
 def _url_entry(
@@ -314,50 +411,60 @@ def _url_entry(
     return "  <url>\n" + "\n".join(parts) + "\n  </url>"
 
 
-def _catalog_jsonld(site: str, items: list[_CatalogItem]) -> str:
-    """ItemList микроразметка каталога — список ссылок на страницы фильмов."""
-    elements = [
+def _list_elements(
+    site: str, items: list[_CatalogItem], pager: Pagination
+) -> list[dict[str, object]]:
+    """`ListItem`-элементы страницы. `position` продолжает нумерацию предыдущих страниц.
+
+    Сквозная нумерация — не косметика: она говорит поисковику, что страницы пагинации
+    части одного списка, а не три независимых списка с позициями 1..48.
+    """
+    offset = (pager.page - 1) * SEO_PAGE_SIZE
+    return [
         {
             "@type": "ListItem",
-            "position": i + 1,
+            "position": offset + i + 1,
             "url": f"{site}{it.seo.path}",
             "name": it.seo.heading,
         }
         for i, it in enumerate(items)
     ]
-    data = {
-        "@context": "https://schema.org",
-        "@type": "ItemList",
-        "name": "QazaqCinema — қазақша фильмдер каталогы",
-        "numberOfItems": len(items),
-        "itemListElement": elements,
-    }
+
+
+def _as_script(data: dict[str, object]) -> str:
     raw = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     return raw.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
 
 
-def _category_jsonld(site: str, meta: CategorySeo, items: list[_CatalogItem]) -> str:
-    """CollectionPage с вложенным ItemList — «это раздел, и вот что в нём»."""
-    data = {
-        "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": f"{meta.heading} — {meta.heading_ru}",
-        "url": meta.canonical_url,
-        "description": meta.description,
-        "inLanguage": "kk",
-        "mainEntity": {
+def _catalog_jsonld(site: str, items: list[_CatalogItem], pager: Pagination) -> str:
+    """ItemList микроразметка каталога — список ссылок на страницы фильмов ЭТОЙ страницы."""
+    return _as_script(
+        {
+            "@context": "https://schema.org",
             "@type": "ItemList",
+            "name": "QazaqCinema — қазақша фильмдер каталогы",
             "numberOfItems": len(items),
-            "itemListElement": [
-                {
-                    "@type": "ListItem",
-                    "position": i + 1,
-                    "url": f"{site}{it.seo.path}",
-                    "name": it.seo.heading,
-                }
-                for i, it in enumerate(items)
-            ],
-        },
-    }
-    raw = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    return raw.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+            "itemListElement": _list_elements(site, items, pager),
+        }
+    )
+
+
+def _category_jsonld(
+    site: str, meta: CategorySeo, items: list[_CatalogItem], pager: Pagination
+) -> str:
+    """CollectionPage с вложенным ItemList — «это раздел, и вот что в нём»."""
+    return _as_script(
+        {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": f"{meta.heading} — {meta.heading_ru}",
+            "url": f"{meta.canonical_url}{pager.canonical_suffix}",
+            "description": meta.description,
+            "inLanguage": "kk",
+            "mainEntity": {
+                "@type": "ItemList",
+                "numberOfItems": len(items),
+                "itemListElement": _list_elements(site, items, pager),
+            },
+        }
+    )

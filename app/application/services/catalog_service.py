@@ -20,6 +20,13 @@ from app.domain.entities.movie import Movie
 HOME_SHELF_LIMIT = 14
 # Пагинация каталога: максимальный размер страницы (клампим внутри browse).
 CATALOG_PAGE_MAX = 48
+# Сколько карточек на одной публичной SEO-странице.
+#
+# Страница обязана быть конечной: краулер тратит на рендер бюджет, а посетитель из поиска —
+# мобильный трафик, и каждая карточка тянет свой постер. Сотни карточек в одном документе
+# делают страницу тяжелее с каждым новым фильмом — при этом ничего не добавляя индексации:
+# ссылки на остальное краулер получает через страницы пагинации, которые все есть в sitemap.
+SEO_PAGE_SIZE = 48
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,8 +136,38 @@ class CatalogService:
         return await self._movies.get(movie_id)
 
     async def all_movies(self) -> list[Movie]:
-        """Все фильмы (для публичного sitemap/каталог-хаба SEO). Порядок — как у репозитория."""
+        """Все фильмы — ТОЛЬКО для sitemap: он обязан перечислить каждый URL.
+
+        Страницам сайта этот метод не годится (см. `seo_page`): они читают свой срез.
+        """
         return await self._movies.list_all()
+
+    async def seo_page(self, *, category: str | None, page: int) -> BrowsePage:
+        """Срез публичной SEO-страницы: свежие выше, фиксированный размер, total для пагинации.
+
+        Порядок `newest` — не косметика: страницы пагинации живут по постоянным URL, и
+        сортировка, которая «плывёт» (по просмотрам, по рейтингу), перекладывала бы фильмы
+        между `?page=2` и `?page=3` между обходами краулера.
+        """
+        return await self.browse(
+            categories=[category] if category is not None else [],
+            sort="newest",
+            direction="desc",
+            page=page,
+            limit=SEO_PAGE_SIZE,
+        )
+
+    async def related(self, movie: Movie, limit: int) -> list[Movie]:
+        """Похожие по категориям — блок перелинковки в подвале страницы фильма.
+
+        Похожесть у нас определяется ТОЛЬКО общими категориями, поэтому фильм без них
+        похожих не имеет по определению — и запрос за ними не нужен.
+        """
+        if movie.id is None or not movie.categories:
+            return []
+        return await self._movies.list_related(
+            categories=movie.categories, exclude_id=movie.id, limit=limit
+        )
 
     async def get_hero(self, now: datetime) -> Movie | None:
         """Hero главной = фильм дня.

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, delete, false, func, or_, select, update
+from sqlalchemy import ColumnElement, case, delete, false, func, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -222,7 +222,7 @@ class PgMovieRepository:
         """Страница каталога: фильтр по категориям (мультивыбор) + сортировка + пагинация.
 
         `categories` пустой → без фильтра. `sort` — белый список колонок (сырой строки в SQL
-        нет). Вторым ключом всегда `id DESC` — стабильный тай-брейк, иначе OFFSET-страницы
+        нет). Вторым ключом идёт `id DESC` — стабильный тай-брейк, иначе OFFSET-страницы
         «плывут». Возвращает (страница, total); total тем же фильтром — для has_more/страниц.
         """
         # «views» — честный счётчик просмотров, а НЕ балл популярности: чип в каталоге
@@ -232,13 +232,20 @@ class PgMovieRepository:
             "year": MovieModel.year,
             "rating": MovieModel.rating,
             "views": MovieModel.play_count,
+            # Новизна = id: он монотонный, а `created_at` у строк одной заливки совпадает
+            # до секунды — сортировка по нему «плыла» бы между страницами.
+            "newest": MovieModel.id,
         }[sort]
         primary = column.asc() if direction == "asc" else column.desc()
         if sort in ("rating", "year"):
             # год/оценка nullable → фильм без значения уходит в конец при любом направлении.
             primary = primary.nulls_last()
-        # тай-брейк id DESC — стабильная страница (год/оценка не уникальны).
-        order_by: list[ColumnElement[Any]] = [primary, MovieModel.id.desc()]
+        # Тай-брейк id DESC — стабильная страница (год/оценка не уникальны). Сортировке
+        # по новизне он не нужен: она и есть id, а `ORDER BY id, id` — тот же порядок
+        # дважды.
+        order_by: list[ColumnElement[Any]] = [primary]
+        if sort != "newest":
+            order_by.append(MovieModel.id.desc())
 
         stmt = select(MovieModel)
         count_stmt = select(func.count()).select_from(MovieModel)
@@ -264,6 +271,29 @@ class PgMovieRepository:
         stmt = select(unnested.c.slug, func.count()).group_by(unnested.c.slug)
         result = await self._session.execute(stmt)
         return {slug: int(count) for slug, count in result.all()}
+
+    async def list_related(
+        self, *, categories: list[str], exclude_id: int, limit: int
+    ) -> list[Movie]:
+        """Похожие: пересечение категорий считаем В БАЗЕ, а не перебором выгруженной витрины.
+
+        Число общих категорий собирается суммой CASE по категориям ИСХОДНОГО фильма (их
+        единицы), а отбор строк делает GIN-индекс через `&&`. Тай-брейк `id DESC` — тот же
+        стабильный порядок, что у остальных списков: страница кэшируется и обязана
+        отдаваться всем одинаковой.
+        """
+        shared: ColumnElement[int] = literal(0)
+        for slug in categories:
+            shared = shared + case((MovieModel.categories.overlap([slug]), 1), else_=0)
+
+        stmt = (
+            select(MovieModel)
+            .where(MovieModel.categories.overlap(categories), MovieModel.id != exclude_id)
+            .order_by(shared.desc(), MovieModel.id.desc())
+            .limit(limit)
+        )
+        result = await self._session.scalars(stmt)
+        return [_movie_to_domain(model) for model in result]
 
     async def increment_play_count(self, movie_id: int) -> None:
         """+1 к счётчику просмотров (после успешной выдачи видео). Точечный UPDATE."""

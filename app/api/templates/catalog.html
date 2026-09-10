@@ -3,23 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Қазақша мультфильмдер мен аниме онлайн — QazaqCinema</title>
+    {% if query %}
+    <title>«{{ query }}» — іздеу нәтижесі | QazaqCinema</title>
+    {% else %}
+    <title>Қазақша мультфильмдер мен аниме онлайн{{ pager.title_suffix }} — QazaqCinema</title>
+    {% endif %}
     <meta name="description" content="QazaqCinema — қазақ тіліндегі мультфильмдер, аниме және фильмдер каталогы. Барлығын Telegram-да онлайн көріңіз. Мультфильмы и аниме на казахском языке." />
     <meta name="keywords" content="қазақша мультфильмдер, аниме қазақша, фильмдер қазақша, мультфильмы на казахском, аниме на казахском, казахская озвучка, QazaqCinema" />
-    <meta name="robots" content="index, follow, max-image-preview:large" />
-    <link rel="canonical" href="{{ site_url }}/catalog" />
+    <meta name="robots" content="{{ robots }}" />
+    {# Страница пагинации канонична САМА СЕБЕ: canonical на первую выбросил бы из индекса
+       фильмы, которые видны только с неё (см. domain/seo/pagination). #}
+    <link rel="canonical" href="{{ site_url }}/catalog{{ pager.canonical_suffix if pager else '' }}" />
+    {% if pager and pager.prev_url %}<link rel="prev" href="{{ site_url }}{{ pager.prev_url }}" />{% endif %}
+    {% if pager and pager.next_url %}<link rel="next" href="{{ site_url }}{{ pager.next_url }}" />{% endif %}
     <meta name="theme-color" content="#09090b" />
     <link rel="icon" type="image/png" href="/logo.png" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="QazaqCinema" />
     <meta property="og:locale" content="kk" />
-    <meta property="og:url" content="{{ site_url }}/catalog" />
+    <meta property="og:url" content="{{ site_url }}/catalog{{ pager.canonical_suffix if pager else '' }}" />
     <meta property="og:title" content="Қазақша мультфильмдер мен аниме онлайн — QazaqCinema" />
     <meta property="og:description" content="Қазақ тіліндегі мультфильмдер, аниме және фильмдер каталогы. Telegram-да онлайн көріңіз." />
     <meta property="og:image" content="{{ site_url }}/logo.png" />
 
-    <script type="application/ld+json">{{ jsonld | safe }}</script>
+    {% if jsonld %}<script type="application/ld+json">{{ jsonld | safe }}</script>{% endif %}
     <!-- Кто мы и как нас ещё пишут («казак синема», «qazaq cinema») — alternateName -->
     <script type="application/ld+json">{{ site_jsonld | safe }}</script>
 
@@ -59,15 +67,26 @@
         background: var(--card); border: 1px solid var(--line); color: var(--fg);
       }
       .sec b { color: var(--muted); font-weight: 500; }
-      .search { margin: 0 0 20px; max-width: 420px; }
+      .search { display: flex; gap: 8px; margin: 0 0 20px; max-width: 480px; }
       .search input {
-        width: 100%; padding: 11px 14px; border-radius: 11px; font: inherit;
+        flex: 1; padding: 11px 14px; border-radius: 11px; font: inherit;
         background: var(--card); border: 1px solid var(--line); color: var(--fg);
       }
       .search input::placeholder { color: var(--muted); }
       .search input:focus { outline: none; border-color: var(--accent); }
+      .search button {
+        padding: 11px 16px; border-radius: 11px; font: inherit; cursor: pointer;
+        background: var(--accent); border: 1px solid var(--accent); color: #fff;
+      }
       .nohits { color: var(--muted); padding: 24px 0; }
-      [hidden] { display: none !important; }
+      .pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 30px 0 0; }
+      .pg {
+        min-width: 38px; text-align: center; font-size: 0.88rem; padding: 8px 12px;
+        border-radius: 10px; background: var(--card); border: 1px solid var(--line);
+      }
+      .pg.cur { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+      .gap { color: var(--muted); padding: 0 2px; }
+      .total { color: var(--muted); font-size: 0.85rem; margin: 0 0 16px; }
       footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
         color: var(--muted); font-size: 0.85rem; }
     </style>
@@ -75,15 +94,29 @@
   <body>
     <div class="wrap">
       <header class="site">
-        <img src="/logo.png" alt="QazaqCinema" />
+        <a href="/catalog"><img src="/logo.png" alt="QazaqCinema" /></a>
         <b>QazaqCinema</b>
       </header>
 
-      <h1>Қазақша фильмдер, мультфильмдер мен аниме</h1>
+      {% if query %}
+      <h1>«{{ query }}» бойынша іздеу</h1>
+      <p class="lead">Каталогтан табылғаны. — Результаты поиска по каталогу.</p>
+      {% else %}
+      <h1>Қазақша фильмдер, мультфильмдер мен аниме{{ pager.title_suffix }}</h1>
       <p class="lead">
         Қазақ тіліндегі сирек мультфильмдер мен аниме коллекциясы. Кез келген фильмді таңдап,
         Telegram-да онлайн көріңіз. — Редкие мультфильмы и аниме с казахской озвучкой.
       </p>
+      {% endif %}
+
+      {# Форма отправляется НА СЕРВЕР: страницы листаются, и поиск по отрисованным
+         карточкам нашёл бы только текущие 48 из всего каталога. #}
+      <form class="search" action="/catalog" method="get" role="search">
+        <label for="q" hidden>Іздеу</label>
+        <input id="q" name="q" type="search" value="{{ query }}" autocomplete="off"
+               placeholder="Фильм іздеу… / Поиск по названию" />
+        <button type="submit">Іздеу</button>
+      </form>
 
       {% if categories %}
       <nav class="sections">
@@ -94,15 +127,13 @@
       {% endif %}
 
       {% if items %}
-      <div class="search">
-        <label for="q" hidden>Іздеу</label>
-        <input id="q" type="search" autocomplete="off"
-               placeholder="Фильм іздеу… / Поиск по названию" />
-      </div>
+      {% if pager and pager.has_pages %}
+      <p class="total">{{ pager.page }} / {{ pager.pages }} бет</p>
+      {% endif %}
 
-      <div class="grid" id="grid">
+      <div class="grid">
         {% for it in items %}
-        <a class="card" href="{{ it.seo.path }}" data-s="{{ it.seo.names | join(' ') | lower }}">
+        <a class="card" href="{{ it.seo.path }}">
           <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
                width="140" height="210" loading="lazy" decoding="async" />
           <div class="t">{{ it.seo.heading }}</div>
@@ -114,85 +145,15 @@
         </a>
         {% endfor %}
       </div>
-      <p class="nohits" id="nohits" hidden>Ештеңе табылмады. Ничего не найдено.</p>
+
+      {% include "_pager.html" %}
+      {% elif query %}
+      <p class="nohits">Ештеңе табылмады. Ничего не найдено. <a href="/catalog">Барлық фильмдер →</a></p>
       {% else %}
       <p class="empty">Каталог толықтырылып жатыр.</p>
       {% endif %}
 
       <footer>© QazaqCinema — қазақша контент · <a href="https://t.me/{{ bot_username }}" rel="nofollow">Telegram-да ашу</a></footer>
     </div>
-
-    {% if items %}
-    <script>
-      // Поиск по уже отрисованному списку: ни запроса к серверу, ни отдельного URL.
-      // Отдельный URL тут был бы вреден — страницы внутреннего поиска Google
-      // индексировать не рекомендует, а так поисковик видит обычный каталог.
-      // Карточки в DOM всегда все, JS лишь прячет лишние → без JS страница целая.
-      (function () {
-        var input = document.getElementById('q');
-        var cards = Array.prototype.slice.call(document.querySelectorAll('#grid .card'));
-        var nohits = document.getElementById('nohits');
-
-        // Специфично казахские буквы к базовым: NFD их НЕ раскладывает (ә/қ/ғ/ң/ө/ұ/ү/һ/і —
-        // самостоятельные символы, а не «буква + диакритика»), поэтому таблица явная.
-        // Без неё «казакша» не нашло бы «қазақша» — а набирают чаще именно так.
-        var FOLD = { 'ә': 'а', 'ғ': 'г', 'қ': 'к', 'ң': 'н', 'ө': 'о',
-                     'ұ': 'у', 'ү': 'у', 'һ': 'х', 'і': 'и', 'ё': 'е' };
-
-        function norm(s) {
-          return s.toLowerCase()
-            .replace(/[әғқңөұүһіё]/g, function (ch) { return FOLD[ch]; })
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');  // й→и, é→e
-        }
-
-        // Терпимость к одной опечатке: «шрык» должен находить «шрек». Проверяем не всю
-        // строку, а каждое слово названия — иначе одна опечатка в длинном названии
-        // «съедала» бы весь лимит. Порог 1 намеренный: на двух правках короткие
-        // запросы начинают совпадать со всем подряд.
-        function near(word, q) {
-          if (Math.abs(word.length - q.length) > 1) return false;
-          var i = 0, j = 0, edits = 0;
-          while (i < word.length && j < q.length) {
-            if (word[i] === q[j]) { i++; j++; continue; }
-            if (++edits > 1) return false;
-            if (word.length > q.length) i++;
-            else if (word.length < q.length) j++;
-            else { i++; j++; }
-          }
-          return edits + (word.length - i) + (q.length - j) <= 1;
-        }
-
-        cards.forEach(function (c) {
-          c.dataset.n = norm(c.dataset.s || '');
-          c.dataset.w = JSON.stringify(c.dataset.n.split(/\s+/).filter(Boolean));
-        });
-
-        function matches(card, q, fuzzy) {
-          if (card.dataset.n.indexOf(q) !== -1) return true;
-          if (!fuzzy || q.length < 4) return false;
-          return JSON.parse(card.dataset.w).some(function (w) { return near(w, q); });
-        }
-
-        function apply(q, fuzzy) {
-          var shown = 0;
-          cards.forEach(function (c) {
-            var hit = !q || matches(c, q, fuzzy);
-            c.hidden = !hit;
-            if (hit) shown++;
-          });
-          return shown;
-        }
-
-        input.addEventListener('input', function () {
-          var q = norm(input.value.trim());
-          // Сперва строгое совпадение; на опечатки переходим, только если не нашлось
-          // ничего — иначе точный запрос тонул бы среди «похожих».
-          var shown = apply(q, false);
-          if (q && shown === 0) shown = apply(q, true);
-          nohits.hidden = shown !== 0;
-        });
-      })();
-    </script>
-    {% endif %}
   </body>
 </html>

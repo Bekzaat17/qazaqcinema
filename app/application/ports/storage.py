@@ -8,27 +8,33 @@ from __future__ import annotations
 
 from typing import Protocol
 
-# Суффикс мелкой копии постера. ⚠️ Это же правило зашито во фронте
-# (`web/src/lib/poster.ts`) — URL уменьшенной копии нигде не хранится, он выводится из
-# основного. Менять только вместе с фронтом и прогоном `python -m app.tools.thumbs --force`.
+from app.application.ports.images import POSTER_THUMB
+
+# Суффикс мелкой копии постера (расширение задаёт формат `POSTER_THUMB`). ⚠️ Это же
+# правило зашито во фронте (`web/src/lib/poster.ts`) — URL уменьшенной копии нигде не
+# хранится, он выводится из основного. Менять суффикс или формат только вместе с фронтом
+# и прогоном `python -m app.tools.thumbs --force`.
 _THUMB_SUFFIX = "_sm"
 
 
 def thumb_url(poster_url: str) -> str:
-    """`/posters/<uuid>.jpg` → `/posters/<uuid>_sm.jpg` (работает и с голым именем файла).
+    """`/posters/<uuid>.jpg` → `/posters/<uuid>_sm.webp` (работает и с голым именем файла).
 
     Часть контракта `PosterStorage.save`, а не деталь адаптера: мелкую копию просят и
     SSR-страницы каталога, и Mini App, и все они обязаны сложить один и тот же путь.
-    Имя без расширения возвращается с суффиксом на конце — вырожденный случай, до
-    которого дело не доходит: постеры всегда `.jpg`.
+
+    Расширение берётся из спеки превью, а не пишется здесь буквой: формат копии —
+    решение `POSTER_THUMB`, и две записи одного факта разошлись бы при первой же смене
+    формата (файл на диске один, а URL — другой).
     """
-    stem, dot, ext = poster_url.rpartition(".")
-    return f"{stem}{_THUMB_SUFFIX}{dot}{ext}" if dot else f"{poster_url}{_THUMB_SUFFIX}"
+    stem, _, _ = poster_url.rpartition(".")
+    base = stem or poster_url
+    return f"{base}{_THUMB_SUFFIX}.{POSTER_THUMB.ext}"
 
 
 class PosterStorage(Protocol):
     async def save(self, data: bytes, *, thumb: bytes) -> str:
-        """Сохранить обе копии постера (JPEG после `ImageProcessor`); вернуть URL крупной.
+        """Сохранить обе копии постера (после `ImageProcessor`); вернуть URL крупной.
 
         Пара, а не два вызова: мелкая копия обязана появиться вместе с крупной. Её URL
         нигде не хранится — он выводится функцией `thumb_url` выше. Инвариант «у

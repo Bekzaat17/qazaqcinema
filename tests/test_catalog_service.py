@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from app.application.services.catalog_service import (
     CATALOG_PAGE_MAX,
     HOME_SHELF_LIMIT,
+    SEO_PAGE_SIZE,
     CatalogService,
 )
 from app.application.services.daily_service import DailyMovieService
@@ -44,13 +45,16 @@ class _FakeMovies:
         popular: list[Movie] | None = None,
         page: tuple[list[Movie], int] = ([], 0),
         counts: dict[str, int] | None = None,
+        related: list[Movie] | None = None,
     ) -> None:
         self._pool = pool or ([hero] if hero is not None else [])
         self._recent = recent or []
         self._popular = popular or []
         self._page = page
         self._counts = counts or {}
+        self._related = related or []
         self.list_page_args: dict[str, object] = {}
+        self.related_args: dict[str, object] = {}
 
     async def list_rotation_ids(self, created_before: datetime | None = None) -> list[int]:
         # Фейк повторяет главное свойство адаптера: с отсечкой в пул попадают только
@@ -90,6 +94,16 @@ class _FakeMovies:
 
     async def category_counts(self) -> dict[str, int]:
         return self._counts
+
+    async def list_related(
+        self, *, categories: list[str], exclude_id: int, limit: int
+    ) -> list[Movie]:
+        self.related_args = {
+            "categories": categories,
+            "exclude_id": exclude_id,
+            "limit": limit,
+        }
+        return self._related[:limit]
 
 
 class _NoPin:
@@ -266,3 +280,53 @@ async def test_brand_new_catalog_still_has_a_film_of_the_day() -> None:
     repo = _FakeMovies(pool=today_only)
 
     assert await _daily(repo).today_id(_NOW) in (1, 2)
+
+
+# ── публичные SEO-страницы ────────────────────────────────────────────────────
+async def test_seo_page_asks_for_a_bounded_slice_not_the_whole_catalog() -> None:
+    """Страница-хаб читает СВОЙ срез: иначе её вес растёт с каждым залитым фильмом."""
+    repo = _FakeMovies(page=([_movie(1)], 500))
+
+    await _service(repo).seo_page(category=None, page=3)
+
+    assert repo.list_page_args["limit"] == SEO_PAGE_SIZE
+    assert repo.list_page_args["offset"] == 2 * SEO_PAGE_SIZE
+    assert repo.list_page_args["categories"] == []
+
+
+async def test_seo_page_of_a_category_filters_by_it() -> None:
+    repo = _FakeMovies(page=([_movie(1)], 1))
+
+    await _service(repo).seo_page(category="kids", page=1)
+
+    assert repo.list_page_args["categories"] == ["kids"]
+
+
+async def test_seo_page_order_is_stable_across_pages() -> None:
+    """Порядок «плывёт» → фильм перекладывается между ?page=2 и ?page=3 между обходами."""
+    repo = _FakeMovies(page=([], 0))
+
+    await _service(repo).seo_page(category=None, page=1)
+
+    assert repo.list_page_args["sort"] == "newest"
+    assert repo.list_page_args["direction"] == "desc"
+
+
+async def test_related_passes_own_categories_to_the_repository() -> None:
+    repo = _FakeMovies(related=[_movie(2), _movie(3)])
+    current = _movie(1)
+
+    found = await _service(repo).related(current, 6)
+
+    assert [m.id for m in found] == [2, 3]
+    assert repo.related_args == {"categories": ["disney"], "exclude_id": 1, "limit": 6}
+
+
+async def test_related_is_empty_for_movie_without_categories() -> None:
+    """Без категорий похожих не бывает — и запрос в БД не нужен вовсе."""
+    repo = _FakeMovies(related=[_movie(2)])
+    current = _movie(1)
+    current.categories = []
+
+    assert await _service(repo).related(current, 6) == []
+    assert repo.related_args == {}  # до репозитория дело не дошло
