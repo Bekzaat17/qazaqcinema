@@ -1,8 +1,8 @@
 """Адаптер группы обсуждений поверх aiogram Bot (реализует `DiscussionGroup`).
 
 Группа не настроена (`BOT_DISCUSSION_GROUP_ID=0`) → no-op, как у канала. Удаление требует
-у бота права «Delete messages» в группе; нет права → TelegramAPIError → False + лог, ответ
-человека при этом уже записан — просто останется виден.
+у бота права «Delete messages», открепление — «Pin messages»; нет права → TelegramAPIError
+→ False + лог, а всё остальное (записанный ответ, опубликованный пост) не страдает.
 """
 
 from __future__ import annotations
@@ -27,6 +27,21 @@ class AiogramDiscussionGroup:
             return bool(await self._bot.delete_message(self._group_id, message_id))
         except TelegramAPIError:
             logger.warning("Комментарий %s в группе не удалён", message_id, exc_info=True)
+            return False
+
+    async def unpin_message(self, message_id: int) -> bool:
+        if not self._group_id:
+            return False
+        try:
+            # Именно именованные: вторым позиционным у aiogram идёт
+            # business_connection_id, а не id сообщения.
+            return bool(
+                await self._bot.unpin_chat_message(
+                    chat_id=self._group_id, message_id=message_id
+                )
+            )
+        except TelegramAPIError:
+            logger.warning("Пост %s в группе не откреплён", message_id, exc_info=True)
             return False
 
     async def reply_in_thread(self, thread_message_id: int, text: str) -> bool:

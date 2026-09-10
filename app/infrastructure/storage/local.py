@@ -1,5 +1,8 @@
 """Локальное хранилище постеров на диске VPS (реализует PosterStorage).
 
+Каждый постер лежит в двух копиях: `<uuid>.jpg` (крупная) и `<uuid>_sm.jpg` (мелкая,
+для сеток и полок). Пишутся только вместе — см. `save`.
+
 Постеры — публичная витрина (их видят и неподписчики), крошечные и нужны под
 стабильный URL в `<img>`, поэтому отдаются статикой (Caddy/StaticFiles), а не
 прокси-эндпоинтом через бота. Имя файла — uuid (без перечислимости и коллизий).
@@ -11,6 +14,7 @@ import asyncio
 from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
+from app.application.ports.storage import thumb_url
 from app.config.settings import MediaConfig
 
 # Подкаталог постеров — И на диске (`<media.root>/posters`), И в публичном URL. Одно
@@ -23,10 +27,14 @@ class LocalPosterStorage:
         self._dir = Path(media.root) / _SUBDIR
         self._url_base = media.posters_url_base.rstrip("/")
 
-    async def save(self, data: bytes) -> str:
+    async def save(self, data: bytes, *, thumb: bytes) -> str:
         # Постер уже нормализован в JPEG (ImageProcessor) → расширение фиксировано, в имя
         # не подставляем внешних строк (никакой path-инъекции); uuid — без перечислимости.
         name = f"{uuid4().hex}.jpg"
+        # Мелкая копия ПЕРВОЙ: если диск кончится на ней, крупной ещё нет, а значит нет и
+        # URL в БД — фильм просто не заведётся. Обратный порядок оставил бы в каталоге
+        # карточку, у которой мелкой копии не существует.
+        await asyncio.to_thread(self._write, self._dir / thumb_url(name), thumb)
         await asyncio.to_thread(self._write, self._dir / name, data)
         return f"{self._url_base}/{name}"
 

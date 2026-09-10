@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 /* ── Дизайн-токены QazaqCinema (фиксированная тёмная «кино»-тема, не тема Telegram) ──
    Значения превращаются в утилиты Tailwind v4: bg-bg, text-muted, text-brand, rounded-card… */

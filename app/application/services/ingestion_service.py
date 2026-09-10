@@ -12,12 +12,11 @@ import logging
 from html import escape
 
 from app.application.ports.catalog_cache import CatalogCache
-from app.application.ports.images import POSTER, ImageProcessor
 from app.application.ports.repositories import MovieRepository, SeasonRepository
-from app.application.ports.storage import PosterStorage
 from app.application.ports.telegram import TelegramNotifier
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.channel_service import ChannelService
+from app.application.services.poster_service import PosterService
 from app.domain.entities.movie import Movie
 
 logger = logging.getLogger(__name__)
@@ -29,8 +28,7 @@ class MovieIngestionService:
         movies: MovieRepository,
         seasons: SeasonRepository,
         notifier: TelegramNotifier,
-        posters: PosterStorage,
-        images: ImageProcessor,
+        posters: PosterService,
         catalog_cache: CatalogCache,
         broadcast: BroadcastService,
         channel: ChannelService,
@@ -39,7 +37,6 @@ class MovieIngestionService:
         self._seasons = seasons
         self._notifier = notifier
         self._posters = posters
-        self._images = images
         self._cache = catalog_cache
         self._broadcast = broadcast
         self._channel = channel
@@ -103,8 +100,7 @@ class MovieIngestionService:
                 raise ValueError(
                     "Жеке фильмге title_kk/categories/description/poster_bytes міндетті"
                 )
-            normalized = await self._images.normalize(poster_bytes, POSTER)
-            poster_url = await self._posters.save(normalized)
+            poster_url = await self._posters.store(poster_bytes)
 
         movie = Movie(
             title_kk=title_kk,

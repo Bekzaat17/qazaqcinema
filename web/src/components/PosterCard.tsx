@@ -2,6 +2,7 @@
 // живёт только на кнопке «Көру» (PLAN, Фаза 9).
 
 import type { Movie } from "../lib/api";
+import { thumbUrl } from "../lib/poster";
 import { haptic } from "../lib/telegram";
 import FavoriteButton from "./FavoriteButton";
 import RatingPill from "./RatingPill";
@@ -26,16 +27,26 @@ export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCa
       className="group flex w-full flex-col text-left"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-[var(--radius-card)] bg-surface-2 ring-1 ring-white/5 transition-transform duration-200 group-active:scale-[0.97]">
-        {/* `decoding="async"` — декодировать вне главного потока: на телефоне сетка из
-            24 постеров 600×900 иначе раскодируется рывками прямо в скролле.
-            width/height — пропорции для резерва места (сам размер задаёт CSS). */}
+        {/* Мелкая копия: слот тут 110–190 px, крупная весит вдвое больше и на экране
+            с двумя десятками карточек это мегабайты и рывки в скролле.
+            `decoding="async"` — декодировать вне главного потока; width/height —
+            пропорции для резерва места (сам размер задаёт CSS). */}
         <img
-          src={movie.poster_url}
+          src={thumbUrl(movie.poster_url)}
           alt={movie.title_kk}
           loading="lazy"
           decoding="async"
-          width={600}
-          height={900}
+          width={400}
+          height={600}
+          onError={(e) => {
+            // Мелкой копии не оказалось (постер старше догона, том восстановили из
+            // бэкапа) — показываем крупную вместо дыры. Флаг, чтобы не зациклиться,
+            // если не откроется и она.
+            const img = e.currentTarget;
+            if (img.dataset.full) return;
+            img.dataset.full = "1";
+            img.src = movie.poster_url;
+          }}
           className="h-full w-full object-cover"
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />

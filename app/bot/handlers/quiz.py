@@ -8,6 +8,11 @@
 запоминаем связку. Любое сообщение в группе с `message_thread_id` — комментарий к посту
 с таким id форварда. Для `quiz_open` бот записывает ответ, удаляет комментарий (чтобы не
 спойлерить) и отвечает в ветку. Комментарии к остальным постам не трогает.
+
+Тот же авто-форвард Telegram ещё и ЗАКРЕПЛЯЕТ в группе (поведение связки «канал ↔
+обсуждение»), поэтому здесь же уборка: открепить пост и убрать служебную строку о
+закреплении. Обработчик один на событие — второй с тем же фильтром до апдейта бы просто
+не дошёл (aiogram останавливается на первом подошедшем).
 """
 
 from __future__ import annotations
@@ -65,14 +70,42 @@ def _in_discussion_group(message: Message, config: AppConfig) -> bool:
 @router.message(F.is_automatic_forward.is_(True))
 @inject
 async def channel_forward(
-    message: Message, config: FromDishka[AppConfig], quiz: FromDishka[QuizService]
+    message: Message,
+    config: FromDishka[AppConfig],
+    quiz: FromDishka[QuizService],
+    group: FromDishka[DiscussionGroup],
 ) -> None:
-    """Пост канала приехал в группу — связываем его с веткой комментариев."""
+    """Пост канала приехал в группу: связать с веткой комментариев и открепить.
+
+    Закрепление тут не наше — его делает сам Telegram для каждого авто-форварда. Смысла
+    в нём нет: посты идут ежедневно, каждый следующий сменяет предыдущий, и «закреплённое»
+    в группе значит всего лишь «последнее». А цену человек платит настоящую — шапка чата
+    занята и в ленте копятся служебные строки.
+    """
     if not _in_discussion_group(message, config):
         return
     origin = message.forward_origin
     if isinstance(origin, MessageOriginChannel):
         await quiz.bind_forward(origin.message_id, message.message_id)
+    await group.unpin_message(message.message_id)
+
+
+@router.message(F.pinned_message)
+@inject
+async def pin_notice(
+    message: Message, config: FromDishka[AppConfig], group: FromDishka[DiscussionGroup]
+) -> None:
+    """Убрать служебную строку «закрепил сообщение» — но только про авто-форвард.
+
+    Открепление саму строку из ленты не убирает, она остаётся висеть под постом. Чужие
+    закрепления (админ закрепил что-то руками) не трогаем: убираем шум, который создали
+    не люди.
+    """
+    pinned = message.pinned_message
+    if not _in_discussion_group(message, config) or not isinstance(pinned, Message):
+        return
+    if pinned.is_automatic_forward:
+        await group.delete_message(message.message_id)
 
 
 @router.message(F.message_thread_id.is_not(None), F.from_user, F.text)

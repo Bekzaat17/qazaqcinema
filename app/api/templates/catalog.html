@@ -103,8 +103,8 @@
       <div class="grid" id="grid">
         {% for it in items %}
         <a class="card" href="{{ it.seo.path }}" data-s="{{ it.seo.names | join(' ') | lower }}">
-          <img src="{{ site_url }}{{ it.movie.poster_url }}" alt="{{ it.seo.heading }}"
-               width="140" height="210" loading="lazy" />
+          <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
+               width="140" height="210" loading="lazy" decoding="async" />
           <div class="t">{{ it.seo.heading }}</div>
           <div class="s">
             {%- if it.movie.year %}{{ it.movie.year }}{% endif -%}

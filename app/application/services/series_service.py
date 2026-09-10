@@ -8,9 +8,8 @@
 
 from __future__ import annotations
 
-from app.application.ports.images import POSTER, ImageProcessor
 from app.application.ports.repositories import SeasonRepository, SeriesRepository
-from app.application.ports.storage import PosterStorage
+from app.application.services.poster_service import PosterService
 from app.domain.entities.season import Season
 from app.domain.entities.series import Series
 
@@ -20,13 +19,11 @@ class SeriesService:
         self,
         series: SeriesRepository,
         seasons: SeasonRepository,
-        posters: PosterStorage,
-        images: ImageProcessor,
+        posters: PosterService,
     ) -> None:
         self._series = series
         self._seasons = seasons
         self._posters = posters
-        self._images = images
 
     async def list_series(self) -> list[Series]:
         return await self._series.list_all()
@@ -54,7 +51,7 @@ class SeriesService:
         categories: list[str],
     ) -> Season:
         """Новый сезон: постер нормализуется/сохраняется здесь же (единственный раз)."""
-        poster_url = await self._posters.save(await self._images.normalize(poster_bytes, POSTER))
+        poster_url = await self._posters.store(poster_bytes)
         return await self._seasons.add(
             Season(
                 series_id=series_id,

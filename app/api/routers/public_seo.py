@@ -32,6 +32,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from app.application.ports.storage import thumb_url
 from app.application.services.catalog_service import CatalogService
 from app.application.services.seo_service import CategorySeo, MovieSeo, SeoBuilder
 from app.config.settings import AppConfig
@@ -56,6 +57,10 @@ class _CategoryLink:
     count: int
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+# Фильтр `thumb`: в сетках страниц постер показывается в 120–200 px, и грузить туда
+# крупную копию (вдвое тяжелее) незачем — на странице каталога их полсотни. Правило
+# имени берём из контракта хранилища, чтобы шаблон не сочинял пути сам.
+_TEMPLATES.env.filters["thumb"] = thumb_url
 _LEADING_ID = re.compile(r"^(\d+)")
 
 # Сколько «похожих» показываем в подвале карточки фильма. Смысл блока — не рекомендации,

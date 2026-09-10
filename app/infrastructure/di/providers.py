@@ -64,6 +64,7 @@ from app.application.services.milestone_service import MilestoneService
 from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
+from app.application.services.poster_service import PosterService
 from app.application.services.quiz_service import QuizService
 from app.application.services.seo_service import SeoBuilder
 from app.application.services.series_service import SeriesService
@@ -298,6 +299,7 @@ class RequestProvider(Provider):
     daily = provide(DailyMovieService)
     catalog = provide(CatalogService)
     favorites = provide(FavoriteService)  # избранное («Таңдаулы»), без гейта подписки
+    poster = provide(PosterService)  # картинка от админа → крупная + мелкая копии
     ingestion = provide(MovieIngestionService)
     series = provide(SeriesService)  # сериалы/сезоны — справочник для визарда /add и каталога
     playback = provide(PlaybackService)

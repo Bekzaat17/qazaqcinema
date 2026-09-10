@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from app.application.ports.images import POSTER, ImageSpec
+from app.application.ports.images import POSTER, POSTER_THUMB, ImageSpec
 from app.application.services.ingestion_service import MovieIngestionService
+from app.application.services.poster_service import PosterService
 from app.domain.entities.movie import Movie
 from app.domain.entities.season import Season
 
@@ -32,9 +33,11 @@ class _FakeSeasons:
 class _FakePosters:
     def __init__(self) -> None:
         self.saved: list[bytes] = []
+        self.thumbs: list[bytes] = []
 
-    async def save(self, data: bytes) -> str:
+    async def save(self, data: bytes, *, thumb: bytes) -> str:
         self.saved.append(data)
+        self.thumbs.append(thumb)
         return f"/posters/fake{len(self.saved)}.jpg"
 
 
@@ -99,7 +102,8 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     broadcast = _FakeBroadcast()
     channel = _FakeChannel()
     service = MovieIngestionService(
-        movies, _FakeSeasons(), notifier, posters, images, cache, broadcast, channel
+        movies, _FakeSeasons(), notifier, PosterService(images, posters), cache,
+        broadcast, channel,
     )
 
     movie = await service.ingest(
@@ -119,7 +123,9 @@ async def test_ingest_saves_poster_persists_and_notifies() -> None:
     assert movie.telegram_file_id == "archive-file-id"
     assert movie.hero_image_url is None                # без баннера hero пуст
     assert posters.saved == [b"image-bytes"]           # только постер
-    assert images.calls == [(b"image-bytes", POSTER)]  # нормализован к 2:3
+    assert posters.thumbs == [b"image-bytes"]          # и его мелкая копия — вместе с ним
+    # Обе копии режутся из ОРИГИНАЛА, а не мелкая из крупной (иначе двойное сжатие).
+    assert images.calls == [(b"image-bytes", POSTER), (b"image-bytes", POSTER_THUMB)]
     assert movies.added[0].title_ru == "Король Лев"
     assert any("Арыстан Патша" in message for message in notifier.messages)
     assert cache.invalidated == 1                       # кэш главной сброшен → новинка видна
@@ -136,7 +142,7 @@ async def test_ingest_stores_exactly_one_image() -> None:
     """
     movies, posters, images = _FakeMovies(), _FakePosters(), _FakeImages()
     service = MovieIngestionService(
-        movies, _FakeSeasons(), _FakeNotifier(), posters, images, _FakeCache(),
+        movies, _FakeSeasons(), _FakeNotifier(), PosterService(images, posters), _FakeCache(),
         _FakeBroadcast(), _FakeChannel(),
     )
 
@@ -154,8 +160,9 @@ async def test_ingest_stores_exactly_one_image() -> None:
     )
 
     assert movie.hero_image_url is None            # баннера нет и взяться неоткуда
-    assert posters.saved == [b"poster"]            # в хранилище ушёл один файл
-    assert images.calls == [(b"poster", POSTER)]   # и нормализован он один раз
+    assert posters.saved == [b"poster"]            # в хранилище ушла одна картинка…
+    assert posters.thumbs == [b"poster"]           # …в двух размерах
+    assert images.calls == [(b"poster", POSTER), (b"poster", POSTER_THUMB)]
 
 
 async def test_ingest_without_notify_keeps_the_queue_silent_but_posts_to_channel() -> None:
@@ -168,8 +175,8 @@ async def test_ingest_without_notify_keeps_the_queue_silent_but_posts_to_channel
     movies, broadcast, cache = _FakeMovies(), _FakeBroadcast(), _FakeCache()
     channel = _FakeChannel()
     service = MovieIngestionService(
-        movies, _FakeSeasons(), _FakeNotifier(), _FakePosters(), _FakeImages(), cache,
-        broadcast, channel,
+        movies, _FakeSeasons(), _FakeNotifier(),
+        PosterService(_FakeImages(), _FakePosters()), cache, broadcast, channel,
     )
 
     movie = await service.ingest(
@@ -208,7 +215,7 @@ async def test_ingest_episode_of_existing_season_reuses_its_fields() -> None:
     movies, posters, images = _FakeMovies(), _FakePosters(), _FakeImages()
     seasons = _FakeSeasons([season])
     service = MovieIngestionService(
-        movies, seasons, _FakeNotifier(), posters, images, _FakeCache(),
+        movies, seasons, _FakeNotifier(), PosterService(images, posters), _FakeCache(),
         _FakeBroadcast(), _FakeChannel(),
     )
 

@@ -8,11 +8,33 @@ from __future__ import annotations
 
 from typing import Protocol
 
+# Суффикс мелкой копии постера. ⚠️ Это же правило зашито во фронте
+# (`web/src/lib/poster.ts`) — URL уменьшенной копии нигде не хранится, он выводится из
+# основного. Менять только вместе с фронтом и прогоном `python -m app.tools.thumbs --force`.
+_THUMB_SUFFIX = "_sm"
+
+
+def thumb_url(poster_url: str) -> str:
+    """`/posters/<uuid>.jpg` → `/posters/<uuid>_sm.jpg` (работает и с голым именем файла).
+
+    Часть контракта `PosterStorage.save`, а не деталь адаптера: мелкую копию просят и
+    SSR-страницы каталога, и Mini App, и все они обязаны сложить один и тот же путь.
+    Имя без расширения возвращается с суффиксом на конце — вырожденный случай, до
+    которого дело не доходит: постеры всегда `.jpg`.
+    """
+    stem, dot, ext = poster_url.rpartition(".")
+    return f"{stem}{_THUMB_SUFFIX}{dot}{ext}" if dot else f"{poster_url}{_THUMB_SUFFIX}"
+
 
 class PosterStorage(Protocol):
-    async def save(self, data: bytes) -> str:
-        """Сохранить постер (всегда JPEG после `ImageProcessor`); вернуть публичный
-        URL/путь (идёт в `MovieOut.poster_url`)."""
+    async def save(self, data: bytes, *, thumb: bytes) -> str:
+        """Сохранить обе копии постера (JPEG после `ImageProcessor`); вернуть URL крупной.
+
+        Пара, а не два вызова: мелкая копия обязана появиться вместе с крупной. Её URL
+        нигде не хранится — он выводится функцией `thumb_url` выше. Инвариант «у
+        каждого постера есть мелкая копия» держится тем, что записать одну без другой
+        этим методом нельзя.
+        """
         ...
 
     def local_path(self, poster_url: str) -> str | None:

@@ -169,8 +169,8 @@
         <div class="rgrid">
           {% for it in related %}
           <a href="{{ it.seo.path }}">
-            <img src="{{ site_url }}{{ it.movie.poster_url }}" alt="{{ it.seo.heading }}"
-                 width="120" height="180" loading="lazy" />
+            <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
+                 width="120" height="180" loading="lazy" decoding="async" />
             <div class="t">{{ it.seo.heading }}</div>
           </a>
           {% endfor %}

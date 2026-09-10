@@ -19,7 +19,7 @@ class _FakeQueue:
 class _FakePosters:
     """Хранилище постеров: `/posters/x.jpg` → `posters/x.jpg`; `missing` — файла нет."""
 
-    async def save(self, data: bytes) -> str:
+    async def save(self, data: bytes, *, thumb: bytes) -> str:
         return "/posters/new.jpg"
 
     def local_path(self, poster_url: str) -> str | None:

@@ -10,6 +10,7 @@
 #   ./start.sh test         # ruff + mypy + pytest В КОНТЕЙНЕРЕ (env = .env.test, изолированная БД)
 #   ./start.sh migrate      # применить миграции (alembic upgrade head) и выйти
 #   ./start.sh seed         # залить контент канала (content/*.yaml → БД + картинки в том uploads)
+#   ./start.sh thumbs       # дорисовать мелкие копии постеров (разовый догон старых)
 #   ./start.sh backup       # дамп БД в backups/ (pg_dump|gzip, ротация 14; для cron на VPS)
 #   ./start.sh logs [svc]   # логи всех сервисов или одного (Ctrl-C — выйти)
 #   ./start.sh ps           # статус контейнеров
@@ -123,6 +124,14 @@ case "$MODE" in
     ef=".env.prod"; [ -f "$ef" ] || ef="$(default_env)"
     info "Заливаю контент канала (env=$ef)…"
     dc "$ef" run --rm --build bot python -m app.tools.seed_content "$@"
+    ;;
+
+  thumbs)
+    # Мелкие копии постеров в томе uploads: разовый догон для тех, что залиты раньше
+    # (новые приезжают с копией сразу). Идемпотентно, оригиналы не трогает.
+    ef=".env.prod"; [ -f "$ef" ] || ef="$(default_env)"
+    info "Пересчитываю мелкие копии постеров (env=$ef)…"
+    dc "$ef" run --rm --build bot python -m app.tools.thumbs "$@"
     ;;
 
   backup)

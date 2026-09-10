@@ -6,6 +6,7 @@ import { Gift, Lock, Play, ShieldCheck } from "lucide-react";
 
 import type { Movie, UserStatus } from "../lib/api";
 import { categoryLabel } from "../lib/catalog";
+import { thumbUrl } from "../lib/poster";
 import Button from "../ui/Button";
 import Sheet from "../ui/Sheet";
 import FavoriteButton from "./FavoriteButton";
@@ -48,7 +49,7 @@ export default function MovieSheet({
       <div className="px-5 pb-3 pt-1">
         <div className="flex gap-4">
           <img
-            src={movie.poster_url}
+            src={thumbUrl(movie.poster_url)}
             decoding="async"
             alt={movie.title_kk}
             className="h-40 w-[110px] shrink-0 rounded-[var(--radius-card)] object-cover ring-1 ring-white/10"
