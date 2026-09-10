@@ -14,7 +14,7 @@ from app.application.ports.repositories import (
     UserEventRepository,
     UserRepository,
 )
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import EventKind, HandoffOutcome
 from app.domain.analytics.search import normalize_query
 from app.domain.entities.user import User
 
@@ -84,6 +84,21 @@ class UserActivityService:
         """
         await self._events.add(
             telegram_id, EventKind.PAYWALL, meta=str(movie_id) if movie_id else None
+        )
+
+    async def register_handoff(
+        self, telegram_id: int, outcome: HandoffOutcome, platform: str
+    ) -> None:
+        """Уход из Mini App в чат за видео: попытка и, если не вышло, застревание.
+
+        Меряет последний шаг воронки, на котором сервер слеп: видео он отправил, а дошёл
+        ли до него человек — зависит от нативного клиента Telegram, который на просьбу
+        закрыть Mini App может не отреагировать (⚠️ у `WebApp.close()` нет ни ответа, ни
+        ошибки). Разбивка по платформе и нужна затем, чтобы чинить это по фактам, а не по
+        догадкам: `STUCK` к `TRY` в пределах одной платформы — доля сломанных уходов.
+        """
+        await self._events.add(
+            telegram_id, EventKind.HANDOFF, meta=f"{outcome.value}:{platform}"
         )
 
     async def register_search(self, telegram_id: int, query: str, found: int) -> None:

@@ -42,11 +42,38 @@ export function initWebApp(): void {
   wa.expand();
   wa.setHeaderColor("#09090b");
   wa.setBackgroundColor("#09090b");
-  wa.disableVerticalSwipes?.(); // чтобы свайпы внутри полок не сворачивали Mini App
+  setVerticalSwipes(false); // чтобы свайпы внутри полок не сворачивали Mini App
 }
 
-export function close(): void {
-  getWebApp()?.close();
+/**
+ * Вертикальный свайп: закрывает ли он Mini App.
+ *
+ * По умолчанию выключен на весь каталог — иначе протяжка полки норовит свернуть
+ * приложение. Включать обратно есть смысл там, где выход и есть цель экрана
+ * (`HandoffModal`): это единственный ручной выход, который не зависит от того,
+ * послушался ли клиент наших методов.
+ */
+export function setVerticalSwipes(enabled: boolean): void {
+  const wa = getWebApp();
+  if (enabled) wa?.enableVerticalSwipes?.();
+  else wa?.disableVerticalSwipes?.();
+}
+
+/** Платформа клиента (`ios`, `android`, `tdesktop`, `weba`…) — для разбивки метрик. */
+export function getPlatform(): string {
+  const raw = getWebApp()?.platform ?? "";
+  // Значение уходит в журнал событий, где формат сужен схемой ручки: чистим здесь,
+  // чтобы диагностика не терялась на 422 из-за неожиданной строки в новом клиенте.
+  return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 16) || "unknown";
+}
+
+/**
+ * Запущено ли приложение прямой ссылкой (`t.me/<bot>?startapp=…`) — из браузера, поиска
+ * или кнопки в канале. Отличие принципиальное: под таким запуском НЕТ чата с ботом, и
+ * закрытие Mini App вернёт человека туда, откуда он пришёл, а не к видео.
+ */
+export function isDirectLaunch(): boolean {
+  return Boolean(getWebApp()?.initDataUnsafe?.start_param);
 }
 
 // ── Тактильная отдача ──
@@ -92,17 +119,33 @@ export function openLink(url: string): void {
  * `payload` — ТОЛЬКО для случая, когда чата с ботом ещё не было (`BotStartSheet`): без него
  * человек, впервые тыкающий на ссылку, просто открывает пустой чат. С параметром — Telegram
  * рисует большую кнопку START, а нажатие шлёт `/start <payload>`.
- * ⚠️ Без параметра НЕ звать `t.me/<bot>?start=...` там, где чат УЖЕ открыт (`HandoffModal`):
- * Telegram шлёт `/start <payload>` заново при КАЖДОМ переходе по такой ссылке, даже если
- * переписка с ботом давно идёт — обнаружено 2026-08-30 живым багом (после «Чатқа өту» вместо
- * видео прилетало дефолтное приветствие `GREETING` из `handlers/start.py`, затирая контекст
- * с подарком). Оставлять `payload` не передан — открывает уже существующий чат как есть.
+ * ⚠️ НЕ звать с `payload` там, где переписка с ботом уже идёт: Telegram шлёт
+ * `/start <payload>` заново при КАЖДОМ переходе по такой ссылке, и вместо нужного
+ * сообщения человек получает дефолтное приветствие `GREETING` (`handlers/start.py`),
+ * затирающее контекст. Без `payload` метод открывает существующий чат как есть.
  */
 export function openBotChat(payload?: string): void {
   const url = payload ? `${BOT_URL}?start=${payload}` : BOT_URL;
   const wa = getWebApp();
   if (wa?.openTelegramLink) wa.openTelegramLink(url);
   else openLink(url);
+}
+
+/**
+ * Увести человека из Mini App в чат с ботом, где лежит только что отправленное видео.
+ *
+ * Дорога зависит от того, что находится ПОД приложением. Запуск из чата (кнопка меню,
+ * клавиатура бота) — под нами тот самый чат, и достаточно закрыться. Прямая ссылка —
+ * под нами браузер или поиск, поэтому чат сначала надо открыть явно; закрытие после
+ * этого убирает наше окно с дороги (с Bot API 7.0 `openTelegramLink` сам его не гасит).
+ *
+ * ⚠️ Оба метода — сообщения по мосту без ответа и без ошибки: часть клиентов их молча
+ * игнорирует. Считать вызов состоявшимся нельзя — тот, кто зовёт, обязан предусмотреть
+ * ручной выход, если через секунду мы всё ещё на экране (`HandoffModal`).
+ */
+export function leaveToChat(): void {
+  if (isDirectLaunch()) openBotChat();
+  getWebApp()?.close();
 }
 
 /**

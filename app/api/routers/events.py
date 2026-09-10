@@ -6,6 +6,9 @@
 стоял на нуле всё время своего существования, создавая иллюзию, что в стену никто не
 упирается. Эта ручка и есть недостающая половина метрики.
 
+Второй такой слепой участок — уход из Mini App в чат за уже отправленным видео: увести
+человека может только нативный клиент Telegram, и получилось ли у него, видит один фронт.
+
 Гейта подписки тут нет намеренно: событие пишет как раз тот, у кого доступа нет.
 """
 
@@ -18,6 +21,7 @@ from pydantic import BaseModel, Field
 from app.api.deps.auth import get_current_user
 from app.api.deps.rate_limit import rate_limit
 from app.application.services.activity_service import UserActivityService
+from app.domain.analytics.events import HandoffOutcome
 from app.domain.entities.user import User
 
 # Rate-limit (данные): пэйволл человек видит по нескольку раз за заход (потыкал разные
@@ -48,6 +52,18 @@ class SearchIn(BaseModel):
     found: int = Field(ge=0)
 
 
+class HandoffIn(BaseModel):
+    """Исход попытки уйти в чат за видео и платформа, на которой это происходило.
+
+    `platform` приходит из `WebApp.platform` (ios, android, tdesktop, weba…) и уходит в
+    `meta` события, поэтому формат сужен: строка из клиента не должна ни распухнуть, ни
+    принести в журнал ничего, кроме имени платформы.
+    """
+
+    outcome: HandoffOutcome
+    platform: str = Field(max_length=16, pattern=r"^[a-z0-9_]+$")
+
+
 @router.post("/paywall", status_code=204, dependencies=[_rate_limited])
 async def track_paywall(
     body: PaywallIn,
@@ -76,3 +92,17 @@ async def track_search(
     не нашёл своего.
     """
     await activity.register_search(user.telegram_id, body.query, body.found)
+
+
+@router.post("/handoff", status_code=204, dependencies=[_rate_limited])
+async def track_handoff(
+    body: HandoffIn,
+    activity: FromDishka[UserActivityService],
+    user: User = Depends(get_current_user),
+) -> None:
+    """Записать уход в чат за видео: `try` при нажатии, `stuck` — если ушли, да не ушли.
+
+    Тоже фоном, без ответа: это диагностика последнего шага, и она не имеет права
+    задерживать человека, который в этот момент как раз пытается выйти из приложения.
+    """
+    await activity.register_handoff(user.telegram_id, body.outcome, body.platform)

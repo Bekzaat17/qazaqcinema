@@ -73,7 +73,9 @@ interface TelegramWebApp {
   showConfirm(message: string, callback?: (ok: boolean) => void): void;
   setHeaderColor(color: string): void;
   setBackgroundColor(color: string): void;
+  // Вертикальные свайпы (Bot API 7.7): опциональны — в старых клиентах методов нет.
   disableVerticalSwipes?(): void;
+  enableVerticalSwipes?(): void;
 
   HapticFeedback: HapticFeedback;
   MainButton: BottomButton;

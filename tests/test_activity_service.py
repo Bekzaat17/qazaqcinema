@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from app.application.services.activity_service import UserActivityService
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import EventKind, HandoffOutcome
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 
@@ -118,6 +118,22 @@ async def test_paywall_event_carries_movie() -> None:
     await UserActivityService(users, events, searches).register_paywall(42, 144)
 
     assert events.added == [(42, EventKind.PAYWALL, "144")]
+
+
+async def test_handoff_event_carries_outcome_and_platform() -> None:
+    """Долю сломанных уходов считают по этим двум полям — оба должны доехать в meta."""
+    users = _FakeUsers()
+    events = FakeEvents()
+    searches = FakeSearches()
+    service = UserActivityService(users, events, searches)
+
+    await service.register_handoff(42, HandoffOutcome.TRY, "ios")
+    await service.register_handoff(42, HandoffOutcome.STUCK, "ios")
+
+    assert events.added == [
+        (42, EventKind.HANDOFF, "try:ios"),
+        (42, EventKind.HANDOFF, "stuck:ios"),
+    ]
 
 
 async def test_paywall_event_without_movie() -> None:

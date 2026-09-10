@@ -341,6 +341,18 @@ export const api = {
       body: JSON.stringify({ query, found }),
     }),
 
+  /**
+   * Уход в чат за видео: `try` — нажали кнопку, `stuck` — секунда прошла, а мы всё ещё
+   * на экране. Только фронт знает, послушался ли нативный клиент Telegram; из этих двух
+   * счётчиков по платформам и складывается доля сломанных уходов. Шлём фоном.
+   */
+  trackHandoff: (outcome: "try" | "stuck", platform: string) =>
+    request<void>("/api/events/handoff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ outcome, platform }),
+    }),
+
   /** Тумблер рассылок о новинках (Фаза 12): включить/выключить для текущего юзера. */
   setNotifications: (enabled: boolean) =>
     request<{ notifications_enabled: boolean }>("/api/me/notifications", {
