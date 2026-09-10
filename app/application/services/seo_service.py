@@ -23,6 +23,7 @@ from datetime import datetime
 from app.domain.catalog.categories import Category, get_category
 from app.domain.catalog.daily import TZ
 from app.domain.entities.movie import Movie
+from app.domain.seo.hubs import Hub
 from app.domain.seo.keywords import (
     BRAND,
     BRAND_ALIASES,
@@ -31,7 +32,7 @@ from app.domain.seo.keywords import (
     CATEGORY_TAGS,
     NAME_SUFFIXES,
 )
-from app.domain.seo.landing import landing_for
+from app.domain.seo.landing import FaqItem, faq_for
 from app.domain.seo.slug import movie_slug
 
 # Предел meta description (Google показывает ~155–160 символов — длиннее просто обрежется).
@@ -99,8 +100,8 @@ class MovieSeo:
 
 
 @dataclass(frozen=True, slots=True)
-class CategorySeo:
-    """Готовые строки для посадочной страницы категории `/catalog/<slug>`."""
+class HubSeo:
+    """Готовые строки для страницы-хаба `/catalog/<slug>` (раздел, подборка или год)."""
 
     slug: str
     path: str                 # /catalog/<slug>
@@ -112,6 +113,8 @@ class CategorySeo:
     heading_ru: str           # та же тема по-русски — видимый подзаголовок
     intro: str                # лид-абзац (kk + ru)
     tags: list[str] = field(default_factory=list)
+    faq: list[FaqItem] = field(default_factory=list)   # видимый блок «вопрос — ответ»
+    faq_jsonld: str = "{}"    # FAQPage тем же содержимым (см. `landing.FAQ_TEMPLATES`)
     jsonld: str = "{}"
     crumbs: list[Crumb] = field(default_factory=list)
     crumbs_jsonld: str = "{}"
@@ -187,23 +190,21 @@ class SeoBuilder:
             crumbs_jsonld=self._crumbs_jsonld(crumbs),
         )
 
-    def category_seo(
-        self, category: Category, count: int = 0, page_suffix: str = ""
-    ) -> CategorySeo:
-        """Посадочная страница раздела: H1/текст под ШИРОКИЙ запрос, а не под название фильма.
+    def hub_seo(self, hub: Hub, count: int = 0, page_suffix: str = "") -> HubSeo:
+        """Мета страницы-хаба: H1/текст под ШИРОКИЙ запрос, а не под название фильма.
 
-        Тексты — данные (`domain/seo/landing.py`), включая дефолт для категории без записи.
+        Одна сборка на раздел, подборку и год: различаются они только текстами и правилом
+        отбора, а те приходят готовыми в `Hub` (`domain/seo/hubs`). Тексты разделов —
+        данные (`landing.py`), включая дефолт для категории без записи.
 
         `page_suffix` — хвост номера страницы (`Pagination.title_suffix`). Место под него
         вычитается из лимита ДО обрезки: иначе на длинной категории номер срезало бы
         вместе с брендом, и у всех страниц пагинации оказался бы один и тот же <title> —
         то есть дубли в выдаче.
         """
-        landing = landing_for(category)
-        heading, heading_ru, intro = landing.heading_kk, landing.heading_ru, landing.intro
+        heading, heading_ru, intro = hub.heading_kk, hub.heading_ru, hub.intro
 
-        path = f"/catalog/{category.slug}"
-        canonical = f"{self._site}{path}"
+        canonical = f"{self._site}{hub.path}"
         title_tag = _clip(f"{heading} — {heading_ru} | {BRAND}", 65 - len(page_suffix))
         title_tag += page_suffix
 
@@ -212,29 +213,61 @@ class SeoBuilder:
         amount = f" Каталогта {count} фильм." if count else ""
         desc = _clip(f"{heading_ru}.{amount} {intro}", _DESC_MAX)
 
-        keywords = ", ".join(self._category_keywords(category, heading, heading_ru))
-        tags = _unique([heading, heading_ru, *CATEGORY_TAGS.get(category.slug, ())])[:10]
+        # Ключи раздела строятся из справочника категорий, у подборки и года их нет —
+        # там спрос описан своими тегами в самом хабе.
+        category = get_category(hub.category) if hub.category is not None else None
+        if category is not None:
+            kw = self._category_keywords(category, heading, heading_ru)
+            tags = _unique([heading, heading_ru, *CATEGORY_TAGS.get(category.slug, ())])[:10]
+            crumb_name = category.title_kk
+        else:
+            kw = _unique([heading, heading_ru, *hub.tags, *BROAD_TAGS, BRAND])[:_KEYWORDS_MAX]
+            tags = _unique([heading_ru, *hub.tags])[:10]
+            crumb_name = heading
 
-        crumbs = [Crumb("Каталог", "/catalog"), Crumb(category.title_kk)]
+        faq = faq_for(heading_ru, count)
+        crumbs = [Crumb("Каталог", "/catalog"), Crumb(crumb_name)]
 
-        return CategorySeo(
-            slug=category.slug,
-            path=path,
+        return HubSeo(
+            slug=hub.slug,
+            path=hub.path,
             canonical_url=canonical,
             title_tag=title_tag,
             description=desc,
-            keywords=keywords,
+            keywords=", ".join(kw),
             heading=heading,
             heading_ru=heading_ru,
             intro=intro,
             tags=tags,
+            faq=faq,
+            faq_jsonld=self._faq_jsonld(faq),
             jsonld="{}",  # проставляет роутер: список фильмов знает он, а не сборщик мета
             crumbs=crumbs,
             crumbs_jsonld=self._crumbs_jsonld(crumbs),
         )
 
+    def _faq_jsonld(self, faq: list[FaqItem]) -> str:
+        """FAQPage тем же содержимым, что видит человек.
+
+        ⚠️ Разметка обязана повторять ВИДИМЫЙ текст: скрытый от пользователя FAQ Google
+        считает нарушением и снимает разметку целиком. Поэтому источник один — `faq`.
+        """
+        data = {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": item.question,
+                    "acceptedAnswer": {"@type": "Answer", "text": item.answer},
+                }
+                for item in faq
+            ],
+        }
+        return _escape_for_script(json.dumps(data, ensure_ascii=False, separators=(",", ":")))
+
     def site_jsonld(self) -> str:
-        """Разметка самого сайта: как он называется и КАК ЕЩЁ его пишут.
+        """Разметка самого сайта: как он называется, как его ещё пишут и где искать.
 
         `alternateName` — штатный способ сказать Google «казак синема», «qazaq cinema»
         и «казакша кино» — это тот же сайт. В отличие от `meta keywords` (Google их
@@ -258,6 +291,18 @@ class SeoBuilder:
             "url": self._site,
             "inLanguage": ["kk", "ru"],
             "publisher": {"@id": f"{self._site}/#org"},
+            # Поле поиска по сайту прямо в сниппете. Работает только если по URL из
+            # `urlTemplate` реально отдаётся страница результатов — она и отдаётся
+            # (`/catalog?q=`, серверный поиск). Разметка без живого поиска — заявка,
+            # которую Google проверяет и молча игнорирует.
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{self._site}/catalog?q={{search_term_string}}",
+                },
+                "query-input": "required name=search_term_string",
+            },
         }
         data = {"@context": "https://schema.org", "@graph": [organization, website]}
         return _escape_for_script(json.dumps(data, ensure_ascii=False, separators=(",", ":")))

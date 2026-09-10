@@ -8,7 +8,8 @@ Google не индексирует SPA Mini App (контент рисует JS 
   GET /m/<id>-<slug>   — страница фильма (canonical-редирект, если хвост slug не совпал)
   GET /catalog         — хаб-каталог: разделы + страница карточек (`?page=N`)
   GET /catalog?q=…     — результаты поиска: та же страница под `noindex, follow`
-  GET /catalog/<slug>  — посадочная страница раздела (широкие запросы + 2-й уровень связей)
+  GET /catalog/<slug>  — страница-хаб: раздел (`kids`), подборка (`new`, `popular`)
+                         или год (`2024`) — широкие запросы + 2-й уровень связей
   GET /sitemap.xml     — карта сайта (главная + хабы со всеми их страницами + все фильмы)
   GET /robots.txt      — разрешение обхода + ссылка на sitemap
 
@@ -45,10 +46,18 @@ from fastapi.templating import Jinja2Templates
 
 from app.application.ports.storage import thumb_url
 from app.application.services.catalog_service import SEO_PAGE_SIZE, CatalogService
-from app.application.services.seo_service import CategorySeo, MovieSeo, SeoBuilder
+from app.application.services.seo_service import HubSeo, MovieSeo, SeoBuilder
 from app.config.settings import AppConfig
 from app.domain.catalog.categories import Category, get_category
 from app.domain.entities.movie import Movie
+from app.domain.seo.hubs import (
+    COLLECTIONS,
+    Hub,
+    collection_hub,
+    indexable_years,
+    parse_year,
+    resolve_hub,
+)
 from app.domain.seo.pagination import Pagination, page_count, paginate
 
 
@@ -92,12 +101,56 @@ def _category_links(counts: Sequence[tuple[str, int]]) -> list[_CategoryLink]:
     """Непустые разделы со счётчиками. Порядок задаёт сервис (каноничный по справочнику).
 
     Слаг, которого нет в справочнике, ссылки не получает — вести его некуда (страницы
-    такого раздела не существует, `category_page` отдаст 404).
+    такого раздела не существует, `hub_page` отдаст 404).
     """
     return [
         _CategoryLink(category, f"{_CATALOG_PATH}/{slug}", count)
         for slug, count in counts
         if (category := get_category(slug)) is not None
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class _Shelf:
+    """Врезка подборки на чужой странице: подпись, ссылка «все» и несколько карточек."""
+
+    title: str
+    path: str
+    items: list[_CatalogItem]
+
+
+async def _shelves(
+    catalog: CatalogService, seo: SeoBuilder, *, exclude: str | None = None
+) -> list[_Shelf]:
+    """Врезки «Жаңа түскен» и «Танымал» для перелинковки.
+
+    Смысл — ссылки, а не витрина: врезка короткая и ведёт на страницу подборки, откуда
+    краулер уходит дальше по её пагинации. Текущую страницу из врезок исключаем — на
+    `/catalog/new` блок «новинки» был бы тем же списком дважды.
+    """
+    shelves: list[_Shelf] = []
+    for collection in COLLECTIONS.values():
+        if collection.slug == exclude:
+            continue
+        hub = collection_hub(collection)
+        items = [
+            _CatalogItem(m, seo.movie_seo(m))
+            for m in await catalog.seo_shelf(hub)
+            if m.id is not None
+        ]
+        if items:
+            shelves.append(_Shelf(title=collection.shelf_kk, path=hub.path, items=items))
+    return shelves
+
+
+def _year_links(
+    year_counts: dict[int, int], *, exclude: str | None = None
+) -> list[tuple[str, str]]:
+    """Ссылки на страницы годов: (подпись, путь). Только годы, у которых страница есть."""
+    return [
+        (str(year), f"{_CATALOG_PATH}/{year}")
+        for year in indexable_years(year_counts)
+        if str(year) != exclude
     ]
 
 
@@ -115,22 +168,29 @@ async def _paged(
     catalog: CatalogService,
     seo: SeoBuilder,
     *,
-    category: str | None,
+    hub: Hub | None,
     path: str,
     page: int,
-) -> tuple[list[_CatalogItem], Pagination]:
-    """Срез хаба + его пагинация. Страница за последней — 404 (пустых страниц не отдаём)."""
-    slice_ = await catalog.seo_page(category=category, page=page)
+) -> tuple[list[_CatalogItem], Pagination, int]:
+    """Срез хаба + пагинация + total. Страница за последней — 404 (пустых не отдаём)."""
+    slice_ = await catalog.seo_page(hub=hub, page=page)
     pager = paginate(path=path, page=page, total=slice_.total, size=slice_.limit)
     if page > pager.pages:
         raise HTTPException(status_code=404, detail="page out of range")
     items = [_CatalogItem(m, seo.movie_seo(m)) for m in slice_.items if m.id is not None]
-    return items, pager
+    return items, pager, slice_.total
 
 
-def _canonical_page(request: Request, path: str, page: int) -> RedirectResponse | None:
-    """301 с `?page=1` на чистый URL: один документ обязан иметь один адрес."""
+def _page_gate(request: Request, path: str, page: int) -> RedirectResponse | None:
+    """Канонизация номера страницы: мусор → 404, `?page=1` → 301 на чистый URL.
+
+    404, а не ошибка валидации: `?page=0` — это «такой страницы нет», и в отчётах
+    Search Console оно должно выглядеть именно так, а не как сбой сервера.
+    """
+    if page < 1:
+        raise HTTPException(status_code=404, detail="page out of range")
     if page == 1 and request.query_params.get("page") is not None:
+        # Один документ обязан иметь один адрес, иначе это дубль чистого URL.
         return RedirectResponse(url=path, status_code=301)
     return None
 
@@ -165,6 +225,17 @@ async def movie_page(
         if m.id is not None
     ]
 
+    # Ссылки-выходы со страницы: год выпуска и подборки. Карточек тут не рисуем — их
+    # место в блоке похожих; страница фильма набирает ссылки, а не вес.
+    #
+    # Год становится ссылкой только если его страница существует (порог
+    # `hubs.YEAR_MIN_MOVIES`): ссылка на 404 хуже отсутствия ссылки.
+    year_path: str | None = None
+    if movie.year is not None:
+        counts = await catalog.year_counts()
+        if movie.year in indexable_years(counts):
+            year_path = f"{_CATALOG_PATH}/{movie.year}"
+
     return _TEMPLATES.TemplateResponse(
         request,
         "movie.html",
@@ -172,6 +243,10 @@ async def movie_page(
             "movie": movie,
             "seo": meta,
             "related": related,
+            "year_path": year_path,
+            "collections": [
+                (c.heading_kk, collection_hub(c).path) for c in COLLECTIONS.values()
+            ],
             "site_url": config.public_origin.rstrip("/"),
         },
     )
@@ -183,7 +258,7 @@ async def catalog_page(
     catalog: FromDishka[CatalogService],
     seo: FromDishka[SeoBuilder],
     config: FromDishka[AppConfig],
-    page: int = Query(1, ge=1),
+    page: int = Query(1),
     q: str = Query("", max_length=100),
 ) -> Response:
     """Хаб-каталог: разделы + страница карточек. С `?q=` — результаты серверного поиска.
@@ -210,16 +285,25 @@ async def catalog_page(
             _CatalogItem(m, seo.movie_seo(m)) for m in found[:_SEARCH_LIMIT] if m.id is not None
         ]
         # `noindex, follow`: страницу в индекс не пускаем, но ссылки с неё краулер
-        # обходит — карточки фильмов от этого только выигрывают.
+        # обходит — карточки фильмов от этого только выигрывают. Врезки и годы здесь
+        # тоже ни к чему: человек ищет конкретное, а ссылки краулер собирает с хабов.
         return _TEMPLATES.TemplateResponse(
             request,
             "catalog.html",
-            {**common, "items": items, "pager": None, "robots": "noindex, follow", "jsonld": ""},
+            {
+                **common,
+                "items": items,
+                "pager": None,
+                "robots": "noindex, follow",
+                "jsonld": "",
+                "shelves": [],
+                "years": [],
+            },
         )
 
-    if (redirect := _canonical_page(request, _CATALOG_PATH, page)) is not None:
+    if (redirect := _page_gate(request, _CATALOG_PATH, page)) is not None:
         return redirect
-    items, pager = await _paged(catalog, seo, category=None, path=_CATALOG_PATH, page=page)
+    items, pager, _ = await _paged(catalog, seo, hub=None, path=_CATALOG_PATH, page=page)
 
     return _TEMPLATES.TemplateResponse(
         request,
@@ -230,58 +314,74 @@ async def catalog_page(
             "pager": pager,
             "robots": "index, follow, max-image-preview:large",
             "jsonld": _catalog_jsonld(site, items, pager),
+            # Врезки и годы — только на первой странице: на второй они дают те же ссылки
+            # ещё раз, а вес добавляют каждой.
+            "shelves": await _shelves(catalog, seo) if pager.page == 1 else [],
+            "years": _year_links(await catalog.year_counts()) if pager.page == 1 else [],
         },
     )
 
 
 @router.get("/catalog/{slug}", response_class=HTMLResponse)
-async def category_page(
+async def hub_page(
     slug: str,
     request: Request,
     catalog: FromDishka[CatalogService],
     seo: FromDishka[SeoBuilder],
     config: FromDishka[AppConfig],
-    page: int = Query(1, ge=1),
+    page: int = Query(1),
 ) -> Response:
-    """Посадочная страница раздела.
+    """Страница-хаб: раздел, подборка или год — один обработчик на все три.
 
-    Существует ради широких запросов («мультики для детей на казахском»): по ним карточка
-    отдельного фильма ранжироваться не может — нужна страница, которая целиком про эту тему.
-    Побочно даёт второй уровень перелинковки: каталог → раздел → фильм.
+    Существует ради широких запросов («мультики для детей на казахском», «новинки на
+    казахском», «мультфильмы 2024»): по ним карточка отдельного фильма ранжироваться не
+    может — нужна страница, которая целиком про эту тему. Побочно даёт второй уровень
+    перелинковки: каталог → хаб → фильм.
+
+    Какой именно хаб живёт по слагу, решает `domain/seo/hubs.resolve_hub` — там же порог,
+    ниже которого год страницы не получает. Счётчики годов запрашиваем ТОЛЬКО когда слаг
+    похож на год: разделам и подборкам этот запрос ни к чему.
     """
-    category = get_category(slug)
-    if category is None:
-        raise HTTPException(status_code=404, detail="category not found")
+    year_counts = await catalog.year_counts() if parse_year(slug) is not None else {}
+    hub = resolve_hub(slug, year_counts=year_counts)
+    if hub is None:
+        raise HTTPException(status_code=404, detail="hub not found")
 
-    path = f"{_CATALOG_PATH}/{slug}"
-    if (redirect := _canonical_page(request, path, page)) is not None:
+    if (redirect := _page_gate(request, hub.path, page)) is not None:
         return redirect
 
-    counts = await catalog.category_counts()
-    total = dict(counts).get(slug, 0)
-    # Пустой раздел страницы не получает: тонкая страница без контента только вредит
+    items, pager, total = await _paged(catalog, seo, hub=hub, path=hub.path, page=page)
+    # Пустой хаб страницы не получает: тонкая страница без контента только вредит
     # (и в sitemap она тоже не попадёт — там тот же фильтр по непустым).
     if not total:
-        raise HTTPException(status_code=404, detail="category is empty")
+        raise HTTPException(status_code=404, detail="hub is empty")
 
-    items, pager = await _paged(catalog, seo, category=slug, path=path, page=page)
-    meta = seo.category_seo(category, count=total, page_suffix=pager.title_suffix)
+    meta = seo.hub_seo(hub, count=total, page_suffix=pager.title_suffix)
+    counts = await catalog.category_counts()
+    site = config.public_origin.rstrip("/")
 
     return _TEMPLATES.TemplateResponse(
         request,
-        "category.html",
+        "hub.html",
         {
             "items": items,
             "pager": pager,
-            # Счётчик в подписи — по ВСЕМУ разделу, а не по видимым карточкам: иначе
+            # Счётчик в подписи — по ВСЕМУ хабу, а не по видимым карточкам: иначе
             # на второй странице «186 фильм» превратилось бы в «48 фильм».
             "total": total,
             "seo": meta,
             "siblings": [c for c in _category_links(counts) if c.category.slug != slug],
-            "site_url": config.public_origin.rstrip("/"),
+            "site_url": site,
             "bot_username": config.bot.username.lstrip("@"),
-            "jsonld": _category_jsonld(config.public_origin.rstrip("/"), meta, items, pager),
+            "jsonld": _hub_jsonld(site, meta, items, pager),
             "site_jsonld": seo.site_jsonld(),
+            # Врезки и годы — только на первой странице (см. `catalog_page`).
+            "shelves": await _shelves(catalog, seo, exclude=slug) if pager.page == 1 else [],
+            "years": (
+                _year_links(year_counts or await catalog.year_counts(), exclude=slug)
+                if pager.page == 1
+                else []
+            ),
         },
     )
 
@@ -319,8 +419,19 @@ async def sitemap(
     # Google узнаёт о новых URL быстрее всего.
     urls += _pagination_entries(f"{site}{_CATALOG_PATH}", len(movies), _newest(movies))
 
+    # Подборки — тот же каталог в другом порядке, поэтому `lastmod` у них общий с ним,
+    # и меняются они с каждым новым фильмом (`changefreq` daily, как у каталога).
+    for collection in COLLECTIONS.values():
+        hub = collection_hub(collection)
+        urls.append(
+            _url_entry(
+                f"{site}{hub.path}", priority="0.9", changefreq="daily", lastmod=_newest(movies)
+            )
+        )
+        urls += _pagination_entries(f"{site}{hub.path}", len(movies), _newest(movies))
+
     # Разделы идут ВЫШЕ карточек (0.9): по широким запросам ранжируются именно они.
-    # Только непустые — ровно те, что реально отдают 200 (см. `category_page`).
+    # Только непустые — ровно те, что реально отдают 200 (см. `hub_page`).
     for slug, count in await catalog.category_counts():
         if get_category(slug) is None:
             continue
@@ -331,6 +442,17 @@ async def sitemap(
             _url_entry(f"{site}{path}", priority="0.9", changefreq="weekly", lastmod=lastmod)
         )
         urls += _pagination_entries(f"{site}{path}", count, lastmod)
+
+    # Годы: только те, что прошли порог `hubs.YEAR_MIN_MOVIES` — ровно те, что отдают 200.
+    # Приоритет ниже разделов: спрос на «мультфильмы <год>» уже разделов по теме.
+    year_counts = await catalog.year_counts()
+    for year in indexable_years(year_counts):
+        path = f"{_CATALOG_PATH}/{year}"
+        lastmod = _newest([m for m in movies if m.year == year])
+        urls.append(
+            _url_entry(f"{site}{path}", priority="0.8", changefreq="monthly", lastmod=lastmod)
+        )
+        urls += _pagination_entries(f"{site}{path}", year_counts[year], lastmod)
 
     for movie in movies:
         if movie.id is None:
@@ -449,8 +571,8 @@ def _catalog_jsonld(site: str, items: list[_CatalogItem], pager: Pagination) -> 
     )
 
 
-def _category_jsonld(
-    site: str, meta: CategorySeo, items: list[_CatalogItem], pager: Pagination
+def _hub_jsonld(
+    site: str, meta: HubSeo, items: list[_CatalogItem], pager: Pagination
 ) -> str:
     """CollectionPage с вложенным ItemList — «это раздел, и вот что в нём»."""
     return _as_script(

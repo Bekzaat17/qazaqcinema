@@ -1,0 +1,24 @@
+{# Врезки подборок («Жаңа түскен», «Танымал») — перелинковка на страницы подборок.
+
+   Блок короткий намеренно: его задача — дать ссылки, а не показать вторую витрину.
+   Заголовок каждой врезки сам ведёт на подборку, откуда краулер уходит дальше по её
+   пагинации. Рисуется только на первой странице хаба (см. роутер). #}
+{% for shelf in shelves %}
+<section class="shelf">
+  <h2><a href="{{ shelf.path }}">{{ shelf.title }} <span class="more">барлығы →</span></a></h2>
+  <div class="grid">
+    {% for it in shelf.items %}
+    <a class="card" href="{{ it.seo.path }}">
+      <img src="{{ site_url }}{{ it.movie.poster_url | thumb }}" alt="{{ it.seo.heading }}"
+           width="140" height="210" loading="lazy" decoding="async" />
+      <div class="t">{{ it.seo.heading }}</div>
+      <div class="s">
+        {%- if it.movie.year %}{{ it.movie.year }}{% endif -%}
+        {%- if it.movie.year and it.movie.rating is not none %} · {% endif -%}
+        {%- if it.movie.rating is not none %}★ {{ "%.1f"|format(it.movie.rating) }}{% endif -%}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}

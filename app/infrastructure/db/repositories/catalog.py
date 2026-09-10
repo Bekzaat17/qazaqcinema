@@ -184,6 +184,16 @@ class PgMovieRepository:
         result = await self._session.scalars(stmt)
         return [_movie_to_domain(model) for model in result]
 
+    @staticmethod
+    def _popularity() -> ColumnElement[Any]:
+        """Балл популярности: просмотры И избранное с весами домена.
+
+        Одно выражение на полку «Танымал» и на страницу-хаб `/catalog/popular` — две
+        копии формулы разошлись бы, и «популярное» в двух местах значило бы разное.
+        Буквально повторяет чистую `popularity_score` (она покрыта тестом без БД).
+        """
+        return MovieModel.play_count * PLAY_WEIGHT + MovieModel.favorites_count * FAVORITE_WEIGHT
+
     async def list_popular(self, limit: int) -> list[Movie]:
         """Полка «Танымал»: по баллу популярности, затем рейтингу, затем новизне.
 
@@ -195,13 +205,10 @@ class PgMovieRepository:
         Одним ORDER BY покрываем холодный старт: пока оба счётчика по нулям, сортировка
         проваливается на rating (NULLS LAST — без оценки в конец), затем на id.
         """
-        score = (
-            MovieModel.play_count * PLAY_WEIGHT + MovieModel.favorites_count * FAVORITE_WEIGHT
-        )
         stmt = (
             select(MovieModel)
             .order_by(
-                score.desc(),
+                self._popularity().desc(),
                 MovieModel.rating.desc().nulls_last(),
                 MovieModel.id.desc(),
             )
@@ -218,8 +225,9 @@ class PgMovieRepository:
         direction: SortDir,
         limit: int,
         offset: int,
+        year: int | None = None,
     ) -> tuple[list[Movie], int]:
-        """Страница каталога: фильтр по категориям (мультивыбор) + сортировка + пагинация.
+        """Страница каталога: фильтры (категории, год) + сортировка + пагинация.
 
         `categories` пустой → без фильтра. `sort` — белый список колонок (сырой строки в SQL
         нет). Вторым ключом идёт `id DESC` — стабильный тай-брейк, иначе OFFSET-страницы
@@ -235,6 +243,7 @@ class PgMovieRepository:
             # Новизна = id: он монотонный, а `created_at` у строк одной заливки совпадает
             # до секунды — сортировка по нему «плыла» бы между страницами.
             "newest": MovieModel.id,
+            "popular": self._popularity(),
         }[sort]
         primary = column.asc() if direction == "asc" else column.desc()
         if sort in ("rating", "year"):
@@ -246,6 +255,11 @@ class PgMovieRepository:
         order_by: list[ColumnElement[Any]] = [primary]
         if sort != "newest":
             order_by.append(MovieModel.id.desc())
+        if sort == "popular":
+            # На холодном старте балл у всех нулевой, и страницы «популярного» стали бы
+            # просто каталогом. Оценка вторым ключом даёт осмысленный порядок сразу
+            # (NULLS LAST — без оценки в конец), как на полке «Танымал».
+            order_by.insert(1, MovieModel.rating.desc().nulls_last())
 
         stmt = select(MovieModel)
         count_stmt = select(func.count()).select_from(MovieModel)
@@ -254,6 +268,9 @@ class PgMovieRepository:
             # к одной из выбранных категорий (мультикатегорийность × мультивыбор чипов).
             stmt = stmt.where(MovieModel.categories.overlap(categories))
             count_stmt = count_stmt.where(MovieModel.categories.overlap(categories))
+        if year is not None:
+            stmt = stmt.where(MovieModel.year == year)
+            count_stmt = count_stmt.where(MovieModel.year == year)
         stmt = stmt.order_by(*order_by).limit(limit).offset(offset)
 
         result = await self._session.scalars(stmt)
@@ -271,6 +288,16 @@ class PgMovieRepository:
         stmt = select(unnested.c.slug, func.count()).group_by(unnested.c.slug)
         result = await self._session.execute(stmt)
         return {slug: int(count) for slug, count in result.all()}
+
+    async def year_counts(self) -> dict[int, int]:
+        """Число фильмов по годам выпуска. Строки без года не считаем — страницы у них нет."""
+        stmt = (
+            select(MovieModel.year, func.count())
+            .where(MovieModel.year.is_not(None))
+            .group_by(MovieModel.year)
+        )
+        result = await self._session.execute(stmt)
+        return {int(year): int(count) for year, count in result.all()}
 
     async def list_related(
         self, *, categories: list[str], exclude_id: int, limit: int

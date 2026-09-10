@@ -677,3 +677,68 @@ async def test_list_page_sorted_by_newest_puts_the_last_added_first(
 
     assert total == 4
     assert [m.title_kk for m in items] == ["Ни одной", "Две общие", "Одна общая", "Текущий"]
+
+
+# ── фильтр по году и порядок «популярное» ──────────────────────────────────────
+async def _seed_years(session: AsyncSession) -> PgMovieRepository:
+    repo = PgMovieRepository(session)
+    for title, year in (("A", 2024), ("B", 2024), ("C", 2023), ("D", None)):
+        movie = _movie(title, "disney", f"fid-{title}")
+        movie.year = year
+        await repo.add(movie)
+    return repo
+
+
+async def test_list_page_filters_by_year(session: AsyncSession) -> None:
+    repo = await _seed_years(session)
+
+    items, total = await repo.list_page(
+        categories=[], sort="newest", direction="desc", limit=10, offset=0, year=2024
+    )
+
+    assert total == 2
+    assert {m.title_kk for m in items} == {"A", "B"}
+
+
+async def test_year_counts_skips_movies_without_a_year(session: AsyncSession) -> None:
+    """Страницы «без года» не существует — в счётчики такие строки попадать не должны."""
+    repo = await _seed_years(session)
+
+    assert await repo.year_counts() == {2024: 2, 2023: 1}
+
+
+async def test_list_page_by_popularity_puts_the_most_played_first(
+    session: AsyncSession,
+) -> None:
+    repo = PgMovieRepository(session)
+    quiet = await repo.add(_movie("Тихий", "disney", "fid-q"))
+    loud = await repo.add(_movie("Смотрят", "disney", "fid-l"))
+    assert loud.id is not None
+    for _ in range(3):
+        await repo.increment_play_count(loud.id)
+
+    items, _ = await repo.list_page(
+        categories=[], sort="popular", direction="desc", limit=10, offset=0
+    )
+
+    titles = [m.title_kk for m in items]
+    assert titles[0] == "Смотрят"
+    assert quiet.title_kk in titles
+
+
+async def test_popular_order_falls_back_to_rating_on_a_cold_start(
+    session: AsyncSession,
+) -> None:
+    """Пока счётчики по нулям, «популярное» не должно быть просто каталогом."""
+    repo = PgMovieRepository(session)
+    unrated = _movie("Без оценки", "disney", "fid-1")
+    rated = _movie("С оценкой", "disney", "fid-2")
+    rated.rating = 9.0
+    await repo.add(unrated)
+    await repo.add(rated)
+
+    items, _ = await repo.list_page(
+        categories=[], sort="popular", direction="desc", limit=10, offset=0
+    )
+
+    assert [m.title_kk for m in items] == ["С оценкой", "Без оценки"]

@@ -9,7 +9,13 @@ import pytest
 from app.application.services.seo_service import SeoBuilder
 from app.domain.catalog.categories import CATEGORIES, Category, get_category
 from app.domain.entities.movie import Movie
+from app.domain.seo.hubs import COLLECTIONS, category_hub, collection_hub, year_hub
 from app.domain.seo.slug import movie_slug, slugify, transliterate
+
+
+def _unescape(raw: str) -> str:
+    """В JSON-LD `< > &` экранированы под встраивание в <script> — вернуть как было."""
+    return raw.replace("\\u003c", "<").replace("\\u003e", ">").replace("\\u0026", "&")
 
 
 def _movie(**kw: object) -> Movie:
@@ -141,16 +147,13 @@ def test_visible_tags_curated_and_bounded() -> None:
 
 def test_jsonld_has_keywords_property() -> None:
     meta = _seo().movie_seo(_movie())
-    raw = meta.jsonld.replace("\\u003c", "<").replace("\\u003e", ">").replace("\\u0026", "&")
-    data = json.loads(raw)
+    data = json.loads(_unescape(meta.jsonld))
     assert "keywords" in data and "қазақша" in data["keywords"]
 
 
 def test_jsonld_is_valid_movie_schema() -> None:
     meta = _seo().movie_seo(_movie())
-    # В JSON-LD < > & экранированы под встраивание в <script> — сначала разэкранируем.
-    raw = meta.jsonld.replace("\\u003c", "<").replace("\\u003e", ">").replace("\\u0026", "&")
-    data = json.loads(raw)
+    data = json.loads(_unescape(meta.jsonld))
     assert data["@type"] == "Movie"
     assert data["name"] == "Шрек қазақша"
     assert "Shrek" in data["alternateName"]
@@ -172,18 +175,17 @@ def test_movie_without_id_rejected() -> None:
 
 def test_rating_absent_omits_aggregate_rating() -> None:
     meta = _seo().movie_seo(_movie(rating=None))
-    raw = meta.jsonld.replace("\\u003c", "<").replace("\\u003e", ">").replace("\\u0026", "&")
-    assert "aggregateRating" not in json.loads(raw)
+    assert "aggregateRating" not in json.loads(_unescape(meta.jsonld))
 
 
-# ── посадочные страницы разделов ──────────────────────────────────────────────
-def test_category_seo_targets_broad_query_in_both_languages() -> None:
+# ── страницы-хабы: разделы, подборки, годы ────────────────────────────────────
+def test_category_hub_targets_broad_query_in_both_languages() -> None:
     """H1 — казахский, русская формулировка того же спроса обязана быть на странице.
 
     Смысл раздела: по «мультики для детей на казахском» карточка фильма ранжироваться
     не может, нужна страница, чей заголовок и текст — про этот запрос.
     """
-    meta = _seo().category_seo(get_category("kids"), count=12)  # type: ignore[arg-type]
+    meta = _seo().hub_seo(category_hub(get_category("kids")), count=12)  # type: ignore[arg-type]
 
     assert meta.path == "/catalog/kids"
     assert meta.canonical_url == "https://qazaqcinema.kz/catalog/kids"
@@ -193,10 +195,10 @@ def test_category_seo_targets_broad_query_in_both_languages() -> None:
     assert "12" in meta.description  # размер раздела попадает в сниппет
 
 
-def test_category_seo_falls_back_for_category_without_landing_text() -> None:
+def test_category_hub_falls_back_for_category_without_landing_text() -> None:
     """Новая категория в справочнике не должна оставаться без посадочного текста."""
     fresh = Category("horror", "Ужасы", "Қорқынышты")
-    meta = _seo().category_seo(fresh)
+    meta = _seo().hub_seo(category_hub(fresh))
 
     assert meta.heading == "Қорқынышты қазақша"
     assert meta.heading_ru == "Ужасы на казахском языке"
@@ -204,11 +206,67 @@ def test_category_seo_falls_back_for_category_without_landing_text() -> None:
     assert "QazaqCinema" in meta.keywords
 
 
-def test_category_seo_description_fits_google_snippet() -> None:
-    for slug in CATEGORIES:
-        meta = _seo().category_seo(CATEGORIES[slug], count=5)
-        assert len(meta.description) <= 160, slug
-        assert len(meta.title_tag) <= 65, slug
+def test_every_hub_description_fits_google_snippet() -> None:
+    """Лимиты сниппета проверяем на ВСЕХ видах хабов, а не только на разделах."""
+    hubs = (
+        [category_hub(CATEGORIES[slug]) for slug in CATEGORIES]
+        + [collection_hub(c) for c in COLLECTIONS.values()]
+        + [year_hub(2024)]
+    )
+    for hub in hubs:
+        meta = _seo().hub_seo(hub, count=5)
+        assert len(meta.description) <= 160, hub.slug
+        assert len(meta.title_tag) <= 65, hub.slug
+
+
+def test_collection_hub_keywords_come_from_its_own_tags() -> None:
+    """У подборки категории нет — спрос описан её тегами, иначе ключи были бы пустыми."""
+    meta = _seo().hub_seo(collection_hub(COLLECTIONS["new"]), count=50)
+
+    assert "новинки на казахском" in meta.keywords
+    assert "QazaqCinema" in meta.keywords
+
+
+def test_year_hub_keywords_name_the_year() -> None:
+    meta = _seo().hub_seo(year_hub(2024), count=12)
+
+    assert "2024" in meta.keywords
+    assert "2024" in meta.title_tag
+
+
+# ── блок «вопрос — ответ» ─────────────────────────────────────────────────────
+def test_hub_faq_is_filled_and_mentions_the_page_topic() -> None:
+    meta = _seo().hub_seo(category_hub(get_category("kids")), count=186)  # type: ignore[arg-type]
+
+    assert meta.faq
+    assert any("Мультики для детей" in item.question for item in meta.faq)
+    assert any("186" in item.answer for item in meta.faq)
+
+
+def test_faq_markup_repeats_the_visible_text() -> None:
+    """⚠️ Скрытый от пользователя FAQ Google считает нарушением и снимает разметку."""
+    meta = _seo().hub_seo(category_hub(get_category("anime")), count=7)  # type: ignore[arg-type]
+    data = json.loads(_unescape(meta.faq_jsonld))
+
+    assert data["@type"] == "FAQPage"
+    questions = [q["name"] for q in data["mainEntity"]]
+    answers = [q["acceptedAnswer"]["text"] for q in data["mainEntity"]]
+    assert questions == [item.question for item in meta.faq]
+    assert answers == [item.answer for item in meta.faq]
+
+
+# ── поиск по сайту в сниппете ─────────────────────────────────────────────────
+def test_site_jsonld_declares_a_working_search_endpoint() -> None:
+    """SearchAction обязан указывать на живую страницу результатов — иначе это заявка ни о чём."""
+    data = json.loads(_unescape(_seo().site_jsonld()))
+    website = next(n for n in data["@graph"] if n["@type"] == "WebSite")
+    action = website["potentialAction"]
+
+    assert action["@type"] == "SearchAction"
+    assert action["target"]["urlTemplate"] == (
+        "https://qazaqcinema.kz/catalog?q={search_term_string}"
+    )
+    assert action["query-input"] == "required name=search_term_string"
 
 
 # ── хлебные крошки ────────────────────────────────────────────────────────────
@@ -302,10 +360,9 @@ def test_site_jsonld_links_website_to_its_publisher() -> None:
 def test_category_pages_get_distinct_titles() -> None:
     """Один <title> на все страницы раздела — это дубли в выдаче."""
     category = get_category("kids")
-    first = _seo().category_seo(category, count=186)  # type: ignore[arg-type]
-    second = _seo().category_seo(  # type: ignore[arg-type]
-        category, count=186, page_suffix=" — 2-бет"
-    )
+    hub = category_hub(category)  # type: ignore[arg-type]
+    first = _seo().hub_seo(hub, count=186)
+    second = _seo().hub_seo(hub, count=186, page_suffix=" — 2-бет")
 
     assert first.title_tag != second.title_tag
     assert second.title_tag.endswith(" — 2-бет")
@@ -316,11 +373,9 @@ def test_page_number_survives_the_title_clip() -> None:
 
     «kids» — как раз такая: её заголовок не влезает в лимит целиком даже без номера.
     """
-    long_named = get_category("kids")
+    long_named = category_hub(get_category("kids"))  # type: ignore[arg-type]
 
-    meta = _seo().category_seo(  # type: ignore[arg-type]
-        long_named, count=186, page_suffix=" — 10-бет"
-    )
+    meta = _seo().hub_seo(long_named, count=186, page_suffix=" — 10-бет")
 
     assert "10-бет" in meta.title_tag
     assert len(meta.title_tag) <= 65
@@ -328,9 +383,9 @@ def test_page_number_survives_the_title_clip() -> None:
 
 def test_first_page_title_is_unchanged_by_the_suffix_rule() -> None:
     """Пустой суффикс не должен ничего сдвигать: первая страница живёт как жила."""
-    category = get_category("anime")
+    hub = category_hub(get_category("anime"))  # type: ignore[arg-type]
 
     assert (
-        _seo().category_seo(category, count=5).title_tag  # type: ignore[arg-type]
-        == _seo().category_seo(category, count=5, page_suffix="").title_tag  # type: ignore[arg-type]
+        _seo().hub_seo(hub, count=5).title_tag
+        == _seo().hub_seo(hub, count=5, page_suffix="").title_tag
     )

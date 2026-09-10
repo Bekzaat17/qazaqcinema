@@ -24,8 +24,8 @@ from app.domain.entities.user import User
 
 # Сортировка каталога — контракт между роутером, сервисом и репозиторием.
 # Значения — белый список: репозиторий маппит их в колонки, сырую строку в SQL не пускаем.
-# newest→по новизне (id): порядок публичных SEO-страниц, где свежее должно быть выше.
-SortField = Literal["year", "rating", "views", "newest"]
+# newest→по новизне (id), popular→по баллу популярности (тот же, что у полки «Танымал»).
+SortField = Literal["year", "rating", "views", "newest", "popular"]
 SortDir = Literal["asc", "desc"]
 
 
@@ -56,8 +56,22 @@ class MovieRepository(Protocol):
         direction: SortDir,
         limit: int,
         offset: int,
-    ) -> tuple[list[Movie], int]: ...
+        year: int | None = None,
+    ) -> tuple[list[Movie], int]:
+        """Страница витрины по фильтрам и сортировке + total тем же фильтром.
+
+        `year` — год выпуска (страницы-хабы вида `/catalog/2024`); None → без фильтра.
+        """
+        ...
     async def category_counts(self) -> dict[str, int]: ...
+    async def year_counts(self) -> dict[int, int]:
+        """Сколько фильмов в каждом году выпуска. Один `GROUP BY`, без строк.
+
+        Нужен и страницам `/catalog/<год>` (существует ли такая), и их перечислению в
+        sitemap. Фильмы без года в счётчики не попадают: страницы «без года» нет.
+        """
+        ...
+
     async def list_related(
         self, *, categories: list[str], exclude_id: int, limit: int
     ) -> list[Movie]:

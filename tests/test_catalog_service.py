@@ -12,13 +12,22 @@ from app.application.services.catalog_service import (
     CATALOG_PAGE_MAX,
     HOME_SHELF_LIMIT,
     SEO_PAGE_SIZE,
+    SEO_SHELF_LIMIT,
     CatalogService,
 )
 from app.application.services.daily_service import DailyMovieService
 from app.domain.catalog.daily import day_index, free_until
 from app.domain.entities.movie import Movie
+from app.domain.seo.hubs import Hub, resolve_hub
 
 _NOW = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
+
+
+def _hub(slug: str, years: dict[int, int] | None = None) -> Hub:
+    """Хаб по слагу — как его получил бы роутер (справочник тот же)."""
+    hub = resolve_hub(slug, year_counts=years or {})
+    assert hub is not None, slug
+    return hub
 
 
 def _movie(mid: int, *, created_at: datetime | None = None) -> Movie:
@@ -46,6 +55,7 @@ class _FakeMovies:
         page: tuple[list[Movie], int] = ([], 0),
         counts: dict[str, int] | None = None,
         related: list[Movie] | None = None,
+        years: dict[int, int] | None = None,
     ) -> None:
         self._pool = pool or ([hero] if hero is not None else [])
         self._recent = recent or []
@@ -53,6 +63,7 @@ class _FakeMovies:
         self._page = page
         self._counts = counts or {}
         self._related = related or []
+        self._years = years or {}
         self.list_page_args: dict[str, object] = {}
         self.related_args: dict[str, object] = {}
 
@@ -81,7 +92,14 @@ class _FakeMovies:
         return self._popular[:limit]
 
     async def list_page(
-        self, *, categories: list[str], sort: str, direction: str, limit: int, offset: int
+        self,
+        *,
+        categories: list[str],
+        sort: str,
+        direction: str,
+        limit: int,
+        offset: int,
+        year: int | None = None,
     ) -> tuple[list[Movie], int]:
         self.list_page_args = {
             "categories": categories,
@@ -89,11 +107,15 @@ class _FakeMovies:
             "direction": direction,
             "limit": limit,
             "offset": offset,
+            "year": year,
         }
         return self._page
 
     async def category_counts(self) -> dict[str, int]:
         return self._counts
+
+    async def year_counts(self) -> dict[int, int]:
+        return self._years
 
     async def list_related(
         self, *, categories: list[str], exclude_id: int, limit: int
@@ -287,26 +309,63 @@ async def test_seo_page_asks_for_a_bounded_slice_not_the_whole_catalog() -> None
     """Страница-хаб читает СВОЙ срез: иначе её вес растёт с каждым залитым фильмом."""
     repo = _FakeMovies(page=([_movie(1)], 500))
 
-    await _service(repo).seo_page(category=None, page=3)
+    await _service(repo).seo_page(hub=None, page=3)
 
     assert repo.list_page_args["limit"] == SEO_PAGE_SIZE
     assert repo.list_page_args["offset"] == 2 * SEO_PAGE_SIZE
     assert repo.list_page_args["categories"] == []
 
 
-async def test_seo_page_of_a_category_filters_by_it() -> None:
+async def test_seo_page_of_a_category_hub_filters_by_it() -> None:
     repo = _FakeMovies(page=([_movie(1)], 1))
 
-    await _service(repo).seo_page(category="kids", page=1)
+    await _service(repo).seo_page(hub=_hub("kids"), page=1)
 
     assert repo.list_page_args["categories"] == ["kids"]
+    assert repo.list_page_args["year"] is None
+
+
+async def test_seo_page_of_a_year_hub_filters_by_year() -> None:
+    repo = _FakeMovies(page=([_movie(1)], 1), years={2024: 10})
+
+    await _service(repo).seo_page(hub=_hub("2024", years={2024: 10}), page=1)
+
+    assert repo.list_page_args["year"] == 2024
+    assert repo.list_page_args["categories"] == []
+
+
+async def test_popular_hub_asks_for_the_popularity_order() -> None:
+    """«Популярное» осмысленно только в своём порядке — иначе это просто каталог."""
+    repo = _FakeMovies(page=([_movie(1)], 1))
+
+    await _service(repo).seo_page(hub=_hub("popular"), page=1)
+
+    assert repo.list_page_args["sort"] == "popular"
+
+
+async def test_new_hub_keeps_the_catalog_order() -> None:
+    repo = _FakeMovies(page=([_movie(1)], 1))
+
+    await _service(repo).seo_page(hub=_hub("new"), page=1)
+
+    assert repo.list_page_args["sort"] == "newest"
+
+
+async def test_seo_shelf_is_short_and_starts_from_the_top() -> None:
+    """Врезка — перелинковка, а не вторая витрина: несколько карточек с первой страницы."""
+    repo = _FakeMovies(page=([_movie(1), _movie(2)], 200))
+
+    await _service(repo).seo_shelf(_hub("new"))
+
+    assert repo.list_page_args["limit"] == SEO_SHELF_LIMIT
+    assert repo.list_page_args["offset"] == 0
 
 
 async def test_seo_page_order_is_stable_across_pages() -> None:
     """Порядок «плывёт» → фильм перекладывается между ?page=2 и ?page=3 между обходами."""
     repo = _FakeMovies(page=([], 0))
 
-    await _service(repo).seo_page(category=None, page=1)
+    await _service(repo).seo_page(hub=None, page=1)
 
     assert repo.list_page_args["sort"] == "newest"
     assert repo.list_page_args["direction"] == "desc"

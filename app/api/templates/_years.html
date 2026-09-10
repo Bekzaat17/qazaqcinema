@@ -1,0 +1,10 @@
+{# Ссылки на страницы годов выпуска. В списке только те годы, у которых страница реально
+   есть (порог `hubs.YEAR_MIN_MOVIES`) — ссылка на 404 хуже отсутствия ссылки. #}
+{% if years %}
+<section class="tags">
+  <h2>Шыққан жылы бойынша</h2>
+  <div class="sections">
+    {% for label, path in years %}<a class="sec" href="{{ path }}">{{ label }}</a>{% endfor %}
+  </div>
+</section>
+{% endif %}

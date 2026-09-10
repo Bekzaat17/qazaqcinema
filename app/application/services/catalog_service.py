@@ -15,6 +15,7 @@ from app.application.services.daily_service import DailyMovieService
 from app.domain.catalog.categories import CATEGORIES
 from app.domain.catalog.daily import free_until
 from app.domain.entities.movie import Movie
+from app.domain.seo.hubs import Hub, HubOrder
 
 # Сколько фильмов на полке главной (последние N; полка «Танымал» — топ N по просмотрам).
 HOME_SHELF_LIMIT = 14
@@ -27,6 +28,16 @@ CATALOG_PAGE_MAX = 48
 # делают страницу тяжелее с каждым новым фильмом — при этом ничего не добавляя индексации:
 # ссылки на остальное краулер получает через страницы пагинации, которые все есть в sitemap.
 SEO_PAGE_SIZE = 48
+# Сколько карточек в врезке «Жаңа түскен»/«Танымал» на чужой странице. Врезка — это
+# перелинковка, а не второй каталог: она добавляет ссылок, не удваивая вес страницы.
+SEO_SHELF_LIMIT = 6
+
+# Порядок хаба (данные домена) → сортировка репозитория. Домен про колонки БД не знает,
+# поэтому сопоставление живёт здесь; новый порядок = строка тут и значение в `HubOrder`.
+_HUB_SORT: dict[HubOrder, SortField] = {
+    HubOrder.NEWEST: "newest",
+    HubOrder.POPULAR: "popular",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,8 +113,9 @@ class CatalogService:
         direction: SortDir,
         page: int,
         limit: int,
+        year: int | None = None,
     ) -> BrowsePage:
-        """Страница каталога по фильтру/сортировке. Клампы (page≥1, limit≤MAX) — здесь."""
+        """Страница каталога по фильтрам/сортировке. Клампы (page≥1, limit≤MAX) — здесь."""
         limit = max(1, min(limit, CATALOG_PAGE_MAX))
         page = max(1, page)
         items, total = await self._movies.list_page(
@@ -112,6 +124,7 @@ class CatalogService:
             direction=direction,
             limit=limit,
             offset=(page - 1) * limit,
+            year=year,
         )
         return BrowsePage(items=items, total=total, page=page, limit=limit)
 
@@ -142,20 +155,41 @@ class CatalogService:
         """
         return await self._movies.list_all()
 
-    async def seo_page(self, *, category: str | None, page: int) -> BrowsePage:
-        """Срез публичной SEO-страницы: свежие выше, фиксированный размер, total для пагинации.
+    async def seo_page(self, *, hub: Hub | None, page: int) -> BrowsePage:
+        """Срез публичной SEO-страницы: фиксированный размер + total для пагинации.
 
-        Порядок `newest` — не косметика: страницы пагинации живут по постоянным URL, и
-        сортировка, которая «плывёт» (по просмотрам, по рейтингу), перекладывала бы фильмы
-        между `?page=2` и `?page=3` между обходами краулера.
+        `hub` None — сам хаб-каталог `/catalog` (без фильтров, свежее выше).
+
+        Порядок у большинства хабов `newest`, и это не косметика: страницы пагинации живут
+        по постоянным URL, а сортировка, которая «плывёт» (по просмотрам, по рейтингу),
+        перекладывала бы фильмы между `?page=2` и `?page=3` между обходами краулера.
+        Подборка «популярное» — осознанное исключение: её смысл ровно в этом порядке, а
+        собственных URL у карточек она не отбирает (у каждой есть своя страница).
         """
         return await self.browse(
-            categories=[category] if category is not None else [],
-            sort="newest",
+            categories=[hub.category] if hub is not None and hub.category else [],
+            sort="newest" if hub is None else _HUB_SORT[hub.order],
             direction="desc",
             page=page,
             limit=SEO_PAGE_SIZE,
+            year=hub.year if hub is not None else None,
         )
+
+    async def seo_shelf(self, hub: Hub, limit: int = SEO_SHELF_LIMIT) -> list[Movie]:
+        """Короткая врезка хаба для перелинковки с чужой страницы (первые `limit` карточек)."""
+        items, _ = await self._movies.list_page(
+            categories=[hub.category] if hub.category else [],
+            sort=_HUB_SORT[hub.order],
+            direction="desc",
+            limit=limit,
+            offset=0,
+            year=hub.year,
+        )
+        return items
+
+    async def year_counts(self) -> dict[int, int]:
+        """Сколько фильмов в каждом году выпуска — какие годы получают свою страницу."""
+        return await self._movies.year_counts()
 
     async def related(self, movie: Movie, limit: int) -> list[Movie]:
         """Похожие по категориям — блок перелинковки в подвале страницы фильма.

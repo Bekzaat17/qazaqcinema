@@ -95,6 +95,8 @@
         font-size: 0.82rem; color: var(--muted); padding: 5px 11px; border-radius: 999px;
         background: var(--card); border: 1px solid var(--line);
       }
+      /* Тег-ссылка отличается от тега-подписи: по первому можно перейти. */
+      .tag.link { color: var(--fg); }
       footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
         color: var(--muted); font-size: 0.85rem; display: flex; gap: 16px; flex-wrap: wrap; }
       /* Телефон. Постер и текст рядом сюда не помещаются: под обложку уходит половина
@@ -140,7 +142,10 @@
           {% endif %}
 
           <div class="meta">
-            {% if movie.year %}<span class="chip">{{ movie.year }}</span>{% endif %}
+            {%- if movie.year %}
+            {% if year_path %}<a class="chip" href="{{ year_path }}">{{ movie.year }}</a>
+            {% else %}<span class="chip">{{ movie.year }}</span>{% endif %}
+            {%- endif %}
             {% if movie.rating is not none %}<span class="chip star">★ {{ "%.1f"|format(movie.rating) }}</span>{% endif %}
             {% for cat in seo.categories %}
             <a class="chip" href="/catalog/{{ cat.slug }}">{{ cat.title_kk }}</a>
@@ -173,6 +178,17 @@
                  width="120" height="180" loading="lazy" decoding="async" />
             <div class="t">{{ it.seo.heading }}</div>
           </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if collections %}
+      <section class="tags">
+        <h2>Тағы қараңыз</h2>
+        <div class="taglist">
+          {% for title, path in collections %}
+          <a class="tag link" href="{{ path }}">{{ title }}</a>
           {% endfor %}
         </div>
       </section>
