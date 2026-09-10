@@ -1,57 +1,41 @@
-{# Панель фильтров: порядок, раздел и год — в одном месте, сразу под заголовком.
+{# Фильтры двумя компактными рядами — так же, как в Mini App: чипы разделов и строка
+   сортировки. Панель с выпадающими списками занимала больше места, чем давала пользы.
 
-   Каждый фильтр — обычная ССЫЛКА на свой хаб (`/catalog/new`, `/catalog/kids`,
-   `/catalog/2024`), а не поле формы: у каждого состояния должен быть свой постоянный
-   адрес — иначе ни поделиться им, ни проиндексировать. Активный вариант подсвечен и
-   ссылкой не является (некуда вести).
+   Каждый вариант — ССЫЛКА на свой хаб (`/catalog`, `/catalog/kids`, `/catalog/new`),
+   а не поле формы: у каждого состояния должен быть свой постоянный адрес, иначе им ни
+   поделиться, ни проиндексировать. Текущий вариант помечен и ссылкой не является.
 
-   ⚠️ Работает без JS: фильтры — ссылки, длинные ряды прокручиваются CSS-ом, список годов
-   раскрывается `<details>`. #}
-<section class="filters" aria-label="Сүзгілер">
-  <div class="frow">
-    <span class="flabel">Реті</span>
-    <div class="chips">
-      <a class="chip {{ 'on' if not active }}" href="/catalog">Барлығы</a>
-      {% for slug, title in orders %}
-      {% if slug == active %}
-      <span class="chip on" aria-current="page">{{ title }}</span>
-      {% else %}
-      <a class="chip" href="/catalog/{{ slug }}">{{ title }}</a>
-      {% endif %}
-      {% endfor %}
-    </div>
-  </div>
+   Года здесь нет: двадцать один вариант в такой ряд не влезает ни на одном телефоне.
+   Страницы годов при этом существуют — на них ведёт год на карточке фильма и sitemap.
 
-  {% if categories %}
-  <div class="frow">
-    <span class="flabel">Бөлімдер</span>
-    <div class="chips">
-      {% for c in categories %}
-      {% if c.category.slug == active %}
-      <span class="chip on" aria-current="page">{{ c.category.title_kk }} <b>{{ c.count }}</b></span>
-      {% else %}
-      <a class="chip" href="{{ c.path }}">{{ c.category.title_kk }} <b>{{ c.count }}</b></a>
-      {% endif %}
-      {% endfor %}
-    </div>
-  </div>
+   ⚠️ Оба ряда прокручиваются по горизонтали CSS-ом, без JS. #}
+<nav class="catrow" aria-label="Бөлімдер">
+  {% if active_category %}
+  <a class="chip" href="/catalog">Барлығы</a>
+  {% else %}
+  <span class="chip on" aria-current="page">Барлығы</span>
   {% endif %}
-
-  {% if years %}
-  <div class="frow">
-    <span class="flabel">Жылы</span>
-    {# Годов бывает два десятка. Не переносим их на пять строк и не прячем в выпадашку
-       (та на узком экране вылезает за край) — ряд прокручивается по горизонтали, как
-       полка: свежие годы, на которые и есть спрос, видны сразу. #}
-    <div class="chips years">
-      {% for label, path in years %}
-      {% if label == active %}
-      <span class="chip on" aria-current="page">{{ label }}</span>
-      {% else %}
-      <a class="chip" href="{{ path }}">{{ label }}</a>
-      {% endif %}
-      {% endfor %}
-    </div>
-  </div>
+  {% for c in categories %}
+  {% if c.category.slug == active %}
+  <span class="chip on" aria-current="page">{{ c.category.title_kk }} <b>{{ c.count }}</b></span>
+  {% else %}
+  <a class="chip" href="{{ c.path }}">{{ c.category.title_kk }} <b>{{ c.count }}</b></a>
   {% endif %}
-</section>
+  {% endfor %}
+</nav>
+
+<div class="sortrow">
+  <span class="sortlabel">Сұрыптау</span>
+  {% if active_order %}
+  <a class="sort" href="{{ base_path }}">Әдепкі</a>
+  {% else %}
+  <span class="sort on" aria-current="page">Әдепкі</span>
+  {% endif %}
+  {% for slug, title in orders %}
+  {% if slug == active %}
+  <span class="sort on" aria-current="page">{{ title }}</span>
+  {% else %}
+  <a class="sort" href="/catalog/{{ slug }}">{{ title }}</a>
+  {% endif %}
+  {% endfor %}
+</div>

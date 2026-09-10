@@ -37,6 +37,8 @@
         --muted: #90909c;
         --accent: #e11d48;
         --accent-soft: rgba(225, 29, 72, 0.14);
+        /* Синий из логотипа: в нём «Qazaq» светлый, а «Cinema» — вот этот тон. */
+        --logo-blue: #1fb3f0;
         --radius: 12px;
         --radius-lg: 18px;
         --shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
@@ -78,7 +80,7 @@
       .brand { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
       .brand img { width: 30px; height: 30px; border-radius: 8px; display: block; }
       .brand b { font-weight: 800; font-size: 1.02rem; letter-spacing: -0.02em; }
-      .brand b i { color: var(--accent); font-style: normal; }
+      .brand b i { color: var(--logo-blue); font-style: normal; }
       .search { display: flex; gap: 8px; margin-left: auto; min-width: 0; flex: 0 1 380px; }
       .search input {
         flex: 1; min-width: 0; padding: 9px 13px; border-radius: 10px; font: inherit;
@@ -103,7 +105,9 @@
         font-size: clamp(1.45rem, 3.6vw, 2.15rem); line-height: 1.14; margin: 0 0 7px;
       }
       .head .sub { color: var(--dim); font-size: 1.01rem; margin: 0 0 12px; font-weight: 500; }
-      .head .lead { color: var(--muted); max-width: 68ch; margin: 0; font-size: 0.94rem; }
+      /* Лид идёт во всю ширину: в 68ch он занимал половину экрана и рвался на пять
+         строк — колонка текста рядом с пустотой читается как недоделанная вёрстка. */
+      .head .lead { color: var(--muted); margin: 0; font-size: 0.95rem; max-width: 104ch; }
       .head .count {
         display: inline-block; margin-top: 14px; padding: 4px 11px; border-radius: 999px;
         background: var(--accent-soft); border: 1px solid rgba(225, 29, 72, 0.3);
@@ -180,24 +184,36 @@
       }
       .chip.on b { color: rgba(255, 255, 255, 0.75); }
 
-      /* ── Панель фильтров ─────────────────────────────────────────────────── */
-      .filters {
-        background: var(--bg-2); border: 1px solid var(--line);
-        border-radius: var(--radius-lg); padding: 4px 16px; margin: 0 0 28px;
+      /* ── Фильтры: как в Mini App ──────────────────────────────────────────
+         Два компактных ряда вместо панели с выпадашками: чипы разделов (прокрутка по
+         горизонтали, активный залит) и строка сортировки текстовыми кнопками без рамок.
+         Занимает две строки высотой, а не пол-экрана до первой карточки.
+
+         Года в фильтрах нет намеренно: двадцать один вариант не помещается в такой ряд
+         ни на одном телефоне. Страницы годов остались — на них ведёт год на карточке
+         фильма и sitemap. */
+      .catrow {
+        display: flex; gap: 8px; overflow-x: auto; padding: 0 0 4px; margin: 0 0 10px;
+        scrollbar-width: none;
       }
-      .frow { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; }
-      .frow + .frow { border-top: 1px solid var(--line); }
-      .flabel {
-        flex: 0 0 86px; padding-top: 7px; color: var(--muted); font-size: 0.72rem;
-        font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+      .catrow::-webkit-scrollbar { display: none; }
+      .catrow .chip { flex: 0 0 auto; font-size: 0.82rem; padding: 5px 13px; }
+      .sortrow {
+        display: flex; align-items: center; gap: 6px; overflow-x: auto;
+        margin: 0 0 22px; padding-bottom: 2px; scrollbar-width: none;
       }
+      .sortrow::-webkit-scrollbar { display: none; }
+      .sortlabel {
+        flex: 0 0 auto; color: var(--muted); font-size: 0.72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.07em; margin-right: 3px;
+      }
+      .sort {
+        flex: 0 0 auto; font-size: 0.81rem; font-weight: 500; color: var(--muted);
+        padding: 4px 11px; border-radius: 999px; white-space: nowrap;
+      }
+      .sort:hover { color: var(--fg); }
+      .sort.on { background: var(--card); color: var(--fg); font-weight: 600; }
       .chips { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-      /* Годы не переносим на много строк — они уезжают в горизонтальный скролл, а
-         остальные скрыты под «Барлық жылдар». Так панель остаётся одной высоты. */
-      .chips.years { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px;
-        scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
-      .chips.years::-webkit-scrollbar { height: 5px; }
-      .chips.years::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 99px; }
 
       /* ── Листалка ────────────────────────────────────────────────────────── */
       .pager {
@@ -282,15 +298,8 @@
          остаются в разметке для краулера, но не ломают строку на 360 px). */
       @media (max-width: 620px) {
         .wrap { padding: 0 16px 52px; }
-        /* Подпись фильтра встаёт над своими чипами: 86 px слева на телефоне —
-           это четверть ширины экрана, отданная одному слову. */
-        .filters { padding: 2px 14px; border-radius: var(--radius); }
-        .frow { flex-direction: column; gap: 8px; padding: 11px 0; }
-        .flabel { flex: none; padding-top: 0; }
-        .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px;
-          scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
-        .chips::-webkit-scrollbar { height: 5px; }
-        .chips::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 99px; }
+        .catrow { margin-bottom: 8px; }
+        .sortrow { margin-bottom: 18px; }
         .topbar .inner { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
         .search { flex: 1 1 100%; margin-left: 0; }
         .rail { padding-left: 16px; padding-right: 16px; margin: 0 -16px; }

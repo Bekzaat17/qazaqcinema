@@ -150,10 +150,15 @@ def _year_links(year_counts: dict[int, int]) -> list[tuple[str, str]]:
 
 @dataclass(frozen=True, slots=True)
 class _Nav:
-    """Навигация страницы: то, что шаблон рисует одинаково везде."""
+    """Навигация страницы: то, что шаблон рисует одинаково везде.
 
-    orders: list[tuple[str, str]]
+    `active` — слаг текущего хаба. Из него шаблон выводит, какой чип подсветить, а два
+    производных флага отвечают на вопрос «задан ли фильтр в этом измерении»: без них
+    шаблону пришлось бы самому знать, что `new` — это сортировка, а `kids` — раздел.
+    """
+
     categories: list[_CategoryLink]
+    orders: list[tuple[str, str]]
     years: list[tuple[str, str]]
     shelves: list[_Shelf]
     active: str | None
@@ -162,30 +167,39 @@ class _Nav:
     def context(self) -> dict[str, object]:
         """Разложить в контекст шаблона (в Jinja эти имена лежат на верхнем уровне)."""
         return {
-            "orders": self.orders,
             "categories": self.categories,
+            "orders": self.orders,
             "years": self.years,
             "shelves": self.shelves,
             "active": self.active,
+            "active_category": any(c.category.slug == self.active for c in self.categories),
+            "active_order": self.active in COLLECTIONS,
+            # Куда ведёт сброс сортировки: с раздела — назад в раздел, из подборки — в каталог.
+            "base_path": (
+                f"{_CATALOG_PATH}/{self.active}"
+                if any(c.category.slug == self.active for c in self.categories)
+                else _CATALOG_PATH
+            ),
         }
 
 
-async def _nav(catalog: CatalogService, seo: SeoBuilder, *, active: str | None) -> _Nav:
-    """Общая навигация страницы: фильтры (порядок, разделы, годы) + полки подборок.
+async def _nav(
+    catalog: CatalogService, seo: SeoBuilder, *, active: str | None, shelves: bool = False
+) -> _Nav:
+    """Навигация страницы: панель фильтров, а для карточек фильмов — ещё и полки подборок.
 
-    Одинакова на ВСЕХ публичных страницах, включая вторые страницы пагинации и карточки
-    фильмов: человек, пришедший из поиска на `/catalog/kids?page=3`, попадает туда же,
-    куда и на первую, а краулер получает одни и те же связи с любой точки входа.
+    `shelves` включается только там, где полки уместны. На хабах их нет намеренно: хаб
+    сам является списком, и «новинки» под ним — это второй список на той же странице.
+    Карточке фильма, наоборот, нужен выход дальше, и полки там на месте.
 
-    Вес это не удорожает: полки стоят ниже сгиба, их постеры `loading="lazy"`, и браузер
-    не берёт их, пока до полок не доскроллят. `active` — слаг текущего хаба: его чип
-    подсвечивается, а своя подборка из полок убирается (иначе тот же список дважды).
+    `active` — слаг текущего хаба: он подставляется в подписи фильтров, а своя подборка
+    из полок убирается (иначе тот же список дважды).
     """
     return _Nav(
-        orders=[(c.slug, c.shelf_kk) for c in COLLECTIONS.values()],
         categories=_category_links(await catalog.category_counts()),
+        orders=[(c.slug, c.shelf_kk) for c in COLLECTIONS.values()],
         years=_year_links(await catalog.year_counts()),
-        shelves=await _shelves(catalog, seo, exclude=active),
+        shelves=await _shelves(catalog, seo, exclude=active) if shelves else [],
         active=active,
     )
 
@@ -261,7 +275,7 @@ async def movie_page(
         if m.id is not None
     ]
 
-    nav = await _nav(catalog, seo, active=None)
+    nav = await _nav(catalog, seo, active=None, shelves=True)
     # Год выпуска становится ссылкой только если его страница существует (порог
     # `hubs.YEAR_MIN_MOVIES`): ссылка на 404 хуже отсутствия ссылки. Список
     # индексируемых годов уже собран навигацией — второй запрос за ним не нужен.
@@ -334,8 +348,8 @@ async def catalog_page(
                 "jsonld": "",
                 "shelves": [],
                 "categories": [],
-                "years": [],
                 "orders": [],
+                "years": [],
                 "active": None,
             },
         )
