@@ -54,7 +54,7 @@ export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) =
   }
   if (movies === null) {
     return (
-      <div className="grid grid-cols-3 gap-3 px-4 pt-4">
+      <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[2/3] w-full" />
         ))}
@@ -66,7 +66,7 @@ export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) =
   if (visible.length === 0) return <FavoritesEmpty />;
 
   return (
-    <div className="grid grid-cols-3 gap-3 px-4 pt-4">
+    <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
       {visible.map((movie) => (
         <PosterCard key={movie.id} movie={movie} onSelect={onSelect} inShelf={false} />
       ))}

@@ -18,7 +18,7 @@ const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
 
 export default function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-white/5 bg-bg/90 pb-[var(--safe-bottom)] backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-[1024px] border-t border-white/5 bg-bg/90 pb-[var(--safe-bottom)] backdrop-blur-xl">
       {TABS.map(({ id, label, Icon }) => {
         const active = tab === id;
         return (

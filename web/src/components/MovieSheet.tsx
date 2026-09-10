@@ -49,6 +49,7 @@ export default function MovieSheet({
         <div className="flex gap-4">
           <img
             src={movie.poster_url}
+            decoding="async"
             alt={movie.title_kk}
             className="h-40 w-[110px] shrink-0 rounded-[var(--radius-card)] object-cover ring-1 ring-white/10"
           />

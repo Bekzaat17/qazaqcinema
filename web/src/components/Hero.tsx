@@ -5,7 +5,8 @@
 // это кино сегодня можно посмотреть бесплатно. Отсюда и состав блока: бейдж «Бүгін
 // тегін», обратный отсчёт до смены и одна пульсирующая кнопка «Тегін көру».
 //
-// ВЁРСТКА ОДНА, и она рассчитана на единственную картинку фильма — постер 2:3.
+// ВЁРСТКА ОДНА (телефон и десктоп — одни и те же элементы, меняются только размеры),
+// и она рассчитана на единственную картинку фильма — постер 2:3.
 // Широкий баннер больше не собирается (просить у админа вторую картинку к каждому из
 // сотен фильмов — работа, которая ничего не добавляет), поэтому широкую поверхность мы
 // делаем из постера: фоном идёт ТОТ ЖЕ файл, увеличенный и размытый, а поверх лежит его
@@ -37,14 +38,27 @@ export default function Hero({ movie, freeUntil, busy, onSelect, onWatch }: Hero
   const free = freeUntil !== null;
 
   return (
-    <section className="relative isolate aspect-[4/3] max-h-[420px] w-full overflow-hidden">
+    // ⚠️ Высота задана ЯВНО, а не через `aspect-ratio` с `max-height`: это сочетание в
+    // WebKit (Mini App на macOS живёт в WKWebView) считается в нулевую высоту, и блок
+    // пропадает с экрана целиком — единственное место в приложении, где эти два
+    // свойства встречались, было единственным, что «исчезало» на ноутбуке.
+    // `min(75vw, …)` держит пропорцию на телефоне, брейкпоинты — размер на большом
+    // экране, `max-h` в vh страхует невысокое окно (в Desktop оно бывает шире, чем выше,
+    // и блок иначе выталкивает полки за кадр).
+    <section className="relative isolate h-[min(75vw,300px)] max-h-[60vh] w-full overflow-hidden sm:h-[340px] md:h-[380px]">
       {/* Подложка = тот же постер: цвета фильма, но никакой читаемой детали. `scale`
           обязателен — blur размывает и КРАЯ, без наплыва по периметру шли бы полосы. */}
       <img
         src={movie.poster_url}
         alt=""
         aria-hidden
-        className="anim-breathe absolute inset-0 h-full w-full scale-[1.12] object-cover blur-2xl saturate-150"
+        decoding="async"
+        /* `will-change` тут не «на всякий случай»: без него браузер пересчитывает
+           40-пиксельный блюр на КАЖДОМ кадре 22-секундной анимации — на слабом
+           телефоне это постоянная нагрузка, которая читается как «приложение
+           подтормаживает». С ним слой растеризуется один раз и дальше только
+           масштабируется на GPU. */
+        className="anim-breathe absolute inset-0 h-full w-full scale-[1.12] object-cover blur-2xl saturate-150 will-change-transform"
       />
       {/* Контраст текста не зависит от того, насколько светлым оказался постер */}
       <div className="absolute inset-0 bg-bg/55" />
@@ -64,12 +78,14 @@ export default function Hero({ movie, freeUntil, busy, onSelect, onWatch }: Hero
         className="absolute inset-0 z-10"
       />
 
-      <div className="pointer-events-none relative z-20 flex h-full items-center gap-4 px-4">
+      <div className="pointer-events-none relative z-20 flex h-full items-center gap-4 px-4 sm:gap-7 sm:px-8">
         {/* Чёткий постер — «физическая» афиша на световом пятне: кольцо + глубокая тень */}
         <img
           src={movie.poster_url}
           alt={movie.title_kk}
-          className="aspect-[2/3] w-[34%] max-w-[136px] shrink-0 rounded-2xl object-cover shadow-[0_16px_44px_rgb(0_0_0/0.65)] ring-1 ring-white/15"
+          decoding="async"
+          fetchPriority="high"
+          className="aspect-[2/3] w-[34%] max-w-[136px] shrink-0 rounded-2xl object-cover shadow-[0_16px_44px_rgb(0_0_0/0.65)] ring-1 ring-white/15 sm:max-w-[190px]"
         />
         <div className="flex min-w-0 flex-col items-start gap-2">
           {free && (
@@ -78,7 +94,7 @@ export default function Hero({ movie, freeUntil, busy, onSelect, onWatch }: Hero
               Бүгін тегін
             </span>
           )}
-          <h1 className="line-clamp-2 text-[20px] font-extrabold leading-[1.15] tracking-tight text-white drop-shadow-lg">
+          <h1 className="line-clamp-2 text-[20px] font-extrabold leading-[1.15] tracking-tight text-white drop-shadow-lg sm:text-[28px]">
             {movie.title_kk}
           </h1>
           {movie.title_original && (

@@ -17,7 +17,7 @@ export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCa
   return (
     // Звезда — СОСЕД кнопки-карточки, а не её содержимое: <button> внутри <button> —
     // невалидная разметка, и тап по звезде заодно открывал бы карточку.
-    <div className={`relative ${inShelf ? "w-[132px] shrink-0 snap-start" : "w-full"}`}>
+    <div className={`relative ${inShelf ? "w-[132px] shrink-0 snap-start sm:w-[150px]" : "w-full"}`}>
     <button
       onClick={() => {
         haptic.light();
@@ -26,10 +26,16 @@ export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCa
       className="group flex w-full flex-col text-left"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-[var(--radius-card)] bg-surface-2 ring-1 ring-white/5 transition-transform duration-200 group-active:scale-[0.97]">
+        {/* `decoding="async"` — декодировать вне главного потока: на телефоне сетка из
+            24 постеров 600×900 иначе раскодируется рывками прямо в скролле.
+            width/height — пропорции для резерва места (сам размер задаёт CSS). */}
         <img
           src={movie.poster_url}
           alt={movie.title_kk}
           loading="lazy"
+          decoding="async"
+          width={600}
+          height={900}
           className="h-full w-full object-cover"
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />

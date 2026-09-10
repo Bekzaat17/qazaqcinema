@@ -63,7 +63,7 @@ async def browse_movies(
     catalog: FromDishka[CatalogService],
     _user: User = Depends(get_current_user),
     categories: str | None = None,
-    sort: SortField = "year",
+    sort: SortField = "rating",
     direction: SortDir = "desc",
     page: int = 1,
     limit: int = 24,
@@ -73,6 +73,10 @@ async def browse_movies(
     Cache-aside (Redis, короткий TTL): ключ детерминирован по параметрам (категории дедупим и
     сортируем — порядок не влияет). Хит → сырой JSON; промах → БД + кэш. Клампы page/limit — в
     сервисе; сорт-поле/направление — Literal (422 на мусор). Корень префикса `/api/movies`.
+
+    Сортировка по умолчанию — рейтинг (то же, что открыто в Mini App): каталог без
+    параметров должен показывать лучшее, а не последнее залитое. Фильмы без оценки
+    уходят в конец (`nulls_last` в репозитории).
     """
     selected = sorted({c for c in categories.split(",") if c}) if categories else []
     key = f"browse:{','.join(selected) or 'all'}:{sort}:{direction}:{page}:{limit}"

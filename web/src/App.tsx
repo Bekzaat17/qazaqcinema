@@ -309,7 +309,13 @@ export default function App() {
     // Провайдер избранного включаем только когда приложение готово: до авторизации
     // ручка отдала бы 401, а звёзды всё равно некуда рисовать.
     <FavoritesProvider enabled={phase === "ready"}>
-    <div className="min-h-screen bg-bg pb-[calc(72px+var(--safe-bottom))]">
+    {/* Вёрстка рисовалась под телефон и «резиновая» на всю ширину: в Telegram Desktop,
+        особенно в полноэкранном режиме, экран расползался на 1400+ px — три колонки
+        каталога превращались в постеры в пол-экрана, а hero — в пустую широкую полосу.
+        Колонка ограничена и центрирована: пропорции те же, что на телефоне, а лишнюю
+        ширину разбирают брейкпоинты внутри (сетки дают больше колонок, hero — крупнее
+        постер и заголовок). */}
+    <div className="mx-auto min-h-screen w-full max-w-[1024px] bg-bg pb-[calc(72px+var(--safe-bottom))]">
       <TopBar status={status} onProfile={() => setProfileOpen(true)} />
 
       {phase === "ready" && tab === "home" && (
@@ -439,7 +445,7 @@ function SearchResults({
 }) {
   if (searching && results.length === 0) {
     return (
-      <div className="grid grid-cols-3 gap-3 px-4 pt-4">
+      <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[2/3] w-full" />
         ))}
@@ -450,7 +456,7 @@ function SearchResults({
   if (failed) return <SearchFailed onRetry={onRetry} />;
   if (results.length === 0) return <SearchEmpty query={query} />;
   return (
-    <div className="grid grid-cols-3 gap-3 px-4 pt-4">
+    <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
       {results.map((movie) => (
         <PosterCard key={movie.id} movie={movie} onSelect={onSelect} inShelf={false} />
       ))}

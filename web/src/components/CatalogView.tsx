@@ -1,6 +1,7 @@
 // Страница-каталог: липкая шапка (чипы-категории мультивыбор + сортировка) → сетка
-// постеров 3-в-ряд → бесконечная подгрузка при скролле. Всю выборку/пагинацию делает
-// бэкенд (`/api/movies`), фронт лишь рисует и гасит гонки страниц монотонным reqId.
+// постеров (3 колонки на телефоне, до 6 на широком экране) → бесконечная подгрузка при
+// скролле. Всю выборку/пагинацию делает бэкенд (`/api/movies`), фронт лишь рисует и
+// гасит гонки страниц монотонным reqId.
 
 import { ArrowDown, ArrowUp, Loader2, SearchX } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -14,16 +15,22 @@ import { LoadError } from "./States";
 
 const PAGE_SIZE = 24;
 
+// Порядок чипов = порядок пользы. Первый он же и выбран по умолчанию.
 const SORTS: { field: SortField; label: string }[] = [
-  { field: "year", label: "Жылы" },
   { field: "rating", label: "Рейтинг" },
+  { field: "year", label: "Жылы" },
   { field: "views", label: "Қаралым" },
 ];
 
 export default function CatalogView({ onSelect }: { onSelect: (movie: Movie) => void }) {
   const [cats, setCats] = useState<CategoryCount[]>([]);
   const [selected, setSelected] = useState<string[]>([]); // пусто = все категории
-  const [sort, setSort] = useState<SortField>("year");
+  // По умолчанию — рейтинг: человек, впервые открывший каталог, должен увидеть лучшее
+  // из того, что у нас есть, а не самое недавно добавленное. Новинки у него и так на
+  // главной («Жаңа түскен»), а год выпуска сам по себе ничего не обещает — свежий фильм
+  // с оценкой 4.5 плохой первый экран каталога. Фильмы без оценки уходят в конец
+  // (`nulls_last` в репозитории), так что дыр в начале списка не будет.
+  const [sort, setSort] = useState<SortField>("rating");
   const [direction, setDirection] = useState<SortDir>("desc");
 
   const [items, setItems] = useState<Movie[]>([]);
@@ -142,7 +149,7 @@ export default function CatalogView({ onSelect }: { onSelect: (movie: Movie) => 
       {error && items.length === 0 ? (
         <LoadError onRetry={() => void load(1)} />
       ) : loading && items.length === 0 ? (
-        <div className="grid grid-cols-3 gap-3 px-4 pt-4">
+        <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
           {Array.from({ length: 9 }).map((_, i) => (
             <Skeleton key={i} className="aspect-[2/3] w-full" />
           ))}
@@ -151,7 +158,7 @@ export default function CatalogView({ onSelect }: { onSelect: (movie: Movie) => 
         <FilterEmpty />
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3 px-4 pt-4">
+          <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
             {items.map((movie) => (
               <PosterCard key={movie.id} movie={movie} onSelect={onSelect} inShelf={false} />
             ))}
