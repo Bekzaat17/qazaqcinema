@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from datetime import date, datetime
 
-from sqlalchemy import ColumnElement, func, select, update
+from sqlalchemy import ColumnElement, and_, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -186,6 +186,38 @@ class PgUserRepository:
         )
         await self._session.execute(stmt)
         await self._session.commit()
+
+    def _reminder_conditions(self, now: datetime) -> list[ColumnElement[bool]]:
+        """Общие отсечения обоих недельных напоминаний — в одном месте, чтобы не разъехались.
+
+        Подписчик выбора не имеет (см. `_resolve_gift`), отключивший рассылки не просил
+        писать, а без открытого чата письмо не дойдёт вовсе — в очередь такие адресаты
+        попадать не должны, иначе worker будет жечь лимиты на заведомых отказах.
+        """
+        active = and_(
+            UserModel.status == UserStatus.ACTIVE.value,
+            UserModel.expires_at.is_not(None),
+            UserModel.expires_at > now,
+        )
+        return [
+            UserModel.notifications_enabled.is_(True),
+            UserModel.bot_started_at.is_not(None),
+            ~active,
+        ]
+
+    async def list_weekly_pickers(self, week: date, now: datetime) -> list[int]:
+        stmt = select(UserModel.telegram_id).where(
+            UserModel.weekly_week == week, *self._reminder_conditions(now)
+        )
+        return list(await self._session.scalars(stmt))
+
+    async def list_weekly_idle(self, week: date, now: datetime) -> list[int]:
+        stmt = select(UserModel.telegram_id).where(
+            UserModel.weekly_week.is_not(None),
+            UserModel.weekly_week != week,
+            *self._reminder_conditions(now),
+        )
+        return list(await self._session.scalars(stmt))
 
     async def list_notifiable(self) -> list[int]:
         """telegram_id всех, кто согласен на рассылки о новинках (аудитория рассылки).

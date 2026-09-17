@@ -6,8 +6,9 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
+from app.domain.entities.enums import UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.user import User
 from app.infrastructure.db.repositories import (
@@ -261,3 +262,72 @@ async def test_upsert_does_not_reset_the_weekly_pick(session: AsyncSession) -> N
     user = await users.get(42)
     assert user is not None
     assert (user.weekly_week, user.weekly_movie_id) == (_WEEK, movie_id)
+
+
+# --- кому уходят недельные напоминания ------------------------------------------------
+
+
+async def _reminder_user(
+    session: AsyncSession,
+    telegram_id: int,
+    *,
+    week: date | None = None,
+    status: UserStatus = UserStatus.NEW,
+    expires_at: datetime | None = None,
+    notifications: bool = True,
+    bot_started: bool = True,
+) -> None:
+    users = PgUserRepository(session)
+    await users.upsert(User(telegram_id=telegram_id, status=status, expires_at=expires_at))
+    if week is not None:
+        await users.claim_weekly_pick(telegram_id, 1, week)
+    if bot_started:
+        await users.set_bot_started(telegram_id, _NOW)
+    if not notifications:
+        await users.set_notifications(telegram_id, False)
+
+
+async def test_monday_audience_is_last_weeks_pickers(session: AsyncSession) -> None:
+    """Пишем тем, кто механикой уже пользовался, а не всей базе."""
+    await _reminder_user(session, 1, week=_WEEK)              # брал на прошлой неделе
+    await _reminder_user(session, 2, week=_NEXT_WEEK)         # брал на другой
+    await _reminder_user(session, 3)                          # не брал никогда
+    users = PgUserRepository(session)
+
+    assert await users.list_weekly_pickers(_WEEK, _NOW) == [1]
+
+
+async def test_saturday_audience_skips_those_who_already_picked(session: AsyncSession) -> None:
+    """Напоминание «успейте» — только тем, кто на этой неделе выбор ещё не потратил, и
+    только среди пользовавшихся им раньше: иначе это рассылка всей базе."""
+    await _reminder_user(session, 1, week=_WEEK)        # уже взял на этой неделе
+    await _reminder_user(session, 2, week=_NEXT_WEEK)   # брал, но не на этой
+    await _reminder_user(session, 3)                    # не брал никогда — не трогаем
+    users = PgUserRepository(session)
+
+    assert await users.list_weekly_idle(_WEEK, _NOW) == [2]
+
+
+async def test_reminders_skip_subscribers_muted_and_botless(session: AsyncSession) -> None:
+    """Три отсечения разом: подписчику выбор не нужен, отключивший рассылки не просил
+    писать, а без открытого чата письмо не дойдёт — worker жёг бы лимиты на отказах."""
+    await _reminder_user(
+        session, 1, week=_WEEK, status=UserStatus.ACTIVE, expires_at=_NOW + timedelta(days=5)
+    )
+    await _reminder_user(session, 2, week=_WEEK, notifications=False)
+    await _reminder_user(session, 3, week=_WEEK, bot_started=False)
+    await _reminder_user(session, 4, week=_WEEK)  # единственный годный адресат
+    users = PgUserRepository(session)
+
+    assert await users.list_weekly_pickers(_WEEK, _NOW) == [4]
+
+
+async def test_expired_subscriber_is_still_reminded(session: AsyncSession) -> None:
+    """Истёкшая подписка — не действующая: такому человеку недельный выбор как раз нужен,
+    и он же лучший кандидат вернуться."""
+    await _reminder_user(
+        session, 1, week=_WEEK, status=UserStatus.ACTIVE, expires_at=_NOW - timedelta(days=1)
+    )
+    users = PgUserRepository(session)
+
+    assert await users.list_weekly_pickers(_WEEK, _NOW) == [1]

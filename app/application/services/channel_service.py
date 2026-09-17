@@ -16,8 +16,10 @@ from datetime import datetime
 from app.application.ports.channel import ChannelPost, ChannelPublisher
 from app.application.ports.storage import PosterStorage
 from app.application.services.daily_service import DailyMovieService
+from app.domain.catalog.daily import TZ
 from app.domain.channel.post import render_daily_movie, render_new_movie
 from app.domain.entities.movie import Movie
+from app.domain.subscription.weekly import week_start
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +88,11 @@ class ChannelService:
         if movie is None:
             logger.info("Фильм дня не выбран (каталог пуст) — пост в канал не публикуем")
             return False
+        # Понедельник — день, когда окно недельного выбора открылось заново. Считаем по
+        # тому же `week_start`, что и сам выбор: сойдись они по-разному, канал объявил бы
+        # об открытии не в тот день, когда приложение реально его открыло.
+        renewed = now.astimezone(TZ).date() == week_start(now)
         sent = await self._publisher.publish(
-            self._post(movie, render_daily_movie(movie), _DAILY_BUTTON)
+            self._post(movie, render_daily_movie(movie, weekly_pick_renewed=renewed), _DAILY_BUTTON)
         )
         return sent is not None

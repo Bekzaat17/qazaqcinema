@@ -123,6 +123,26 @@ class UserRepository(Protocol):
     async def upsert(self, user: User) -> User: ...
     async def list_expired(self, now: datetime) -> list[User]: ...
     async def list_notifiable(self) -> list[int]: ...
+
+    async def list_weekly_pickers(self, week: date, now: datetime) -> list[int]:
+        """Кому сказать, что открылась новая неделя: те, кто брал фильм на `week`.
+
+        Именно они, а не «все подряд»: человек уже один раз выбрал — значит механика ему
+        нужна, и напоминание для него не спам. Рассылать всем, кто когда-либо открывал
+        приложение, значило бы еженедельно дёргать людей, которым это неинтересно.
+
+        Отсекаются: подписчики (им выбор не нужен), отключившие рассылки и те, у кого не
+        открыт чат с ботом (письмо им физически не дойдёт).
+        """
+        ...
+
+    async def list_weekly_idle(self, week: date, now: datetime) -> list[int]:
+        """Кому напомнить, что окно закрывается: на `week` выбор не потрачен.
+
+        Но ТОЛЬКО среди тех, кто пользовался им раньше (`weekly_week IS NOT NULL`), — иначе
+        это рассылка всей базе. Те же отсечения, что у `list_weekly_pickers`.
+        """
+        ...
     async def set_notifications(self, telegram_id: int, enabled: bool) -> None: ...
 
     async def set_bot_started(self, telegram_id: int, at: datetime | None) -> None:

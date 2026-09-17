@@ -1,4 +1,4 @@
-"""Фоновый планировщик (apscheduler). Семь задач — все через REQUEST-scope dishka.
+"""Фоновый планировщик (apscheduler). Девять задач — все через REQUEST-scope dishka.
 
 1. `expire_due` (15 мин) — гасит просроченные подписки: ACTIVE → EXPIRED + уведомление +
    чистка выданных видео. Доступ к контенту от этого джоба НЕ зависит (`has_active_access`
@@ -34,6 +34,13 @@
    Идемпотентность — `slot_key` UNIQUE в журнале, поэтому misfire-окно широкое (50 мин):
    бот, перезапущенный в 19:20, опубликует воскресный пост, а не пропустит неделю.
 
+8. `weekly_pick_open` (понедельник 11:00 по Алматы) и 9. `weekly_pick_closing` (суббота
+   11:00) — два письма в неделю про недельный бесплатный выбор: окно открылось и окно
+   скоро закроется. Ровно два и ни одним больше; аудитория у обоих узкая (см.
+   `BroadcastService`) — пишем тем, кто механикой уже пользовался, а не всей базе.
+   11:00, а не 10:00: в 10:00 в канал уходит фильм дня, и два сообщения об одном
+   приложении подряд читаются как спам.
+
 7. `quiz_results` (ежечасно, :00) — разбор закрывшихся квизов: снять кнопки с поста,
    опубликовать ответ и статистику ответом на него. Отдельный джоб от `content_post`
    (другая ответственность), но тот же час: квиз закрывается в 21:00, и разбор уходит
@@ -68,6 +75,7 @@ from dishka import AsyncContainer
 
 from app.application.ports.telegram import AdminsUnreachableError, TelegramNotifier
 from app.application.services.analytics_service import AnalyticsService
+from app.application.services.broadcast_service import BroadcastService
 from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
 from app.application.services.quiz_service import QuizService
@@ -109,6 +117,12 @@ WEEKLY_REPORT_MINUTE = 10
 # и без явной зоны «10:00» пришло бы в 5 утра по Казахстану.
 DAILY_POST_HOUR = 10
 DAILY_POST_MINUTE = 0
+# Недельный выбор: письмо об открытии окна (понедельник) и о его закрытии (суббота).
+# Час общий и НЕ 10:00 — в 10:00 уходит пост про фильм дня, и два сообщения об одном
+# приложении подряд человек читает как спам.
+WEEKLY_PICK_HOUR = 11
+WEEKLY_PICK_OPEN_DAY = "mon"
+WEEKLY_PICK_CLOSING_DAY = "sat"
 
 
 async def _expire_due_job(container: AsyncContainer) -> None:
@@ -208,6 +222,20 @@ async def _daily_channel_post_job(container: AsyncContainer) -> None:
             logger.info("Фильм дня опубликован в канале")
 
 
+async def _weekly_pick_open_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        broadcast = await request_container.get(BroadcastService)
+        if count := await broadcast.notify_weekly_pick_open(datetime.now(UTC)):
+            logger.info("Письмо об открытии недельного выбора: %d адресатов", count)
+
+
+async def _weekly_pick_closing_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        broadcast = await request_container.get(BroadcastService)
+        if count := await broadcast.notify_weekly_pick_closing(datetime.now(UTC)):
+            logger.info("Письмо о закрытии недельного выбора: %d адресатов", count)
+
+
 def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
@@ -295,6 +323,26 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         # Сутки: напоминание раз в год, и пропустить его из-за рестарта бота нельзя —
         # следующего шанса не будет до декабря.
         misfire_grace_time=86400,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _weekly_pick_open_job,
+        CronTrigger(day_of_week=WEEKLY_PICK_OPEN_DAY, hour=WEEKLY_PICK_HOUR, timezone=REPORT_TZ),
+        args=[container],
+        id="weekly_pick_open",
+        # Час: опоздавшее на полдня письмо «жаңа апта» уже не про эту новость, а следующая
+        # неделя наступит и без него. Догонять сутками тут нечего.
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _weekly_pick_closing_job,
+        CronTrigger(day_of_week=WEEKLY_PICK_CLOSING_DAY, hour=WEEKLY_PICK_HOUR, timezone=REPORT_TZ),
+        args=[container],
+        id="weekly_pick_closing",
+        # Тут запас больше: письмо зовёт успеть до воскресенья, и даже к вечеру субботы
+        # оно ещё полезно — в отличие от «жаңа апта», которое к тому времени протухает.
+        misfire_grace_time=21600,
         coalesce=True,
     )
     scheduler.add_job(

@@ -221,3 +221,32 @@ async def test_post_without_bot_username_has_no_button() -> None:
     post = publisher.posts[0]
     assert post.button_url is None
     assert post.button_text is None
+
+
+# --- понедельник: строка про недельный выбор ------------------------------------------
+
+
+def test_weekly_pick_line_is_opt_in_not_default() -> None:
+    """В обычный день поста про недельный выбор нет: строка появляется только в понедельник."""
+    assert "Апталық таңдау" not in render_daily_movie(_movie())
+    assert "Апталық таңдау жаңарды" in render_daily_movie(_movie(), weekly_pick_renewed=True)
+
+
+async def test_monday_post_announces_the_renewed_pick() -> None:
+    """Отдельного поста про это нет намеренно: в понедельник в канале и так три публикации
+    (фильм дня, квиз, разбор), а четвёртая про то же приложение перегрузила бы день."""
+    publisher = _FakePublisher()
+    monday = datetime(2026, 9, 28, 5, 0, tzinfo=UTC)  # 10:00 по Алматы, понедельник
+
+    assert await _service(publisher, _movie()).publish_daily_movie(monday) is True
+    assert "Апталық таңдау жаңарды" in publisher.posts[0].text
+
+
+async def test_other_days_do_not_announce_it() -> None:
+    """Границу считаем тем же `week_start`, что и сам выбор: сойдись они по-разному —
+    канал объявил бы об открытии не в тот день, когда приложение реально его открыло."""
+    publisher = _FakePublisher()
+    sunday = datetime(2026, 9, 27, 5, 0, tzinfo=UTC)
+
+    assert await _service(publisher, _movie()).publish_daily_movie(sunday) is True
+    assert "Апталық таңдау" not in publisher.posts[0].text
