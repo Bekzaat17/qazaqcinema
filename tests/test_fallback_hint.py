@@ -11,16 +11,25 @@ from datetime import UTC, datetime
 
 import pytest
 from aiogram.types import Chat, Message
+from aiogram.types import User as TgUser
 from app.bot.handlers import fallback
+from app.bot.handlers.fallback import should_answer
 from app.bot.setup import build_dispatcher
 from dishka import make_async_container
 
 NOW = datetime(2026, 9, 17, 12, 0, tzinfo=UTC)
 
 
-def _message(chat_type: str) -> Message:
+ADMINS = [77]
+
+
+def _message(chat_type: str = "private", *, user_id: int = 5, text: str | None = None) -> Message:
     return Message(
-        message_id=1, date=NOW, chat=Chat(id=1 if chat_type == "private" else -100, type=chat_type)
+        message_id=1,
+        date=NOW,
+        chat=Chat(id=user_id if chat_type == "private" else -100, type=chat_type),
+        from_user=TgUser(id=user_id, is_bot=False, first_name="Ерлан"),
+        text=text,
     )
 
 
@@ -43,6 +52,9 @@ def test_both_roads_lead_into_the_mini_app(has_attachment: bool) -> None:
         assert label in text, label
     assert "«Қолдау қызметіне жазу»" in text
     assert "10–15 минут" in text
+    # Обе кнопки живут в профиле, и шаг до него обязан стоять ПЕРЕД «Жазылу»: иначе человек
+    # ищет её на витрине и не находит.
+    assert text.index("👤") < text.index("«Жазылу»")
 
 
 async def _passes(chat_type: str, raw_state: str | None) -> bool:
@@ -66,3 +78,11 @@ def test_fallback_is_the_last_router() -> None:
     routers = [router.name for router in build_dispatcher(make_async_container()).sub_routers]
     assert routers[-1] == "fallback"
     assert "start" in routers[:-1] and "add_movie" in routers[:-1]
+
+
+def test_commands_and_admins_get_no_template() -> None:
+    """Шаблон — для подписчика с чеком, а не для чужой команды и не для админа."""
+    assert should_answer(_message(text="Сәлем, төледім"), ADMINS)
+    assert should_answer(_message(text=None), ADMINS)          # фото без подписи — чек
+    assert not should_answer(_message(text="/help"), ADMINS)   # команду лучше не трогать
+    assert not should_answer(_message(user_id=77, text="чек"), ADMINS)  # админу незачем
