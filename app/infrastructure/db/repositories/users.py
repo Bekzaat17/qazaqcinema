@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import ColumnElement, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -27,6 +27,8 @@ def _user_to_domain(model: UserModel) -> User:
         bot_started_at=model.bot_started_at,
         free_view_used_at=model.free_view_used_at,
         free_view_movie_id=model.free_view_movie_id,
+        weekly_week=model.weekly_week,
+        weekly_movie_id=model.weekly_movie_id,
         is_premium=model.is_premium,
     )
 
@@ -65,9 +67,11 @@ class PgUserRepository:
         # `bot_started_at` — тоже НЕ здесь: это внешний факт (нажал /start / заблокировал
         # бота), а не часть карточки юзера. Попади он в upsert — вход в Mini App затирал бы
         # открытый чат в NULL, и человек снова видел бы кнопку «Ботты ашу».
-        # Поля подарка (free_view_*) — по той же причине НЕ здесь ни в values, ни в set_:
-        # их проставляет только атомарный `claim_free_view`. Попади они в upsert — активация
-        # подписки или отказ модератора обнулили бы уже потраченный подарок, раздав второй.
+        # Поля подарка (free_view_*) и недельного выбора (weekly_*) — по той же причине
+        # НЕ здесь ни в values, ни в set_: их проставляет только атомарный claim. Попади они
+        # в upsert — активация подписки или отказ модератора обнулили бы уже потраченный
+        # подарок, раздав второй, а недельный выбор человек получал бы заново после каждого
+        # входа в Mini App.
         # `is_premium` — НАОБОРОТ, здесь и в values, и в set_: это часть карточки, которую
         # Telegram присылает в initData на каждом входе (как `username`), а не внешний факт.
         # Premium покупают и бросают, поэтому свежее значение из подписанного initData
@@ -141,6 +145,44 @@ class PgUserRepository:
             update(UserModel)
             .where(UserModel.telegram_id == telegram_id, UserModel.free_view_movie_id == movie_id)
             .values(free_view_used_at=None, free_view_movie_id=None)
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()
+
+    async def claim_weekly_pick(self, telegram_id: int, movie_id: int, week: date) -> bool:
+        """Забрать недельный выбор. True — забрали мы, False — на эту неделю уже взят.
+
+        `IS DISTINCT FROM`, а не `<>`: у ни разу не выбиравшего в колонке NULL, и обычное
+        сравнение дало бы NULL (то есть «не подошёл») — человек не смог бы выбрать никогда.
+        Проверка и запись одним UPDATE, конкурентов сериализует СУБД: схема «SELECT, потом
+        UPDATE» пропустила бы два одновременных тапа, как и у подарка.
+        """
+        stmt = (
+            update(UserModel)
+            .where(
+                UserModel.telegram_id == telegram_id,
+                UserModel.weekly_week.is_distinct_from(week),
+            )
+            .values(weekly_week=week, weekly_movie_id=movie_id)
+        )
+        claimed = await rowcount(self._session, stmt) == 1
+        await self._session.commit()
+        return claimed
+
+    async def release_weekly_pick(self, telegram_id: int, movie_id: int, week: date) -> None:
+        """Вернуть выбор, если видео так и не дошло (чат с ботом не открыт).
+
+        Сверяем И фильм, И неделю — иначе слепой сброс стёр бы выбор, сделанный уже ПОСЛЕ
+        неудачной отправки, и на одну неделю ушло бы два бесплатных фильма.
+        """
+        stmt = (
+            update(UserModel)
+            .where(
+                UserModel.telegram_id == telegram_id,
+                UserModel.weekly_movie_id == movie_id,
+                UserModel.weekly_week == week,
+            )
+            .values(weekly_week=None, weekly_movie_id=None)
         )
         await self._session.execute(stmt)
         await self._session.commit()

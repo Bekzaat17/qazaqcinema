@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from app.domain.entities.enums import UserStatus
+from app.domain.subscription.weekly import week_start
 
 
 @dataclass(slots=True)
@@ -25,6 +26,11 @@ class User:
     # проставляются один раз, атомарно (`UserRepository.claim_free_view`).
     free_view_used_at: datetime | None = None  # None → подарок ещё не потрачен
     free_view_movie_id: int | None = None      # какой фильм подарен (None у плативших-до-запуска)
+    # Недельный бесплатный выбор: один фильм на ОБЩЕЕ для всех окно (понедельник 00:00 по
+    # Алматы, см. `domain/subscription/weekly`). Храним не срок, а КЛЮЧ ОКНА — дату
+    # понедельника: право освобождается сменой ключа, гасить его нечем и незачем.
+    weekly_week: date | None = None      # на какую неделю взят фильм (None — не выбирал)
+    weekly_movie_id: int | None = None   # какой именно
     # Telegram Premium — прокси платёжеспособности из initData. В доступе НЕ участвует
     # (`has_active_access` его не смотрит): это признак аудитории, а не право.
     is_premium: bool = False
@@ -44,6 +50,19 @@ class User:
     def can_use_free_view(self) -> bool:
         """Подарок ещё не потрачен → человек вправе открыть ОДИН любой фильм бесплатно."""
         return self.free_view_used_at is None
+
+    def can_pick_weekly(self, now: datetime) -> bool:
+        """Выбор на ЭТУ неделю ещё свободен (не выбирал вовсе либо выбирал на прошлой)."""
+        return self.weekly_week != week_start(now)
+
+    def is_weekly_movie(self, movie_id: int, now: datetime) -> bool:
+        """Его выбор на текущую неделю: пересматривать можно сколько угодно раз.
+
+        Та же причина, что у `is_gifted_movie`: видео из чата мы сносим через ~40 ч
+        (`VideoRetentionService`), а право живёт до конца недели — без этого правила наша
+        же уборка выглядела бы как «дали и отняли» на третий день.
+        """
+        return self.weekly_movie_id == movie_id and self.weekly_week == week_start(now)
 
     def is_gifted_movie(self, movie_id: int) -> bool:
         """Этот фильм ему уже подарен → повторная выдача бесплатна и после чистки видео.

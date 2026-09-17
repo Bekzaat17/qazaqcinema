@@ -1,12 +1,12 @@
-"""Интеграционные тесты избранного и подарочного фильма (настоящий Postgres).
+"""Интеграционные тесты избранного, подарочного фильма и недельного выбора (Postgres).
 
 Здесь проверяется то, что фейками не проверишь: поведение счётчика популярности при
-накрутке и атомарность захвата подарка на уровне СУБД.
+накрутке и атомарность захвата (подарка и недельного выбора) на уровне СУБД.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from app.domain.entities.movie import Movie
 from app.domain.entities.user import User
@@ -184,3 +184,80 @@ async def test_upsert_does_not_reset_the_gift(session: AsyncSession) -> None:
     assert user is not None
     assert not user.can_use_free_view()
     assert user.free_view_movie_id == movie_id
+
+
+# --- недельный выбор: один фильм на общее окно -----------------------------------------
+
+_WEEK = date(2026, 9, 21)       # понедельник
+_NEXT_WEEK = date(2026, 9, 28)
+
+
+async def _two_movies(session: AsyncSession) -> tuple[int, int]:
+    """Пользователь и два фильма: недельному выбору нужен «какой-то другой» для сверок."""
+    first, _ = await _seed(session)
+    second = await PgMovieRepository(session).add(_movie("Басқа фильм", "f2"))
+    assert second.id is not None
+    return first, second.id
+
+
+async def test_weekly_pick_is_claimed_once_per_week(session: AsyncSession) -> None:
+    """Второй захват в ту же неделю не проходит, в новую — проходит.
+
+    Ровно это и делает окно общим: право освобождается сменой ключа, без единой записи
+    в БД между неделями.
+    """
+    movie_id, other_id = await _two_movies(session)
+    users = PgUserRepository(session)
+
+    assert await users.claim_weekly_pick(42, movie_id, _WEEK) is True
+    assert await users.claim_weekly_pick(42, other_id, _WEEK) is False  # даже другой фильм
+    assert await users.claim_weekly_pick(42, other_id, _NEXT_WEEK) is True
+
+    user = await users.get(42)
+    assert user is not None
+    assert (user.weekly_week, user.weekly_movie_id) == (_NEXT_WEEK, other_id)
+
+
+async def test_first_pick_works_when_column_is_null(session: AsyncSession) -> None:
+    """У ни разу не выбиравшего в колонке NULL: обычное `<>` дало бы NULL, и захват
+    не прошёл бы НИКОГДА. Условие обязано быть `IS DISTINCT FROM`."""
+    movie_id, _ = await _two_movies(session)
+    users = PgUserRepository(session)
+
+    before = await users.get(42)
+    assert before is not None and before.weekly_week is None
+    assert await users.claim_weekly_pick(42, movie_id, _WEEK) is True
+
+
+async def test_weekly_release_checks_both_movie_and_week(session: AsyncSession) -> None:
+    """Возврат после несостоявшейся доставки — и его сверки."""
+    movie_id, other_id = await _two_movies(session)
+    users = PgUserRepository(session)
+    await users.claim_weekly_pick(42, movie_id, _WEEK)
+
+    await users.release_weekly_pick(42, other_id, _WEEK)    # чужой фильм — не трогаем
+    await users.release_weekly_pick(42, movie_id, _NEXT_WEEK)  # чужая неделя — тоже
+    user = await users.get(42)
+    assert user is not None and user.weekly_movie_id == movie_id
+
+    await users.release_weekly_pick(42, movie_id, _WEEK)
+    user = await users.get(42)
+    assert user is not None
+    assert (user.weekly_week, user.weekly_movie_id) == (None, None)
+
+
+async def test_upsert_does_not_reset_the_weekly_pick(session: AsyncSession) -> None:
+    """Тот же инвариант, что у подарка: иначе вход в Mini App выдавал бы выбор заново."""
+    movie_id, _ = await _two_movies(session)
+    users = PgUserRepository(session)
+    await users.claim_weekly_pick(42, movie_id, _WEEK)
+
+    stale = await users.get(42)
+    assert stale is not None
+    stale.weekly_week = None  # копия в памяти «забыла» про выбор
+    stale.weekly_movie_id = None
+    await users.upsert(stale)
+
+    user = await users.get(42)
+    assert user is not None
+    assert (user.weekly_week, user.weekly_movie_id) == (_WEEK, movie_id)
