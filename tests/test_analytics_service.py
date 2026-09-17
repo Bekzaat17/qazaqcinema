@@ -72,6 +72,19 @@ class _CountingUsers:
         return 4
 
 
+class _FakeChannel:
+    """Число подписчиков канала. `None` — канал не настроен либо Telegram промолчал."""
+
+    def __init__(self, members: int | None = None) -> None:
+        self.members = members
+
+    async def is_member(self, user_id: int) -> bool:
+        return True
+
+    async def count_members(self) -> int | None:
+        return self.members
+
+
 def _service(
     users: object | None = None,
     events: object | None = None,
@@ -79,6 +92,7 @@ def _service(
     reports: object | None = None,
     milestones: object | None = None,
     searches: object | None = None,
+    channel: object | None = None,
     admin_ids: Collection[int] = (),
 ) -> AnalyticsService:
     """Сервис на фейках — одна фабрика на файл, чтобы новый порт не переписывал тесты."""
@@ -89,6 +103,7 @@ def _service(
         reports if reports is not None else FakeReports(),
         milestones if milestones is not None else FakeMilestones(),
         searches if searches is not None else FakeSearches(),
+        channel if channel is not None else _FakeChannel(),
         admin_ids,
     )
 

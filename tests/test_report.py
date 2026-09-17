@@ -142,3 +142,44 @@ def test_report_without_missing_queries_keeps_the_counters() -> None:
     assert "40 сұрау, 0 нәтижесіз" in text
     assert "таппағаны" not in text
 
+
+
+# --- блок про канал и недельный выбор -------------------------------------------------
+
+
+def test_channel_growth_needs_yesterdays_snapshot() -> None:
+    """Дельта — производная, её не хранят: считаем из вчерашнего снимка прямо в тексте."""
+    today = _report(channel_members=1240)
+    yesterday = _report(channel_members=1203)
+
+    assert "📣 Арна: 1240 (+37 тәулікте)" in render_report(today, None, yesterday)
+    # Вчерашнего снимка нет — показываем абсолютное число без выдуманного прироста.
+    assert "📣 Арна: 1240\n" in render_report(today)
+
+
+def test_unknown_member_count_hides_the_line_entirely() -> None:
+    """Telegram не ответил → None. Ноль подписчиков и «мы не знаем» — разные вещи, и
+    вторая не имеет права выглядеть как обвал аудитории до нуля."""
+    assert "Арна:" not in render_report(_report(channel_members=None))
+
+
+def test_gate_funnel_is_shown_with_conversion() -> None:
+    """Прирост канала сам по себе не доказывает ничего — он мог случиться и без нас.
+    Атрибуцию даёт пара «сколько уткнулись в гейт → сколько дошли до фильма»."""
+    text = render_report(_report(channel_gates=64, weekly_picks=18, weekly_plays=25))
+
+    assert "🎟 Апталық таңдау: 18 алды, 25 көрді" in text
+    assert "жазылуды сұрадық 64 → алды 18 (28%)" in text
+
+
+def test_funnel_line_is_skipped_without_gates() -> None:
+    """Делить на ноль нечего, а строка «0 → 0» ничего не сообщает."""
+    text = render_report(_report(channel_gates=0, weekly_picks=3))
+
+    assert "🎟 Апталық таңдау: 3 алды" in text
+    assert "жазылуды сұрадық" not in text
+
+
+def test_legacy_gift_line_is_marked_as_old() -> None:
+    """Новым подарок не выдаётся: строка должна стремиться к нулю, и это видно в подписи."""
+    assert "🎁 Сыйлық фильм (ескі):" in render_report(_report())

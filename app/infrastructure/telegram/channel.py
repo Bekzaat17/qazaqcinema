@@ -147,3 +147,13 @@ class AiogramChannelMembership:
         # `restricted` — единственный статус, где мало самого имени: человек может быть
         # и в канале (ограничен в правах), и уже вышедшим.
         return bool(getattr(member, "is_member", False))
+
+    async def count_members(self) -> int | None:
+        """`getChatMemberCount`. Зовётся раз в сутки из отчёта — кэш тут не нужен."""
+        if not self._channel_id:
+            return None
+        try:
+            return await self._bot.get_chat_member_count(self._channel_id)
+        except TelegramAPIError:
+            logger.warning("Не удалось узнать число подписчиков канала", exc_info=True)
+            return None

@@ -40,11 +40,19 @@ class DailyReport:
     opens_unique: int     # ...из них уникальных людей (главная метрика живой аудитории)
     starts: int           # нажавших /start (в т.ч. пришедшие из SEO, до входа в Mini App)
     plays: int            # выданных видео за день (по подписке)
-    free_plays: int       # ...и отдельно подарочных первых фильмов (разовый подарок)
+    free_plays: int       # ...и отдельно подарочных первых фильмов (СТАРАЯ механика)
     daily_plays: int      # ...и отдельно фильма дня (регулярный бесплатный крючок)
     paywalls: int         # упоров в пэйволл: хотел смотреть, но платить пока не стал
     subscribes: int       # активаций/продлений подписки за день
     expires: int          # истёкших подписок за день
+    # Недельный бесплатный выбор — три РАЗНЫХ вопроса (см. `EventKind`):
+    channel_gates: int = 0   # уткнулись в «жазылыңыз» — знаменатель всей затеи
+    weekly_picks: int = 0    # взяли фильм на неделю (один на человека в неделю)
+    weekly_plays: int = 0    # смотрели свой недельный, включая пересмотры
+    # Подписчиков у канала на конец дня. None — канал не настроен либо Telegram не
+    # ответил; ноль и «не знаем» — разные вещи, и вторая обязана выглядеть в отчёте как
+    # пропуск строки, а не как обвал аудитории до нуля.
+    channel_members: int | None = None
 
 
 def day_window(now: datetime) -> tuple[datetime, datetime]:
@@ -86,7 +94,38 @@ def render_demand_block(summary: SearchSummary) -> str:
     return "\n".join(lines)
 
 
-def render_report(report: DailyReport, demand: SearchSummary | None = None) -> str:
+def render_channel_block(report: DailyReport, previous: DailyReport | None) -> str:
+    """Блок про канал и недельный выбор — та самая воронка, ради которой всё затевалось.
+
+    Прирост канала сам по себе не говорит ничего: он мог случиться и без нас. Поэтому
+    рядом стоят `channel_gates → weekly_picks` — сколько людей мы сами привели к
+    требованию подписки и сколько из них дошло до фильма. Абсолютное число подписчиков —
+    контекст, атрибуция — эти две цифры.
+
+    Дельта считается ЗДЕСЬ, из вчерашнего снимка, а не хранится: это производная
+    величина, как и проценты (см. докстринг `render_report`).
+    """
+    lines: list[str] = []
+    if report.channel_members is not None:
+        growth = ""
+        if previous is not None and previous.channel_members is not None:
+            delta = report.channel_members - previous.channel_members
+            growth = f" ({delta:+d} тәулікте)"
+        lines.append(f"📣 Арна: {report.channel_members}{growth}")
+    gate_rate = share(report.weekly_picks, report.channel_gates)
+    lines.append(
+        f"🎟 Апталық таңдау: {report.weekly_picks} алды, {report.weekly_plays} көрді"
+    )
+    if report.channel_gates:
+        lines.append(
+            f"   жазылуды сұрадық {report.channel_gates} → алды {report.weekly_picks}"
+            f"{f' ({gate_rate}%)' if gate_rate is not None else ''}"
+        )
+    return "\n".join(lines)
+
+
+def render_report(report: DailyReport, demand: SearchSummary | None = None,
+                  previous: DailyReport | None = None) -> str:
     """Текст отчёта для личек админов (HTML-безопасен: цифры, наши подписи и
     экранированные поисковые запросы).
 
@@ -107,14 +146,17 @@ def render_report(report: DailyReport, demand: SearchSummary | None = None) -> s
         f"📱 Кинотеатрды ашты: {report.opens_unique} адам ({report.opens_total} рет)"
         f"{f' — {open_rate}%' if open_rate is not None else ''}\n"
         f"▶️ Жіберілген видео (жазылым): {report.plays}\n"
-        # Воронка «сначала ценность, потом оплата»: два разных крючка — разовый
-        # подарок и регулярный фильм дня — рядом, чтобы было видно, какой тянет больше.
-        f"🎁 Сыйлық фильм: {report.free_plays}\n"
+        # Воронка «сначала ценность, потом оплата». `Сыйлық фильм` — НАСЛЕДСТВО
+        # одноразовой механики: новым он не выдаётся, и эта строка должна стремиться
+        # к нулю. Живой бесплатный крючок теперь ниже, в блоке про канал.
+        f"🎁 Сыйлық фильм (ескі): {report.free_plays}\n"
         f"📅 Күн фильмі: {report.daily_plays}\n"
         f"🔒 Пэйволл көрді: {report.paywalls}\n"
         f"💳 Жазылым қосылды: {report.subscribes}"
         f"{f' — конверсия {convert_rate}%' if convert_rate is not None else ''}\n"
-        f"⌛️ Мерзімі бітті: {report.expires}"
+        f"⌛️ Мерзімі бітті: {report.expires}\n"
+        "———\n"
+        f"{render_channel_block(report, previous)}"
     )
     # Спрос — отдельный блок и необязательный аргумент: он не из снимка, а из живого
     # запроса по журналу поисков, и отчёт обязан собираться и без него.

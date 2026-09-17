@@ -10,8 +10,9 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime, time, tzinfo
+from datetime import date, datetime, time, timedelta, tzinfo
 
+from app.application.ports.channel import ChannelMembership
 from app.application.ports.repositories import (
     DailyReportRepository,
     MilestoneRepository,
@@ -40,6 +41,7 @@ class AnalyticsService:
         reports: DailyReportRepository,
         milestones: MilestoneRepository,
         searches: SearchQueryRepository,
+        channel: ChannelMembership,
         admin_ids: Collection[int] = (),
     ) -> None:
         self._users = users
@@ -48,6 +50,7 @@ class AnalyticsService:
         self._reports = reports
         self._milestones = milestones
         self._searches = searches
+        self._channel = channel
         # Админы — не аудитория: их заходы служебные. События до журнала вообще не
         # доходят (`AdminBlindEventRepository`), а вот в `users` они лежат наравне со
         # всеми — поэтому счётчики людей исключают их явно.
@@ -75,9 +78,25 @@ class AnalyticsService:
             paywalls=await self._events.count(EventKind.PAYWALL, since, until),
             subscribes=await self._events.count(EventKind.SUBSCRIBE, since, until),
             expires=await self._events.count(EventKind.EXPIRE, since, until),
+            channel_gates=await self._events.count(EventKind.CHANNEL_GATE, since, until),
+            weekly_picks=await self._events.count(EventKind.WEEKLY_PICK, since, until),
+            weekly_plays=await self._events.count(EventKind.WEEKLY_PLAY, since, until),
+            # Единственная цифра снимка, которую считаем не мы: её знает только Telegram.
+            # Не ответил → None, и строка отчёта просто пропадёт (см. `render_channel_block`).
+            channel_members=await self._channel.count_members(),
         )
         await self._reports.save(report)
         return report
+
+    async def previous_report(self, day: date) -> DailyReport | None:
+        """Вчерашний снимок — нужен отчёту, чтобы показать прирост канала за сутки.
+
+        Дельта не хранится: это производная величина, как и проценты. Снимок несёт только
+        абсолютные числа, а разность считает текст отчёта.
+        """
+        yesterday = day - timedelta(days=1)
+        rows = await self._reports.list_range(yesterday, yesterday)
+        return rows[0] if rows else None
 
     async def search_demand(self, now: datetime, limit: int) -> SearchSummary:
         """Спрос за те же скользящие сутки, что и отчёт: сколько искали и чего не нашли.

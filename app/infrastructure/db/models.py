@@ -307,6 +307,15 @@ class DailyReportModel(Base):
     paywalls: Mapped[int] = mapped_column()
     subscribes: Mapped[int] = mapped_column()
     expires: Mapped[int] = mapped_column()
+    # Недельный бесплатный выбор. server_default 0 → старые снимки читаются как «этого
+    # тогда не было», а не падают на NULL.
+    channel_gates: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
+    weekly_picks: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
+    weekly_plays: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
+    # Подписчиков канала на конец дня. NULLABLE намеренно: ноль и «не знаем» — разные вещи,
+    # и в дни, когда Telegram не ответил, строка отчёта должна пропадать, а не рисовать
+    # обвал аудитории до нуля.
+    channel_members: Mapped[int | None] = mapped_column(nullable=True)
     # Когда СТРОКА записана/перезаписана — техническое поле, не путать с `day` (тот —
     # какие сутки описаны; misfire мог дописать их и на следующий день). Обновление на
     # конфликте — явно в `set_` репозитория (upsert идёт через Core, ORM-`onupdate`

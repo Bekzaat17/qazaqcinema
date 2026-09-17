@@ -52,3 +52,7 @@ class CachedChannelMembership:
             except RedisError:
                 logger.warning("Redis недоступен, подписка не закэширована", exc_info=True)
         return member
+
+    async def count_members(self) -> int | None:
+        """Без кэша: зовётся раз в сутки из отчёта, и свежесть тут важнее экономии."""
+        return await self._inner.count_members()

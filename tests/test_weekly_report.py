@@ -156,3 +156,33 @@ def test_weekly_digest_without_demand_has_no_search_block() -> None:
     assert report.demand is None
     assert "Іздеу" not in render_weekly_report(report)
 
+
+
+# --- воронка канала в дайджесте --------------------------------------------------------
+
+
+def test_weekly_digest_shows_channel_growth_and_attribution() -> None:
+    """Абсолютный прирост канала мог случиться и без нас — рядом обязана стоять атрибуция."""
+    days = [
+        _daily(date(2026, 9, 21), channel_members=1200, channel_gates=30, weekly_picks=9,
+             weekly_plays=14),
+        _daily(date(2026, 9, 27), channel_members=1240, channel_gates=34, weekly_picks=9,
+             weekly_plays=11),
+    ]
+    previous = [_daily(date(2026, 9, 14), channel_members=1150, channel_gates=20, weekly_picks=4)]
+
+    text = render_weekly_report(build_weekly_report(date(2026, 9, 28), days, previous, []))
+
+    assert "📣 Арна: 1240" in text
+    assert "Апталық таңдау алды" in text
+    assert "Жазылуды сұрадық" in text
+
+
+def test_weekly_digest_omits_channel_line_without_data() -> None:
+    """Снимков с числом подписчиков нет → строки нет, а не «Арна: 0»."""
+    text = render_weekly_report(
+        build_weekly_report(date(2026, 9, 28), [_daily(date(2026, 9, 27))], [], [])
+    )
+
+    assert "📣 Арна:" not in text
+    assert "Апталық таңдау алды" in text  # сама механика в отчёте остаётся

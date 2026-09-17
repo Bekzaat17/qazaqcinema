@@ -45,9 +45,12 @@ class WeekTotals:
     paywalls: int
     subscribes: int
     expires: int
+    channel_gates: int
+    weekly_picks: int
+    weekly_plays: int
 
 
-_ZERO_TOTALS = WeekTotals(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+_ZERO_TOTALS = WeekTotals(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +65,10 @@ class WeeklyReport:
     current: WeekTotals
     previous: WeekTotals | None    # None — за предыдущие 7 суток снимков не набралось
     milestones: list[Milestone]    # вехи внутри текущего периода, по возрастанию времени
+    # Подписчиков канала на конец периода и на конец предыдущего. None — снимка нет либо
+    # Telegram тогда не ответил; прирост в этом случае не показываем, а не рисуем нулём.
+    channel_members: int | None = None
+    channel_members_prev: int | None = None
     # Спрос за период — живой запрос по журналу поисков, как и вехи: в снимках его нет и
     # быть не должно (см. `SearchSummary`). `None` — сводку не запрашивали.
     demand: SearchSummary | None = None
@@ -100,6 +107,8 @@ def build_weekly_report(
         users_total=latest.users_total if latest else 0,
         subs_active=latest.subs_active if latest else 0,
         subs_active_prev=prev_latest.subs_active if prev_latest else None,
+        channel_members=latest.channel_members if latest else None,
+        channel_members_prev=prev_latest.channel_members if prev_latest else None,
         current=_sum_totals(current_days),
         previous=_sum_totals(previous_days) if previous_days else None,
         milestones=sorted(milestones, key=lambda m: m.occurred_at),
@@ -121,6 +130,9 @@ def _sum_totals(rows: list[DailyReport]) -> WeekTotals:
         paywalls=sum(r.paywalls for r in rows),
         subscribes=sum(r.subscribes for r in rows),
         expires=sum(r.expires for r in rows),
+        channel_gates=sum(r.channel_gates for r in rows),
+        weekly_picks=sum(r.weekly_picks for r in rows),
+        weekly_plays=sum(r.weekly_plays for r in rows),
     )
 
 
@@ -166,7 +178,11 @@ def render_weekly_report(report: WeeklyReport) -> str:
         lines.append(f"📐 100 фильмге шаққанда: {per_100_cur} адам{suffix}")
 
     lines.append(_line("▶️", "Жазылым бойынша видео", cur.plays, prev.plays if prev else None))
-    lines.append(_line("🎁", "Сыйлық фильм", cur.free_plays, prev.free_plays if prev else None))
+    # «Сыйлық фильм» — НАСЛЕДСТВО одноразовой механики: новым он не выдаётся, и эта
+    # строка должна стремиться к нулю. Живой бесплатный крючок — ниже, в блоке про канал.
+    lines.append(
+        _line("🎁", "Сыйлық фильм (ескі)", cur.free_plays, prev.free_plays if prev else None)
+    )
     lines.append(_line("📅", "Күн фильмі", cur.daily_plays, prev.daily_plays if prev else None))
     lines.append(_line("🔒", "Пэйволл көрді", cur.paywalls, prev.paywalls if prev else None))
     lines.append(
@@ -176,6 +192,28 @@ def render_weekly_report(report: WeeklyReport) -> str:
         )
     )
     lines.append(_line("⌛️", "Мерзімі бітті", cur.expires, prev.expires if prev else None))
+
+    # Воронка канала — то, ради чего недельный выбор и затевался. Абсолютный прирост
+    # подписчиков сам по себе не доказывает ничего (канал мог вырасти и без нас), поэтому
+    # рядом стоит атрибуция: сколько людей мы САМИ привели к требованию подписки и сколько
+    # из них дошло до фильма.
+    lines.append("———")
+    if report.channel_members is not None:
+        lines.append(
+            f"📣 Арна: {report.channel_members}"
+            f"{_delta_suffix(report.channel_members, report.channel_members_prev, 'осы аптада')}"
+        )
+    lines.append(
+        _line("🎟", "Апталық таңдау алды", cur.weekly_picks, prev.weekly_picks if prev else None,
+              note=_rate_suffix(share(cur.weekly_picks, cur.channel_gates), "гейттен"))
+    )
+    lines.append(
+        _line("👀", "Апталық таңдауын көрді", cur.weekly_plays,
+              prev.weekly_plays if prev else None)
+    )
+    lines.append(
+        _line("📣", "Жазылуды сұрадық", cur.channel_gates, prev.channel_gates if prev else None)
+    )
 
     if report.milestones:
         lines.append("———")

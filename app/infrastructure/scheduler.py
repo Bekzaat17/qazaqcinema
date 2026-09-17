@@ -148,8 +148,11 @@ async def _daily_report_job(container: AsyncContainer) -> None:
         report = await analytics.daily_report(now, REPORT_TZ)
         # Спрос — живой запрос по журналу поисков, не часть снимка (см. `SearchSummary`).
         demand = await analytics.search_demand(now, MISSING_TOP)
+        # Вчерашний снимок — только ради прироста канала за сутки. Дельту не храним: это
+        # производная, как и проценты (см. `render_report`).
+        previous = await analytics.previous_report(report.day)
         try:
-            await notifier.notify_admins(render_report(report, demand))
+            await notifier.notify_admins(render_report(report, demand, previous))
         except AdminsUnreachableError:
             # Никто из админов не получил сводку (не нажал /start / заблокировал бота).
             # Это не повод ронять джоб — цифры не потеряны, они всегда в БД.

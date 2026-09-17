@@ -53,6 +53,10 @@ def _daily_report_to_domain(model: DailyReportModel) -> DailyReport:
         paywalls=model.paywalls,
         subscribes=model.subscribes,
         expires=model.expires,
+        channel_gates=model.channel_gates,
+        weekly_picks=model.weekly_picks,
+        weekly_plays=model.weekly_plays,
+        channel_members=model.channel_members,
     )
 
 
@@ -202,6 +206,10 @@ class PgDailyReportRepository:
             "paywalls": report.paywalls,
             "subscribes": report.subscribes,
             "expires": report.expires,
+            "channel_gates": report.channel_gates,
+            "weekly_picks": report.weekly_picks,
+            "weekly_plays": report.weekly_plays,
+            "channel_members": report.channel_members,
         }
         stmt = pg_insert(DailyReportModel).values(**values)
         stmt = stmt.on_conflict_do_update(
