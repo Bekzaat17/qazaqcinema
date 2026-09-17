@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import ChannelMemberChange, EventKind
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
 from app.domain.analytics.search import SearchDemand
@@ -34,6 +34,21 @@ class FakeEvents:
 
     def kinds_for(self, user_id: int) -> list[EventKind]:
         return [k for uid, k, _m in self.added if uid == user_id]
+
+
+class FakeChannelMembers:
+    """Фейк `ChannelMemberEventRepository`: движение в канале по головам."""
+
+    def __init__(self) -> None:
+        self.added: list[tuple[int, ChannelMemberChange]] = []
+
+    async def add(self, user_id: int, change: ChannelMemberChange) -> None:
+        self.added.append((user_id, change))
+
+    async def count(
+        self, change: ChannelMemberChange, since: datetime, until: datetime
+    ) -> int:
+        return sum(1 for _uid, c in self.added if c is change)
 
 
 class FakeSearches:

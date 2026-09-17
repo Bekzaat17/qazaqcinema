@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import ChannelMemberChange, EventKind
 from app.domain.analytics.report import DailyReport
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
@@ -10,6 +10,7 @@ from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
 from app.infrastructure.db.models import DailyReportModel, VideoDeliveryModel
 from app.infrastructure.db.repositories import (
+    PgChannelMemberEventRepository,
     PgDailyReportRepository,
     PgMilestoneRepository,
     PgMovieRepository,
@@ -525,6 +526,25 @@ async def test_user_event_counts_by_kind_and_window(session: AsyncSession) -> No
     # За пределами окна не считаем ничего.
     future = (now + timedelta(minutes=5), now + timedelta(hours=1))
     assert await events.count(EventKind.OPEN, *future) == 0
+
+
+async def test_channel_member_events_count_by_change_and_window(
+    session: AsyncSession,
+) -> None:
+    """Подписки и отписки считаются порознь, и человека из `users` для этого не нужно:
+    на канал подписываются и те, кто бота ни разу не открывал."""
+    members = PgChannelMemberEventRepository(session)
+    now = datetime.now(UTC)
+
+    await members.add(777, ChannelMemberChange.JOIN)
+    await members.add(778, ChannelMemberChange.JOIN)
+    await members.add(779, ChannelMemberChange.LEAVE)
+
+    window = (now - timedelta(minutes=5), now + timedelta(minutes=5))
+    assert await members.count(ChannelMemberChange.JOIN, *window) == 2
+    assert await members.count(ChannelMemberChange.LEAVE, *window) == 1
+    future = (now + timedelta(minutes=5), now + timedelta(hours=1))
+    assert await members.count(ChannelMemberChange.JOIN, *future) == 0
 
 
 def _report(**overrides: object) -> DailyReport:

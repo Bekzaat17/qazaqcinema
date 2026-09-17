@@ -14,11 +14,12 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import ChannelMemberChange, EventKind
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
 from app.domain.analytics.search import SearchDemand
 from app.infrastructure.db.models import (
+    ChannelMemberEventModel,
     DailyReportModel,
     MilestoneModel,
     SearchQueryModel,
@@ -56,6 +57,8 @@ def _daily_report_to_domain(model: DailyReportModel) -> DailyReport:
         channel_gates=model.channel_gates,
         weekly_picks=model.weekly_picks,
         weekly_plays=model.weekly_plays,
+        channel_joins=model.channel_joins,
+        channel_leaves=model.channel_leaves,
         channel_members=model.channel_members,
     )
 
@@ -108,6 +111,42 @@ class PgUserEventRepository:
     async def count_unique_users(self, kind: EventKind, since: datetime, until: datetime) -> int:
         stmt = select(func.count(distinct(UserEventModel.user_id))).where(
             *_event_window(kind, since, until)
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+
+class PgChannelMemberEventRepository:
+    """Движение в канале (`channel_member_events`). Запись — **fail-open**, как у событий."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, user_id: int, change: ChannelMemberChange) -> None:
+        try:
+            self._session.add(
+                ChannelMemberEventModel(user_id=user_id, change=change.value)
+            )
+            await self._session.commit()
+        except SQLAlchemyError:
+            # Тот же принцип, что у `PgUserEventRepository.add`: статистика не вправе
+            # ронять обработку апдейта. rollback обязателен — иначе аварийная транзакция
+            # уронила бы следующий запрос в этой же сессии, уже по делу.
+            logger.warning(
+                "Движение %s юзера %s в канале не записано", change, user_id, exc_info=True
+            )
+            await self._session.rollback()
+
+    async def count(
+        self, change: ChannelMemberChange, since: datetime, until: datetime
+    ) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(ChannelMemberEventModel)
+            .where(
+                ChannelMemberEventModel.change == change.value,
+                ChannelMemberEventModel.created_at >= since,
+                ChannelMemberEventModel.created_at < until,
+            )
         )
         return int(await self._session.scalar(stmt) or 0)
 
@@ -209,6 +248,8 @@ class PgDailyReportRepository:
             "channel_gates": report.channel_gates,
             "weekly_picks": report.weekly_picks,
             "weekly_plays": report.weekly_plays,
+            "channel_joins": report.channel_joins,
+            "channel_leaves": report.channel_leaves,
             "channel_members": report.channel_members,
         }
         stmt = pg_insert(DailyReportModel).values(**values)

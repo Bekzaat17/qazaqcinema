@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from app.infrastructure.db.repositories.analytics import (
+    PgChannelMemberEventRepository,
     PgDailyReportRepository,
     PgMilestoneRepository,
     PgSearchQueryRepository,
@@ -30,6 +31,7 @@ from app.infrastructure.db.repositories.payments import (
 from app.infrastructure.db.repositories.users import PgUserRepository
 
 __all__ = [
+    "PgChannelMemberEventRepository",
     "PgDailyReportRepository",
     "PgFavoriteRepository",
     "PgMilestoneRepository",

@@ -12,12 +12,13 @@ from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from app.application.services.analytics_service import AnalyticsService
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import ChannelMemberChange, EventKind
 from app.domain.analytics.report import DailyReport
 from app.domain.analytics.search import MISSING_TOP
 from app.infrastructure.analytics.admin_filter import AdminBlindEventRepository
 
 from tests.fakes import (
+    FakeChannelMembers,
     FakeEvents,
     FakeMilestones,
     FakeMovies,
@@ -92,6 +93,7 @@ def _service(
     reports: object | None = None,
     milestones: object | None = None,
     searches: object | None = None,
+    members: object | None = None,
     channel: object | None = None,
     admin_ids: Collection[int] = (),
 ) -> AnalyticsService:
@@ -103,6 +105,7 @@ def _service(
         reports if reports is not None else FakeReports(),
         milestones if milestones is not None else FakeMilestones(),
         searches if searches is not None else FakeSearches(),
+        members if members is not None else FakeChannelMembers(),
         channel if channel is not None else _FakeChannel(),
         admin_ids,
     )
@@ -128,6 +131,20 @@ async def test_daily_report_collects_numbers() -> None:
     assert report.starts == 1
     assert report.plays == 1
     assert report.daily_plays == 1
+
+
+async def test_daily_report_counts_channel_joins_and_leaves() -> None:
+    """Число подписчиков от Telegram даёт только итог. Приход и уход снимок несёт порознь:
+    без этого «пришли 3, ушёл 1» неотличимо от «пришли 2, не ушёл никто»."""
+    members = FakeChannelMembers()
+    await members.add(11, ChannelMemberChange.JOIN)
+    await members.add(12, ChannelMemberChange.JOIN)
+    await members.add(13, ChannelMemberChange.JOIN)
+    await members.add(14, ChannelMemberChange.LEAVE)
+
+    report = await _service(members=members).daily_report(_NOW, ALMATY)
+
+    assert (report.channel_joins, report.channel_leaves) == (3, 1)
 
 
 async def test_admin_ids_are_excluded_from_user_counts() -> None:

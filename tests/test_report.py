@@ -157,6 +157,22 @@ def test_channel_growth_needs_yesterdays_snapshot() -> None:
     assert "📣 Арна: 1240\n" in render_report(today)
 
 
+def test_channel_move_shows_joins_and_leaves_separately() -> None:
+    """Итог скрывает отток: «пришли 40, ушли 35» и «движения не было» — один и тот же
+    «+5». В отчёте должны стоять обе цифры, плюсом и минусом."""
+    today = _report(channel_members=1240, channel_joins=40, channel_leaves=35)
+
+    assert "📣 Арна: 1240 (+40 / −35)" in render_report(today, None, _report(channel_members=1235))
+
+
+def test_channel_move_falls_back_to_snapshot_delta() -> None:
+    """За сутки до появления журнала движений (или если апдейты не дошли) честнее показать
+    разность снимков, чем нарисовать «+0 / −0» там, где людей просто не считали."""
+    text = render_report(_report(channel_members=1240), None, _report(channel_members=1203))
+
+    assert "📣 Арна: 1240 (+37 тәулікте)" in text
+
+
 def test_unknown_member_count_hides_the_line_entirely() -> None:
     """Telegram не ответил → None. Ноль подписчиков и «мы не знаем» — разные вещи, и
     вторая не имеет права выглядеть как обвал аудитории до нуля."""

@@ -33,6 +33,7 @@ from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
 from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
+    ChannelMemberEventRepository,
     DailyReportRepository,
     FavoriteRepository,
     MilestoneRepository,
@@ -95,6 +96,7 @@ from app.infrastructure.db.content_repositories import (
 )
 from app.infrastructure.db.engine import create_engine, create_sessionmaker
 from app.infrastructure.db.repositories import (
+    PgChannelMemberEventRepository,
     PgDailyReportRepository,
     PgFavoriteRepository,
     PgMilestoneRepository,
@@ -282,6 +284,11 @@ class RequestProvider(Provider):
     series_repo = provide(PgSeriesRepository, provides=SeriesRepository)
     season_repo = provide(PgSeasonRepository, provides=SeasonRepository)
     daily_reports_repo = provide(PgDailyReportRepository, provides=DailyReportRepository)
+    # Движение в канале: здесь БЕЗ `AdminBlindEventRepository` — админ канала такой же
+    # подписчик, и его уход из канала это ровно такой же минус, как чужой.
+    channel_members_repo = provide(
+        PgChannelMemberEventRepository, provides=ChannelMemberEventRepository
+    )
     milestones_repo = provide(PgMilestoneRepository, provides=MilestoneRepository)
     content_repo = provide(PgContentRepository, provides=ContentRepository)
     post_log_repo = provide(PgPostLogRepository, provides=PostLogRepository)
@@ -360,13 +367,14 @@ class RequestProvider(Provider):
         reports: DailyReportRepository,
         milestones: MilestoneRepository,
         searches: SearchQueryRepository,
+        members: ChannelMemberEventRepository,
         channel: ChannelMembership,
         config: AppConfig,
     ) -> AnalyticsService:
         # admin_ids — примитив из конфига (как webapp_url у рассылок), поэтому явный
         # метод: сервис получает список id, а не весь AppConfig.
         return AnalyticsService(
-            users, events, movies, reports, milestones, searches, channel,
+            users, events, movies, reports, milestones, searches, members, channel,
             config.bot.admin_user_ids,
         )
 

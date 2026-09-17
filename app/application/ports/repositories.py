@@ -10,7 +10,7 @@ from collections.abc import Collection
 from datetime import date, datetime
 from typing import Literal, Protocol
 
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import ChannelMemberChange, EventKind
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.report import DailyReport
 from app.domain.analytics.search import SearchDemand
@@ -266,6 +266,23 @@ class UserEventRepository(Protocol):
     async def count_unique_users(self, kind: EventKind, since: datetime, until: datetime) -> int:
         """Сколько РАЗНЫХ людей сделали это за период (открытия кинотеатра «по головам»)."""
         ...
+
+
+class ChannelMemberEventRepository(Protocol):
+    """Подписки и отписки публичного канала (`domain/analytics/events.ChannelMemberChange`).
+
+    Порт отдельный от `UserEventRepository` (ISP и разные таблицы): там журнал наших
+    пользователей, здесь — движение в канале, где человек может быть нам вообще незнаком.
+    """
+
+    async def add(self, user_id: int, change: ChannelMemberChange) -> None:
+        """Записать движение. **Fail-open**, как у журнала событий: сбой записи не должен
+        ронять обработку апдейта (деградация — в адаптере)."""
+        ...
+
+    async def count(
+        self, change: ChannelMemberChange, since: datetime, until: datetime
+    ) -> int: ...
 
 
 class SearchQueryRepository(Protocol):

@@ -49,6 +49,12 @@ class DailyReport:
     channel_gates: int = 0   # уткнулись в «жазылыңыз» — знаменатель всей затеи
     weekly_picks: int = 0    # взяли фильм на неделю (один на человека в неделю)
     weekly_plays: int = 0    # смотрели свой недельный, включая пересмотры
+    # Движение в канале за сутки: сколько подписалось и сколько отписалось. Считается по
+    # апдейтам `chat_member` (`channel_member_events`), а не выводится из числа
+    # подписчиков: Telegram отдаёт только итог, а он скрывает ровно то, ради чего эти
+    # цифры и нужны. «Пришли 40, ушли 35» и «не было движения» — это один и тот же «+5».
+    channel_joins: int = 0
+    channel_leaves: int = 0
     # Подписчиков у канала на конец дня. None — канал не настроен либо Telegram не
     # ответил; ноль и «не знаем» — разные вещи, и вторая обязана выглядеть в отчёте как
     # пропуск строки, а не как обвал аудитории до нуля.
@@ -94,6 +100,24 @@ def render_demand_block(summary: SearchSummary) -> str:
     return "\n".join(lines)
 
 
+def _channel_move(report: DailyReport, previous: DailyReport | None) -> str:
+    """Движение канала за сутки: «(+12 / −3)» — пришли и ушли по головам.
+
+    Плюс и минус порознь, а не один итог: день, в который пришли 40 и ушли 35, и день без
+    единого движения дают одинаковый «+5», хотя это разные дни. Отток виден только так.
+
+    Запасной вариант — разность вчерашнего и сегодняшнего снимков: движение мы считаем с
+    того дня, как бот начал слушать `chat_member`, и за более ранние сутки (а также если
+    апдейты почему-то не дошли) честнее показать итог, чем нарисовать «+0 / −0» там, где
+    людей просто не считали.
+    """
+    if report.channel_joins or report.channel_leaves:
+        return f" (+{report.channel_joins} / −{report.channel_leaves})"
+    if previous is None or previous.channel_members is None or report.channel_members is None:
+        return ""
+    return f" ({report.channel_members - previous.channel_members:+d} тәулікте)"
+
+
 def render_channel_block(report: DailyReport, previous: DailyReport | None) -> str:
     """Блок про канал и недельный выбор — та самая воронка, ради которой всё затевалось.
 
@@ -107,11 +131,7 @@ def render_channel_block(report: DailyReport, previous: DailyReport | None) -> s
     """
     lines: list[str] = []
     if report.channel_members is not None:
-        growth = ""
-        if previous is not None and previous.channel_members is not None:
-            delta = report.channel_members - previous.channel_members
-            growth = f" ({delta:+d} тәулікте)"
-        lines.append(f"📣 Арна: {report.channel_members}{growth}")
+        lines.append(f"📣 Арна: {report.channel_members}{_channel_move(report, previous)}")
     gate_rate = share(report.weekly_picks, report.channel_gates)
     lines.append(
         f"🎟 Апталық таңдау: {report.weekly_picks} алды, {report.weekly_plays} көрді"

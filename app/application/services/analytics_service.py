@@ -14,6 +14,7 @@ from datetime import date, datetime, time, timedelta, tzinfo
 
 from app.application.ports.channel import ChannelMembership
 from app.application.ports.repositories import (
+    ChannelMemberEventRepository,
     DailyReportRepository,
     MilestoneRepository,
     MovieRepository,
@@ -21,7 +22,7 @@ from app.application.ports.repositories import (
     UserEventRepository,
     UserRepository,
 )
-from app.domain.analytics.events import EventKind
+from app.domain.analytics.events import ChannelMemberChange, EventKind
 from app.domain.analytics.report import DailyReport, day_window
 from app.domain.analytics.search import SearchSummary
 from app.domain.analytics.weekly_report import (
@@ -41,6 +42,7 @@ class AnalyticsService:
         reports: DailyReportRepository,
         milestones: MilestoneRepository,
         searches: SearchQueryRepository,
+        members: ChannelMemberEventRepository,
         channel: ChannelMembership,
         admin_ids: Collection[int] = (),
     ) -> None:
@@ -50,6 +52,7 @@ class AnalyticsService:
         self._reports = reports
         self._milestones = milestones
         self._searches = searches
+        self._members = members
         self._channel = channel
         # Админы — не аудитория: их заходы служебные. События до журнала вообще не
         # доходят (`AdminBlindEventRepository`), а вот в `users` они лежат наравне со
@@ -81,6 +84,11 @@ class AnalyticsService:
             channel_gates=await self._events.count(EventKind.CHANNEL_GATE, since, until),
             weekly_picks=await self._events.count(EventKind.WEEKLY_PICK, since, until),
             weekly_plays=await self._events.count(EventKind.WEEKLY_PLAY, since, until),
+            # Движение в канале по головам — из своего журнала (`chat_member`-апдейты).
+            # Число подписчиков ниже даёт только итог, а он скрывает отток: «пришли 40,
+            # ушли 35» и «не было движения» — один и тот же «+5».
+            channel_joins=await self._members.count(ChannelMemberChange.JOIN, since, until),
+            channel_leaves=await self._members.count(ChannelMemberChange.LEAVE, since, until),
             # Единственная цифра снимка, которую считаем не мы: её знает только Telegram.
             # Не ответил → None, и строка отчёта просто пропадёт (см. `render_channel_block`).
             channel_members=await self._channel.count_members(),

@@ -137,6 +137,36 @@ class UserEventModel(Base):
     __table_args__ = (Index("ix_user_events_kind_created_at", "kind", "created_at"),)
 
 
+class ChannelMemberEventModel(Base):
+    """Подписки и отписки публичного канала (апдейты `chat_member` от Telegram).
+
+    Своя таблица, а не вид `user_events`: там `user_id` — внешний ключ на `users`, а на
+    канал подписываются и люди, которые бота ни разу не открывали. Класть их в журнал
+    пользователей нельзя, а ослаблять ключ ради этого — портить таблицу, где он к месту.
+
+    `user_id` БЕЗ внешнего ключа — по той же причине: это telegram_id человека из канала,
+    и наличие его у нас в базе не гарантировано и не требуется.
+
+    Зачем хранить события, если Telegram отдаёт число подписчиков: оно даёт только
+    разность. «Пришли 40, ушли 35» и «не было движения» — разные дни с одинаковым «+5».
+    """
+
+    __tablename__ = "channel_member_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    # VARCHAR, как `kind` у событий: новое значение — строка в энуме, без миграции типа.
+    change: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Тот же составной индекс, что у событий: отчёт спрашивает «сколько таких за сутки».
+    __table_args__ = (
+        Index("ix_channel_member_events_change_created_at", "change", "created_at"),
+    )
+
+
 class SearchQueryModel(Base):
     """Поисковый запрос в каталоге — спрос, высказанный словами (см. `domain/analytics/search`).
 
@@ -312,6 +342,10 @@ class DailyReportModel(Base):
     channel_gates: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
     weekly_picks: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
     weekly_plays: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
+    # Пришли и ушли за сутки — из `channel_member_events` (Telegram отдаёт только итог,
+    # а разность скрывает движение: «+40 −35» и «ничего не было» дают одинаковый «+5»).
+    channel_joins: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
+    channel_leaves: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
     # Подписчиков канала на конец дня. NULLABLE намеренно: ноль и «не знаем» — разные вещи,
     # и в дни, когда Telegram не ответил, строка отчёта должна пропадать, а не рисовать
     # обвал аудитории до нуля.

@@ -9,6 +9,7 @@ from dishka.integrations.aiogram import setup_dishka
 from app.bot.handlers import (
     add_movie,
     broadcast,
+    channel_members,
     daily,
     fallback,
     inline_query,
@@ -26,6 +27,7 @@ def build_dispatcher(container: AsyncContainer) -> Dispatcher:
         start.router,
         add_movie.router,
         broadcast.router,
+        channel_members.router,
         daily.router,
         milestone.router,
         inline_query.router,
