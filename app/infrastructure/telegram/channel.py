@@ -16,6 +16,7 @@ import logging
 from pathlib import Path
 
 from aiogram import Bot
+from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -108,3 +109,41 @@ class AiogramChannelPublisher:
         except TelegramAPIError:
             logger.warning("Пост %s из канала не удалён", message_id, exc_info=True)
             return False
+
+
+class AiogramChannelMembership:
+    """`getChatMember` по публичному каналу (реализует `ChannelMembership`).
+
+    Бот в канале админ (он туда постит), поэтому право спросить у него есть. Канал не
+    настроен (`id = 0`) → всегда `True`: та же «по заполненности env» деградация, что у
+    публикации, — dev и тесты живут без канала и ничего не отключают руками.
+
+    Подписан = статус `creator` / `administrator` / `member`, а также `restricted` с
+    `is_member=True` (человек в канале, но ограничен в правах — для нас он подписчик).
+    `left` и `kicked` — нет.
+    """
+
+    _MEMBER_STATUSES = frozenset(
+        (ChatMemberStatus.CREATOR, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.MEMBER)
+    )
+
+    def __init__(self, bot: Bot, channel_id: int) -> None:
+        self._bot = bot
+        self._channel_id = channel_id
+
+    async def is_member(self, user_id: int) -> bool:
+        if not self._channel_id:
+            return True
+        try:
+            member = await self._bot.get_chat_member(self._channel_id, user_id)
+        except TelegramAPIError:
+            # Fail-open — см. докстринг порта: отказать подписчику дороже, чем пустить чужого.
+            logger.warning(
+                "Не удалось проверить подписку юзера %s на канал", user_id, exc_info=True
+            )
+            return True
+        if member.status in self._MEMBER_STATUSES:
+            return True
+        # `restricted` — единственный статус, где мало самого имени: человек может быть
+        # и в канале (ограничен в правах), и уже вышедшим.
+        return bool(getattr(member, "is_member", False))

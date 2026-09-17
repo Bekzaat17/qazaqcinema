@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.cards import CardRenderer
 from app.application.ports.catalog_cache import CatalogCache
-from app.application.ports.channel import ChannelPublisher
+from app.application.ports.channel import ChannelMembership, ChannelPublisher
 from app.application.ports.content import (
     ContentRepository,
     PostLogRepository,
@@ -85,6 +85,7 @@ from app.infrastructure.cache.broadcast import RedisBroadcastQueue
 from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.daily_pin import RedisDailyPin
 from app.infrastructure.cache.lock import RedisLock
+from app.infrastructure.cache.membership import CachedChannelMembership
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
 from app.infrastructure.db.content_repositories import (
@@ -111,7 +112,10 @@ from app.infrastructure.images.pillow import PillowImageProcessor
 from app.infrastructure.payments.kaspi import KaspiManualProvider
 from app.infrastructure.payments.stars import TelegramStarsProvider
 from app.infrastructure.storage.local import LocalPosterStorage
-from app.infrastructure.telegram.channel import AiogramChannelPublisher
+from app.infrastructure.telegram.channel import (
+    AiogramChannelMembership,
+    AiogramChannelPublisher,
+)
 from app.infrastructure.telegram.discussion import AiogramDiscussionGroup
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.notifier import AiogramNotifier
@@ -200,6 +204,15 @@ class AppProvider(Provider):
         # id = 0 → адаптер сам работает как no-op (см. `AiogramChannelPublisher`).
         return AiogramChannelPublisher(
             bot, config.bot.public_channel_id, config.media.root
+        )
+
+    @provide
+    def channel_membership(self, bot: Bot, config: AppConfig, redis: Redis) -> ChannelMembership:
+        # Гейт недельного бесплатного выбора. Спрашивается на каждый тап по «Көру», поэтому
+        # поверх Telegram — кэш: без него листание каталога жгло бы лимиты бота.
+        # id = 0 → адаптер отвечает «подписан» (dev и тесты не гейтим).
+        return CachedChannelMembership(
+            AiogramChannelMembership(bot, config.bot.public_channel_id), redis
         )
 
     @provide
