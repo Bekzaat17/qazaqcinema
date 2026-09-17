@@ -136,11 +136,13 @@ class UserRepository(Protocol):
         """
         ...
 
-    async def list_weekly_idle(self, week: date, now: datetime) -> list[int]:
+    async def list_weekly_idle(self, week: date, since_week: date, now: datetime) -> list[int]:
         """Кому напомнить, что окно закрывается: на `week` выбор не потрачен.
 
-        Но ТОЛЬКО среди тех, кто пользовался им раньше (`weekly_week IS NOT NULL`), — иначе
-        это рассылка всей базе. Те же отсечения, что у `list_weekly_pickers`.
+        Но ТОЛЬКО среди тех, кто пользовался им НЕДАВНО — начиная с `since_week`. Без
+        нижней границы письмо «успейте взять» капало бы каждую субботу вечно всякому, кто
+        однажды выбрал фильм и ушёл; без верхней (`weekly_week IS NOT NULL`) это была бы
+        рассылка всей базе. Те же отсечения, что у `list_weekly_pickers`.
         """
         ...
     async def set_notifications(self, telegram_id: int, enabled: bool) -> None: ...

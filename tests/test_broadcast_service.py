@@ -41,6 +41,7 @@ class _FakeUsers:
         self._idle = idle or []
         self.toggles: list[tuple[int, bool]] = []
         self.asked_weeks: list[date] = []
+        self.horizons: list[date] = []
 
     async def list_notifiable(self) -> list[int]:
         return self._notifiable
@@ -49,8 +50,9 @@ class _FakeUsers:
         self.asked_weeks.append(week)
         return self._pickers
 
-    async def list_weekly_idle(self, week: date, now: datetime) -> list[int]:
+    async def list_weekly_idle(self, week: date, since_week: date, now: datetime) -> list[int]:
         self.asked_weeks.append(week)
+        self.horizons.append(since_week)
         return self._idle
 
     async def set_notifications(self, telegram_id: int, enabled: bool) -> None:
@@ -164,6 +166,9 @@ async def test_saturday_letter_goes_to_those_who_have_not_picked_this_week() -> 
 
     assert sent == 1
     assert users.asked_weeks == [date(2026, 9, 28)]  # ключ ТЕКУЩЕЙ недели
+    # Горизонт: месяц назад. Без него письмо капало бы каждую субботу вечно всякому, кто
+    # однажды выбрал фильм и ушёл.
+    assert users.horizons == [date(2026, 8, 31)]
     message, audience = queue.calls[0]
     assert audience == [5]
     # «Жексенбіде», а не «ертең»: письмо читают вечером субботы, и «завтра» превращается

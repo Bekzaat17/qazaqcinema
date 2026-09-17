@@ -17,7 +17,7 @@ from app.application.ports.broadcast import BroadcastMessage, BroadcastQueue
 from app.application.ports.repositories import UserRepository
 from app.application.ports.storage import PosterStorage
 from app.domain.entities.movie import Movie
-from app.domain.subscription.weekly import week_start
+from app.domain.subscription.weekly import idle_horizon, week_start
 
 _NEW_MOVIE_INTRO = "🎬 Жаңа фильм қосылды!"
 # Два письма в неделю про недельный выбор — и ни одним больше. Открытие окна и его
@@ -125,8 +125,11 @@ class BroadcastService:
         Это же лечит единственную слабость общего окна: взявший фильм в воскресенье вечером
         получает вечер, а не неделю. Напоминание разводит поток по неделе — и подбирает тех,
         кто просто забыл.
+
+        Горизонт (`idle_horizon`) обязателен: без него письмо «успейте взять» капало бы
+        каждую субботу вечно всякому, кто однажды выбрал фильм и ушёл.
         """
-        audience = await self._users.list_weekly_idle(week_start(now), now)
+        audience = await self._users.list_weekly_idle(week_start(now), idle_horizon(now), now)
         if not audience:
             return 0
         return await self._queue.enqueue(self._open_app_message(_WEEK_CLOSING), audience)

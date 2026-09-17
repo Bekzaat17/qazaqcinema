@@ -211,9 +211,9 @@ class PgUserRepository:
         )
         return list(await self._session.scalars(stmt))
 
-    async def list_weekly_idle(self, week: date, now: datetime) -> list[int]:
+    async def list_weekly_idle(self, week: date, since_week: date, now: datetime) -> list[int]:
         stmt = select(UserModel.telegram_id).where(
-            UserModel.weekly_week.is_not(None),
+            UserModel.weekly_week >= since_week,   # `IS NOT NULL` даётся этим же условием
             UserModel.weekly_week != week,
             *self._reminder_conditions(now),
         )

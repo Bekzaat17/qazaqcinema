@@ -305,7 +305,7 @@ async def test_saturday_audience_skips_those_who_already_picked(session: AsyncSe
     await _reminder_user(session, 3)                    # не брал никогда — не трогаем
     users = PgUserRepository(session)
 
-    assert await users.list_weekly_idle(_WEEK, _NOW) == [2]
+    assert await users.list_weekly_idle(_WEEK, _WEEK - timedelta(weeks=4), _NOW) == [2]
 
 
 async def test_reminders_skip_subscribers_muted_and_botless(session: AsyncSession) -> None:
@@ -331,3 +331,13 @@ async def test_expired_subscriber_is_still_reminded(session: AsyncSession) -> No
     users = PgUserRepository(session)
 
     assert await users.list_weekly_pickers(_WEEK, _NOW) == [1]
+
+
+async def test_saturday_reminder_forgets_those_who_left_long_ago(session: AsyncSession) -> None:
+    """Горизонт обязателен: без него письмо «успейте взять» капало бы каждую субботу вечно
+    всякому, кто однажды выбрал фильм и ушёл."""
+    await _reminder_user(session, 1, week=_WEEK - timedelta(weeks=2))   # ещё живой
+    await _reminder_user(session, 2, week=_WEEK - timedelta(weeks=9))   # ушёл давно
+    users = PgUserRepository(session)
+
+    assert await users.list_weekly_idle(_WEEK, _WEEK - timedelta(weeks=4), _NOW) == [1]
