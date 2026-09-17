@@ -80,3 +80,31 @@ def test_picked_movie_is_rewatchable_all_week_but_not_after() -> None:
     assert user.is_weekly_movie(7, _almaty(2026, 9, 27, 23))  # воскресенье вечером — да
     assert not user.is_weekly_movie(8, _almaty(2026, 9, 21))  # другой фильм — нет
     assert not user.is_weekly_movie(7, _almaty(2026, 9, 28))  # новая неделя — нет
+
+
+# ── Что об этом узнаёт фронт ─────────────────────────────────────────────────
+
+
+def test_auth_hides_a_pick_that_belongs_to_a_past_week() -> None:
+    """В колонке лежит и позапрошлый выбор. Бейдж «Менің таңдауым» на фильме, право на
+    который уже истекло, обещал бы доступ, которого нет."""
+    from app.api.schemas.auth import AuthOut
+
+    now = _almaty(2026, 9, 28)  # понедельник, окно уже новое
+    stale = _user(weekly_week=date(2026, 9, 21), weekly_movie_id=7)
+
+    out = AuthOut.from_domain(stale, now)
+
+    assert out.weekly_pick_available
+    assert out.weekly_movie_id is None
+    assert out.week_ends_at is not None and out.week_ends_at.date() == date(2026, 10, 5)
+
+
+def test_auth_shows_this_weeks_pick() -> None:
+    from app.api.schemas.auth import AuthOut
+
+    now = _almaty(2026, 9, 23)
+    out = AuthOut.from_domain(_user(weekly_week=week_start(now), weekly_movie_id=7), now)
+
+    assert not out.weekly_pick_available
+    assert out.weekly_movie_id == 7

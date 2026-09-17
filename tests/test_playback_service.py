@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from app.application.ports.telegram import (
     RecipientUnreachableError,
@@ -18,6 +18,7 @@ from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.user import User
+from app.domain.subscription.weekly import week_start
 
 from tests.fakes import FakeEvents
 
@@ -114,10 +115,10 @@ class _OneShotLock:
 
 
 class _FakeUsers:
-    """Фейк `UserRepository` в части подарочного фильма.
+    """Фейк `UserRepository` в части недельного выбора.
 
-    Держит состояние подарка у себя и повторяет главное свойство настоящего адаптера:
-    `claim_free_view` — атомарная проверка-и-запись, поэтому второй захват возвращает
+    Держит состояние выбора у себя и повторяет главное свойство настоящего адаптера:
+    `claim_weekly_pick` — атомарная проверка-и-запись, поэтому второй захват возвращает
     False, даже если вызывающий держит устаревшую копию `User`.
     """
 
@@ -130,12 +131,12 @@ class _FakeUsers:
     async def get(self, telegram_id: int) -> User | None:
         return self.user
 
-    async def claim_free_view(self, telegram_id: int, movie_id: int, now: datetime) -> bool:
+    async def claim_weekly_pick(self, telegram_id: int, movie_id: int, week: date) -> bool:
         self.claims.append((telegram_id, movie_id))
-        if self.user is None or self.user.free_view_used_at is not None:
+        if self.user is None or self.user.weekly_week == week:
             return False
-        self.user.free_view_used_at = now
-        self.user.free_view_movie_id = movie_id
+        self.user.weekly_week = week
+        self.user.weekly_movie_id = movie_id
         return True
 
     async def set_bot_started(self, telegram_id: int, at: datetime | None) -> None:
@@ -143,11 +144,23 @@ class _FakeUsers:
         if self.user is not None:
             self.user.bot_started_at = at
 
-    async def release_free_view(self, telegram_id: int, movie_id: int) -> None:
+    async def release_weekly_pick(self, telegram_id: int, movie_id: int, week: date) -> None:
         self.releases.append((telegram_id, movie_id))
-        if self.user is not None and self.user.free_view_movie_id == movie_id:
-            self.user.free_view_used_at = None
-            self.user.free_view_movie_id = None
+        if self.user is not None and self.user.weekly_movie_id == movie_id:
+            self.user.weekly_week = None
+            self.user.weekly_movie_id = None
+
+
+class _FakeMembership:
+    """Подписан ли на канал. По умолчанию да — гейт проверяется отдельными тестами."""
+
+    def __init__(self, member: bool = True) -> None:
+        self.member = member
+        self.asked: list[int] = []
+
+    async def is_member(self, user_id: int) -> bool:
+        self.asked.append(user_id)
+        return self.member
 
 
 def _service(
@@ -159,6 +172,7 @@ def _service(
     users: _FakeUsers | None = None,
     events: FakeEvents | None = None,
     daily: _FakeDaily | None = None,
+    membership: _FakeMembership | None = None,
 ) -> PlaybackService:
     return PlaybackService(
         movies,  # type: ignore[arg-type]
@@ -168,6 +182,7 @@ def _service(
         events or FakeEvents(),  # type: ignore[arg-type]
         users or _FakeUsers(),  # type: ignore[arg-type]
         daily or _FakeDaily(),  # type: ignore[arg-type]
+        membership or _FakeMembership(),  # type: ignore[arg-type]
     )
 
 
@@ -175,13 +190,31 @@ def _user(status: UserStatus, expires_at: datetime | None) -> User:
     return User(telegram_id=42, status=status, expires_at=expires_at)
 
 
-def _guest(free_view_movie_id: int | None = None) -> User:
-    """Без подписки. `free_view_movie_id` задан → подарок уже потрачен на этот фильм."""
+# `_NOW` — понедельник, то есть первый день окна выбора.
+_WEEK = week_start(_NOW)
+
+
+def _guest(weekly_movie_id: int | None = None) -> User:
+    """Без подписки. `weekly_movie_id` задан → выбор этой недели уже потрачен на него."""
     return User(
         telegram_id=42,
         status=UserStatus.NEW,
-        free_view_used_at=_NOW - timedelta(days=1) if free_view_movie_id else None,
-        free_view_movie_id=free_view_movie_id,
+        weekly_week=_WEEK if weekly_movie_id else None,
+        weekly_movie_id=weekly_movie_id,
+    )
+
+
+def _legacy(movie_id: int) -> User:
+    """Старый пользователь, потративший одноразовый подарок на `movie_id`.
+
+    Новым такое состояние не выдаётся: захвата подарка в сервисе больше нет — но у этих
+    людей фильм обязан остаться бесплатным навсегда.
+    """
+    return User(
+        telegram_id=42,
+        status=UserStatus.NEW,
+        free_view_used_at=_NOW - timedelta(days=90),
+        free_view_movie_id=movie_id,
     )
 
 
@@ -278,10 +311,10 @@ async def test_deliver_reports_try_later_on_flood_limit() -> None:
     assert users.bot_started == []
 
 
-async def test_try_later_returns_the_gift() -> None:
+async def test_try_later_returns_the_weekly_pick() -> None:
     """Сорвалась выдача подарка не по вине юзера → право возвращаем.
 
-    Иначе человек потерял бы единственный подарок из-за нашего флуд-лимита и на
+    Иначе человек потерял бы единственный неделю из-за нашего флуд-лимита и на
     следующем заходе упёрся бы в пэйволл, так и не увидев обещанного фильма.
     """
     movies = _FakeMovies(_movie())
@@ -290,11 +323,11 @@ async def test_try_later_returns_the_gift() -> None:
     users = _FakeUsers(guest)
     service = _service(movies, notifier, _FakeDeliveries(), users=users)
 
-    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_weekly_pick=True)
 
     assert outcome is PlaybackOutcome.TRY_LATER
     assert users.releases == [(guest.telegram_id, 7)]
-    assert guest.can_use_free_view()  # подарок снова цел
+    assert guest.can_pick_weekly(_NOW)  # выбор снова цел
 
 
 async def test_deliver_swallows_rapid_duplicate_send() -> None:
@@ -320,24 +353,24 @@ async def test_deliver_swallows_rapid_duplicate_send() -> None:
 # --- подарочный первый фильм ------------------------------------------------------
 
 
-async def test_gift_is_delivered_on_explicit_consent() -> None:
-    """Без подписки, но подарок цел и юзер согласился → фильм уходит бесплатно."""
+async def test_weekly_pick_is_delivered_on_explicit_consent() -> None:
+    """Без подписки, но выбор цел и юзер согласился → фильм уходит бесплатно."""
     movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
     guest = _guest()
     users, events = _FakeUsers(guest), FakeEvents()
     service = _service(movies, notifier, deliveries, users=users, events=events)
 
-    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_weekly_pick=True)
 
     assert outcome is PlaybackOutcome.GIFT_DELIVERED
     assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]
     assert users.claims == [(42, 7)]
-    # Бесплатный просмотр — отдельное событие, иначе он смешался бы с оплаченными и
-    # цифра «сколько людей попробовали продукт» пропала бы.
-    assert events.kinds_for(42) == [EventKind.FREE_PLAY]
+    # Два события, а не одно: человек и выбрал фильм на неделю, и посмотрел его. Слей их —
+    # и «сколько людей взяли фильм» утонет в пересмотрах, которых теперь семь дней.
+    assert events.kinds_for(42) == [EventKind.WEEKLY_PLAY, EventKind.WEEKLY_PICK]
 
 
-async def test_gift_is_not_spent_without_explicit_consent() -> None:
+async def test_weekly_pick_is_not_spent_without_explicit_consent() -> None:
     """Тот же юзер, но флага согласия нет → пэйволл, право осталось нетронутым.
 
     Так подарок не сгорает от случайного перехода по deep-link на фильм.
@@ -352,31 +385,31 @@ async def test_gift_is_not_spent_without_explicit_consent() -> None:
     assert outcome is PlaybackOutcome.NO_ACCESS
     assert notifier.sent == []
     assert users.claims == []
-    assert guest.can_use_free_view()  # подарок цел
+    assert guest.can_pick_weekly(_NOW)  # выбор цел
     assert events.kinds_for(42) == [EventKind.PAYWALL]
 
 
-async def test_gift_covers_only_one_movie() -> None:
+async def test_weekly_pick_covers_only_one_movie() -> None:
     """Подарок потрачен на фильм 7 → другой фильм упирается в пэйволл."""
     movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
-    guest = _guest(free_view_movie_id=7)
+    guest = _guest(weekly_movie_id=7)
     users, events = _FakeUsers(guest), FakeEvents()
     service = _service(movies, notifier, deliveries, users=users, events=events)
 
-    outcome = await service.deliver(guest, movie_id=8, now=_NOW, use_free_view=True)
+    outcome = await service.deliver(guest, movie_id=8, now=_NOW, use_weekly_pick=True)
 
     assert outcome is PlaybackOutcome.NO_ACCESS
     assert notifier.sent == []
     assert events.kinds_for(42) == [EventKind.PAYWALL]
 
 
-async def test_gifted_movie_is_redelivered_after_retention_cleanup() -> None:
+async def test_weekly_movie_is_redelivered_after_retention_cleanup() -> None:
     """Своё подаренное кино можно запросить снова — мы же сами сносим видео через ~40 ч.
 
     Согласия тут не требуется: тратить уже нечего, право израсходовано раньше.
     """
     movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
-    guest = _guest(free_view_movie_id=7)
+    guest = _guest(weekly_movie_id=7)
     users, events = _FakeUsers(guest), FakeEvents()
     service = _service(movies, notifier, deliveries, users=users, events=events)
 
@@ -385,10 +418,11 @@ async def test_gifted_movie_is_redelivered_after_retention_cleanup() -> None:
     assert outcome is PlaybackOutcome.GIFT_DELIVERED
     assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]
     assert users.claims == []  # повторно право не забираем
-    assert events.kinds_for(42) == [EventKind.FREE_PLAY]
+    # Пересмотр — только просмотр: `weekly_pick` пишется один раз, в момент выбора.
+    assert events.kinds_for(42) == [EventKind.WEEKLY_PLAY]
 
 
-async def test_gift_is_returned_when_delivery_fails() -> None:
+async def test_weekly_pick_is_returned_when_delivery_fails() -> None:
     """Юзер не открыл чат с ботом → подарок возвращаем: он его так и не увидел."""
     movies = _FakeMovies(_movie())
     notifier, deliveries = _FakeNotifier(unreachable=True), _FakeDeliveries()
@@ -396,11 +430,11 @@ async def test_gift_is_returned_when_delivery_fails() -> None:
     users = _FakeUsers(guest)
     service = _service(movies, notifier, deliveries, users=users)
 
-    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_weekly_pick=True)
 
     assert outcome is PlaybackOutcome.BOT_BLOCKED
     assert users.releases == [(42, 7)]
-    assert guest.can_use_free_view()  # право снова доступно
+    assert guest.can_pick_weekly(_NOW)  # право снова доступно
     # И снимаем сам факт открытого чата: раз бот не смог написать, чата фактически нет.
     # Дальше Mini App позовёт человека в бота ДО следующей попытки потратить подарок.
     assert users.bot_started == [(42, None)]
@@ -416,31 +450,33 @@ async def test_lost_claim_race_on_same_movie_is_not_a_paywall() -> None:
     movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
     # Копия у вызывающего устарела (подарок ещё «цел»), а в хранилище он уже потрачен.
     stale = _guest()
-    users, events = _FakeUsers(_guest(free_view_movie_id=7)), FakeEvents()
+    users, events = _FakeUsers(_guest(weekly_movie_id=7)), FakeEvents()
     service = _service(movies, notifier, deliveries, users=users, events=events)
 
-    outcome = await service.deliver(stale, movie_id=7, now=_NOW, use_free_view=True)
+    outcome = await service.deliver(stale, movie_id=7, now=_NOW, use_weekly_pick=True)
 
     assert outcome is PlaybackOutcome.GIFT_DELIVERED
-    assert events.kinds_for(42) == [EventKind.FREE_PLAY]  # пэйволла не было
+    # Просмотр без `weekly_pick`: выбор засчитал опередивший нас запрос, и дважды на одну
+    # неделю эта цифра попасть не должна.
+    assert events.kinds_for(42) == [EventKind.WEEKLY_PLAY]  # пэйволла не было
 
 
-async def test_subscriber_does_not_spend_the_gift() -> None:
+async def test_subscriber_does_not_spend_the_weekly_pick() -> None:
     """У подписчика подарок остаётся нетронутым — пригодится, когда подписка кончится."""
     movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
     active = _user(UserStatus.ACTIVE, _NOW + timedelta(days=1))
     users, events = _FakeUsers(active), FakeEvents()
     service = _service(movies, notifier, deliveries, users=users, events=events)
 
-    outcome = await service.deliver(active, movie_id=7, now=_NOW, use_free_view=True)
+    outcome = await service.deliver(active, movie_id=7, now=_NOW, use_weekly_pick=True)
 
     assert outcome is PlaybackOutcome.DELIVERED
     assert users.claims == []
-    assert active.can_use_free_view()
+    assert active.can_pick_weekly(_NOW)
     assert events.kinds_for(42) == [EventKind.PLAY]
 
 
-async def test_gift_survives_retry_while_the_send_lock_is_still_held() -> None:
+async def test_weekly_pick_survives_retry_while_the_send_lock_is_still_held() -> None:
     """Регрессия прод-бага: подарок сгорал молча на повторном тапе к недоступному боту.
 
     Сценарий из живой БД (два юзера остались с потраченным подарком и без видео): первый
@@ -456,19 +492,19 @@ async def test_gift_survives_retry_while_the_send_lock_is_still_held() -> None:
     lock = _OneShotLock()
     service = _service(movies, notifier, deliveries, lock=lock, users=users, events=events)
 
-    first = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
-    second = await service.deliver(guest, movie_id=7, now=_NOW, use_free_view=True)
+    first = await service.deliver(guest, movie_id=7, now=_NOW, use_weekly_pick=True)
+    second = await service.deliver(guest, movie_id=7, now=_NOW, use_weekly_pick=True)
 
     assert first is PlaybackOutcome.BOT_BLOCKED
     assert second is PlaybackOutcome.BOT_BLOCKED  # не ложное «отправлено»
-    assert guest.can_use_free_view()  # главное: подарок цел после обоих тапов
+    assert guest.can_pick_weekly(_NOW)  # главное: выбор цел после обоих тапов
     assert users.claims == [(42, 7), (42, 7)] and users.releases == [(42, 7), (42, 7)]
     assert deliveries.added == [] and events.kinds_for(42) == []  # ни выдачи, ни события
 
 
 # --- фильм дня ---------------------------------------------------------------
 
-async def test_daily_movie_is_free_for_everyone_without_spending_the_gift() -> None:
+async def test_daily_movie_is_free_for_everyone_without_spending_the_pick() -> None:
     """Hero главной сегодня бесплатен: без подписки, без согласия, подарок остаётся цел.
 
     Это ядро сделки «фильм дня»: человек нажимает «Тегін көру» на витрине и получает
@@ -487,14 +523,14 @@ async def test_daily_movie_is_free_for_everyone_without_spending_the_gift() -> N
     assert outcome is PlaybackOutcome.DAILY_DELIVERED
     assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]
     assert users.claims == []            # подарок не забирали
-    assert guest.can_use_free_view()     # и он по-прежнему доступен
+    assert guest.can_pick_weekly(_NOW)     # и он по-прежнему доступен
     assert events.kinds_for(42) == [EventKind.DAILY_PLAY]  # своя метрика, не free_play
 
 
 async def test_other_movie_still_hits_the_paywall_on_a_free_day() -> None:
     """Бесплатен ровно ОДИН фильм: сосед по полке по-прежнему за подписку."""
     movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
-    guest = _guest(free_view_movie_id=99)  # подарок уже потрачен на другое кино
+    guest = _guest(weekly_movie_id=99)  # подарок уже потрачен на другое кино
     users, events = _FakeUsers(guest), FakeEvents()
     service = _service(
         movies, notifier, deliveries, users=users, events=events, daily=_FakeDaily(7)
@@ -524,3 +560,114 @@ async def test_subscriber_watching_the_daily_movie_counts_as_a_paid_view() -> No
 
     assert outcome is PlaybackOutcome.DELIVERED
     assert events.kinds_for(42) == [EventKind.PLAY]
+
+
+# --- гейт канала ---------------------------------------------------------------------
+
+
+async def test_not_subscribed_to_channel_gets_a_gate_not_a_paywall() -> None:
+    """Неподписчик, который хочет взять фильм на неделю, упирается НЕ в стену.
+
+    Показать тут пэйволл значило бы продавать человеку то, что он может получить
+    бесплатно в одно действие. Выбор при этом не тратится — брать его ещё не за что.
+    """
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    guest = _guest()
+    users, events = _FakeUsers(guest), FakeEvents()
+    membership = _FakeMembership(member=False)
+    service = _service(
+        movies, notifier, deliveries, users=users, events=events, membership=membership
+    )
+
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_weekly_pick=True)
+
+    assert outcome is PlaybackOutcome.NEED_CHANNEL
+    assert notifier.sent == []
+    assert users.claims == []
+    assert guest.can_pick_weekly(_NOW)
+    # Знаменатель воронки: без него прирост канала не отличить от органического.
+    assert events.kinds_for(42) == [EventKind.CHANNEL_GATE]
+
+
+async def test_channel_is_not_asked_when_the_pick_is_already_spent() -> None:
+    """`getChatMember` — сетевой вызов в общие лимиты бота: дёргать его ради человека,
+    который на этой неделе выбор уже потратил, незачем."""
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    membership = _FakeMembership()
+    service = _service(movies, notifier, deliveries, membership=membership)
+
+    outcome = await service.deliver(
+        _guest(weekly_movie_id=99), movie_id=8, now=_NOW, use_weekly_pick=True
+    )
+
+    assert outcome is PlaybackOutcome.NO_ACCESS
+    assert membership.asked == []
+
+
+async def test_subscriber_is_never_asked_about_the_channel() -> None:
+    """Платящему гейт не показываем и Telegram про него не спрашиваем."""
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    membership = _FakeMembership(member=False)
+    service = _service(movies, notifier, deliveries, membership=membership)
+
+    outcome = await service.deliver(
+        _user(UserStatus.ACTIVE, _NOW + timedelta(days=1)), movie_id=7, now=_NOW
+    )
+
+    assert outcome is PlaybackOutcome.DELIVERED
+    assert membership.asked == []
+
+
+# --- наследство одноразового подарка -------------------------------------------------
+
+
+async def test_legacy_gift_stays_free_forever() -> None:
+    """Фильм, подаренный старой механикой, остаётся бесплатным — отнимать его не за что.
+
+    Согласия не требуется (тратить нечего), недельный выбор при этом цел, а событие
+    пишется прежним видом: метрика наследства должна стремиться к нулю отдельно.
+    """
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    old_timer = _legacy(movie_id=7)
+    users, events = _FakeUsers(old_timer), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(old_timer, movie_id=7, now=_NOW)
+
+    assert outcome is PlaybackOutcome.GIFT_DELIVERED
+    assert notifier.sent == [(42, "ARCHIVE_FILE_ID", "Фильм")]
+    assert users.claims == []
+    assert old_timer.can_pick_weekly(_NOW)  # недельный выбор не потрачен
+    assert events.kinds_for(42) == [EventKind.FREE_PLAY]
+
+
+async def test_legacy_user_also_gets_the_weekly_pick() -> None:
+    """Старый подарок не мешает новой механике: другой фильм берётся как недельный."""
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    old_timer = _legacy(movie_id=99)
+    users, events = _FakeUsers(old_timer), FakeEvents()
+    service = _service(movies, notifier, deliveries, users=users, events=events)
+
+    outcome = await service.deliver(old_timer, movie_id=7, now=_NOW, use_weekly_pick=True)
+
+    assert outcome is PlaybackOutcome.GIFT_DELIVERED
+    assert users.claims == [(42, 7)]
+    assert events.kinds_for(42) == [EventKind.WEEKLY_PLAY, EventKind.WEEKLY_PICK]
+
+
+# --- смена недели --------------------------------------------------------------------
+
+
+async def test_last_weeks_pick_does_not_block_this_week() -> None:
+    """Право освобождается сменой ключа недели — без джоба и без записи в БД."""
+    movies, notifier, deliveries = _FakeMovies(_movie()), _FakeNotifier(), _FakeDeliveries()
+    guest = _guest(weekly_movie_id=99)
+    guest.weekly_week = _WEEK - timedelta(days=7)  # выбирал на прошлой неделе
+    users = _FakeUsers(guest)
+    service = _service(movies, notifier, deliveries, users=users)
+
+    outcome = await service.deliver(guest, movie_id=7, now=_NOW, use_weekly_pick=True)
+
+    assert outcome is PlaybackOutcome.GIFT_DELIVERED
+    assert users.claims == [(42, 7)]
+    assert guest.weekly_movie_id == 7 and guest.weekly_week == _WEEK

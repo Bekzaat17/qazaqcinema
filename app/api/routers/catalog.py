@@ -184,9 +184,9 @@ async def get_movie(
 async def play_movie(
     movie_id: int,
     playback: FromDishka[PlaybackService],
-    use_free_view: bool = Query(
+    use_weekly_pick: bool = Query(
         False,
-        description="Потратить подарочный первый фильм (юзер подтвердил в модалке)",
+        description="Потратить недельный бесплатный выбор (юзер подтвердил в шторке)",
     ),
     user: User = Depends(get_current_user),
 ) -> PlayOut:
@@ -195,13 +195,18 @@ async def play_movie(
     Видео уходит в Telegram-чат пользователя, НЕ через HTTP: API лишь триггерит отправку
     после initData-гейта. `telegram_file_id` наружу не отдаётся.
 
-    `use_free_view` — явное согласие потратить подарочный первый фильм. Флаг обязателен
-    именно потому, что подарок одноразовый: без него он сгорал бы от случайного перехода
-    (deep-link на фильм), и человек узнал бы о подарке, только потеряв его.
+    `use_weekly_pick` — явное согласие потратить недельный выбор. Флаг обязателен потому,
+    что выбор один на неделю: без него он сгорал бы от случайного перехода (deep-link на
+    фильм), и человек узнал бы о нём, только потеряв.
     """
     outcome = await playback.deliver(
-        user, movie_id, datetime.now(UTC), use_free_view=use_free_view
+        user, movie_id, datetime.now(UTC), use_weekly_pick=use_weekly_pick
     )
+    if outcome is PlaybackOutcome.NEED_CHANNEL:
+        # Тоже 403, но с другим detail: фронт показывает не пэйволл, а «подпишитесь на
+        # канал» с кнопкой и «Тексеру». Продавать человеку то, что он может получить
+        # бесплатно в одно действие, — верный способ не получить ни подписки, ни денег.
+        raise HTTPException(status_code=403, detail="need_channel")
     if outcome is PlaybackOutcome.NO_ACCESS:
         raise HTTPException(status_code=403, detail="no_access")
     if outcome is PlaybackOutcome.NOT_FOUND:

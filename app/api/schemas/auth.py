@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.domain.entities.user import User
+from app.domain.subscription.weekly import week_end
 
 
 class AuthOut(BaseModel):
@@ -19,11 +20,18 @@ class AuthOut(BaseModel):
     token: str | None = None
     # Начальное состояние тумблера рассылок — фронт рисует профиль без доп. запроса.
     notifications_enabled: bool = True
-    # Подарочный первый фильм. Фронт по этим двум полям решает, что показать вместо
-    # пэйволла: приглашение «первый фильм за наш счёт» (подарок цел) или бейдж «Сыйлық»
-    # на уже подаренном фильме. Поля приходят и из `GET /api/me`, который фронт опрашивает,
-    # — состояние подарка меняется на сервере и должно доезжать без перезахода.
-    free_view_available: bool = True
+    # Недельный бесплатный выбор. Фронт по этим полям решает, что показать вместо
+    # пэйволла: приглашение «возьми фильм на неделю» (выбор свободен), бейдж «Менің
+    # таңдауым» на своём фильме и счётчик до конца окна. `week_ends_at` ОДИН на всех —
+    # окно общее (понедельник 00:00 по Алматы), считать остаток по каждому не нужно.
+    # Поля приходят и из `GET /api/me`: состояние меняется на сервере (в том числе само,
+    # сменой недели) и должно доезжать без перезахода.
+    weekly_pick_available: bool = True
+    weekly_movie_id: int | None = None
+    week_ends_at: datetime | None = None
+    # Фильм, подаренный ПРОШЛОЙ, одноразовой механикой: он бесплатен навсегда, и бейдж на
+    # нём фронт рисует по-прежнему. Поля «подарок ещё цел» тут больше нет намеренно —
+    # забрать его нельзя, и оставить флаг значило бы рисовать кнопку в никуда.
     free_view_movie_id: int | None = None
     # Открыт ли чат с ботом. Видео уходит ТОЛЬКО туда, а написать первым бот не вправе —
     # значит для зашедшего по ссылке (из браузера/поиска) «Көру» физически не сработает.
@@ -32,6 +40,10 @@ class AuthOut(BaseModel):
 
     @classmethod
     def from_domain(cls, user: User, now: datetime, token: str | None = None) -> AuthOut:
+        # `weekly_movie_id` отдаём ТОЛЬКО пока он про ТЕКУЩУЮ неделю: в колонке лежит и
+        # позапрошлый выбор, а бейдж «Менің таңдауым» на фильме, право на который уже
+        # истекло, обещал бы человеку доступ, которого нет.
+        picked_this_week = not user.can_pick_weekly(now)
         return cls(
             telegram_id=user.telegram_id,
             status=user.status.value,
@@ -39,7 +51,9 @@ class AuthOut(BaseModel):
             has_access=user.has_active_access(now),
             token=token,
             notifications_enabled=user.notifications_enabled,
-            free_view_available=user.can_use_free_view(),
+            weekly_pick_available=not picked_this_week,
+            weekly_movie_id=user.weekly_movie_id if picked_this_week else None,
+            week_ends_at=week_end(now),
             free_view_movie_id=user.free_view_movie_id,
             bot_started=user.has_bot_chat(),
         )
