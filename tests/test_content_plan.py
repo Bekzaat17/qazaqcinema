@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from app.domain.channel.content.item import MESSAGE_LIMIT, ContentItem
 from app.domain.channel.content.kinds import ContentKind
-from app.domain.channel.content.plan import SLOTS, closes_at, slot_for, slot_key
+from app.domain.channel.content.plan import SLOTS, Vary, closes_at, slot_for, slot_key
 from app.domain.channel.content.render.base import footer, frame, header
 from app.domain.channel.content.split import split_text
 from app.domain.channel.content.topics import CHANNEL_HASHTAG, TOPICS
@@ -27,6 +27,25 @@ def test_sunday_19_is_abai_with_saying_fallback() -> None:
     first, second = slot.sources
     assert first.kind is ContentKind.LONGREAD and first.topic == "abai" and not first.repeat
     assert second.kind is ContentKind.SAYING and second.repeat
+
+
+def test_every_source_declares_how_it_varies() -> None:
+    """Ось разнообразия — часть сетки, а не догадка репозитория.
+
+    Қара сөз идут по номерам (`NONE`), нақыл сөз разводятся по авторам (`SOURCE`), всё
+    остальное — по рубрикам, чтобы жылқы не занимал месяц понедельников подряд.
+    """
+    by_name = {slot.name: slot for slot in SLOTS}
+    assert by_name["abai"].sources[0].vary is Vary.NONE
+    assert by_name["abai"].sources[1].vary is Vary.SOURCE
+    assert by_name["saying"].sources[0].vary is Vary.SOURCE
+    quizzes_and_terms = [
+        source
+        for slot in SLOTS
+        for source in slot.sources
+        if source.kind.is_quiz or source.kind is ContentKind.TERM_LIST
+    ]
+    assert quizzes_and_terms and all(source.vary is Vary.TOPIC for source in quizzes_and_terms)
 
 
 def test_hours_are_local_not_utc() -> None:

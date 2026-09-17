@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from itertools import pairwise
 
 from app.application.ports.content import PostLogEntry
 from app.domain.channel.content.item import ContentItem, QuizChoice, Term, TermList
 from app.domain.channel.content.kinds import ContentKind
-from app.domain.channel.content.plan import Source
+from app.domain.channel.content.plan import Source, Vary
 from app.infrastructure.db.content_repositories import PgContentRepository, PgPostLogRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
 NOW = datetime(2026, 9, 13, 14, 0, tzinfo=UTC)
 TODAY = date(2026, 9, 13)
+
+
+# Қара сөз — единственный источник с `Vary.NONE`: у него порядок и есть смысл, поэтому
+# тай-брейк по id, а не хэшем. Остальные проверки разнообразия — ниже, своими фабриками.
+_QARA_SOZ = Source(ContentKind.LONGREAD, "abai", vary=Vary.NONE)
 
 
 def _abai(n: int, **overrides: object) -> ContentItem:
@@ -23,10 +29,35 @@ def _abai(n: int, **overrides: object) -> ContentItem:
     return ContentItem(**(base | overrides))  # type: ignore[arg-type]
 
 
+def _quiz(slug: str, topic: str) -> ContentItem:
+    return ContentItem(
+        slug=slug, kind=ContentKind.QUIZ_CHOICE, topic=topic, title_kk="Атау-сұрақ",
+        body_kk="", payload=QuizChoice("сұрақ", ("а", "ә"), 0),
+    )
+
+
+def _saying(slug: str, author: str) -> ContentItem:
+    return ContentItem(
+        slug=slug, kind=ContentKind.SAYING, topic="nakyl", title_kk="Нақыл сөз",
+        body_kk="дәйексөз", source=author,
+    )
+
+
+async def _post_series(repo: PgContentRepository, src: Source, count: int) -> list[ContentItem]:
+    """`count` публикаций подряд — по одной в неделю, как настоящий слот сетки."""
+    posted: list[ContentItem] = []
+    for week in range(count):
+        item = await repo.next_for(src, TODAY + timedelta(days=7 * week))
+        assert item is not None and item.id is not None
+        await repo.mark_posted(item.id, NOW + timedelta(days=7 * week))
+        posted.append(item)
+    return posted
+
+
 async def test_upsert_is_idempotent_and_keeps_rotation_state(session: AsyncSession) -> None:
     repo = PgContentRepository(session)
     assert await repo.upsert_many([_abai(1), _abai(2)]) == 2
-    first = await repo.next_for(Source(ContentKind.LONGREAD, "abai"), TODAY)
+    first = await repo.next_for(_QARA_SOZ, TODAY)
     assert first is not None and first.id is not None
     await repo.mark_posted(first.id, NOW)
 
@@ -40,7 +71,7 @@ async def test_upsert_is_idempotent_and_keeps_rotation_state(session: AsyncSessi
 async def test_rotation_never_posted_first_then_oldest(session: AsyncSession) -> None:
     repo = PgContentRepository(session)
     await repo.upsert_many([_abai(1), _abai(2), _abai(3)])
-    src = Source(ContentKind.LONGREAD, "abai")
+    src = _QARA_SOZ
 
     a = await repo.next_for(src, TODAY)
     assert a is not None and a.slug == "abai-01"  # tie-break по id
@@ -55,17 +86,70 @@ async def test_rotation_never_posted_first_then_oldest(session: AsyncSession) ->
     # Все постились: repeat=True → самый давний (abai-01); repeat=False → пул исчерпан.
     lru = await repo.next_for(src, TODAY)
     assert lru is not None and lru.slug == "abai-01"
-    assert await repo.next_for(Source(ContentKind.LONGREAD, "abai", repeat=False), TODAY) is None
+    exhausted = Source(ContentKind.LONGREAD, "abai", repeat=False, vary=Vary.NONE)
+    assert await repo.next_for(exhausted, TODAY) is None
 
 
 async def test_scheduled_pin_beats_rotation_only_on_its_day(session: AsyncSession) -> None:
     repo = PgContentRepository(session)
     await repo.upsert_many([_abai(1), _abai(2, scheduled_for=TODAY)])
-    src = Source(ContentKind.LONGREAD, "abai")
+    src = _QARA_SOZ
     pinned = await repo.next_for(src, TODAY)
     assert pinned is not None and pinned.slug == "abai-02"
     other_day = await repo.next_for(src, TODAY + timedelta(days=1))
     assert other_day is not None and other_day.slug == "abai-01"
+
+
+async def test_variety_does_not_repeat_a_topic_while_others_wait(session: AsyncSession) -> None:
+    """Пул залит пачками по рубрикам — в ленту он обязан выходить вперемешку.
+
+    Это и был баг: `atau.yaml` начинается девятью вопросами про жылқы, тай-брейк шёл по `id`,
+    и канал четыре понедельника подряд спрашивал про лошадей.
+    """
+    repo = PgContentRepository(session)
+    await repo.upsert_many(
+        [
+            _quiz(f"atau-{topic}-{n}", topic)
+            for topic in ("zhylqy", "mal", "tagam")
+            for n in range(6)
+        ]
+    )
+
+    posted = await _post_series(repo, Source(ContentKind.QUIZ_CHOICE), 6)
+
+    topics = [item.topic for item in posted]
+    assert all(a != b for a, b in pairwise(topics)), topics
+    assert set(topics) == {"zhylqy", "mal", "tagam"}
+
+
+async def test_variety_by_author_lets_others_in_between_two_abai(session: AsyncSession) -> None:
+    """Нақыл сөз: рубрика одна, разнообразие — по автору (в `sayings.yaml` двадцать Абаев)."""
+    repo = PgContentRepository(session)
+    abai = [_saying(f"nakyl-{n:02d}", "Абай Құнанбайұлы") for n in range(20)]
+    others = [
+        _saying("nakyl-20", "Бауыржан Момышұлы"),
+        _saying("nakyl-21", "Ыбырай Алтынсарин"),
+        _saying("nakyl-22", "Ахмет Байтұрсынұлы"),
+    ]
+    await repo.upsert_many(abai + others)
+
+    posted = await _post_series(repo, Source(ContentKind.SAYING, vary=Vary.SOURCE), 4)
+
+    authors = [item.source for item in posted]
+    assert all(a != b for a, b in pairwise(authors)), authors
+    assert len(set(authors)) >= 3, authors
+
+
+async def test_single_group_pool_is_shuffled_not_file_order(session: AsyncSession) -> None:
+    """Жұмбақ: рубрика на весь пул одна, остывать некому — но и тогда это не порядок файла."""
+    repo = PgContentRepository(session)
+    slugs = [f"zhumbaq-{n:02d}" for n in range(10)]
+    await repo.upsert_many([_quiz(slug, "zhumbaq") for slug in slugs])
+
+    posted = [item.slug for item in await _post_series(repo, Source(ContentKind.QUIZ_CHOICE), 10)]
+
+    assert sorted(posted) == slugs   # за круг выходит весь пул, без повторов
+    assert posted != slugs           # но не тем порядком, каким его залили
 
 
 async def test_filters_by_kind_topic_and_active(session: AsyncSession) -> None:
@@ -92,7 +176,7 @@ async def test_filters_by_kind_topic_and_active(session: AsyncSession) -> None:
 async def test_post_log_slot_key_is_unique(session: AsyncSession) -> None:
     items = PgContentRepository(session)
     await items.upsert_many([_abai(1)])
-    item = await items.next_for(Source(ContentKind.LONGREAD, "abai"), TODAY)
+    item = await items.next_for(_QARA_SOZ, TODAY)
     assert item is not None and item.id is not None
     log = PgPostLogRepository(session)
     entry = PostLogEntry(
@@ -116,7 +200,7 @@ async def test_quiz_answers_first_only_and_stats_order(session: AsyncSession) ->
 
     items = PgContentRepository(session)
     await items.upsert_many([_abai(1)])
-    item = await items.next_for(Source(ContentKind.LONGREAD, "abai"), TODAY)
+    item = await items.next_for(_QARA_SOZ, TODAY)
     assert item is not None and item.id is not None
     log = PgPostLogRepository(session)
     post = await log.add(PostLogEntry(

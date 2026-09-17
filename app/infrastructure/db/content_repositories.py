@@ -9,15 +9,26 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from datetime import date, datetime
+from typing import Any
 
-from sqlalchemy import ColumnElement, case, func, select, update
+from sqlalchemy import (
+    ColumnElement,
+    SQLColumnExpression,
+    UnaryExpression,
+    case,
+    func,
+    null,
+    select,
+    update,
+)
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.application.ports.content import PostLogEntry, QuizStatsRow
 from app.domain.channel.content.item import ContentItem
 from app.domain.channel.content.kinds import ContentKind
-from app.domain.channel.content.plan import Source
+from app.domain.channel.content.plan import VARIETY_COOLDOWN, Source, Vary
 from app.infrastructure.db.content_codec import payload_from_json, payload_to_json
 from app.infrastructure.db.models import ChannelPostLogModel, ContentItemModel, QuizAnswerModel
 from app.infrastructure.db.sql import rowcount
@@ -46,16 +57,21 @@ def _item_to_domain(model: ContentItemModel) -> ContentItem:
     )
 
 
+def _pinned_first(scheduled_for: SQLColumnExpression[Any], today: date) -> UnaryExpression[int]:
+    """Редакторский пин на сегодня — впереди ротации.
+
+    CASE, а не голое сравнение: у незакреплённых `scheduled_for IS NULL`, и сравнение даёт
+    NULL, который в сортировке ведёт себя не как FALSE (DESC ставит NULL первым).
+    """
+    return case((scheduled_for == today, 1), else_=0).desc()
+
+
 class PgContentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def next_for(self, source: Source, today: date) -> ContentItem | None:
-        """Правило ротации — см. докстринг порта. Один запрос: фильтр + порядок + LIMIT 1.
-
-        Порядок: пин на сегодня → никогда не постившиеся → самые давние → id.
-        `nulls_first` у `last_posted_at ASC` и делает «никогда» первыми.
-        """
+        """Правило ротации — см. докстринг порта. Один запрос: фильтр + порядок + LIMIT 1."""
         conditions: list[ColumnElement[bool]] = [
             ContentItemModel.is_active.is_(True),
             ContentItemModel.kind == source.kind.value,
@@ -64,16 +80,55 @@ class PgContentRepository:
             conditions.append(ContentItemModel.topic == source.topic)
         if not source.repeat:
             conditions.append(ContentItemModel.last_posted_at.is_(None))
-        # CASE, а не голое сравнение: у незакреплённых `scheduled_for IS NULL`, и сравнение
-        # даёт NULL, который в сортировке ведёт себя не как FALSE (DESC ставит NULL первым).
-        pinned_today = case((ContentItemModel.scheduled_for == today, 1), else_=0).desc()
-        stmt = (
-            select(ContentItemModel)
+
+        if source.vary is Vary.NONE:
+            # Порядок и есть смысл (қара сөз по номерам): пин → никогда не постившиеся →
+            # самые давние → id. `nulls_first` у `last_posted_at ASC` делает «никогда» первыми.
+            stmt = (
+                select(ContentItemModel)
+                .where(*conditions)
+                .order_by(
+                    _pinned_first(ContentItemModel.scheduled_for, today),
+                    ContentItemModel.last_posted_at.asc().nulls_first(),
+                    ContentItemModel.id,
+                )
+                .limit(1)
+            )
+            model = await self._session.scalar(stmt)
+            return _item_to_domain(model) if model else None
+
+        # Разнообразие: у каждого кандидата — когда ЕГО группа (рубрика либо автор)
+        # выходила последний раз. Оконная функция, а не отдельный запрос: группа считается
+        # по тому же отфильтрованному пулу, а не по всей таблице.
+        group = ContentItemModel.topic if source.vary is Vary.TOPIC else ContentItemModel.source
+        pool = (
+            select(
+                ContentItemModel,
+                func.max(ContentItemModel.last_posted_at)
+                .over(partition_by=group)
+                .label("group_last"),
+            )
             .where(*conditions)
+            .subquery()
+        )
+        item = aliased(ContentItemModel, pool)
+        # Один ключ на два случая. Остывшая (и ни разу не выходившая) группа → NULL → идёт
+        # первой, и таких обычно много: они равны между собой, а значит выбор дальше решает
+        # LRU по элементу — крупная рубрика получает пропорционально больше эфира, как и
+        # должно быть. Горячие сортируются между собой по давности: если остыть не успел
+        # никто (в пуле две-три группы), возьмём самую давнюю, а не ту же, что вчера.
+        cooled_since = today - VARIETY_COOLDOWN
+        group_heat = case((pool.c.group_last >= cooled_since, pool.c.group_last), else_=null())
+        stmt = (
+            select(item)
             .order_by(
-                pinned_today,
-                ContentItemModel.last_posted_at.asc().nulls_first(),
-                ContentItemModel.id,
+                _pinned_first(pool.c.scheduled_for, today),
+                group_heat.asc().nulls_first(),
+                pool.c.last_posted_at.asc().nulls_first(),
+                # Тай-брейк — устойчивый хэш slug, а не id: у непостившихся `last_posted_at`
+                # равны, и id вернул бы порядок заливки — те самые девять лошадей подряд.
+                # Хэш перемешивает, но воспроизводимо: тот же пул даёт тот же порядок.
+                func.md5(pool.c.slug),
             )
             .limit(1)
         )
