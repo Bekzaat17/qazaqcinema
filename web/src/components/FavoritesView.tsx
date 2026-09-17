@@ -20,6 +20,7 @@ import { weekLeftLabel } from "../lib/week";
 import Skeleton from "../ui/Skeleton";
 import { FavoritesEmpty, LoadError } from "./States";
 import PosterCard from "./PosterCard";
+import WeeklyPickCard from "./WeeklyPickCard";
 
 const GRID = "grid grid-cols-3 gap-3 px-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6";
 
@@ -93,18 +94,14 @@ export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) =
   return (
     <>
       {weekly && (
-        <section className="pt-4">
-          <div className="mb-3 flex items-baseline justify-between gap-3 px-4">
-            <h2 className="text-[17px] font-bold tracking-tight text-text">Апталық таңдауым</h2>
-            {left && <span className="shrink-0 text-xs font-medium text-star tabular">{left}</span>}
-          </div>
-          <div className={GRID}>
-            <PosterCard movie={weekly} onSelect={onSelect} inShelf={false} />
-          </div>
-        </section>
+        // Заголовка над карточкой нет: она сама себя называет бейджем, а лишняя строка
+        // только отодвигала бы витрину вниз.
+        <div className="px-4 pt-4">
+          <WeeklyPickCard movie={weekly} left={left} onSelect={onSelect} />
+        </div>
       )}
 
-      <section className={weekly ? "mt-7" : "pt-4"}>
+      <section className={weekly ? "mt-6" : "pt-4"}>
         {/* Заголовок нужен только когда выше есть другая секция: без него две сетки
             слиплись бы в одну, и недельный фильм выглядел бы просто первым избранным. */}
         {weekly && (

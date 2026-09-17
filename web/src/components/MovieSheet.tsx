@@ -167,19 +167,21 @@ export default function MovieSheet({
 /** Строка «выбор занят другим фильмом» — кликабельная, если знаем, каким именно. */
 function SwitchToPick({ left, onOpen }: { left: string; onOpen: (() => void) | null }) {
   const body = (
-    <>
-      <Ticket size={15} className="shrink-0 text-star" />
-      <span className="min-w-0 flex-1">
-        Апталық таңдауыңыз қазір басқа фильмде
-        {/* Срок — отдельной строкой: через точку он читается как продолжение фразы,
-            хотя это ответ на другой вопрос — «сколько мне ещё ждать нового выбора». */}
-        {left && <span className="mt-1 block font-medium tabular">{left}</span>}
-      </span>
-    </>
+    // Иконки-билета здесь нет намеренно: фраза должна умещаться в ОДНУ строку даже на
+    // узком телефоне, а 25 px под иконку — ровно та разница, из-за которой она рвалась
+    // пополам. Роль «сюда можно нажать» берёт на себя шеврон.
+    <span className="min-w-0 flex-1">
+      Апталық таңдауыңыз басқа фильмде
+      {/* Срок — отдельной строкой: через точку он читается как продолжение фразы,
+          хотя это ответ на другой вопрос — «сколько мне ещё ждать нового выбора». */}
+      {left && <span className="mt-1 block font-medium tabular">{left}</span>}
+    </span>
   );
+  // 12 px, а не 13: на самом узком телефоне (320 px) фраза в 13 px не влезает в строку
+  // ровно на несколько пикселей и рвётся пополам — а она должна читаться одним взглядом.
   const box =
     "mt-4 flex w-full items-center gap-2.5 rounded-2xl border border-star/30 bg-star/10 " +
-    "px-3.5 py-2.5 text-left text-[13px] text-star";
+    "px-3.5 py-2.5 text-left text-xs leading-snug text-star";
   if (!onOpen) return <p className={box}>{body}</p>;
   return (
     <button type="button" onClick={onOpen} className={box}>
