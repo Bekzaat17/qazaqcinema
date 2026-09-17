@@ -1,12 +1,13 @@
 // Профиль (👤): аватар + имя + карточка статуса подписки + тумблер рассылок + связь с поддержкой.
 
-import { BadgeCheck, Bell, CalendarClock, ChevronRight, Clock, LifeBuoy, Sparkles } from "lucide-react";
+import { BadgeCheck, Bell, CalendarClock, ChevronRight, Clock, LifeBuoy, Sparkles, Ticket } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { Auth } from "../lib/api";
 import { api } from "../lib/api";
 import { daysLeft, formatDate, initials } from "../lib/format";
 import { getTelegramUser, haptic } from "../lib/telegram";
+import { weekLeftLabel } from "../lib/week";
 import Button from "../ui/Button";
 import Sheet from "../ui/Sheet";
 
@@ -53,6 +54,10 @@ export default function ProfileSheet({
         <div className="mt-5">
           <StatusCard auth={auth} onSubscribe={onSubscribe} />
         </div>
+
+        {/* Недельный выбор — только тем, у кого нет подписки: у подписчика его не
+            существует, и строка про него была бы шумом на пустом месте. */}
+        {auth && !auth.has_access && <WeeklyPickRow auth={auth} />}
 
         {auth && (
           <div className="mt-3">
@@ -140,6 +145,27 @@ function NotificationsToggle({
     </button>
   );
 }
+
+function WeeklyPickRow({ auth }: { auth: Auth }) {
+  const left = weekLeftLabel(auth.week_ends_at);
+  const taken = auth.weekly_movie_id !== null;
+  return (
+    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-elevated p-4">
+      <Ticket size={20} className="shrink-0 text-brand" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-text">
+          {taken ? "Апталық таңдауыңыз алынды" : "Апталық таңдауыңыз бос"}
+        </p>
+        <p className="mt-0.5 text-xs text-faint">
+          {taken
+            ? left || "Апта соңына дейін қарай аласыз"
+            : "Кез келген фильмді таңдап, апта соңына дейін тегін көріңіз"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 
 function StatusCard({ auth, onSubscribe }: { auth: Auth | null; onSubscribe: () => void }) {
   if (auth?.status === "active") {

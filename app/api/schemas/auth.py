@@ -33,13 +33,20 @@ class AuthOut(BaseModel):
     # нём фронт рисует по-прежнему. Поля «подарок ещё цел» тут больше нет намеренно —
     # забрать его нельзя, и оставить флаг значило бы рисовать кнопку в никуда.
     free_view_movie_id: int | None = None
+    # @-имя публичного канала без «@» — фронту нужно, чтобы шторка гейта вела в канал.
+    # Отдаём с бэка, а не собственной VITE-переменной: канал уже описан в конфиге бэкенда
+    # (`BOT_PUBLIC_CHANNEL_USERNAME`), и вторая копия того же имени однажды разъедется —
+    # причём молча, ссылкой в никуда ровно у тех, кого мы просим подписаться.
+    channel_username: str = ""
     # Открыт ли чат с ботом. Видео уходит ТОЛЬКО туда, а написать первым бот не вправе —
     # значит для зашедшего по ссылке (из браузера/поиска) «Көру» физически не сработает.
     # Фронт по этому полю зовёт в бота ЗАРАНЕЕ, вместо ошибки после потраченного подарка.
     bot_started: bool = True
 
     @classmethod
-    def from_domain(cls, user: User, now: datetime, token: str | None = None) -> AuthOut:
+    def from_domain(
+        cls, user: User, now: datetime, token: str | None = None, channel_username: str = ""
+    ) -> AuthOut:
         # `weekly_movie_id` отдаём ТОЛЬКО пока он про ТЕКУЩУЮ неделю: в колонке лежит и
         # позапрошлый выбор, а бейдж «Менің таңдауым» на фильме, право на который уже
         # истекло, обещал бы человеку доступ, которого нет.
@@ -55,5 +62,6 @@ class AuthOut(BaseModel):
             weekly_movie_id=user.weekly_movie_id if picked_this_week else None,
             week_ends_at=week_end(now),
             free_view_movie_id=user.free_view_movie_id,
+            channel_username=channel_username,
             bot_started=user.has_bot_chat(),
         )

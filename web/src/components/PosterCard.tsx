@@ -1,6 +1,9 @@
 // Постер-карточка для полки (портрет 2:3). Замок на карточке НЕ рисуем — гейт подписки
 // живёт только на кнопке «Көру» (PLAN, Фаза 9).
 
+import { Ticket } from "lucide-react";
+
+import { useWeeklyPick } from "../hooks/useWeeklyPick";
 import type { Movie } from "../lib/api";
 import { thumbUrl } from "../lib/poster";
 import { haptic } from "../lib/telegram";
@@ -15,6 +18,12 @@ interface PosterCardProps {
 }
 
 export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCardProps) {
+  // Бейдж своего недельного фильма. Без него человек теряет его среди сотни постеров и
+  // через день не помнит, что вообще выбрал. Контекст пустой у подписчика — значит у него
+  // бейджа нет нигде и никогда (см. `useWeeklyPick`).
+  const { movieId } = useWeeklyPick();
+  const mine = movieId === movie.id;
+
   return (
     // Звезда — СОСЕД кнопки-карточки, а не её содержимое: <button> внутри <button> —
     // невалидная разметка, и тап по звезде заодно открывал бы карточку.
@@ -51,6 +60,12 @@ export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCa
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
         {movie.rating != null && <RatingPill rating={movie.rating} className="absolute right-2 top-2" />}
+        {mine && (
+          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-[10px] font-bold text-white shadow-lg shadow-brand/30">
+            <Ticket size={11} />
+            Таңдауым
+          </span>
+        )}
       </div>
       <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-tight text-text">{movie.title_kk}</p>
       {movie.year != null && <p className="mt-0.5 text-xs text-faint tabular">{movie.year}</p>}

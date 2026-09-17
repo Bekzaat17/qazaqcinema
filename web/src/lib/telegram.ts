@@ -112,6 +112,18 @@ export function openLink(url: string): void {
 }
 
 /**
+ * Открыть t.me-ссылку ВНУТРИ Telegram (канал, чат): Mini App сворачивается, сверху встаёт
+ * нужный экран. Именно `openTelegramLink`, а не `openLink` — последний уводит t.me во
+ * внешний браузер, где человек видит веб-превью канала с кнопкой «Open in Telegram»
+ * вместо самого канала, на который мы его и просим подписаться.
+ */
+export function openTelegramLink(url: string): void {
+  const wa = getWebApp();
+  if (wa?.openTelegramLink) wa.openTelegramLink(url);
+  else openLink(url);
+}
+
+/**
  * Открыть чат с ботом ВНУТРИ Telegram (Mini App сворачивается, сверху встаёт чат).
  * Именно `openTelegramLink`, а не `openLink`: последний уводит t.me во внешний браузер,
  * и человек оказывался бы на веб-странице вместо чата, который ему как раз и нужен.
@@ -125,10 +137,7 @@ export function openLink(url: string): void {
  * затирающее контекст. Без `payload` метод открывает существующий чат как есть.
  */
 export function openBotChat(payload?: string): void {
-  const url = payload ? `${BOT_URL}?start=${payload}` : BOT_URL;
-  const wa = getWebApp();
-  if (wa?.openTelegramLink) wa.openTelegramLink(url);
-  else openLink(url);
+  openTelegramLink(payload ? `${BOT_URL}?start=${payload}` : BOT_URL);
 }
 
 /**

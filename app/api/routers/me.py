@@ -13,6 +13,7 @@ from app.api.deps.rate_limit import rate_limit
 from app.api.schemas.auth import AuthOut
 from app.application.services.activity_service import UserActivityService
 from app.application.services.broadcast_service import BroadcastService
+from app.config.settings import AppConfig
 from app.domain.entities.user import User
 
 # Rate-limit (данные): тумблер — write-ручка; скромный лимит на IP, консистентно с прочими
@@ -46,7 +47,9 @@ class NotificationsOut(BaseModel):
 
 
 @router.get("", response_model=AuthOut, dependencies=[_read_rate_limited])
-async def current_user(user: User = Depends(get_current_user)) -> AuthOut:
+async def current_user(
+    config: FromDishka[AppConfig], user: User = Depends(get_current_user)
+) -> AuthOut:
     """Свежий статус доступа текущего юзера — БЕЗ создания новой сессии.
 
     Нужна фронту, чтобы узнавать решение модератора по чеку (✅/❌) не переоткрывая
@@ -54,12 +57,15 @@ async def current_user(user: User = Depends(get_current_user)) -> AuthOut:
     нельзя — тот на каждый вызов заводит в Redis новую сессию (мусор с TTL 24 ч).
     Токен здесь не возвращаем: он у клиента уже есть.
     """
-    return AuthOut.from_domain(user, datetime.now(UTC))
+    return AuthOut.from_domain(
+        user, datetime.now(UTC), channel_username=config.bot.public_channel_username
+    )
 
 
 @router.post("/write-access", response_model=AuthOut, dependencies=[_write_access_rate_limited])
 async def grant_write_access(
     activity: FromDishka[UserActivityService],
+    config: FromDishka[AppConfig],
     user: User = Depends(get_current_user),
 ) -> AuthOut:
     """Человек разрешил боту писать ему в личку прямо в Mini App — запомнить это.
@@ -79,7 +85,7 @@ async def grant_write_access(
     now = datetime.now(UTC)
     await activity.register_write_access(user.telegram_id, now, source="prompt")
     user.bot_started_at = now
-    return AuthOut.from_domain(user, now)
+    return AuthOut.from_domain(user, now, channel_username=config.bot.public_channel_username)
 
 
 @router.patch("/notifications", response_model=NotificationsOut, dependencies=[_write_rate_limited])

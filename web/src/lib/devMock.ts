@@ -59,10 +59,22 @@ const AUTH: Auth = {
   token: null, // в dev-моке токен-флоу не задействован (request() уходит в мок до fetch)
   notifications_enabled: true, // тумблер рассылок (Фаза 12)
   bot_started: true, // false → в браузере увидишь шторку «Ботты ашу»
-  // Поставь status:"new"/has_access:false, чтобы посмотреть воронку подарка в браузере.
-  free_view_available: true,
+  // Поставь status:"new"/has_access:false, чтобы посмотреть воронку недельного выбора.
+  weekly_pick_available: true,
+  weekly_movie_id: null,
+  // Окно закрывается в ближайший понедельник 00:00 — как на бэке.
+  week_ends_at: nextMonday().toISOString(),
   free_view_movie_id: null,
+  channel_username: "qazaqcinema",
 };
+
+/** Ближайшая местная полночь понедельника — чтобы счётчик в моке вёл себя как настоящий. */
+function nextMonday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
+  return d;
+}
 
 // Избранное живёт в памяти вкладки: в моке нет бэкенда, но тумблер звезды должен
 // вести себя как настоящий (поставил → появилось в «Таңдаулы», снял → исчезло).
@@ -109,7 +121,7 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
     data = MOVIES.filter((m) => `${m.title_kk} ${m.title_original}`.toLowerCase().includes(term));
   } else if (p === "/api/movies") data = browse(q);
   else if (/^\/api\/movies\/\d+\/play$/.test(p))
-    data = { status: "sent", gift: q.get("use_free_view") === "true" };
+    data = { status: "sent", gift: q.get("use_weekly_pick") === "true" };
   else if (p === "/api/favorites") data = MOVIES.filter((m) => FAVORITE_IDS.has(m.id));
   else if (p === "/api/favorites/ids") data = { ids: [...FAVORITE_IDS] };
   else if (/^\/api\/favorites\/\d+$/.test(p)) {

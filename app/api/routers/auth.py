@@ -11,6 +11,7 @@ from app.api.schemas.auth import AuthOut
 from app.application.ports.security import InitDataError
 from app.application.ports.session import SessionStore
 from app.application.services.auth_service import AuthService
+from app.config.settings import AppConfig
 
 router = APIRouter(prefix="/api/auth", tags=["auth"], route_class=DishkaRoute)
 
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"], route_class=DishkaRoute)
 async def authenticate(
     auth: FromDishka[AuthService],
     sessions: FromDishka[SessionStore],
+    config: FromDishka[AppConfig],
     authorization: str = Header(..., description="Telegram WebApp initData"),
 ) -> AuthOut:
     """Bootstrap-вход по initData (HMAC) → заводим серверную сессию, отдаём токен.
@@ -34,4 +36,6 @@ async def authenticate(
     except InitDataError as exc:
         raise HTTPException(status_code=401, detail="invalid_init_data") from exc
     token = await sessions.create(user.telegram_id, user.username)
-    return AuthOut.from_domain(user, datetime.now(UTC), token=token)
+    return AuthOut.from_domain(
+        user, datetime.now(UTC), token=token, channel_username=config.bot.public_channel_username
+    )

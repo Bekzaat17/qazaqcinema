@@ -7,8 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import BotStartSheet from "./components/BotStartSheet";
 import CatalogView from "./components/CatalogView";
+import ChannelGateSheet from "./components/ChannelGateSheet";
 import FavoritesView from "./components/FavoritesView";
-import GiftSheet from "./components/GiftSheet";
 import Hero from "./components/Hero";
 import HandoffModal from "./components/HandoffModal";
 import HomeSkeleton from "./components/HomeSkeleton";
@@ -20,6 +20,7 @@ import SearchBar from "./components/SearchBar";
 import Shelf from "./components/Shelf";
 import SupportSheet from "./components/SupportSheet";
 import TabBar, { type Tab } from "./components/TabBar";
+import WeeklyPickSheet from "./components/WeeklyPickSheet";
 import {
   CatalogEmpty,
   LoadError,
@@ -34,6 +35,7 @@ import Toast from "./components/Toast";
 import { useAppData } from "./hooks/useAppData";
 import { useAppVersion } from "./hooks/useAppVersion";
 import { FavoritesProvider } from "./hooks/useFavorites";
+import { WeeklyPickProvider } from "./hooks/useWeeklyPick";
 import { useOnResume } from "./hooks/useOnResume";
 import { useSearch } from "./hooks/useSearch";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
@@ -70,9 +72,10 @@ export default function App() {
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [handoffGift, setHandoffGift] = useState(false);
   const [handoffDaily, setHandoffDaily] = useState(false);
-  const [giftOpen, setGiftOpen] = useState(false);
+  const [pickOpen, setPickOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
   const [botStartOpen, setBotStartOpen] = useState(false);
-  const [giftMovie, setGiftMovie] = useState<Movie | null>(null);
+  const [pickMovie, setPickMovie] = useState<Movie | null>(null);
   const [watching, setWatching] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -100,17 +103,26 @@ export default function App() {
   const anyOverlay =
     handoffOpen ||
     paywallOpen ||
-    giftOpen ||
+    pickOpen ||
+    gateOpen ||
     botStartOpen ||
     supportOpen ||
     !!selected ||
     profileOpen;
 
   const hasAccess = auth?.has_access ?? false;
-  // Подарочный первый фильм. Пока авторизация не доехала, считаем подарок недоступным:
+  // Недельный бесплатный выбор. Пока авторизация не доехала, считаем его недоступным:
   // ложное приглашение с последующим 403 хуже, чем пэйволл, который сервер подтвердит.
-  const freeViewAvailable = auth?.free_view_available ?? false;
-  const giftedMovieId = auth?.free_view_movie_id ?? null;
+  //
+  // ⚠️ У подписчика вся эта механика ПУСТАЯ — и это единственное место, где так решено.
+  // Ему недельный выбор не нужен (у него доступ ко всему), а каждая кнопка и строка про
+  // него — лишний шум на экране человека, который уже заплатил.
+  const weeklyPickAvailable = !hasAccess && (auth?.weekly_pick_available ?? false);
+  const weeklyMovieId = hasAccess ? null : (auth?.weekly_movie_id ?? null);
+  const weekEndsAt = hasAccess ? null : (auth?.week_ends_at ?? null);
+  // Фильм, подаренный прошлой одноразовой механикой: у новых всегда null.
+  const legacyGiftedMovieId = auth?.free_view_movie_id ?? null;
+  const channelUsername = auth?.channel_username ?? "";
   // Фильм дня: бесплатен сегодня всем и подарка НЕ тратит. Признак берём из hero — тот
   // же источник, что и у выдачи (бэк сверяет id сам), поэтому «Тегін көру» не может
   // привести к 403.
@@ -162,13 +174,14 @@ export default function App() {
   const onBack = useCallback(() => {
     if (handoffOpen) setHandoffOpen(false);
     else if (paywallOpen) setPaywallOpen(false);
-    else if (giftOpen) setGiftOpen(false);
+    else if (pickOpen) setPickOpen(false);
+    else if (gateOpen) setGateOpen(false);
     else if (supportOpen) setSupportOpen(false);
     else if (selected) setSelected(null);
     else if (botStartOpen) setBotStartOpen(false);
     else if (profileOpen) setProfileOpen(false);
     else if (tab !== "home") setTab("home");
-  }, [handoffOpen, paywallOpen, giftOpen, botStartOpen, supportOpen, selected, profileOpen, tab]);
+  }, [handoffOpen, paywallOpen, pickOpen, gateOpen, botStartOpen, supportOpen, selected, profileOpen, tab]);
   useTelegramBackButton(anyOverlay || tab !== "home", onBack);
 
   /**
@@ -188,24 +201,37 @@ export default function App() {
     if (track) void api.trackPaywall(movie?.id ?? null).catch(() => {});
   }, []);
 
-  /** Отправка видео. `useFreeView` — согласие потратить подарок (только из GiftSheet). */
+  /** Отправка видео. `useWeeklyPick` — согласие потратить неделю (только из шторки). */
   const requestPlay = useCallback(
-    async (movie: Movie, useFreeView: boolean) => {
+    async (movie: Movie, useWeeklyPick: boolean) => {
       setWatching(true);
       try {
-        const res = await api.play(movie.id, useFreeView);
+        const res = await api.play(movie.id, useWeeklyPick);
         haptic.success();
         setSelected(null);
-        setGiftOpen(false);
-        setHandoffGift(res.gift);
+        setPickOpen(false);
+        setGateOpen(false);
+        // «Апталық таңдауыңыз жіберілді» — только про недельный выбор. Старый одноразовый
+        // подарок сюда не попадает: для него это просто «видео жіберілді», и назвать его
+        // недельным выбором значило бы соврать человеку про срок.
+        setHandoffGift(res.gift && movie.id !== legacyGiftedMovieId);
         setHandoffDaily(res.daily);
         setHandoffOpen(true);
-        // Подарок потрачен — состояние живёт на сервере, поэтому забираем его свежим:
-        // от этого зависит, что покажут остальные фильмы (приглашение или пэйволл).
+        // Выбор потрачен — состояние живёт на сервере, поэтому забираем его свежим: от
+        // него зависит и бейдж на постере, и что покажут остальные фильмы.
         if (res.gift) void refreshAuth();
       } catch (e) {
-        if (e instanceof ApiError && e.status === 403) {
-          setGiftOpen(false);
+        if (e instanceof ApiError && e.code === "need_channel") {
+          // Не стена, а один шаг до цели: зовём в канал, а не в кассу. Событие гейта
+          // сервер записал сам — здесь не дублируем.
+          haptic.warning();
+          setPickOpen(false);
+          setSelected(null);
+          setPickMovie(movie);
+          setGateOpen(true);
+        } else if (e instanceof ApiError && e.status === 403) {
+          setPickOpen(false);
+          setGateOpen(false);
           // Доступ устарел — сервер источник правды. Событие пэйволла он записал сам
           // (`PlaybackService` пишет его на отказе), поэтому здесь не дублируем.
           openPaywall(movie, false);
@@ -214,7 +240,8 @@ export default function App() {
         } else if (e instanceof ApiError && e.status === 409) {
           // Сервер не достучался до лички: чат закрыт или бот заблокирован. Он уже снял
           // признак у себя — снимаем и локально, чтобы следующее «Көру» вело в бота сразу.
-          setGiftOpen(false);
+          setPickOpen(false);
+          setGateOpen(false);
           setAuth((prev) => (prev ? { ...prev, bot_started: false } : prev));
           setBotStartOpen(true);
         } else {
@@ -227,22 +254,27 @@ export default function App() {
         setWatching(false);
       }
     },
-    [openPaywall, refreshAuth],
+    [legacyGiftedMovieId, openPaywall, refreshAuth],
   );
 
   const handleWatch = useCallback(
     async (movie: Movie) => {
-      // Порядок ветвей = порядок воронки: подписка → фильм дня → свой подаренный фильм →
-      // приглашение к подарку → пэйволл. Платить просим ПОСЛЕДНИМ и только когда предложить
-      // больше нечего — в этом весь смысл «сначала ценность, потом оплата». Фильм дня идёт
-      // до подарка: он бесплатен сам по себе, и тратить на него подарок (или показывать
-      // шторку «потратить сыйлық?») было бы обманом.
+      // Порядок ветвей = порядок воронки: подписка → фильм дня → свой недельный фильм →
+      // старый подарок → приглашение к недельному выбору → пэйволл. Платить просим
+      // ПОСЛЕДНИМ и только когда предложить больше нечего — в этом весь смысл «сначала
+      // ценность, потом оплата». Фильм дня идёт до выбора: он бесплатен сам по себе, и
+      // тратить на него неделю (или показывать шторку «потратить таңдау?») было бы обманом.
       //
       // Про чат с ботом здесь НЕ спрашиваем: в этих трёх случаях попытка ничего не стоит,
       // а признак у нас может быть устаревшим (человек начал чат до появления колонки).
       // Не дошло — сервер ответит 409, и шторку покажет обработчик ошибки; дошло — флаг
       // на бэке починится сам. Так мы не гоним в бота тех, у кого и так всё работает.
-      if (hasAccess || movie.id === dailyMovieId || movie.id === giftedMovieId) {
+      if (
+        hasAccess ||
+        movie.id === dailyMovieId ||
+        movie.id === weeklyMovieId ||
+        movie.id === legacyGiftedMovieId
+      ) {
         await requestPlay(movie, false);
         return;
       }
@@ -252,25 +284,25 @@ export default function App() {
       // то, что ему положено даром, хотя сервер отдал бы это без вопросов
       // (`PlaybackService._resolve_gift` считает права сам). Поэтому спрашиваем сервер:
       // отдаст — покажем видео, откажет — 403 откроет пэйволл уже по правде.
-      // Подарок при этом не тратим (`useFreeView=false`): его расход требует явного
+      // Выбор при этом не тратим (`useWeeklyPick=false`): его расход требует явного
       // согласия в шторке, а мы даже не знаем, цел ли он.
       if (auth === null) {
         await requestPlay(movie, false);
         return;
       }
-      if (freeViewAvailable) {
-        // А вот тут проверяем ДО: на кону единственный подарок, и «попробуем — узнаем»
-        // означало бы риск потратить его на отправку, которая не дойдёт.
+      if (weeklyPickAvailable) {
+        // А вот тут проверяем ДО: на кону неделя, и «попробуем — узнаем» означало бы риск
+        // потратить её на отправку, которая не дойдёт.
         if (!botStarted) {
           haptic.warning();
           setBotStartOpen(true);
           return;
         }
-        // Подарок не тратим здесь: сначала человек видит, что именно ему дарят, и
-        // подтверждает. Тратит его уже `onAccept` шторки.
+        // Выбор не тратим здесь: сначала человек видит, что именно берёт и до какого
+        // числа, и подтверждает. Тратит его уже `onAccept` шторки.
         haptic.light();
-        setGiftMovie(movie);
-        setGiftOpen(true);
+        setPickMovie(movie);
+        setPickOpen(true);
         return;
       }
       haptic.warning();
@@ -281,8 +313,9 @@ export default function App() {
       botStarted,
       hasAccess,
       dailyMovieId,
-      giftedMovieId,
-      freeViewAvailable,
+      weeklyMovieId,
+      legacyGiftedMovieId,
+      weeklyPickAvailable,
       requestPlay,
       openPaywall,
     ],
@@ -309,6 +342,7 @@ export default function App() {
     // Провайдер избранного включаем только когда приложение готово: до авторизации
     // ручка отдала бы 401, а звёзды всё равно некуда рисовать.
     <FavoritesProvider enabled={phase === "ready"}>
+    <WeeklyPickProvider movieId={weeklyMovieId} endsAt={weekEndsAt}>
     {/* Вёрстка рисовалась под телефон и «резиновая» на всю ширину: в Telegram Desktop,
         особенно в полноэкранном режиме, экран расползался на 1400+ px — три колонки
         каталога превращались в постеры в пол-экрана, а hero — в пустую широкую полосу.
@@ -371,18 +405,29 @@ export default function App() {
         hasAccess={hasAccess}
         status={status}
         busy={watching}
-        freeViewAvailable={freeViewAvailable}
-        gifted={selected?.id === giftedMovieId}
+        weeklyPickAvailable={weeklyPickAvailable}
+        weeklyPicked={selected?.id === weeklyMovieId}
+        legacyGifted={selected?.id === legacyGiftedMovieId}
+        weekEndsAt={weekEndsAt}
         freeToday={selected?.id === dailyMovieId}
         onWatch={handleWatch}
         onClose={() => setSelected(null)}
       />
-      <GiftSheet
-        open={giftOpen}
-        movie={giftMovie}
+      <WeeklyPickSheet
+        open={pickOpen}
+        movie={pickMovie}
+        endsAt={weekEndsAt}
         busy={watching}
         onAccept={(movie) => void requestPlay(movie, true)}
-        onClose={() => setGiftOpen(false)}
+        onClose={() => setPickOpen(false)}
+      />
+      <ChannelGateSheet
+        open={gateOpen}
+        movie={pickMovie}
+        channelUsername={channelUsername}
+        busy={watching}
+        onRetry={(movie) => void requestPlay(movie, true)}
+        onClose={() => setGateOpen(false)}
       />
       <BotStartSheet open={botStartOpen} onClose={() => setBotStartOpen(false)} />
       <Paywall
@@ -424,6 +469,7 @@ export default function App() {
       />
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
+    </WeeklyPickProvider>
     </FavoritesProvider>
   );
 }

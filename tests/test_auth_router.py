@@ -30,14 +30,24 @@ class _FakeSessions:
         return "tok"
 
 
+class _FakeConfig:
+    """Из всего конфига роутеру нужно одно: @-имя канала для шторки гейта."""
+
+    class bot:  # noqa: N801 — зеркалит вложенность настоящего AppConfig
+        public_channel_username = "qazaqcinema"
+
+
 async def test_auth_router_maps_bad_init_data_to_401() -> None:
     with pytest.raises(HTTPException) as exc:
-        await authenticate(_RaisingAuth(), _FakeSessions(), "user=x&auth_date=1")
+        await authenticate(_RaisingAuth(), _FakeSessions(), _FakeConfig(), "user=x&auth_date=1")  # type: ignore[arg-type]
     assert exc.value.status_code == 401
     assert exc.value.detail == "invalid_init_data"
 
 
 async def test_auth_router_ok_returns_auth_out() -> None:
-    out = await authenticate(_OkAuth(), _FakeSessions(), "user=%7B%7D&auth_date=1&hash=a")
+    out = await authenticate(
+        _OkAuth(), _FakeSessions(), _FakeConfig(), "user=%7B%7D&auth_date=1&hash=a"  # type: ignore[arg-type]
+    )
     assert out.telegram_id == 42
     assert out.token == "tok"
+    assert out.channel_username == "qazaqcinema"

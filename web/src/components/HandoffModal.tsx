@@ -17,7 +17,7 @@
 // Исход уходит в метрику (`api.trackHandoff`) — с разбивкой по платформам видно, где мост
 // исправен, а где нет.
 
-import { CircleCheckBig, Gift, Loader2, Sparkles } from "lucide-react";
+import { CircleCheckBig, Loader2, Sparkles, Ticket } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "../lib/api";
@@ -36,8 +36,10 @@ const STUCK_AFTER_MS = 1100;
 type Stage = "idle" | "leaving" | "stuck";
 
 /**
- * `gift` — видео ушло за счёт подарочного фильма: говорим об этом прямо, одним словом.
- * `daily` — это бесплатный фильм дня: подарок цел, и путать одно с другим нельзя, иначе
+ * `gift` — видео ушло за счёт НЕДЕЛЬНОГО выбора: говорим об этом прямо, одним словом,
+ * чтобы человек понял, что неделя началась. Старый одноразовый подарок сюда НЕ попадает
+ * (`App` его отсекает): назвать его «апталық таңдау» значило бы соврать.
+ * `daily` — это бесплатный фильм дня: выбор цел, и путать одно с другим нельзя, иначе
  * человек решит, что потратил своё единственное право, и перестанет им пользоваться.
  */
 export default function HandoffModal({
@@ -117,7 +119,7 @@ export default function HandoffModal({
       >
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand/15">
           {gift ? (
-            <Gift size={30} className="text-brand" />
+            <Ticket size={30} className="text-brand" />
           ) : daily ? (
             <Sparkles size={30} className="text-brand" />
           ) : (
@@ -126,7 +128,7 @@ export default function HandoffModal({
         </div>
         <h2 id="handoff-title" className="text-xl font-bold text-text">
           {gift
-            ? "Сыйлық жіберілді 🎁"
+            ? "Апталық таңдауыңыз жіберілді 🎟"
             : daily
               ? "Бүгінгі тегін фильм жіберілді"
               : "Видео ботқа жіберілді"}
