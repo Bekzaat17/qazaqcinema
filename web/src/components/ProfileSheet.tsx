@@ -18,6 +18,8 @@ interface ProfileSheetProps {
   onSubscribe: () => void;
   onSupport: () => void;
   onNotificationsChange: (enabled: boolean) => void;
+  /** Открыть свой недельный фильм. null — выбор ещё не потрачен, открывать нечего. */
+  onOpenWeeklyPick: (() => void) | null;
 }
 
 export default function ProfileSheet({
@@ -27,6 +29,7 @@ export default function ProfileSheet({
   onSubscribe,
   onSupport,
   onNotificationsChange,
+  onOpenWeeklyPick,
 }: ProfileSheetProps) {
   const tgUser = getTelegramUser();
   const name = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") : "Қонақ";
@@ -57,7 +60,7 @@ export default function ProfileSheet({
 
         {/* Недельный выбор — только тем, у кого нет подписки: у подписчика его не
             существует, и строка про него была бы шумом на пустом месте. */}
-        {auth && !auth.has_access && <WeeklyPickRow auth={auth} />}
+        {auth && !auth.has_access && <WeeklyPickRow auth={auth} onOpen={onOpenWeeklyPick} />}
 
         {auth && (
           <div className="mt-3">
@@ -146,12 +149,12 @@ function NotificationsToggle({
   );
 }
 
-function WeeklyPickRow({ auth }: { auth: Auth }) {
+function WeeklyPickRow({ auth, onOpen }: { auth: Auth; onOpen: (() => void) | null }) {
   const left = weekLeftLabel(auth.week_ends_at);
   const taken = auth.weekly_movie_id !== null;
-  return (
-    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-elevated p-4">
-      <Ticket size={20} className="shrink-0 text-brand" />
+  const body = (
+    <>
+      <Ticket size={20} className={`shrink-0 ${taken ? "text-star" : "text-brand"}`} />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-text">
           {taken ? "Апталық таңдауыңыз алынды" : "Апталық таңдауыңыз бос"}
@@ -162,7 +165,18 @@ function WeeklyPickRow({ auth }: { auth: Auth }) {
             : "Кез келген фильмді таңдап, апта соңына дейін тегін көріңіз"}
         </p>
       </div>
-    </div>
+    </>
+  );
+  const box =
+    "mt-3 flex w-full items-center gap-3 rounded-2xl border border-border bg-elevated p-4 text-left";
+  // Выбор потрачен → строка ведёт к самому фильму: профиль — второе место, где человек
+  // о нём вспоминает, и упираться тут в тупик ему так же незачем, как в чужой карточке.
+  if (!taken || !onOpen) return <div className={box}>{body}</div>;
+  return (
+    <button type="button" onClick={onOpen} className={box}>
+      {body}
+      <ChevronRight size={18} className="shrink-0 text-faint" />
+    </button>
   );
 }
 

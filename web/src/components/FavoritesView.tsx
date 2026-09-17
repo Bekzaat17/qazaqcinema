@@ -1,4 +1,4 @@
-// Вкладка «Таңдаулы»: личный список отмеченных звездой фильмов.
+// Вкладка «Таңдаулы»: недельный выбор + личный список отмеченных звездой фильмов.
 //
 // Список грузится при каждом открытии вкладки (компонент монтируется заново), но
 // отображаемое дополнительно фильтруется по актуальным id из контекста. Благодаря этому
@@ -6,18 +6,28 @@
 //
 // Гейта подписки тут нет: избранное — часть свободного каталога, по которому человек
 // ходит ещё до оплаты.
+//
+// Недельный фильм стоит ПЕРВЫМ отдельной секцией: это единственное кино, которое человеку
+// прямо сейчас ничего не стоит, и второе место после профиля, куда он идёт его искать.
+// У подписчика контекст `useWeeklyPick` пустой — значит секции у него нет вообще.
 
 import { useEffect, useState } from "react";
 
 import { useFavorites } from "../hooks/useFavorites";
+import { useWeeklyPick } from "../hooks/useWeeklyPick";
 import { api, type Movie } from "../lib/api";
+import { weekLeftLabel } from "../lib/week";
 import Skeleton from "../ui/Skeleton";
 import { FavoritesEmpty, LoadError } from "./States";
 import PosterCard from "./PosterCard";
 
+const GRID = "grid grid-cols-3 gap-3 px-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6";
+
 export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) => void }) {
   const { ids, flush } = useFavorites();
+  const { movieId: weeklyId, endsAt } = useWeeklyPick();
   const [movies, setMovies] = useState<Movie[] | null>(null);
+  const [weekly, setWeekly] = useState<Movie | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0); // ++ по «Қайталау» → перезапуск загрузки
 
@@ -28,9 +38,19 @@ export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) =
     // каталоге. Без этого список пришёл бы без них — самый заметный вид «глюка»:
     // звезда горит, а во вкладке фильма нет.
     flush()
-      .then(() => api.favorites())
-      .then((res) => {
-        if (alive) setMovies(res);
+      .then(() =>
+        Promise.all([
+          api.favorites(),
+          // Недельный фильм тянем отдельным запросом: в избранном его может и не быть, а
+          // сбой этого запроса не имеет права уронить сам список — секция просто не
+          // появится, звёзды человек увидит.
+          weeklyId === null ? null : api.getMovie(weeklyId).catch(() => null),
+        ]),
+      )
+      .then(([favorites, pick]) => {
+        if (!alive) return;
+        setMovies(favorites);
+        setWeekly(pick);
       })
       .catch(() => {
         if (alive) setFailed(true);
@@ -40,7 +60,7 @@ export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) =
     };
     // Перезапрос на каждое изменение `ids` означал бы поход на сервер после каждого тапа
     // по звезде; снятие обрабатывает фильтр ниже, а `attempt` — кнопка «Қайталау».
-  }, [attempt, flush]);
+  }, [attempt, flush, weeklyId]);
 
   if (failed) {
     return (
@@ -54,7 +74,7 @@ export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) =
   }
   if (movies === null) {
     return (
-      <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+      <div className={`${GRID} pt-4`}>
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[2/3] w-full" />
         ))}
@@ -62,14 +82,47 @@ export default function FavoritesView({ onSelect }: { onSelect: (movie: Movie) =
     );
   }
 
-  const visible = movies.filter((movie) => ids.has(movie.id));
-  if (visible.length === 0) return <FavoritesEmpty />;
+  // Недельный фильм из сетки убираем, даже если он в избранном: два одинаковых постера
+  // на одном коротком экране читаются как сбой, а звезда у него осталась на карточке
+  // выше — снять её по-прежнему можно там же.
+  const visible = movies.filter((movie) => ids.has(movie.id) && movie.id !== weekly?.id);
+  if (weekly === null && visible.length === 0) return <FavoritesEmpty />;
+
+  const left = weekLeftLabel(endsAt);
 
   return (
-    <div className="grid grid-cols-3 gap-3 px-4 pt-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-      {visible.map((movie) => (
-        <PosterCard key={movie.id} movie={movie} onSelect={onSelect} inShelf={false} />
-      ))}
-    </div>
+    <>
+      {weekly && (
+        <section className="pt-4">
+          <div className="mb-3 flex items-baseline justify-between gap-3 px-4">
+            <h2 className="text-[17px] font-bold tracking-tight text-text">Апталық таңдауым</h2>
+            {left && <span className="shrink-0 text-xs font-medium text-star tabular">{left}</span>}
+          </div>
+          <div className={GRID}>
+            <PosterCard movie={weekly} onSelect={onSelect} inShelf={false} />
+          </div>
+        </section>
+      )}
+
+      <section className={weekly ? "mt-7" : "pt-4"}>
+        {/* Заголовок нужен только когда выше есть другая секция: без него две сетки
+            слиплись бы в одну, и недельный фильм выглядел бы просто первым избранным. */}
+        {weekly && (
+          <h2 className="mb-3 px-4 text-[17px] font-bold tracking-tight text-text">Таңдаулы</h2>
+        )}
+        {visible.length === 0 ? (
+          // Полноэкранная заглушка тут не к месту — над ней уже стоит секция с фильмом.
+          <p className="px-4 text-sm text-muted">
+            Ұнаған фильмнің жұлдызшасын басыңыз — ол осында жиналады.
+          </p>
+        ) : (
+          <div className={GRID}>
+            {visible.map((movie) => (
+              <PosterCard key={movie.id} movie={movie} onSelect={onSelect} inShelf={false} />
+            ))}
+          </div>
+        )}
+      </section>
+    </>
   );
 }

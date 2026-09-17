@@ -321,6 +321,22 @@ export default function App() {
     ],
   );
 
+  /**
+   * Открыть карточку своего недельного фильма — из чужой карточки и из профиля.
+   *
+   * Тянем фильм с сервера, а не ищем в полках: выбранное кино могло уехать из «Жаңа
+   * фильмдер» неделю назад, и в загруженном каталоге его может просто не быть.
+   */
+  const openWeeklyPicked = useCallback(() => {
+    if (weeklyMovieId === null) return;
+    haptic.light();
+    setProfileOpen(false); // одна шторка за раз: карточка встаёт на место профиля
+    api
+      .getMovie(weeklyMovieId)
+      .then(setSelected)
+      .catch(() => setToast("Фильмді ашу мүмкін болмады. Байланысты тексеріңіз."));
+  }, [weeklyMovieId]);
+
   const handlePending = useCallback(() => {
     setAuth((prev) => (prev ? { ...prev, status: "pending_review" } : prev));
     setPaywallOpen(false);
@@ -410,6 +426,7 @@ export default function App() {
         legacyGifted={selected?.id === legacyGiftedMovieId}
         weekEndsAt={weekEndsAt}
         freeToday={selected?.id === dailyMovieId}
+        onOpenWeeklyPick={weeklyMovieId === null ? null : openWeeklyPicked}
         onWatch={handleWatch}
         onClose={() => setSelected(null)}
       />
@@ -454,6 +471,7 @@ export default function App() {
         onNotificationsChange={(enabled) =>
           setAuth((prev) => (prev ? { ...prev, notifications_enabled: enabled } : prev))
         }
+        onOpenWeeklyPick={weeklyMovieId === null ? null : openWeeklyPicked}
       />
       <SupportSheet
         open={supportOpen}

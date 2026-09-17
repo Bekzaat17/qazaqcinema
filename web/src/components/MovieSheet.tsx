@@ -2,7 +2,7 @@
 // Гейт подписки — замок на кнопке (подсказка по has_access), но настоящий гейт — на сервере
 // (App: если доступа нет → пэйволл; есть → POST /play → хэндофф-модалка).
 
-import { Gift, Lock, Play, ShieldCheck, Ticket } from "lucide-react";
+import { ChevronRight, Gift, Lock, Play, ShieldCheck, Ticket } from "lucide-react";
 
 import type { Movie, UserStatus } from "../lib/api";
 import { categoryLabel } from "../lib/catalog";
@@ -28,6 +28,8 @@ interface MovieSheetProps {
   weekEndsAt: string | null;
   /** Это сегодняшний бесплатный фильм дня (hero главной) — замка и пэйволла тут нет. */
   freeToday: boolean;
+  /** Открыть свой недельный фильм. null — какой он, мы ещё не знаем (авторизация в пути). */
+  onOpenWeeklyPick: (() => void) | null;
   onWatch: (movie: Movie) => void;
   onClose: () => void;
 }
@@ -42,6 +44,7 @@ export default function MovieSheet({
   legacyGifted,
   weekEndsAt,
   freeToday,
+  onOpenWeeklyPick,
   onWatch,
   onClose,
 }: MovieSheetProps) {
@@ -127,10 +130,12 @@ export default function MovieSheet({
 
         {!freeToday && !hasAccess && !weeklyPicked && !legacyGifted && !weeklyPickAvailable && (
           // Выбор уже потрачен на другое кино. Называем срок, а не просто отказываем:
-          // иначе «почему тот бесплатный, а этот нет» остаётся без ответа.
-          <p className="mt-4 rounded-2xl border border-border bg-elevated px-3.5 py-2.5 text-[13px] text-muted">
-            Апталық таңдауыңыз қазір басқа фильмде{left && ` · ${left}`}
-          </p>
+          // иначе «почему тот бесплатный, а этот нет» остаётся без ответа. Янтарь, а не
+          // серый: это не мелкая сноска, а причина, по которой на кнопке висит замок.
+          //
+          // И это переход, а не текст: к середине недели человек уже не помнит, что
+          // именно он взял, а найти своё кино в каталоге может только перебором.
+          <SwitchToPick left={left} onOpen={onOpenWeeklyPick} />
         )}
 
         <div className="mt-5">
@@ -156,5 +161,30 @@ export default function MovieSheet({
         </div>
       </div>
     </Sheet>
+  );
+}
+
+/** Строка «выбор занят другим фильмом» — кликабельная, если знаем, каким именно. */
+function SwitchToPick({ left, onOpen }: { left: string; onOpen: (() => void) | null }) {
+  const body = (
+    <>
+      <Ticket size={15} className="shrink-0 text-star" />
+      <span className="min-w-0 flex-1">
+        Апталық таңдауыңыз қазір басқа фильмде
+        {/* Срок — отдельной строкой: через точку он читается как продолжение фразы,
+            хотя это ответ на другой вопрос — «сколько мне ещё ждать нового выбора». */}
+        {left && <span className="mt-1 block font-medium tabular">{left}</span>}
+      </span>
+    </>
+  );
+  const box =
+    "mt-4 flex w-full items-center gap-2.5 rounded-2xl border border-star/30 bg-star/10 " +
+    "px-3.5 py-2.5 text-left text-[13px] text-star";
+  if (!onOpen) return <p className={box}>{body}</p>;
+  return (
+    <button type="button" onClick={onOpen} className={box}>
+      {body}
+      <ChevronRight size={16} className="shrink-0 opacity-70" />
+    </button>
   );
 }
