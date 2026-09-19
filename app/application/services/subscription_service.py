@@ -17,6 +17,7 @@ from app.application.ports.repositories import UserEventRepository, UserReposito
 from app.application.ports.telegram import TelegramNotifier
 from app.application.services.video_retention_service import VideoRetentionService
 from app.domain.analytics.events import EventKind
+from app.domain.catalog.daily import TZ
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 from app.domain.subscription.expiry import compute_expiry
@@ -28,6 +29,24 @@ _EXPIRED_DM_KK = (
     "⌛️ Жазылым мерзімі аяқталды.\n"
     "Қайта жалғастыру үшін төмендегі «🎬 Кинотеатр» батырмасынан тариф таңдаңыз."
 )
+
+_ACTIVATED_DM_KK = (
+    "✅ Қолжетімділік ашылды!\n"
+    "Тариф: {tariff}\n"
+    "🕒 {until} дейін ашық (Алматы уақыты).\n"
+    "Мерзім аяқталғанда хабарлаймыз."
+)
+
+
+def _activated_dm(tariff: Tariff, expires_at: datetime) -> str:
+    """DM об открытом доступе: до какого МЕСТНОГО момента он работает.
+
+    Срок внутри живёт в UTC, но читает его человек в Алматы — время без перевода в его
+    зону он сверяет с часами на телефоне и видит расхождение в пять часов.
+    """
+    return _ACTIVATED_DM_KK.format(
+        tariff=tariff.title_kk, until=f"{expires_at.astimezone(TZ):%d.%m.%Y %H:%M}"
+    )
 
 
 class SubscriptionService:
@@ -57,10 +76,7 @@ class SubscriptionService:
         # здесь, в единой точке гранта, а не в каждом платёжном хендлере (Kaspi/Stars).
         await self._events.add(user.telegram_id, EventKind.SUBSCRIBE, meta=tariff.slug)
         await self._notifier.notify_user(
-            user.telegram_id,
-            "✅ Жазылым белсендірілді!\n"
-            f"Тариф: {tariff.title_kk}\n"
-            f"Қолжетімді: {user.expires_at:%d.%m.%Y %H:%M} (UTC) дейін",
+            user.telegram_id, _activated_dm(tariff, user.expires_at)
         )
         return saved
 

@@ -107,6 +107,24 @@ async def test_activate_grants_access_from_now_for_new_user() -> None:
     assert notifier.messages and notifier.messages[0][0] == 42
 
 
+async def test_activate_dm_tells_when_access_closes_in_local_time() -> None:
+    """DM об активации: доступ открыт + до какого момента ПО АЛМАТЫ он работает.
+
+    Время в письме — местное: _NOW + 30 суток = 29.07.2026 00:00 UTC, то есть 05:00
+    в Алматы. Проверяем именно перевод зоны — с UTC человек сверял бы чужие часы.
+    """
+    users = _FakeUsers()
+    notifier = _FakeNotifier()
+    service = _build(users, notifier)
+
+    await service.activate(User(telegram_id=7, status=UserStatus.NEW), MONTH, _NOW)
+
+    text = notifier.messages[0][1]
+    assert "Қолжетімділік ашылды" in text
+    assert MONTH.title_kk in text
+    assert "29.07.2026 05:00 дейін" in text
+
+
 async def test_activate_extends_running_subscription() -> None:
     users = _FakeUsers()
     service = _build(users)
