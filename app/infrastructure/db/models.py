@@ -310,6 +310,14 @@ class PaymentRequestModel(Base):
     external_charge_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Когда по заявке открыли доступ, не дожидаясь модератора. NULL = не открывали: у
+    # человека с тремя отказами чек идёт старым путём и ждёт решения руками.
+    granted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        # Под ежечасное напоминание админам о висящих заявках.
+        Index("ix_payment_requests_status_created_at", "status", "created_at"),
+    )
 
 
 class DailyReportModel(Base):

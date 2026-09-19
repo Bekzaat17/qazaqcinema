@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from app.domain.subscription.expiry import compute_expiry
+from app.domain.subscription.expiry import compute_expiry, shorten
 from app.domain.tariffs.tariff import Tariff
 
 DAY = Tariff("1_day", "1 день", "1 күн", 349, timedelta(days=1))
@@ -22,3 +22,13 @@ def test_extends_active_subscription() -> None:
 def test_counts_from_now_when_expired() -> None:
     past = NOW - timedelta(days=5)
     assert compute_expiry(NOW, DAY, past) == NOW + timedelta(days=1)
+
+
+def test_shorten_takes_back_exactly_the_tariff_term() -> None:
+    """Отказ по чеку отбирает добавку, а не весь срок: остаток оплаченного остаётся."""
+    paid_until = NOW + timedelta(days=10)
+    assert shorten(NOW, MONTH, paid_until + timedelta(days=30)) == paid_until
+
+
+def test_shorten_without_expiry_closes_access_now() -> None:
+    assert shorten(NOW, DAY, None) == NOW - timedelta(days=1)

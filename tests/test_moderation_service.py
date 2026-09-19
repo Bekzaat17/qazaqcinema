@@ -84,7 +84,9 @@ class _NoopDeliveries:
     async def reschedule(self, ids: list[int], next_attempt_at: object) -> None: ...
 
 
-def _pending_request() -> PaymentRequest:
+def _pending_request(granted_at: datetime | None = None) -> PaymentRequest:
+    """Заявка на модерации. `granted_at` — доступ по ней уже открыт (обычный случай);
+    None — редкий путь «человек с тремя отказами ждёт решения руками»."""
     return PaymentRequest(
         id=1,
         user_id=42,
@@ -92,6 +94,7 @@ def _pending_request() -> PaymentRequest:
         method=PaymentMethod.KASPI,
         status=PaymentStatus.PENDING,
         proof_file_id="F",
+        granted_at=granted_at,
     )
 
 
@@ -157,3 +160,55 @@ async def test_reject_marks_no_access_and_notifies() -> None:
     assert users.upserted and users.upserted[-1].status is UserStatus.EXPIRED
     assert not users.upserted[-1].has_active_access(_NOW)
     assert notifier.user_messages and notifier.user_messages[0][0] == 42
+
+
+async def test_approve_of_open_access_changes_nothing() -> None:
+    """✅ по заявке с уже открытым доступом только помечает её.
+
+    Повторный `activate` продлил бы подписку на второй срок — человек получил бы месяц
+    за месяц просто потому, что админ подтвердил очевидное.
+    """
+    user = User(
+        telegram_id=42, status=UserStatus.ACTIVE, expires_at=_NOW + timedelta(days=30)
+    )
+    service, payments, users, notifier = _build(_pending_request(granted_at=_NOW), user)
+
+    result = await service.approve(1, _NOW)
+
+    assert result.outcome is ModerationOutcome.APPROVED
+    assert result.granted_earlier is True
+    assert payments.status_calls == [(1, PaymentStatus.APPROVED)]
+    assert users.upserted == []          # срок не тронут
+    assert notifier.user_messages == []  # и человека не дёргаем: у него ничего не изменилось
+
+
+async def test_reject_of_open_access_takes_the_term_back() -> None:
+    """❌ по выданной заявке отбирает ровно срок этого тарифа и гасит доступ."""
+    user = User(
+        telegram_id=42, status=UserStatus.ACTIVE, expires_at=_NOW + timedelta(days=30)
+    )
+    service, payments, users, notifier = _build(_pending_request(granted_at=_NOW), user)
+
+    result = await service.reject(1, _NOW)
+
+    assert result.outcome is ModerationOutcome.REJECTED
+    assert result.granted_earlier is True
+    assert payments.status_calls == [(1, PaymentStatus.REJECTED)]
+    assert users.upserted and users.upserted[-1].expires_at == _NOW
+    assert not users.upserted[-1].has_active_access(_NOW)
+    assert users.upserted[-1].status is UserStatus.EXPIRED
+    assert notifier.user_messages and notifier.user_messages[0][0] == 42
+
+
+async def test_reject_of_open_access_keeps_previously_paid_term() -> None:
+    """У человека была своя подписка, чек её продлевал: отказ съедает ТОЛЬКО добавку."""
+    paid_until = _NOW + timedelta(days=10)
+    user = User(
+        telegram_id=42, status=UserStatus.ACTIVE, expires_at=paid_until + timedelta(days=30)
+    )
+    service, _payments, users, _notifier = _build(_pending_request(granted_at=_NOW), user)
+
+    await service.reject(1, _NOW)
+
+    assert users.upserted[-1].expires_at == paid_until
+    assert users.upserted[-1].status is UserStatus.ACTIVE  # оплаченный остаток остался

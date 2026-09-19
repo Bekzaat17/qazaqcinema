@@ -1,4 +1,4 @@
-"""Фоновый планировщик (apscheduler). Девять задач — все через REQUEST-scope dishka.
+"""Фоновый планировщик (apscheduler). Десять задач — все через REQUEST-scope dishka.
 
 1. `expire_due` (15 мин) — гасит просроченные подписки: ACTIVE → EXPIRED + уведомление +
    чистка выданных видео. Доступ к контенту от этого джоба НЕ зависит (`has_active_access`
@@ -56,6 +56,12 @@
    календарь праздников: список по официальному календарю (закон меняется) и даты айтов по
    ДУМК. Машинную часть — чего в справочнике не хватает — считает `holidays.review_notes`.
 
+10. `pending_proofs_reminder` (ежечасно, :05) — напоминание админам о чеках, по которым
+   решения так и нет. Доступ человеку открыт с момента загрузки чека, поэтому забытая
+   заявка — это не «человек ждёт», а неснятый вопрос к оплате. Берёт заявки, чей возраст
+   попал в окно ОДНОГО прогона (12–13 ч), а не «все старше 12 ч»: без верхней границы
+   одна забытая заявка капала бы в чат каждый час до скончания века.
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
@@ -65,7 +71,7 @@ worker его не заводят) — поэтому отчёт уходит о
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from html import escape
 from zoneinfo import ZoneInfo
 
@@ -73,6 +79,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dishka import AsyncContainer
 
+from app.application.ports.repositories import PaymentRepository
 from app.application.ports.telegram import AdminsUnreachableError, TelegramNotifier
 from app.application.services.analytics_service import AnalyticsService
 from app.application.services.broadcast_service import BroadcastService
@@ -123,6 +130,12 @@ DAILY_POST_MINUTE = 0
 WEEKLY_PICK_HOUR = 11
 WEEKLY_PICK_OPEN_DAY = "mon"
 WEEKLY_PICK_CLOSING_DAY = "sat"
+# Через сколько часов нерешённый чек попадает в напоминание админам. Половина суток:
+# доступ по нему уже работает, и вопрос «оплата настоящая?» не должен висеть сутками.
+PENDING_REMINDER_HOURS = 12
+# Минута часа для этого напоминания. Не :00 — там уже `content_post` и `quiz_results`,
+# а очередь из трёх задач в одну секунду ничем не лучше разнесённой.
+PENDING_REMINDER_MINUTE = 5
 
 
 async def _expire_due_job(container: AsyncContainer) -> None:
@@ -207,6 +220,40 @@ async def _holiday_calendar_review_job(container: AsyncContainer) -> None:
             await notifier.notify_admins("\n".join(lines))
         except AdminsUnreachableError:
             logger.warning("Напоминание о календаре праздников не доставлено админам")
+
+
+async def _pending_proofs_reminder_job(container: AsyncContainer) -> None:
+    """Напомнить админам о чеках, по которым решения нет `PENDING_REMINDER_HOURS` часов.
+
+    Окно РОВНО одного прогона (12–13 ч назад), а не «все старше 12 ч»: джоб ежечасный, и
+    без верхней границы каждая забытая заявка повторялась бы в чате каждый час — админы
+    перестали бы читать эти письма на второй день.
+    """
+    now = datetime.now(UTC)
+    async with container() as request_container:
+        payments = await request_container.get(PaymentRepository)
+        notifier: TelegramNotifier = await request_container.get(TelegramNotifier)
+        aged = await payments.list_pending_aged(
+            older_than=now - timedelta(hours=PENDING_REMINDER_HOURS),
+            newer_than=now - timedelta(hours=PENDING_REMINDER_HOURS + 1),
+        )
+        if not aged:
+            return
+        lines = [
+            f"⏳ <b>Шешілмеген чектер</b> ({PENDING_REMINDER_HOURS} сағат)",
+            "",
+            *(
+                f"• №{request.id} · id {request.user_id} · {escape(request.tariff)}"
+                for request in aged
+            ),
+            "",
+            "Доступ ашық — ❌ басылмаса, ол жабылмайды.",
+        ]
+        try:
+            await notifier.notify_admins("\n".join(lines))
+        except AdminsUnreachableError:
+            logger.warning("Напоминание о висящих чеках не доставлено админам")
+        logger.info("Напоминание о висящих чеках: %d", len(aged))
 
 
 async def _quiz_results_job(container: AsyncContainer) -> None:
@@ -346,6 +393,17 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         # Тут запас больше: письмо зовёт успеть до воскресенья, и даже к вечеру субботы
         # оно ещё полезно — в отличие от «жаңа апта», которое к тому времени протухает.
         misfire_grace_time=21600,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _pending_proofs_reminder_job,
+        CronTrigger(minute=PENDING_REMINDER_MINUTE, timezone=REPORT_TZ),
+        args=[container],
+        id="pending_proofs_reminder",
+        # Окно прогона узкое (12–13 ч), поэтому пропущенный час = потерянное напоминание
+        # по этим заявкам. Полчаса догона хватает на рестарт, а `coalesce` не даёт
+        # отправить накопившиеся запуски пачкой.
+        misfire_grace_time=1800,
         coalesce=True,
     )
     scheduler.add_job(

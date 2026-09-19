@@ -20,10 +20,15 @@ from app.domain.analytics.events import EventKind
 from app.domain.catalog.daily import TZ
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
-from app.domain.subscription.expiry import compute_expiry
+from app.domain.subscription.expiry import compute_expiry, shorten
 from app.domain.tariffs.tariff import Tariff
 
 logger = logging.getLogger(__name__)
+
+_REVOKED_DM_KK = (
+    "❌ Чек расталмады — қолжетімділік жабылды.\n"
+    "Төлем шынымен өтсе, чекті қайта жіберіңіз немесе қолдау қызметіне жазыңыз."
+)
 
 _EXPIRED_DM_KK = (
     "⌛️ Жазылым мерзімі аяқталды.\n"
@@ -78,6 +83,32 @@ class SubscriptionService:
         await self._notifier.notify_user(
             user.telegram_id, _activated_dm(tariff, user.expires_at)
         )
+        return saved
+
+    async def revoke(self, user: User, tariff: Tariff, now: datetime) -> User:
+        """Забрать доступ, выданный авансом: модератор отклонил чек.
+
+        Зеркало `activate` и такая же единственная точка: отнимаем РОВНО срок этого
+        тарифа (`shorten`), а не обнуляем `expires_at`, — чек мог продлевать живую
+        подписку, и отказ по нему не имеет права съесть оплаченный раньше остаток.
+
+        Статус гасим, только если после вычитания срок действительно вышел: у человека
+        с прежней подпиской доступ обязан остаться. Видео забираем по той же причине,
+        что и в `expire_due`, — оплаченный контент не остаётся на руках.
+        """
+        user.expires_at = shorten(now, tariff, user.expires_at)
+        if not user.has_active_access(now):
+            user.status = UserStatus.EXPIRED
+        saved = await self._users.upsert(user)
+        await self._events.add(user.telegram_id, EventKind.REVOKE, meta=tariff.slug)
+        # Обе побочки — best-effort и каждая в своём try/except: юзер уже сохранён, и
+        # сбой любой из них не должен уносить с собой сам факт отзыва.
+        try:
+            await self._notifier.notify_user(user.telegram_id, _REVOKED_DM_KK)
+        except Exception:
+            logger.warning("Не удалось уведомить %s об отзыве доступа", user.telegram_id)
+        if user.status is UserStatus.EXPIRED:
+            await self._purge_deliveries(user.telegram_id)
         return saved
 
     async def expire_due(self, now: datetime) -> int:

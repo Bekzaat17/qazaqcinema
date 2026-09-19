@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.delivery import VideoDelivery
@@ -24,6 +24,7 @@ def _payment_to_domain(model: PaymentRequestModel) -> PaymentRequest:
         external_charge_id=model.external_charge_id,
         created_at=model.created_at,
         reviewed_at=model.reviewed_at,
+        granted_at=model.granted_at,
     )
 
 
@@ -69,6 +70,41 @@ class PgPaymentRepository:
         await self._session.commit()
         await self._session.refresh(model)
         return _payment_to_domain(model)
+
+
+    async def mark_granted(self, request_id: int, at: datetime) -> None:
+        await self._session.execute(
+            update(PaymentRequestModel)
+            .where(PaymentRequestModel.id == request_id)
+            .values(granted_at=at)
+        )
+        await self._session.commit()
+
+    async def count_rejected(self, user_id: int) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(PaymentRequestModel)
+            .where(
+                PaymentRequestModel.user_id == user_id,
+                PaymentRequestModel.status == PaymentStatus.REJECTED.value,
+            )
+        )
+        return await self._session.scalar(stmt) or 0
+
+    async def list_pending_aged(
+        self, older_than: datetime, newer_than: datetime
+    ) -> list[PaymentRequest]:
+        stmt = (
+            select(PaymentRequestModel)
+            .where(
+                PaymentRequestModel.status == PaymentStatus.PENDING.value,
+                PaymentRequestModel.created_at <= older_than,
+                PaymentRequestModel.created_at > newer_than,
+            )
+            .order_by(PaymentRequestModel.id)
+        )
+        result = await self._session.scalars(stmt)
+        return [_payment_to_domain(model) for model in result]
 
 
 class PgVideoDeliveryRepository:

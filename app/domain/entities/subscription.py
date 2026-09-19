@@ -23,4 +23,8 @@ class PaymentRequest:
     external_charge_id: str | None = None   # Stars/фиат: id платежа провайдера
     created_at: datetime | None = None
     reviewed_at: datetime | None = None
+    # Доступ по этой заявке открыли авансом, не дожидаясь модератора (None — не открывали).
+    # Модерация читает это поле: ✅ по выданной заявке не выдаёт подписку второй раз,
+    # ❌ по ней — забирает доступ обратно.
+    granted_at: datetime | None = None
     id: int | None = None

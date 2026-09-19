@@ -1,24 +1,31 @@
-"""Оплата: старт (реквизиты/инвойс) и приём чека Kaspi на модерацию.
+"""Оплата: старт (реквизиты/инвойс) и приём чека Kaspi.
 
 `initiate` выбирает `PaymentProvider` по способу (Strategy) и отдаёт инструкцию, что
 показать пользователю. `submit_proof` (Kaspi) принимает чек — картинку (скриншот) или
 PDF (чек из Kaspi): подтверждает приём пользователю (и тем же send получает telegram
-`file_id` + тип медиа в `ProofRef`), заводит
-`PaymentRequest(PENDING)`, переводит юзера в `PENDING_REVIEW` и отправляет чек админам
-с кнопками ✅/❌.
+`file_id` + тип медиа в `ProofRef`), заводит `PaymentRequest(PENDING)` и отправляет чек
+админам с кнопками ✅/❌.
 
-Подписку тут НЕ активируем — только после одобрения модератором (moderation →
-`PaymentModerationService` → `SubscriptionService.activate`, см. CLAUDE.md: «не
-размазывать активацию по платёжным хендлерам»).
+⚠️ Доступ открывается СРАЗУ, не дожидаясь модератора: админы не круглосуточны, и чек,
+присланный ночью, иначе лежал бы до утра — человек заплатил и смотрит на пэйволл.
+Модерация после этого работает как отзыв: ✅ ничего не меняет, ❌ забирает доступ
+(`PaymentModerationService`). Выдача идёт через `SubscriptionService.activate` — способ
+оплаты только зовёт единую точку гранта, своей активации у него нет.
+
+Исключение — человек, у которого уже `REJECT_LIMIT` отклонённых чеков: его заявка идёт
+прежним путём (`PENDING_REVIEW`, решает админ). Без этого правила отказ не значил бы
+ничего — тот же скриншот заливается снова, и доступ снова открыт.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 
 from app.application.ports.payments import PaymentInstruction, PaymentProvider
 from app.application.ports.repositories import PaymentRepository, UserRepository
 from app.application.ports.telegram import TelegramNotifier
+from app.application.services.subscription_service import SubscriptionService
 from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
@@ -38,7 +45,19 @@ class UnsupportedMethodError(PaymentError):
     """Для способа оплаты не зарегистрирован провайдер."""
 
 
-_PROOF_ACK_KK = "🧾 Чегіңіз қабылданды. 10–15 минут ішінде тексеріп, жазылымды ашамыз."
+# Сколько отклонённых чеков в истории закрывают мгновенный доступ. Данные, не логика:
+# ужесточить — правка числа. Три, а не один: первый отказ бывает и честной ошибкой
+# (не тот файл, не та сумма), а вот третий — это уже система.
+REJECT_LIMIT = 3
+
+_PROOF_ACK_KK = "🧾 Чек қабылданды — қолжетімділік бірден ашылды."
+# Тому, кому уже трижды отказывали, честно объясняем, почему у него всё по-старому:
+# молчаливое ожидание он прочитает как поломку и пойдёт в поддержку.
+_PROOF_ACK_MANUAL_KK = (
+    "🧾 Чегіңіз қабылданды.\n"
+    f"Бұрын {REJECT_LIMIT} төлеміңіз расталмағандықтан, бұл чекті әкімші қолмен "
+    "тексереді — нәтижесін хабарлаймыз."
+)
 
 
 class PaymentService:
@@ -48,11 +67,13 @@ class PaymentService:
         payments: PaymentRepository,
         users: UserRepository,
         notifier: TelegramNotifier,
+        subscription: SubscriptionService,
     ) -> None:
         self._providers = providers
         self._payments = payments
         self._users = users
         self._notifier = notifier
+        self._subscription = subscription
 
     async def initiate(
         self, user_id: int, tariff_slug: str, method: PaymentMethod
@@ -71,24 +92,32 @@ class PaymentService:
         user: User,
         tariff_slug: str,
         proof: bytes,
+        now: datetime,
         *,
         filename: str,
         content_type: str,
     ) -> PaymentRequest:
-        """Принять чек Kaspi: подтвердить юзеру, завести заявку, уведомить админов.
+        """Принять чек Kaspi: открыть доступ, завести заявку, уведомить админов.
 
         `filename`/`content_type` — чек может быть картинкой (скриншот) или PDF (чек из
-        Kaspi); нотификатор по ним решит, слать photo или document. Порядок важен:
-        сначала подтверждаем приём (получаем `ProofRef`) и уведомляем админов, и лишь
-        потом переводим юзера в `PENDING_REVIEW` — чтобы фронтовый баннер «на проверке»
-        не завис, если уведомление админам не прошло.
+        Kaspi); нотификатор по ним решит, слать photo или document.
+
+        Порядок намеренный: подтверждаем приём (и тем же вызовом получаем `ProofRef`) →
+        заводим заявку → отдаём её админам → и только потом открываем доступ. Уведомление
+        админов идёт ДО выдачи, потому что доступ без карточки в админ-чате никто не
+        отзовёт: чек, о котором не узнали, проверить некому.
         """
         tariff = get_tariff(tariff_slug)
         if tariff is None:
             raise UnknownTariffError(tariff_slug)
 
+        instant = await self._payments.count_rejected(user.telegram_id) < REJECT_LIMIT
         proof_ref = await self._notifier.acknowledge_payment_proof(
-            user.telegram_id, proof, _PROOF_ACK_KK, filename=filename, content_type=content_type
+            user.telegram_id,
+            proof,
+            _PROOF_ACK_KK if instant else _PROOF_ACK_MANUAL_KK,
+            filename=filename,
+            content_type=content_type,
         )
         request = await self._payments.add(
             PaymentRequest(
@@ -106,7 +135,13 @@ class PaymentService:
             username=user.username,
             tariff_title=tariff.title_kk,
             proof=proof_ref,
+            access_open=instant,
         )
-        user.status = UserStatus.PENDING_REVIEW
-        await self._users.upsert(user)
+        if not instant:
+            user.status = UserStatus.PENDING_REVIEW
+            await self._users.upsert(user)
+            return request
+        await self._subscription.activate(user, tariff, now)
+        await self._payments.mark_granted(request.id, now)
+        request.granted_at = now
         return request

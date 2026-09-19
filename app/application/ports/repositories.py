@@ -365,6 +365,28 @@ class PaymentRepository(Protocol):
         self, request_id: int, status: PaymentStatus, reviewed_at: datetime
     ) -> PaymentRequest | None: ...
 
+    async def mark_granted(self, request_id: int, at: datetime) -> None:
+        """Отметить, что по заявке открыли доступ, не дожидаясь модератора."""
+        ...
+
+    async def count_rejected(self, user_id: int) -> int:
+        """Сколько чеков этого человека уже отклонили — за всю историю.
+
+        По этому числу решается, открывать ли доступ авансом: без такого счётчика отказ
+        ничего не значил бы — тот же скриншот можно залить снова и снова смотреть.
+        """
+        ...
+
+    async def list_pending_aged(
+        self, older_than: datetime, newer_than: datetime
+    ) -> list[PaymentRequest]:
+        """Нерешённые заявки, созданные в окне (`newer_than`, `older_than`].
+
+        Окно, а не «старше N часов», потому что напоминание ежечасное: без верхней
+        границы одна забытая заявка капала бы в админ-чат каждый час до скончания века.
+        """
+        ...
+
 
 class VideoDeliveryRepository(Protocol):
     """Учёт выданных видео-сообщений — чтобы удалять их по возрасту и при истечении подписки.

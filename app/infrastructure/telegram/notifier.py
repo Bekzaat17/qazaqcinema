@@ -228,17 +228,26 @@ class AiogramNotifier:
         username: str | None,
         tariff_title: str,
         proof: ProofRef,
+        access_open: bool,
     ) -> None:
         # «Чек №N» — первой строкой и крупно (номер = request_id, тот же в кнопках ниже):
         # админ сверяет чек с его кнопками по номеру, не путается в стопке заявок.
         # Хэндл — ссылкой (HTML), чтобы написать автору чека в один тап; тариф наш, но
         # экранируем и его — подпись целиком идёт как HTML.
+        # Последняя строка — состояние доступа: под работающей подпиской ❌ её отключает,
+        # и знать об этом надо ДО нажатия.
+        state = (
+            "⚡️ Қолжетімділік ашық — ❌ оны жабады"
+            if access_open
+            else "⏳ Қолжетімділік жабық — шешім күтуде"
+        )
         caption = (
             f"🧾 Чек №{request_id}\n"
             f"Пайдаланушы: {mention_html(user_id, username)} (id {user_id})\n"
-            f"Тариф: {escape(tariff_title)}"
+            f"Тариф: {escape(tariff_title)}\n"
+            f"{state}"
         )
-        keyboard = moderation_keyboard(request_id)
+        keyboard = moderation_keyboard(request_id, access_open=access_open)
         # Копия — каждому админу, доставка независимая (как в `notify_admins`): админ, не
         # нажавший /start или заблокировавший бота, не должен оставить остальных без чека.
         # Одобрение идемпотентно (`PaymentModerationService` отдаёт ALREADY_HANDLED), так

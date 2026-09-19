@@ -194,6 +194,7 @@ async def test_payment_proof_caption_links_the_handle() -> None:
         username="beka",
         tariff_title="1 ай",
         proof=ProofRef("file-1", is_document=False),
+        access_open=True,
     )
 
     (call,) = bot.photo_calls
@@ -212,6 +213,7 @@ async def test_payment_proof_document_keeps_link_for_user_without_username() -> 
         username=None,
         tariff_title="1 ай",
         proof=ProofRef("file-1", is_document=True),
+        access_open=True,
     )
 
     (call,) = bot.document_calls
@@ -222,13 +224,16 @@ async def test_payment_proof_document_keeps_link_for_user_without_username() -> 
 # --- карточка чека: копия каждому админу ----------------------------------
 
 
-async def _send_proof(notifier: AiogramNotifier, *, is_document: bool = False) -> None:
+async def _send_proof(
+    notifier: AiogramNotifier, *, is_document: bool = False, access_open: bool = True
+) -> None:
     await notifier.send_payment_proof_to_admins(
         request_id=7,
         user_id=42,
         username="beka",
         tariff_title="1 ай",
         proof=ProofRef("file-1", is_document=is_document),
+        access_open=access_open,
     )
 
 
@@ -276,3 +281,17 @@ async def test_payment_proof_raises_when_nobody_got_it() -> None:
 
     with pytest.raises(AdminsUnreachableError):
         await _send_proof(notifier)
+
+
+async def test_payment_proof_caption_says_whether_access_is_already_open() -> None:
+    """Состояние доступа — в подписи: под работающей подпиской ❌ её отключает, и админ
+    обязан видеть это до нажатия, а не узнавать из жалобы человека."""
+    bot = _FakeBot()
+    notifier = _notifier(bot, admin_chat_id=0, admin_user_ids=[1])
+
+    await _send_proof(notifier, access_open=True)
+    assert "⚡️" in bot.photo_calls[0]["caption"]
+
+    bot.photo_calls.clear()
+    await _send_proof(notifier, access_open=False)
+    assert "⏳" in bot.photo_calls[0]["caption"]

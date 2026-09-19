@@ -40,7 +40,7 @@ import { useOnResume } from "./hooks/useOnResume";
 import { useSearch } from "./hooks/useSearch";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
 import { useWriteAccessPrompt } from "./hooks/useWriteAccessPrompt";
-import { ApiError, NetworkError, api, type Movie } from "./lib/api";
+import { ApiError, NetworkError, api, type Movie, type UserStatus } from "./lib/api";
 import { saveLastPage } from "./lib/lastPage";
 import { haptic } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
@@ -337,11 +337,22 @@ export default function App() {
       .catch(() => setToast("Фильмді ашу мүмкін болмады. Байланысты тексеріңіз."));
   }, [weeklyMovieId]);
 
-  const handlePending = useCallback(() => {
-    setAuth((prev) => (prev ? { ...prev, status: "pending_review" } : prev));
+  const handleProof = useCallback(async (status: UserStatus) => {
     setPaywallOpen(false);
     setSelected(null);
-    setToast("Чек қабылданды — тексерудеміз");
+    // Чек обычно открывает доступ сразу, поэтому статус берём из ответа, а не ставим
+    // «на проверке» вслепую: на модерацию заявка уходит лишь у тех, кому уже отказывали.
+    if (status !== "active") {
+      setAuth((prev) => (prev ? { ...prev, status } : prev));
+      setToast("Чек қабылданды — тексерудеміз");
+      return;
+    }
+    setToast("Қолжетімділік ашылды! Көруге болады");
+    try {
+      setAuth(await api.me());
+    } catch {
+      /* срок подтянется на следующем заходе — доступ уже открыт на сервере */
+    }
   }, []);
 
   const handlePaid = useCallback(async () => {
@@ -452,7 +463,7 @@ export default function App() {
         movie={paywallMovie}
         tariffs={tariffs}
         onClose={() => setPaywallOpen(false)}
-        onPending={handlePending}
+        onPending={handleProof}
         onPaid={handlePaid}
         onError={setToast}
       />

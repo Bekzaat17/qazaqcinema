@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -14,6 +16,7 @@ from app.application.services.payment_service import (
     UnknownTariffError,
     UnsupportedMethodError,
 )
+from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 from app.domain.tariffs.catalog import all_tariffs
 
@@ -56,11 +59,11 @@ async def submit_proof(
     tariff: str = Form(...),
     file: UploadFile = File(...),
 ) -> ProofAccepted:
-    """Приём чека Kaspi: файл → PaymentRequest(PENDING) → модерация ✅/❌.
+    """Приём чека Kaspi: файл → доступ открыт → карточка админам с ✅/❌.
 
-    Чек — картинка (скриншот) ИЛИ PDF (Kaspi отдаёт чек файлом). Видео/активацией не
-    занимается: только регистрирует заявку и уводит юзера в `PENDING_REVIEW`. Подписку
-    включит модератор (см. `PaymentModerationService`).
+    Чек — картинка (скриншот) ИЛИ PDF (Kaspi отдаёт чек файлом). Решение «открывать ли
+    сразу» принимает сервис (см. `PaymentService.submit_proof`), поэтому ответ несёт
+    фактический статус человека, а не заранее известную строку.
     """
     content_type = file.content_type or "application/octet-stream"
     if not (content_type.startswith("image/") or content_type == "application/pdf"):
@@ -76,10 +79,12 @@ async def submit_proof(
             user,
             tariff,
             data,
+            datetime.now(UTC),
             filename=file.filename or default_name,
             content_type=content_type,
         )
     except UnknownTariffError:
         raise HTTPException(status_code=400, detail="unknown_tariff") from None
     assert request.id is not None
-    return ProofAccepted(request_id=request.id)
+    status = UserStatus.ACTIVE if request.granted_at else UserStatus.PENDING_REVIEW
+    return ProofAccepted(request_id=request.id, status=status.value)

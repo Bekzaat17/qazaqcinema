@@ -37,6 +37,17 @@ _ALERTS = {
     ModerationOutcome.NOT_FOUND: "Өтініш табылмады",
     ModerationOutcome.ALREADY_HANDLED: "Бұл өтініш өңделген",
 }
+# Доступ был открыт ещё до нажатия — значит ✅ ничего не меняет, а ❌ отключает
+# работающую подписку. Тост и пометка обязаны говорить именно это, иначе админ решит,
+# что первая кнопка что-то выдала, а вторая просто «не выдала».
+_ALERTS_OPEN = {
+    ModerationOutcome.APPROVED: "✅ Расталды, доступ бұрынғыдай ашық",
+    ModerationOutcome.REJECTED: "❌ Доступ жабылды",
+}
+_MARKS_OPEN = {
+    ModerationOutcome.APPROVED: "✅ Расталды (доступ ашық болатын)",
+    ModerationOutcome.REJECTED: "❌ Бас тартылды — доступ жабылды",
+}
 _MARKS = {
     ModerationOutcome.APPROVED: "✅ Расталды",
     ModerationOutcome.REJECTED: "❌ Бас тартылды",
@@ -68,8 +79,10 @@ async def _finalize(
     callback: CallbackQuery, result: ModerationResult, request_id: int
 ) -> None:
     # Номер чека — и в тосте, и в правке подписи: подтверждение читается вместе с чеком.
-    await callback.answer(f"№{request_id} · {_ALERTS[result.outcome]}")
-    mark = _MARKS.get(result.outcome)
+    alerts = _ALERTS_OPEN if result.granted_earlier else _ALERTS
+    await callback.answer(f"№{request_id} · {alerts.get(result.outcome, _ALERTS[result.outcome])}")
+    marks = _MARKS_OPEN if result.granted_earlier else _MARKS
+    mark = marks.get(result.outcome, _MARKS.get(result.outcome))
     if mark is not None and isinstance(callback.message, Message):
         base = callback.message.caption or ""
         # Правка подписи — косметика поверх уже принятого решения: если Telegram откажет

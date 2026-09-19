@@ -15,3 +15,14 @@ from app.domain.tariffs.tariff import Tariff
 def compute_expiry(now: datetime, tariff: Tariff, current_expires_at: datetime | None) -> datetime:
     base = current_expires_at if current_expires_at and current_expires_at > now else now
     return base + tariff.duration
+
+
+def shorten(now: datetime, tariff: Tariff, current_expires_at: datetime | None) -> datetime:
+    """Отобрать ровно то, что выдал этот тариф, — зеркало `compute_expiry`.
+
+    Вычитаем срок тарифа, а НЕ обнуляем `expires_at`: чек мог продлевать живую подписку,
+    и отказ по нему не имеет права съесть оплаченный раньше остаток. Срока нет вовсе —
+    отбирать нечего, отдаём `now` (доступ закрыт сию секунду).
+    """
+    base = current_expires_at if current_expires_at is not None else now
+    return base - tariff.duration

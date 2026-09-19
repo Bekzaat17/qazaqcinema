@@ -8,7 +8,11 @@ from app.domain.entities.enums import PaymentMethod, PaymentStatus, UserStatus
 from app.domain.entities.movie import Movie
 from app.domain.entities.subscription import PaymentRequest
 from app.domain.entities.user import User
-from app.infrastructure.db.models import DailyReportModel, VideoDeliveryModel
+from app.infrastructure.db.models import (
+    DailyReportModel,
+    PaymentRequestModel,
+    VideoDeliveryModel,
+)
 from app.infrastructure.db.repositories import (
     PgChannelMemberEventRepository,
     PgDailyReportRepository,
@@ -349,6 +353,50 @@ async def test_payment_lifecycle(session: AsyncSession) -> None:
     assert updated is not None
     assert updated.status is PaymentStatus.APPROVED
     assert updated.reviewed_at is not None
+
+
+async def test_payment_grant_mark_reject_count_and_pending_window(
+    session: AsyncSession,
+) -> None:
+    """Три ручки разового пути: отметка выдачи, счётчик отказов и окно напоминания."""
+    users = PgUserRepository(session)
+    for telegram_id in (21, 22):
+        await users.upsert(User(telegram_id=telegram_id))
+    repo = PgPaymentRepository(session)
+    now = datetime.now(UTC)
+
+    granted = await repo.add(
+        PaymentRequest(user_id=21, tariff="1_month", method=PaymentMethod.KASPI)
+    )
+    assert granted.id is not None
+    await repo.mark_granted(granted.id, now)
+    assert (await repo.get(granted.id)).granted_at is not None  # type: ignore[union-attr]
+
+    # Счётчик отказов — только по своему человеку: по нему решается, открывать ли доступ.
+    rejected = await repo.add(
+        PaymentRequest(user_id=21, tariff="1_day", method=PaymentMethod.KASPI)
+    )
+    assert rejected.id is not None
+    await repo.set_status(rejected.id, PaymentStatus.REJECTED, now)
+    assert await repo.count_rejected(21) == 1
+    assert await repo.count_rejected(22) == 0
+
+    # Окно напоминания: берём заявку возрастом 12–13 ч и не берём свежую.
+    old_row = PaymentRequestModel(
+        user_id=22,
+        tariff="1_day",
+        method=PaymentMethod.KASPI.value,
+        status=PaymentStatus.PENDING.value,
+        created_at=now - timedelta(hours=12, minutes=30),
+    )
+    session.add(old_row)
+    await session.commit()
+
+    aged = await repo.list_pending_aged(
+        older_than=now - timedelta(hours=12), newer_than=now - timedelta(hours=13)
+    )
+
+    assert [request.user_id for request in aged] == [22]
 
 
 async def _seed_delivery(

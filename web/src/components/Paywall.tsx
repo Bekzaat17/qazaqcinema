@@ -4,7 +4,7 @@
 import { ChevronLeft, CreditCard, Check, Copy, ExternalLink, ShieldCheck, Star, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
-import { ApiError, api, type Movie, type Tariff } from "../lib/api";
+import { ApiError, api, type Movie, type Tariff, type UserStatus } from "../lib/api";
 import { perDay, tenge } from "../lib/format";
 import { haptic, openInvoice, openLink } from "../lib/telegram";
 import Button from "../ui/Button";
@@ -18,8 +18,8 @@ interface PaywallProps {
   movie: Movie | null;
   tariffs: Tariff[];
   onClose: () => void;
-  /** Kaspi: чек принят → уводим юзера в pending_review. */
-  onPending: () => void;
+  /** Kaspi: чек принят. Статус приходит с сервера — обычно доступ открыт сразу. */
+  onPending: (status: UserStatus) => void;
   /** Stars: оплата прошла → обновляем доступ. */
   onPaid: () => void;
   onError: (msg: string) => void;
@@ -89,10 +89,10 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
   async function uploadProof(file: File) {
     setLoading(true);
     try {
-      await api.submitProof(slug, file);
+      const accepted = await api.submitProof(slug, file);
       haptic.success();
       reset();
-      onPending();
+      onPending(accepted.status);
     } catch (e) {
       let msg = "Чекті жіберу мүмкін болмады";
       if (e instanceof ApiError && e.status === 413) msg = "Файл тым үлкен";
@@ -134,7 +134,7 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
             </div>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-faint">
               <ShieldCheck size={13} />
-              Kaspi — 10–15 мин ішінде тексереміз · Stars — бірден
+              Kaspi да, Stars да — қолжетімділік бірден ашылады
             </p>
           </>
         ) : (
@@ -239,7 +239,7 @@ function KaspiStep({
       </button>
       <h2 className="text-xl font-extrabold tracking-tight text-text">Kaspi арқылы төлеу</h2>
       <p className="mt-1 text-sm text-muted">
-        Төлеп, чекті (сурет не PDF) осында жүктеңіз — 10–15 минут ішінде тексереміз.
+        Төлеп, чекті (сурет не PDF) осында жүктеңіз — қолжетімділік бірден ашылады.
       </p>
 
       {/* Сумма крупно + «Көшіру» — удобно вставить в поле оплаты Kaspi. */}

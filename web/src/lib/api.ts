@@ -258,7 +258,8 @@ export interface PaymentInit {
 }
 
 export interface ProofAccepted {
-  status: string;
+  /** Обычно "active" — чек открывает доступ сразу; "pending_review" — заявка ушла админу. */
+  status: UserStatus;
   request_id: number;
 }
 

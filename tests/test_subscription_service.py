@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from app.application.ports.telegram import DeleteOutcome
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
+from app.domain.analytics.events import EventKind
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
@@ -147,6 +148,49 @@ async def test_activate_counts_from_now_when_expired() -> None:
 
     assert result.expires_at == _NOW + timedelta(days=1)
     assert result.status is UserStatus.ACTIVE
+
+
+async def test_revoke_takes_term_back_and_purges_videos() -> None:
+    """Отклонённый чек: срок отобран, статус погашен, выданные видео вычищены."""
+    users = _FakeUsers()
+    notifier = _FakeNotifier()
+    deliveries = _FakeDeliveries({7: [VideoDelivery(7, 700, id=1)]})
+    events = FakeEvents()
+    service = SubscriptionService(
+        users, notifier, VideoRetentionService(deliveries, notifier), events
+    )
+    user = User(telegram_id=7, status=UserStatus.ACTIVE, expires_at=_NOW + timedelta(days=30))
+
+    result = await service.revoke(user, MONTH, _NOW)
+
+    assert result.expires_at == _NOW
+    assert result.status is UserStatus.EXPIRED
+    # В журнал идёт REVOKE: `subscribe` уже записан авансом, и без пары его не отличить
+    # от настоящей продажи.
+    assert events.kinds_for(7) == [EventKind.REVOKE]
+    assert notifier.messages and notifier.messages[0][0] == 7
+    assert notifier.deleted == [(7, 700)]
+    assert deliveries.deleted_ids == [1]
+
+
+async def test_revoke_keeps_previously_paid_remainder() -> None:
+    """Чек продлевал живую подписку: отказ съедает добавку, оплаченный остаток цел."""
+    users = _FakeUsers()
+    notifier = _FakeNotifier()
+    deliveries = _FakeDeliveries({7: [VideoDelivery(7, 700, id=1)]})
+    service = _build(users, notifier, deliveries)
+    paid_until = _NOW + timedelta(days=10)
+    user = User(
+        telegram_id=7, status=UserStatus.ACTIVE, expires_at=paid_until + timedelta(days=30)
+    )
+
+    result = await service.revoke(user, MONTH, _NOW)
+
+    assert result.expires_at == paid_until
+    assert result.status is UserStatus.ACTIVE
+    # доступ остался — видео забирать не за что
+    assert notifier.deleted == []
+    assert deliveries.deleted_ids == []
 
 
 async def test_expire_due_marks_only_expired_and_returns_count() -> None:
