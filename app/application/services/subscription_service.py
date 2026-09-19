@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.application.ports.repositories import UserEventRepository, UserRepository
 from app.application.ports.telegram import TelegramNotifier
@@ -20,7 +20,7 @@ from app.domain.analytics.events import EventKind
 from app.domain.catalog.daily import TZ
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
-from app.domain.subscription.expiry import compute_expiry
+from app.domain.subscription.expiry import compute_expiry, extend
 from app.domain.tariffs.tariff import Tariff
 
 logger = logging.getLogger(__name__)
@@ -37,16 +37,32 @@ _ACTIVATED_DM_KK = (
     "Мерзім аяқталғанда хабарлаймыз."
 )
 
+# Подаренные дни: письмо про ПОДАРОК и срок, и ни слова про повод. Объяснять человеку,
+# за что именно извиняемся, — значит указать ему на шероховатость, которой он мог и не
+# заметить: щедрый жест без оправданий читается лучше, чем жест с разбором причин.
+_BONUS_DM_KK = (
+    "🎁 Сізге сыйлық: +{days} күн\n\n"
+    "Жазылым мерзіміне тағы {days} күн қостық — бізбен бірге болғаныңыз үшін рақмет.\n\n"
+    "🕒 Қолжетімділік {until} дейін ашық (Алматы уақыты).\n\n"
+    "Рахаттанып көріңіз! 🍿"
+)
 
-def _activated_dm(tariff: Tariff, expires_at: datetime) -> str:
-    """DM об открытом доступе: до какого МЕСТНОГО момента он работает.
 
-    Срок внутри живёт в UTC, но читает его человек в Алматы — время без перевода в его
+def _until_local(expires_at: datetime) -> str:
+    """Срок доступа словами для человека — по Алматы.
+
+    Срок внутри живёт в UTC, но читает его человек в Алматы: время без перевода в его
     зону он сверяет с часами на телефоне и видит расхождение в пять часов.
     """
-    return _ACTIVATED_DM_KK.format(
-        tariff=tariff.title_kk, until=f"{expires_at.astimezone(TZ):%d.%m.%Y %H:%M}"
-    )
+    return f"{expires_at.astimezone(TZ):%d.%m.%Y %H:%M}"
+
+
+def _activated_dm(tariff: Tariff, expires_at: datetime) -> str:
+    return _ACTIVATED_DM_KK.format(tariff=tariff.title_kk, until=_until_local(expires_at))
+
+
+def _bonus_dm(days: int, expires_at: datetime) -> str:
+    return _BONUS_DM_KK.format(days=days, until=_until_local(expires_at))
 
 
 class SubscriptionService:
@@ -78,6 +94,23 @@ class SubscriptionService:
         await self._notifier.notify_user(
             user.telegram_id, _activated_dm(tariff, user.expires_at)
         )
+        return saved
+
+    async def grant_bonus(self, user: User, days: int, now: datetime) -> User:
+        """Подарить дни доступа сверх оплаченного: компенсация за ожидание модерации.
+
+        Не `activate`, хотя механика продления та же: тарифа за этими днями нет.
+        Поэтому `selected_tariff` не трогаем (человек выбирал другой), а в журнал идёт
+        `BONUS`, а не `SUBSCRIBE` — подарок не должен попасть в отчёт как ещё одна продажа.
+
+        Срок считает тот же `extend`: активному продлеваем от его `expires_at`, а тому,
+        у кого он уже прошёл, — от now, иначе подарок утёк бы в прошлое.
+        """
+        user.expires_at = extend(now, timedelta(days=days), user.expires_at)
+        user.status = UserStatus.ACTIVE
+        saved = await self._users.upsert(user)
+        await self._events.add(user.telegram_id, EventKind.BONUS, meta=f"{days}d")
+        await self._notifier.notify_user(user.telegram_id, _bonus_dm(days, user.expires_at))
         return saved
 
     async def expire_due(self, now: datetime) -> int:

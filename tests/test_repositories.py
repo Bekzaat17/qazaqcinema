@@ -351,6 +351,31 @@ async def test_payment_lifecycle(session: AsyncSession) -> None:
     assert updated.reviewed_at is not None
 
 
+async def test_recent_approved_returns_newest_decisions_first(session: AsyncSession) -> None:
+    """«Последние подписки» = порядок ОДОБРЕНИЯ, а не создания заявки: чек мог пролежать
+    в очереди дольше следующего за ним, и тогда порядок по created_at врал бы."""
+    users = PgUserRepository(session)
+    for telegram_id in (11, 12, 13):
+        await users.upsert(User(telegram_id=telegram_id))
+    repo = PgPaymentRepository(session)
+    now = datetime.now(UTC)
+
+    ids = []
+    for telegram_id in (11, 12, 13):
+        created = await repo.add(
+            PaymentRequest(user_id=telegram_id, tariff="1_day", method=PaymentMethod.KASPI)
+        )
+        assert created.id is not None
+        ids.append(created.id)
+    # Первая заявка одобрена ПОСЛЕДНЕЙ, третья осталась на модерации.
+    await repo.set_status(ids[1], PaymentStatus.APPROVED, now - timedelta(hours=2))
+    await repo.set_status(ids[0], PaymentStatus.APPROVED, now)
+
+    recent = await repo.list_recent_approved(5)
+
+    assert [request.user_id for request in recent] == [11, 12]
+
+
 async def _seed_delivery(
     session: AsyncSession, user_id: int, message_id: int, created_at: datetime
 ) -> int:

@@ -11,6 +11,7 @@
 #   ./start.sh migrate      # применить миграции (alembic upgrade head) и выйти
 #   ./start.sh seed         # залить контент канала (content/*.yaml → БД + картинки в том uploads)
 #   ./start.sh thumbs       # дорисовать мелкие копии постеров (разовый догон старых)
+#   ./start.sh goodwill     # подарить дни доступа (--last N / --user id, сперва --dry-run)
 #   ./start.sh backup       # дамп БД в backups/ (pg_dump|gzip, ротация 14; для cron на VPS)
 #   ./start.sh logs [svc]   # логи всех сервисов или одного (Ctrl-C — выйти)
 #   ./start.sh ps           # статус контейнеров
@@ -132,6 +133,14 @@ case "$MODE" in
     ef=".env.prod"; [ -f "$ef" ] || ef="$(default_env)"
     info "Пересчитываю мелкие копии постеров (env=$ef)…"
     dc "$ef" run --rm --build bot python -m app.tools.thumbs "$@"
+    ;;
+
+  goodwill)
+    # Подарочные дни доступа за ожидание модерации. НЕ идемпотентно: каждый прогон
+    # начисляет и пишет человеку — сперва гонять с --dry-run и смотреть список.
+    ef=".env.prod"; [ -f "$ef" ] || ef="$(default_env)"
+    info "Подарочные дни (env=$ef)…"
+    dc "$ef" run --rm --build bot python -m app.tools.goodwill "$@"
     ;;
 
   backup)

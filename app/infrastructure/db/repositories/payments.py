@@ -70,6 +70,18 @@ class PgPaymentRepository:
         await self._session.refresh(model)
         return _payment_to_domain(model)
 
+    async def list_recent_approved(self, limit: int) -> list[PaymentRequest]:
+        # Сортировка по `reviewed_at`, а не по `created_at`: «последние подписки» — это
+        # порядок ОДОБРЕНИЯ (чек мог пролежать в очереди дольше следующего за ним).
+        stmt = (
+            select(PaymentRequestModel)
+            .where(PaymentRequestModel.status == PaymentStatus.APPROVED.value)
+            .order_by(PaymentRequestModel.reviewed_at.desc(), PaymentRequestModel.id.desc())
+            .limit(limit)
+        )
+        result = await self._session.scalars(stmt)
+        return [_payment_to_domain(model) for model in result]
+
 
 class PgVideoDeliveryRepository:
     def __init__(self, session: AsyncSession) -> None:

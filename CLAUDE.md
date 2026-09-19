@@ -68,7 +68,8 @@ app/
     analytics/         # admin_filter — журнал событий без действий админов
     di/providers.py    # composition root; scheduler.py — все фоновые джобы
   config/settings.py   # pydantic-settings: BOT_/DB_/REDIS_/PAY_/API_/MEDIA_ + PUBLIC_ORIGIN
-  main.py (бот, polling/webhook)  worker.py (рассылки)  tools/ (seed_content, preview_post)
+  main.py (бот, polling/webhook)  worker.py (рассылки)
+  tools/              # seed_content, preview_post, thumbs, goodwill (подарочные дни)
 web/src/               # App.tsx (экран и правила показа), hooks/ (данные, поиск, возврат в
                        #   приложение, версия сборки), components/, lib/ (api, telegram,
                        #   catalog, lastPage, devMock), ui/, index.css (@theme — токены)
@@ -90,6 +91,7 @@ no-op. Публикация в канал и запись событий не и
 ./start.sh prod           # те же контейнеры, env=.env.prod (единственный правильный способ деплоя)
 ./start.sh test           # ruff+mypy+pytest в контейнере, БД qazaqcinema_test — НЕ на прод-сервере
 ./start.sh seed [--check] # content/*.yaml → БД + картинки в том uploads (идемпотентно, upsert по slug)
+./start.sh goodwill --last 2 --dry-run  # подарить дни доступа (сперва всегда --dry-run)
 ./start.sh logs|ps|down|migrate|backup
 ```
 На прод-сервере проверки гонять в одноразовом контейнере, мимо compose (иначе пересоздаётся
@@ -301,6 +303,12 @@ Git: коммитить и пушить прямо в `main`, без фича-в
   (единственный допустимый). Активация только на `successful_payment`; payload `<user_id>:<slug>`.
 - `payment_requests` — единая аудит-таблица по всем способам (`proof_file_id` у Kaspi,
   `external_charge_id` у Stars).
+- Подаренные дни (`SubscriptionService.grant_bonus`, CLI `./start.sh goodwill`) — не
+  `activate`: тарифа за ними нет, поэтому `selected_tariff` не трогается, а в журнал идёт
+  `bonus`, а не `subscribe` — иначе подарок попал бы в отчёт как продажа, которой не было.
+  ⚠️ Инструмент НЕ идемпотентен: повторный прогон дарит ещё раз, поэтому сперва `--dry-run`.
+  Текст письма про подарок и срок молчит о поводе: названная причина превращает жест в
+  оправдание и указывает человеку на шероховатость, которой он мог не заметить.
 
 ### Выдача и удаление видео
 - Telegram не даёт боту удалить сообщение старше 48 ч, поэтому выдачи чистятся ПО ВОЗРАСТУ:

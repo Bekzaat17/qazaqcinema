@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from app.application.ports.telegram import DeleteOutcome
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
+from app.domain.analytics.events import EventKind
 from app.domain.entities.delivery import VideoDelivery
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
@@ -146,6 +147,46 @@ async def test_activate_counts_from_now_when_expired() -> None:
     result = await service.activate(user, DAY, _NOW)
 
     assert result.expires_at == _NOW + timedelta(days=1)
+    assert result.status is UserStatus.ACTIVE
+
+
+async def test_grant_bonus_extends_and_keeps_paid_tariff() -> None:
+    """Подарок продлевает от текущего срока и НЕ переписывает выбранный тариф."""
+    users = _FakeUsers()
+    notifier = _FakeNotifier()
+    events = FakeEvents()
+    service = SubscriptionService(
+        users, notifier, VideoRetentionService(_FakeDeliveries(), notifier), events
+    )
+    current = _NOW + timedelta(days=10)
+    user = User(
+        telegram_id=9, status=UserStatus.ACTIVE, expires_at=current, selected_tariff="1_month"
+    )
+
+    result = await service.grant_bonus(user, 1, _NOW)
+
+    assert result.expires_at == current + timedelta(days=1)
+    assert result.status is UserStatus.ACTIVE
+    assert result.selected_tariff == "1_month"  # подарок тариф не подменяет
+    # В журнал идёт BONUS: попади подарок в SUBSCRIBE — отчёт показал бы лишнюю продажу.
+    assert events.kinds_for(9) == [EventKind.BONUS]
+    text = notifier.messages[0][1]
+    assert "+1 күн" in text
+    # 09.07.2026 00:00 UTC → 05:00 по Алматы
+    assert "10.07.2026 05:00 дейін" in text
+
+
+async def test_grant_bonus_counts_from_now_when_subscription_already_over() -> None:
+    """Просроченному дарим от СЕЙЧАС — иначе подаренный день утёк бы в прошлое."""
+    users = _FakeUsers()
+    service = _build(users)
+    user = User(
+        telegram_id=3, status=UserStatus.EXPIRED, expires_at=_NOW - timedelta(days=4)
+    )
+
+    result = await service.grant_bonus(user, 2, _NOW)
+
+    assert result.expires_at == _NOW + timedelta(days=2)
     assert result.status is UserStatus.ACTIVE
 
 
