@@ -365,14 +365,6 @@ class PaymentRepository(Protocol):
         self, request_id: int, status: PaymentStatus, reviewed_at: datetime
     ) -> PaymentRequest | None: ...
 
-    async def list_recent_approved(self, limit: int) -> list[PaymentRequest]:
-        """Последние одобренные заявки — свежая первой, не более `limit`.
-
-        Нужна разовым операциям поддержки («кто оплатил последним»): это единственная
-        таблица, где оплаты всех способов лежат вместе, а у `users` момента покупки нет.
-        """
-        ...
-
 
 class VideoDeliveryRepository(Protocol):
     """Учёт выданных видео-сообщений — чтобы удалять их по возрасту и при истечении подписки.
