@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.domain.analytics.source import SEO, movie_link_payload
+from app.domain.analytics.source import SEO, movie_start_url
 from app.domain.catalog.categories import Category, get_category
 from app.domain.catalog.daily import TZ
 from app.domain.entities.movie import Movie
@@ -91,7 +91,7 @@ class MovieSeo:
     description: str          # meta description
     keywords: str             # meta keywords (полный CSV всех сгенерированных запросов)
     og_image: str             # абсолютный URL картинки (hero → постер)
-    telegram_url: str         # deep-link t.me/<bot>?startapp=m_<id>
+    telegram_url: str         # в чат бота на фильм: t.me/<bot>?start=seo-m_<id>
     heading: str              # H1: узнаваемое название + «қазақша»
     names: list[str]          # варианты названия (kk/ru/original) для показа
     categories: list[Category] = field(default_factory=list)
@@ -151,7 +151,7 @@ class SeoBuilder:
         path = f"/m/{slug}"
         canonical = f"{self._site}{path}"
         og_image = self._abs(movie.hero_image_url or movie.poster_url)
-        telegram_url = f"https://t.me/{self._bot}?startapp={movie_link_payload(SEO, movie.id)}"
+        telegram_url = movie_start_url(self._bot, SEO, movie.id)
 
         heading = f"{display} қазақша"
         # Казахское название — в скобках рядом с узнаваемым, если они разные. Без него

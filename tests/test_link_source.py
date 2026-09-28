@@ -10,6 +10,7 @@ from app.domain.analytics.source import (
     link_movie_id,
     link_source,
     movie_link_payload,
+    movie_start_url,
 )
 
 
@@ -41,3 +42,10 @@ def test_no_payload_means_no_source() -> None:
     """Заход из чата бота — возврат, а не приход: источника нет."""
     assert link_source(None) is None
     assert link_source("") is None
+
+
+def test_movie_link_goes_through_bot_chat() -> None:
+    """`start=`, а не `startapp=`: из прямого запуска кинотеатр не уведёт в чат к видео."""
+    assert movie_start_url("qazaqcinema_bot", CHANNEL, 42) == (
+        "https://t.me/qazaqcinema_bot?start=ch-m_42"
+    )

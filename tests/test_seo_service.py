@@ -77,7 +77,7 @@ def test_heading_pairs_name_with_kazaksha() -> None:
 
 def test_telegram_deeplink_uses_startapp() -> None:
     meta = _seo().movie_seo(_movie())
-    assert meta.telegram_url == "https://t.me/qazaqcinema_bot?startapp=seo-m_7"
+    assert meta.telegram_url == "https://t.me/qazaqcinema_bot?start=seo-m_7"
 
 
 def test_og_image_prefers_hero_and_is_absolute() -> None:

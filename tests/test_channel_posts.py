@@ -152,14 +152,14 @@ async def test_post_button_is_a_deep_link_to_the_movie() -> None:
     """Кнопка ведёт на КАРТОЧКУ фильма, и это обычный url.
 
     `web_app`-кнопку Telegram принимает только в приватных чатах — в канале пост с ней
-    не отправился бы вообще. А `startapp=m_<id>` открывает сразу нужный фильм, тогда
-    как ссылка на главную заставила бы искать его руками.
+    не отправился бы вообще. А `start=ch-m_<id>` ведёт через чат бота сразу к нужному
+    фильму, тогда как ссылка на главную заставила бы искать его руками.
     """
     publisher = _FakePublisher()
     await _service(publisher).publish_new_movie(_movie())
 
     post = publisher.posts[0]
-    assert post.button_url == "https://t.me/qazaqcinema_bot?startapp=ch-m_42"
+    assert post.button_url == "https://t.me/qazaqcinema_bot?start=ch-m_42"
     assert post.button_text
 
 
@@ -195,7 +195,7 @@ async def test_daily_post_takes_the_same_movie_as_playback() -> None:
 
     assert await _service(publisher, movie).publish_daily_movie(_NOW) is True
     assert "Шрек 4" in publisher.posts[0].text
-    assert publisher.posts[0].button_url == "https://t.me/qazaqcinema_bot?startapp=ch-m_7"
+    assert publisher.posts[0].button_url == "https://t.me/qazaqcinema_bot?start=ch-m_7"
 
 
 async def test_daily_post_is_skipped_on_empty_catalog() -> None:

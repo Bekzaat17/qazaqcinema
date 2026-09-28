@@ -22,15 +22,18 @@ export function getTelegramUser() {
 }
 
 /**
- * ID фильма из deep-link (SEO-страница → «Telegram-да көру»). Источники по приоритету:
- * `start_param` Mini App (t.me/<bot>?startapp=m_<id>) → хэш URL (#m<id>, фолбэк для /start).
- * Возвращает число или null. Формат payload: `[<источник>-]m_<id>` либо `m<id>`; метка
- * источника (`seo-`, `ch-`) — для аналитики сервера (`domain/analytics/source`).
+ * ID фильма, на котором открыть кинотеатр. Источники по приоритету:
+ *  • `?m=<id>` — кнопка бота в ответ на ссылку из канала/с сайта (`movie_keyboard`);
+ *  • `start_param` — старая прямая ссылка `t.me/<bot>?startapp=[<источник>-]m_<id>`;
+ *  • хэш `#m<id>` — ещё более старый фолбэк. Telegram дописывает в хэш свои параметры
+ *    (`#m42&tgWebAppData=…`), поэтому берём только часть до первого `&`.
  */
 export function getStartMovieId(): number | null {
+  const fromQuery = /^\d+$/.exec(new URLSearchParams(window.location.search).get("m") ?? "");
+  if (fromQuery) return Number(fromQuery[0]);
   const raw =
     window.Telegram?.WebApp?.initDataUnsafe?.start_param ??
-    (window.location.hash ? window.location.hash.slice(1) : "");
+    window.location.hash.slice(1).split("&")[0];
   const match = /^(?:[a-z]{1,16}-)?m_?(\d+)$/.exec(raw ?? "");
   return match ? Number(match[1]) : null;
 }

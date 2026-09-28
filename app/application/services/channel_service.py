@@ -16,7 +16,7 @@ from datetime import datetime
 from app.application.ports.channel import ChannelPost, ChannelPublisher
 from app.application.ports.storage import PosterStorage
 from app.application.services.daily_service import DailyMovieService
-from app.domain.analytics.source import CHANNEL, movie_link_payload
+from app.domain.analytics.source import CHANNEL, movie_start_url
 from app.domain.catalog.daily import TZ
 from app.domain.channel.post import render_daily_movie, render_new_movie
 from app.domain.entities.movie import Movie
@@ -42,18 +42,16 @@ class ChannelService:
         self._bot_username = bot_username
 
     def _movie_url(self, movie: Movie) -> str | None:
-        """Deep-link на карточку фильма в Mini App: `t.me/<bot>?startapp=ch-m_<id>`.
+        """Ссылка на фильм через чат бота: `t.me/<bot>?start=ch-m_<id>`.
 
         Именно ссылка, а не `web_app`-кнопка: в канале Telegram принимает только `url`
-        (см. `ports/channel`). Тот же формат уже отдаёт SEO-страница (`SeoBuilder`), и
-        фронт умеет его читать (`getStartMovieId`) — человек попадает сразу на фильм,
-        а не на главную, где его ещё надо искать. Метка `ch` — чтобы заходы из канала
-        отличались от заходов с сайта (`domain/analytics/source`).
+        (см. `ports/channel`). Через чат, а не прямо в Mini App — иначе видео уйдёт в чат,
+        куда кинотеатр человека увести не сможет (см. `movie_start_url`). Метка `ch` —
+        чтобы заходы из канала отличались от заходов с сайта.
         """
         if not self._bot_username or movie.id is None:
             return None
-        payload = movie_link_payload(CHANNEL, movie.id)
-        return f"https://t.me/{self._bot_username}?startapp={payload}"
+        return movie_start_url(self._bot_username, CHANNEL, movie.id)
 
     def _post(self, movie: Movie, text: str, button_text: str) -> ChannelPost:
         """Пост о фильме: постер ФАЙЛОМ С ДИСКА + текст + кнопка-диплинк.
