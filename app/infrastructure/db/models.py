@@ -358,6 +358,9 @@ class DailyReportModel(Base):
     # и в дни, когда Telegram не ответил, строка отчёта должна пропадать, а не рисовать
     # обвал аудитории до нуля.
     channel_members: Mapped[int | None] = mapped_column(nullable=True)
+    # Владельцев Telegram Premium на конец дня. NULLABLE по той же причине: снимки до
+    # появления счётчика — «не знаем», а не ноль.
+    users_premium: Mapped[int | None] = mapped_column(nullable=True)
     # Когда СТРОКА записана/перезаписана — техническое поле, не путать с `day` (тот —
     # какие сутки описаны; misfire мог дописать их и на следующий день). Обновление на
     # конфликте — явно в `set_` репозитория (upsert идёт через Core, ORM-`onupdate`

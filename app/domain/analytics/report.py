@@ -59,6 +59,10 @@ class DailyReport:
     # ответил; ноль и «не знаем» — разные вещи, и вторая обязана выглядеть в отчёте как
     # пропуск строки, а не как обвал аудитории до нуля.
     channel_members: int | None = None
+    # Владельцев Telegram Premium среди пользователей — прокси платёжеспособности
+    # аудитории. None — снимок записан до того, как счётчик попал в отчёт: такой день
+    # «не знаем», а не «ноль премиумов», иначе недельная динамика нарисовала бы скачок.
+    users_premium: int | None = None
 
 
 def day_window(now: datetime) -> tuple[datetime, datetime]:
@@ -144,6 +148,14 @@ def render_channel_block(report: DailyReport, previous: DailyReport | None) -> s
     return "\n".join(lines)
 
 
+def render_premium_line(premium: int | None, users_total: int) -> str:
+    """«💎 Telegram Premium: 12 (9%)\n» — доля от всей базы; нет цифры → пустая строка."""
+    if premium is None:
+        return ""
+    rate = share(premium, users_total)
+    return f"💎 Telegram Premium: {premium}{f' ({rate}%)' if rate is not None else ''}\n"
+
+
 def render_report(report: DailyReport, demand: SearchSummary | None = None,
                   previous: DailyReport | None = None) -> str:
     """Текст отчёта для личек админов (HTML-безопасен: цифры, наши подписи и
@@ -159,6 +171,7 @@ def render_report(report: DailyReport, demand: SearchSummary | None = None,
         f"📊 <b>Күнделікті есеп</b> · {report.day:%d.%m.%Y}\n"
         "———\n"
         f"👥 Барлық қолданушы: {report.users_total} (бүгін +{report.users_new})\n"
+        f"{render_premium_line(report.users_premium, report.users_total)}"
         f"✅ Белсенді жазылым: {report.subs_active}\n"
         f"🎬 Каталог: {report.catalog_size} фильм\n"
         "———\n"

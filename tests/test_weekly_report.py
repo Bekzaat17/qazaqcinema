@@ -186,3 +186,23 @@ def test_weekly_digest_omits_channel_line_without_data() -> None:
 
     assert "📣 Арна:" not in text
     assert "Апталық таңдау алды" in text  # сама механика в отчёте остаётся
+
+
+# --- Telegram Premium в дайджесте ------------------------------------------------------
+
+
+def test_weekly_digest_shows_premium_growth() -> None:
+    days = [_daily(date(2026, 9, 27), users_total=200, users_premium=20)]
+    previous = [_daily(date(2026, 9, 20), users_total=180, users_premium=15)]
+
+    text = render_weekly_report(build_weekly_report(date(2026, 9, 28), days, previous, []))
+
+    assert "💎 Telegram Premium: 20 (10%) (+5 осы аптада)" in text
+
+
+def test_weekly_digest_omits_premium_without_data() -> None:
+    text = render_weekly_report(
+        build_weekly_report(date(2026, 9, 28), [_daily(date(2026, 9, 27))], [], [])
+    )
+
+    assert "Premium" not in text

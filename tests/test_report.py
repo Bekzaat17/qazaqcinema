@@ -144,6 +144,20 @@ def test_report_without_missing_queries_keeps_the_counters() -> None:
 
 
 
+# --- Telegram Premium ------------------------------------------------------------------
+
+
+def test_premium_line_shows_share_of_all_users() -> None:
+    text = render_report(_report(users_total=128, users_premium=16))
+
+    assert "💎 Telegram Premium: 16 (12%)" in text
+
+
+def test_premium_line_is_hidden_for_old_snapshots() -> None:
+    """Снимок до появления счётчика — «не знаем», а не «ноль премиумов»."""
+    assert "Premium" not in render_report(_report(users_premium=None))
+
+
 # --- блок про канал и недельный выбор -------------------------------------------------
 
 

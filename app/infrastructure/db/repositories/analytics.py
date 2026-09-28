@@ -60,6 +60,7 @@ def _daily_report_to_domain(model: DailyReportModel) -> DailyReport:
         channel_joins=model.channel_joins,
         channel_leaves=model.channel_leaves,
         channel_members=model.channel_members,
+        users_premium=model.users_premium,
     )
 
 
@@ -251,6 +252,7 @@ class PgDailyReportRepository:
             "channel_joins": report.channel_joins,
             "channel_leaves": report.channel_leaves,
             "channel_members": report.channel_members,
+            "users_premium": report.users_premium,
         }
         stmt = pg_insert(DailyReportModel).values(**values)
         stmt = stmt.on_conflict_do_update(

@@ -27,7 +27,7 @@ from html import escape
 
 from app.domain.analytics.milestone import Milestone
 from app.domain.analytics.percent import change, share
-from app.domain.analytics.report import DailyReport, render_demand_block
+from app.domain.analytics.report import DailyReport, render_demand_block, render_premium_line
 from app.domain.analytics.search import SearchSummary
 
 
@@ -69,6 +69,10 @@ class WeeklyReport:
     # Telegram тогда не ответил; прирост в этом случае не показываем, а не рисуем нулём.
     channel_members: int | None = None
     channel_members_prev: int | None = None
+    # Владельцев Telegram Premium на конец периода и предыдущего; None — снимков с этой
+    # цифрой ещё нет.
+    users_premium: int | None = None
+    users_premium_prev: int | None = None
     # Спрос за период — живой запрос по журналу поисков, как и вехи: в снимках его нет и
     # быть не должно (см. `SearchSummary`). `None` — сводку не запрашивали.
     demand: SearchSummary | None = None
@@ -109,6 +113,8 @@ def build_weekly_report(
         subs_active_prev=prev_latest.subs_active if prev_latest else None,
         channel_members=latest.channel_members if latest else None,
         channel_members_prev=prev_latest.channel_members if prev_latest else None,
+        users_premium=latest.users_premium if latest else None,
+        users_premium_prev=prev_latest.users_premium if prev_latest else None,
         current=_sum_totals(current_days),
         previous=_sum_totals(previous_days) if previous_days else None,
         milestones=sorted(milestones, key=lambda m: m.occurred_at),
@@ -151,6 +157,7 @@ def render_weekly_report(report: WeeklyReport) -> str:
         f"🎬 Каталог: {report.catalog_size} фильм"
         f"{_delta_suffix(report.catalog_size, report.catalog_size_prev, 'осы аптада')}",
         f"👥 Барлық қолданушы: {report.users_total}",
+        *_premium_lines(report),
         _line("✅", "Белсенді жазылым", report.subs_active, report.subs_active_prev),
         "———",
     ]
@@ -229,6 +236,14 @@ def render_weekly_report(report: WeeklyReport) -> str:
         lines.append(render_demand_block(report.demand))
 
     return "\n".join(lines)
+
+
+def _premium_lines(report: WeeklyReport) -> list[str]:
+    """Строка Premium с приростом за неделю; цифры нет → строки нет."""
+    if report.users_premium is None:
+        return []
+    line = render_premium_line(report.users_premium, report.users_total).rstrip("\n")
+    return [f"{line}{_delta_suffix(report.users_premium, report.users_premium_prev, 'осы аптада')}"]
 
 
 def _line(emoji: str, label: str, current: int, previous: int | None, note: str = "") -> str:

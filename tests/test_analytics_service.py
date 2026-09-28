@@ -72,6 +72,10 @@ class _CountingUsers:
         self.excluded.append(exclude)
         return 4
 
+    async def count_premium(self, exclude: Collection[int] = ()) -> int:
+        self.excluded.append(exclude)
+        return 3
+
 
 class _FakeChannel:
     """Число подписчиков канала. `None` — канал не настроен либо Telegram промолчал."""
@@ -126,6 +130,7 @@ async def test_daily_report_collects_numbers() -> None:
 
     assert report.day.isoformat() == "2026-08-13"  # местная дата, не UTC
     assert (report.users_total, report.users_new, report.subs_active) == (10, 2, 4)
+    assert report.users_premium == 3
     assert report.catalog_size == 42
     assert (report.opens_total, report.opens_unique) == (3, 2)
     assert report.starts == 1
@@ -152,7 +157,7 @@ async def test_admin_ids_are_excluded_from_user_counts() -> None:
 
     await _service(users=users, admin_ids=[ADMIN]).daily_report(_NOW, ALMATY)
 
-    assert users.excluded == [[ADMIN], [ADMIN], [ADMIN]]
+    assert users.excluded == [[ADMIN], [ADMIN], [ADMIN], [ADMIN]]
 
 
 async def test_daily_report_is_persisted_to_history() -> None:

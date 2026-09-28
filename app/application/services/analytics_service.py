@@ -71,6 +71,7 @@ class AnalyticsService:
             users_total=await self._users.count_all(self._admins),
             users_new=await self._users.count_created_since(since, self._admins),
             subs_active=await self._users.count_active(now, self._admins),
+            users_premium=await self._users.count_premium(self._admins),
             catalog_size=await self._movies.count_all(),
             opens_total=await self._events.count(EventKind.OPEN, since, until),
             opens_unique=await self._events.count_unique_users(EventKind.OPEN, since, until),
