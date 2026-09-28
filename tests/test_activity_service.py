@@ -53,6 +53,17 @@ async def test_start_creates_new_user_and_records_event() -> None:
     assert events.kinds_for(42) == [EventKind.START]
 
 
+async def test_start_records_link_source() -> None:
+    """`/start seo-m_7` — пришёл с сайта: в журнал идёт метка, а не весь payload."""
+    events = FakeEvents()
+
+    await UserActivityService(_FakeUsers(), events, FakeSearches()).register_start(
+        42, "neo", _NOW, "seo-m_7"
+    )
+
+    assert events.added == [(42, EventKind.START, "seo")]
+
+
 async def test_start_does_not_wipe_active_subscription() -> None:
     active = User(
         telegram_id=42,
@@ -134,6 +145,16 @@ async def test_handoff_event_carries_outcome_and_platform() -> None:
         (42, EventKind.HANDOFF, "try:ios"),
         (42, EventKind.HANDOFF, "stuck:ios"),
     ]
+
+
+async def test_handoff_event_carries_launch_when_known() -> None:
+    """Дорога в чат у прямой ссылки и у чата бота разная — запуск нужен в разбивке."""
+    events = FakeEvents()
+    service = UserActivityService(_FakeUsers(), events, FakeSearches())
+
+    await service.register_handoff(42, HandoffOutcome.STUCK, "ios", "direct")
+
+    assert events.added == [(42, EventKind.HANDOFF, "stuck:ios:direct")]
 
 
 async def test_paywall_event_without_movie() -> None:

@@ -20,6 +20,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from app.domain.analytics.source import SEO, movie_link_payload
 from app.domain.catalog.categories import Category, get_category
 from app.domain.catalog.daily import TZ
 from app.domain.entities.movie import Movie
@@ -39,7 +40,8 @@ from app.domain.seo.slug import movie_slug
 _DESC_MAX = 160
 # Потолок числа ключевых фраз (дедуп + обрезка) — чтобы meta keywords не раздувалась бесконечно.
 _KEYWORDS_MAX = 90
-
+# Предел <title> — длиннее Google обрезает сниппет сам.
+_TITLE_MAX = 65
 
 def _escape_for_script(raw: str) -> str:
     """Нейтрализовать `< > &` для встраивания JSON в `<script>`.
@@ -149,13 +151,21 @@ class SeoBuilder:
         path = f"/m/{slug}"
         canonical = f"{self._site}{path}"
         og_image = self._abs(movie.hero_image_url or movie.poster_url)
-        telegram_url = f"https://t.me/{self._bot}?startapp=m_{movie.id}"
+        telegram_url = f"https://t.me/{self._bot}?startapp={movie_link_payload(SEO, movie.id)}"
 
         heading = f"{display} қазақша"
-        title_tag = _clip(f"{heading} — көру онлайн | {BRAND}", 65)
+        # Казахское название — в скобках рядом с узнаваемым, если они разные. Без него
+        # сниппет «Тачки 2 қазақша» не совпадал с запросом «көліктер 2»: по Search
+        # Console (28 дней до 25.09) тот давал 847 показов на 3-й позиции при CTR 4%,
+        # тогда как у «Кунг-фу панды», где названия совпадают, CTR 27–41%.
+        # Только если влезает целиком: обрезка съела бы «қазақша» и бренд — главное в title.
+        kk_alias = f" ({movie.title_kk})" if movie.title_kk != display else ""
+        title_tag = f"{display}{kk_alias} қазақша — көру онлайн | {BRAND}"
+        if len(title_tag) > _TITLE_MAX:
+            title_tag = _clip(f"{heading} — көру онлайн | {BRAND}", _TITLE_MAX)
 
         year = f" ({movie.year})" if movie.year else ""
-        lead = f"{display}{year} — қазақ тілінде (на казахском) онлайн көру."
+        lead = f"{display}{kk_alias}{year} — қазақ тілінде (на казахском) онлайн көру."
         desc = _clip(f"{lead} {movie.description}" if movie.description else lead, _DESC_MAX)
 
         kw_list = self._keyword_list(names, cats)

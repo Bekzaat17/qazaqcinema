@@ -24,13 +24,14 @@ export function getTelegramUser() {
 /**
  * ID фильма из deep-link (SEO-страница → «Telegram-да көру»). Источники по приоритету:
  * `start_param` Mini App (t.me/<bot>?startapp=m_<id>) → хэш URL (#m<id>, фолбэк для /start).
- * Возвращает число или null. Формат payload: `m_<id>` либо `m<id>`.
+ * Возвращает число или null. Формат payload: `[<источник>-]m_<id>` либо `m<id>`; метка
+ * источника (`seo-`, `ch-`) — для аналитики сервера (`domain/analytics/source`).
  */
 export function getStartMovieId(): number | null {
   const raw =
     window.Telegram?.WebApp?.initDataUnsafe?.start_param ??
     (window.location.hash ? window.location.hash.slice(1) : "");
-  const match = /^m_?(\d+)$/.exec(raw ?? "");
+  const match = /^(?:[a-z]{1,16}-)?m_?(\d+)$/.exec(raw ?? "");
   return match ? Number(match[1]) : null;
 }
 
@@ -140,6 +141,9 @@ export function openBotChat(payload?: string): void {
   openTelegramLink(payload ? `${BOT_URL}?start=${payload}` : BOT_URL);
 }
 
+/** Пауза между `openTelegramLink` и `close()` — сколько нужно клиенту, чтобы начать переход. */
+const CLOSE_AFTER_LINK_MS = 300;
+
 /**
  * Увести человека из Mini App в чат с ботом, где лежит только что отправленное видео.
  *
@@ -148,13 +152,30 @@ export function openBotChat(payload?: string): void {
  * под нами браузер или поиск, поэтому чат сначала надо открыть явно; закрытие после
  * этого убирает наше окно с дороги (с Bot API 7.0 `openTelegramLink` сам его не гасит).
  *
+ * ⚠️ `close()` после ссылки — НЕ в том же тике. На мобильных клиентах закрытие, пришедшее
+ * следом за `openTelegramLink`, обрывает ещё не начавшийся переход в чат: приложение
+ * остаётся на экране, чат не открывается. Так уже чинили в августе и потеряли при
+ * переписывании хэндоффа (10.09) — и пока прямых запусков было мало, этого не было видно.
+ * С 17.09 фильм дня и недельный выбор пошли из канала (прямая ссылка), и доля «застрявших»
+ * уходов выросла с ~9% до ~30%.
+ *
  * ⚠️ Оба метода — сообщения по мосту без ответа и без ошибки: часть клиентов их молча
  * игнорирует. Считать вызов состоявшимся нельзя — тот, кто зовёт, обязан предусмотреть
  * ручной выход, если через секунду мы всё ещё на экране (`HandoffModal`).
  */
 export function leaveToChat(): void {
-  if (isDirectLaunch()) openBotChat();
-  getWebApp()?.close();
+  const wa = getWebApp();
+  if (!isDirectLaunch()) {
+    wa?.close();
+    return;
+  }
+  openBotChat();
+  window.setTimeout(() => wa?.close(), CLOSE_AFTER_LINK_MS);
+}
+
+/** Как запущено приложение — для разбивки метрик хэндоффа (см. `leaveToChat`). */
+export function getLaunch(): "direct" | "chat" {
+  return isDirectLaunch() ? "direct" : "chat";
 }
 
 /**

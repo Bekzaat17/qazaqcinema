@@ -159,7 +159,7 @@ async def test_post_button_is_a_deep_link_to_the_movie() -> None:
     await _service(publisher).publish_new_movie(_movie())
 
     post = publisher.posts[0]
-    assert post.button_url == "https://t.me/qazaqcinema_bot?startapp=m_42"
+    assert post.button_url == "https://t.me/qazaqcinema_bot?startapp=ch-m_42"
     assert post.button_text
 
 
@@ -195,7 +195,7 @@ async def test_daily_post_takes_the_same_movie_as_playback() -> None:
 
     assert await _service(publisher, movie).publish_daily_movie(_NOW) is True
     assert "Шрек 4" in publisher.posts[0].text
-    assert publisher.posts[0].button_url == "https://t.me/qazaqcinema_bot?startapp=m_7"
+    assert publisher.posts[0].button_url == "https://t.me/qazaqcinema_bot?startapp=ch-m_7"
 
 
 async def test_daily_post_is_skipped_on_empty_catalog() -> None:

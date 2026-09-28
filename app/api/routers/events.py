@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -62,6 +64,8 @@ class HandoffIn(BaseModel):
 
     outcome: HandoffOutcome
     platform: str = Field(max_length=16, pattern=r"^[a-z0-9_]+$")
+    # Как запущено приложение. Необязательно: вкладка со старым фронтом его не пришлёт.
+    launch: Literal["direct", "chat"] | None = None
 
 
 @router.post("/paywall", status_code=204, dependencies=[_rate_limited])
@@ -105,4 +109,4 @@ async def track_handoff(
     Тоже фоном, без ответа: это диагностика последнего шага, и она не имеет права
     задерживать человека, который в этот момент как раз пытается выйти из приложения.
     """
-    await activity.register_handoff(user.telegram_id, body.outcome, body.platform)
+    await activity.register_handoff(user.telegram_id, body.outcome, body.platform, body.launch)

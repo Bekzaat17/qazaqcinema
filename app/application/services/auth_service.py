@@ -8,6 +8,7 @@ from app.application.ports.repositories import UserEventRepository, UserReposito
 from app.application.ports.security import InitDataVerifier, TelegramUser
 from app.application.services.activity_service import UserActivityService
 from app.domain.analytics.events import EventKind
+from app.domain.analytics.source import link_source
 from app.domain.entities.enums import UserStatus
 from app.domain.entities.user import User
 
@@ -36,9 +37,14 @@ class AuthService:
         Фронт зовёт `/api/auth` на запуске Mini App и ещё раз при 401 (протухшая сессия,
         TTL 24 ч), так что «открытий» может быть чуть больше, чем реальных заходов.
         Поэтому главная цифра отчёта — уникальные ЛЮДИ: на них ре-авторизация не влияет.
+
+        `meta` — источник захода по метке deep-link (`domain/analytics/source`); у захода
+        из чата бота его нет.
         """
-        user = await self.authenticate(init_data)
-        await self._events.add(user.telegram_id, EventKind.OPEN)
+        user, tg_user = await self._login(init_data)
+        await self._events.add(
+            user.telegram_id, EventKind.OPEN, meta=link_source(tg_user.start_param)
+        )
         return user
 
     async def authenticate(self, init_data: str) -> User:
@@ -47,6 +53,11 @@ class AuthService:
         Первый вход — создаём User со статусом NEW. Бросает InitDataError,
         если подпись initData невалидна.
         """
+        user, _ = await self._login(init_data)
+        return user
+
+    async def _login(self, init_data: str) -> tuple[User, TelegramUser]:
+        """`authenticate` вместе с тем, что прислал Telegram, — `bootstrap` берёт оттуда метку."""
         tg_user = self._verifier.verify(init_data)
         user = await self._users.get(tg_user.id)
         if user is None:
@@ -58,7 +69,7 @@ class AuthService:
                     is_premium=tg_user.is_premium,
                 )
             )
-            return await self._sync_write_access(user, tg_user)
+            return await self._sync_write_access(user, tg_user), tg_user
         # Хэндл мог появиться или смениться после первого входа, а он — единственный
         # способ админа ответить на чек/обращение (см. domain/mention.py). Пишем только
         # при расхождении: логин частый, лишний UPDATE ни к чему.
@@ -76,7 +87,7 @@ class AuthService:
             changed = True
         if changed:
             await self._users.upsert(user)
-        return await self._sync_write_access(user, tg_user)
+        return await self._sync_write_access(user, tg_user), tg_user
 
     async def _sync_write_access(self, user: User, tg_user: TelegramUser) -> User:
         """Признать открытым чат, если Telegram сам сообщил о разрешении писать в личку.

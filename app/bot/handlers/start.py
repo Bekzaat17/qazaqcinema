@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from datetime import UTC, datetime
 
 from aiogram import Router
@@ -15,6 +14,7 @@ from dishka.integrations.aiogram import inject
 from app.application.services.activity_service import UserActivityService
 from app.bot.keyboards.common import webapp_keyboard
 from app.config.settings import AppConfig
+from app.domain.analytics.source import link_movie_id
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,6 @@ GREETING = (
     "Кинотеатрды ашу үшін төмендегі батырманы бас 👇"
 )
 
-# Deep-link с SEO-страницы: /start m_<id> → открыть Mini App сразу на нужном фильме.
-_START_MOVIE = re.compile(r"^m_?(\d+)$")
 
 
 @router.message(CommandStart())
@@ -46,14 +44,15 @@ async def handle_start(
     if message.from_user is not None:
         try:
             await activity.register_start(
-                message.from_user.id, message.from_user.username, datetime.now(UTC)
+                message.from_user.id, message.from_user.username, datetime.now(UTC),
+                command.args,
             )
         except Exception:
             logger.exception("Не удалось зафиксировать /start юзера %s", message.from_user.id)
-    # payload после /start (t.me/<bot>?start=m_<id>). Совпало — добавляем #m<id> к URL Web App,
-    # чтобы Mini App открыл карточку фильма (фолбэк к прямому ?startapp=, см. web/lib/telegram).
+    # payload после /start (t.me/<bot>?start=[<источник>-]m_<id>). Есть фильм — добавляем #m<id>
+    # к URL Web App, чтобы Mini App открыл его карточку (фолбэк к прямому ?startapp=).
     url = config.bot.webapp_url
-    match = _START_MOVIE.match(command.args or "")
-    if match and url:
-        url = f"{url}#m{match.group(1)}"
+    movie_id = link_movie_id(command.args)
+    if movie_id is not None and url:
+        url = f"{url}#m{movie_id}"
     await message.answer(GREETING, reply_markup=webapp_keyboard(url))

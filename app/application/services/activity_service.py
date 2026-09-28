@@ -16,6 +16,7 @@ from app.application.ports.repositories import (
 )
 from app.domain.analytics.events import EventKind, HandoffOutcome
 from app.domain.analytics.search import normalize_query
+from app.domain.analytics.source import link_source
 from app.domain.entities.user import User
 
 
@@ -31,7 +32,7 @@ class UserActivityService:
         self._searches = searches
 
     async def register_start(
-        self, telegram_id: int, username: str | None, now: datetime
+        self, telegram_id: int, username: str | None, now: datetime, payload: str | None = None
     ) -> None:
         """Нажал /start: завести юзера (если новый), освежить хэндл, записать событие.
 
@@ -39,6 +40,8 @@ class UserActivityService:
         боту написать первым, поэтому до /start кинотеатр для человека витрина без выдачи:
         видео уходит только в личку. Mini App читает этот факт и зовёт в бота ЗАРАНЕЕ,
         а не показывает ошибку после того, как подарок уже потрачен.
+
+        `payload` — то, что пришло после `/start`; в журнал идёт только метка источника.
         """
         user = await self._users.get(telegram_id)
         if user is None:
@@ -55,7 +58,7 @@ class UserActivityService:
         # карточке юзера (см. `UserRepository.set_bot_started`), и для НОВОГО юзера он
         # обязан идти после upsert — строки до неё ещё нет.
         await self._users.set_bot_started(telegram_id, now)
-        await self._events.add(telegram_id, EventKind.START)
+        await self._events.add(telegram_id, EventKind.START, meta=link_source(payload))
 
     async def register_write_access(
         self, telegram_id: int, now: datetime, source: str
@@ -87,7 +90,7 @@ class UserActivityService:
         )
 
     async def register_handoff(
-        self, telegram_id: int, outcome: HandoffOutcome, platform: str
+        self, telegram_id: int, outcome: HandoffOutcome, platform: str, launch: str | None = None
     ) -> None:
         """Уход из Mini App в чат за видео: попытка и, если не вышло, застревание.
 
@@ -96,10 +99,12 @@ class UserActivityService:
         закрыть Mini App может не отреагировать (⚠️ у `WebApp.close()` нет ни ответа, ни
         ошибки). Разбивка по платформе и нужна затем, чтобы чинить это по фактам, а не по
         догадкам: `STUCK` к `TRY` в пределах одной платформы — доля сломанных уходов.
+
+        `launch` — прямая ссылка (`direct`) или чат бота (`chat`): дорога в чат у них разная,
+        и ломалась именно первая. Старый фронт его не шлёт — тогда в `meta` два поля.
         """
-        await self._events.add(
-            telegram_id, EventKind.HANDOFF, meta=f"{outcome.value}:{platform}"
-        )
+        meta = f"{outcome.value}:{platform}" + (f":{launch}" if launch else "")
+        await self._events.add(telegram_id, EventKind.HANDOFF, meta=meta)
 
     async def register_search(self, telegram_id: int, query: str, found: int) -> None:
         """Человек искал в каталоге — и вот что нашёл (`found = 0` = не нашёл ничего).

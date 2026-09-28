@@ -77,7 +77,7 @@ def test_heading_pairs_name_with_kazaksha() -> None:
 
 def test_telegram_deeplink_uses_startapp() -> None:
     meta = _seo().movie_seo(_movie())
-    assert meta.telegram_url == "https://t.me/qazaqcinema_bot?startapp=m_7"
+    assert meta.telegram_url == "https://t.me/qazaqcinema_bot?startapp=seo-m_7"
 
 
 def test_og_image_prefers_hero_and_is_absolute() -> None:
@@ -389,3 +389,27 @@ def test_first_page_title_is_unchanged_by_the_suffix_rule() -> None:
         _seo().hub_seo(hub, count=5).title_tag
         == _seo().hub_seo(hub, count=5, page_suffix="").title_tag
     )
+
+
+def test_title_names_kazakh_title_when_it_differs() -> None:
+    """Запрос «көліктер 2» должен совпасть со сниппетом, где узнаваемое имя — «Тачки 2»."""
+    meta = _seo().movie_seo(_movie(title_kk="Көліктер 2", title_ru="Тачки 2", year=2011))
+
+    assert meta.title_tag.startswith("Тачки 2 (Көліктер 2) қазақша")
+    assert "Көліктер 2" in meta.description
+
+
+def test_title_does_not_repeat_matching_names() -> None:
+    meta = _seo().movie_seo(_movie())
+
+    assert meta.title_tag.startswith("Шрек қазақша")
+
+
+def test_long_kazakh_alias_is_dropped_instead_of_cutting_the_title() -> None:
+    meta = _seo().movie_seo(
+        _movie(title_kk="Монстрлар демалысы 4: Трансформания",
+               title_ru="Монстры на каникулах 4: Трансформания")
+    )
+
+    assert "Монстрлар" not in meta.title_tag
+    assert "қазақша" in meta.title_tag

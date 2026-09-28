@@ -63,6 +63,24 @@ async def test_creates_new_user_on_first_auth() -> None:
     assert 7 in repo.store
 
 
+async def test_open_event_carries_link_source() -> None:
+    events = FakeEvents()
+    service = _service(TelegramUser(id=7, start_param="ch-m_42"), _FakeUserRepo(), events)
+
+    await service.bootstrap("valid")
+
+    assert events.added == [(7, EventKind.OPEN, "ch")]
+
+
+async def test_open_from_bot_chat_has_no_source() -> None:
+    events = FakeEvents()
+    service = _service(TelegramUser(id=7), _FakeUserRepo(), events)
+
+    await service.bootstrap("valid")
+
+    assert events.added == [(7, EventKind.OPEN, None)]
+
+
 async def test_returns_existing_user() -> None:
     repo = _FakeUserRepo()
     repo.store[7] = User(telegram_id=7, username="neo", status=UserStatus.ACTIVE)

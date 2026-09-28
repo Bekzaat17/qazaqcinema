@@ -56,7 +56,9 @@ class TelegramInitDataVerifier:
             raise InitDataError("подпись initData не совпала")
 
         self._check_freshness(pairs.get("auth_date"), now)
-        return self._extract_user(pairs.get("user"))
+        user = self._extract_user(pairs.get("user"))
+        user.start_param = pairs.get("start_param")
+        return user
 
     def _check_freshness(self, raw_auth_date: str | None, now: float | None) -> None:
         if raw_auth_date is None:

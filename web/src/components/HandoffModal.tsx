@@ -5,14 +5,17 @@
 // а это сообщения по мосту без ответа и без ошибки: часть клиентов их молча игнорирует —
 // особенно у Mini App, запущенной прямой ссылкой того же бота. Проверить вызов нечем,
 // поэтому экран не верит ему на слово, а СМОТРИТ на результат: через `STUCK_AFTER_MS`
-// приложение либо исчезло с экрана, либо мы всё ещё здесь — и тогда кнопка молча уходит,
-// оставляя человека с тем, ради чего экран и открылся: видео в личке, смотреть в чате.
+// приложение либо исчезло с экрана, либо мы всё ещё здесь — и тогда кнопка молча
+// меняется на запасную дорогу в тот же чат: видео в личке, смотреть там.
 // Мёртвой кнопки, на которую жмёшь и ничего не происходит, тут быть не должно — это
 // последний шаг воронки, сразу после того как человек получил фильм.
 //
-// О самой неудаче не сообщаем. Человеку от неё нет никакой пользы: сделать он всё равно
-// может только одно — закрыть приложение и открыть чат, а это и так написано выше.
-// Извинения за несработавшую кнопку добавили бы тревоги там, где всё уже хорошо.
+// О самой неудаче не сообщаем: извинения за несработавшую кнопку добавили бы тревоги там,
+// где всё уже хорошо. Но и оставлять человека с одним «Түсінікті» нельзя: по журналу
+// застрявшие в трети случаев тут же запрашивают тот же фильм заново — чата они не нашли и
+// решили, что видео не пришло. Поэтому на месте кнопки встаёт ОБЫЧНАЯ ссылка на бота:
+// другой механизм, чем мост, — `t.me`-ссылку клиент перехватывает сам, даже когда
+// сообщения моста проглатывает.
 //
 // Исход уходит в метрику (`api.trackHandoff`) — с разбивкой по платформам видно, где мост
 // исправен, а где нет.
@@ -21,7 +24,14 @@ import { CircleCheckBig, Loader2, Sparkles, Ticket } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "../lib/api";
-import { getPlatform, haptic, leaveToChat, setVerticalSwipes } from "../lib/telegram";
+import {
+  BOT_URL,
+  getLaunch,
+  getPlatform,
+  haptic,
+  leaveToChat,
+  setVerticalSwipes,
+} from "../lib/telegram";
 import Button from "../ui/Button";
 
 /**
@@ -29,6 +39,7 @@ import Button from "../ui/Button";
  *
  * Секунда с небольшим: меньше — кнопка мигнёт у тех, у кого всё сработало, просто
  * медленно; больше — экран успеет показаться зависшим, а именно этого мы и избегаем.
+ * Отсчёт идёт с нажатия и включает паузу перед `close()` у прямого запуска (`leaveToChat`).
  */
 const STUCK_AFTER_MS = 1100;
 
@@ -92,7 +103,8 @@ export default function HandoffModal({
     haptic.medium();
     setStage("leaving");
     const platform = getPlatform();
-    void api.trackHandoff("try", platform).catch(() => {});
+    const launch = getLaunch();
+    void api.trackHandoff("try", platform, launch).catch(() => {});
     leaveToChat();
     timer.current = window.setTimeout(() => {
       // Страница ушла в фон — значит клиент нас услышал (свернул или открыл чат поверх),
@@ -100,7 +112,7 @@ export default function HandoffModal({
       if (document.visibilityState !== "visible") return;
       // Без тактильного «внимание»: для человека ничего не сломалось — видео у него есть.
       setStage("stuck");
-      void api.trackHandoff("stuck", platform).catch(() => {});
+      void api.trackHandoff("stuck", platform, launch).catch(() => {});
     }, STUCK_AFTER_MS);
   }
 
@@ -140,10 +152,22 @@ export default function HandoffModal({
 
         <div className="mt-6 flex flex-col gap-2.5">
           {stage === "stuck" ? (
-            // Клиент промолчал: предлагать нажать ещё раз нечего, и объясняться не о чем.
-            // Одна кнопка НА МЕСТЕ главной — так карточка выглядит законченной, а не
-            // потерявшей элемент.
-            <Button onClick={onClose}>Түсінікті</Button>
+            // Клиент промолчал на мост — даём ссылку (см. шапку). Стиль главной кнопки,
+            // чтобы карточка выглядела законченной, а не потерявшей элемент.
+            <>
+              <a
+                href={BOT_URL}
+                target="_top"
+                rel="noopener"
+                onClick={() => haptic.medium()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-brand/25 transition-transform duration-150 active:scale-[0.98] active:bg-brand-600"
+              >
+                Ботпен чатты ашу
+              </a>
+              <Button variant="surface" onClick={onClose}>
+                Түсінікті
+              </Button>
+            </>
           ) : (
             <>
               <Button onClick={goToChat} disabled={stage === "leaving"}>

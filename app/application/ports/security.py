@@ -21,6 +21,9 @@ class TelegramUser:
     # `is_premium` в initData — платит ли человек Telegram сам. Тоже внутри подписанной
     # строки, поэтому полю можно верить. Признак аудитории для отчёта, не право доступа.
     is_premium: bool = False
+    # `start_param` — payload прямой ссылки (`t.me/<bot>?startapp=…`), тоже внутри
+    # подписанной строки. Несёт метку источника (`domain/analytics/source`).
+    start_param: str | None = None
 
 
 class InitDataError(AppError, ValueError):
