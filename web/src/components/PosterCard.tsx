@@ -60,8 +60,10 @@ export default function PosterCard({ movie, onSelect, inShelf = true }: PosterCa
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
         {movie.rating != null && <RatingPill rating={movie.rating} className="absolute right-2 top-2" />}
+        {/* Бейдж — внизу по центру: верхние углы заняты звездой (слева) и рейтингом
+            (справа), а в узкой колонке каталога бейдж сверху наезжал на оба. */}
         {mine && (
-          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-[10px] font-bold text-white shadow-lg shadow-brand/30">
+          <span className="absolute bottom-2 left-1/2 inline-flex -translate-x-1/2 whitespace-nowrap items-center gap-1 rounded-full bg-brand px-2 py-1 text-[10px] font-bold text-white shadow-lg shadow-brand/30">
             <Ticket size={11} />
             Таңдауым
           </span>
