@@ -83,6 +83,17 @@
 	handle /robots.txt {
 		reverse_proxy api:8000
 	}
+	handle /llms.txt {
+		reverse_proxy api:8000
+	}
+
+	# /.well-known/* — машинные манифесты (ai-catalog.json, security.txt и т. п.). Своих
+	# у нас нет, и отвечать надо честным 404: SPA-фолбэк ниже отдал бы index.html с кодом
+	# 200, и агенты/Lighthouse пытались бы разобрать HTML как JSON-манифест («Malformed
+	# JSON»). ACME это не задевает: челленджи Caddy перехватывает до маршрутов.
+	handle /.well-known/* {
+		respond 404
+	}
 
 	# SPA: всё остальное — статика с клиентским роутингом (any path → index.html).
 	#

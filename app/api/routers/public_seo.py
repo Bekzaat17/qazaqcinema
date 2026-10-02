@@ -12,6 +12,7 @@ Google не индексирует SPA Mini App (контент рисует JS 
                          или год (`2024`) — широкие запросы + 2-й уровень связей
   GET /sitemap.xml     — карта сайта (главная + хабы со всеми их страницами + все фильмы)
   GET /robots.txt      — разрешение обхода + ссылка на sitemap
+  GET /llms.txt        — то же для языковых моделей: что за сайт и куда смотреть (Markdown)
 
 Перелинковка устроена в три уровня: каталог → раздел → фильм → похожие фильмы. Раньше
 карточка фильма была тупиком (единственная ссылка вела назад в каталог), а на весь сайт
@@ -58,6 +59,8 @@ from app.domain.seo.hubs import (
     parse_year,
     resolve_hub,
 )
+from app.domain.seo.keywords import BRAND
+from app.domain.seo.llms import OPTIONAL_SECTION, LlmsLink, LlmsSection, render_llms_txt
 from app.domain.seo.pagination import Pagination, page_count, paginate
 
 
@@ -95,6 +98,10 @@ _SEARCH_LIMIT = SEO_PAGE_SIZE
 _SEARCH_MIN_LEN = 2
 
 _CATALOG_PATH = "/catalog"
+
+# Сколько популярных фильмов перечисляем в llms.txt. Файл — оглавление, а не каталог:
+# модели нужен образец того, что здесь есть, а полный список лежит в sitemap.
+_LLMS_TOP_MOVIES = 30
 
 
 def _category_links(counts: Sequence[tuple[str, int]]) -> list[_CategoryLink]:
@@ -537,6 +544,85 @@ async def robots(config: FromDishka[AppConfig]) -> PlainTextResponse:
         f"Sitemap: {site}/sitemap.xml\n"
     )
     return PlainTextResponse(content=body)
+
+
+@router.get("/llms.txt", include_in_schema=False)
+async def llms_txt(
+    catalog: FromDishka[CatalogService],
+    seo: FromDishka[SeoBuilder],
+    config: FromDishka[AppConfig],
+) -> PlainTextResponse:
+    """Оглавление сайта для языковых моделей: те же хабы, что в навигации, плюс популярное.
+
+    ⚠️ Без этого роута путь уходил в SPA-фолбэк Caddy и отдавал `index.html` с кодом 200 —
+    модель (и Lighthouse) получала HTML вместо Markdown.
+    """
+    site = config.public_origin.rstrip("/")
+    bot = config.bot.username.lstrip("@")
+    popular = collection_hub(COLLECTIONS["popular"])
+    movies = await catalog.seo_shelf(popular, limit=_LLMS_TOP_MOVIES)
+
+    body = render_llms_txt(
+        title=BRAND,
+        summary=(
+            "Қазақша дубляждалған мультфильмдер, аниме және фильмдер — Telegram ішінде онлайн. "
+            "Онлайн-кинотеатр мультфильмов и аниме с казахской озвучкой внутри Telegram."
+        ),
+        details=[
+            "Смотреть можно только в Telegram: сайт показывает каталог, а видео выдаёт бот "
+            f"@{bot} (Mini App). Каждый день один фильм бесплатно, остальное — по подписке.",
+            "Каждая страница фильма — название на казахском и русском, год, описание и "
+            "разделы; страницы разделов собирают фильмы по теме, году и популярности.",
+        ],
+        sections=[
+            LlmsSection(
+                "Каталог",
+                [
+                    LlmsLink("Весь каталог", f"{site}{_CATALOG_PATH}", "все фильмы, поиск"),
+                    *(
+                        LlmsLink(c.heading_kk, f"{site}{collection_hub(c).path}", c.heading_ru)
+                        for c in COLLECTIONS.values()
+                    ),
+                ],
+            ),
+            LlmsSection(
+                "Разделы",
+                [
+                    LlmsLink(
+                        link.category.title_kk,
+                        f"{site}{link.path}",
+                        f"{link.category.title_ru}, {link.count} шт.",
+                    )
+                    for link in _category_links(await catalog.category_counts())
+                ],
+            ),
+            LlmsSection(
+                "По годам",
+                [
+                    LlmsLink(label, f"{site}{path}")
+                    for label, path in _year_links(await catalog.year_counts())
+                ],
+            ),
+            LlmsSection(
+                "Популярные фильмы",
+                [
+                    LlmsLink(meta.heading, meta.canonical_url)
+                    for m in movies
+                    if m.id is not None and (meta := seo.movie_seo(m))
+                ],
+            ),
+            LlmsSection(
+                OPTIONAL_SECTION,
+                [
+                    LlmsLink("Карта сайта", f"{site}/sitemap.xml", "все URL каталога"),
+                    LlmsLink("Telegram-бот", f"https://t.me/{bot}", "просмотр и подписка"),
+                ],
+            ),
+        ],
+    )
+    # text/markdown — тип, который ждут от llms.txt; charset явно, иначе кириллица
+    # у части клиентов читается как latin-1.
+    return PlainTextResponse(content=body, media_type="text/markdown; charset=utf-8")
 
 
 def _pagination_entries(loc: str, total: int, lastmod: str | None) -> list[str]:
