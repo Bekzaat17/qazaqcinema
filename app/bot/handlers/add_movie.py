@@ -54,6 +54,7 @@ from app.bot.keyboards.add_movie import (
     EDIT_BACK,
     EDIT_PREFIX,
     NEXT,
+    NOTIFY_LABELS,
     NOTIFY_PREFIX,
     SEASON_NEW,
     SEASON_PICK_PREFIX,
@@ -74,6 +75,7 @@ from app.bot.keyboards.add_movie import (
 from app.bot.security import is_admin
 from app.config.settings import AppConfig
 from app.domain.catalog.categories import get_category
+from app.domain.catalog.notifications import NotificationMode
 
 router = Router(name="add_movie")
 
@@ -142,9 +144,11 @@ _PROMPTS: dict[str | None, str] = {
     AddMovie.rating.state: "9/11 — рейтинг 0–10 (напр. 8.5) или /skip:",
     AddMovie.description.state: "10/11 — описание (сипаттама):",
     AddMovie.notify.state: (
-        "11/11 — жазылушыларға жаңа фильм туралы хабарлама жіберу керек пе?\n\n"
-        "Хабарлама тек хабарландыруды ҚОСҚАНДАРҒА барады. Каталогты топтап толтырып "
-        "жатсаң — «🔕 Жоқ» (әйтпесе бір күнде ондаған хабарлама кетеді)."
+        "11/11 — как сообщить о новом видео?\n\n"
+        "🔔 Уведомлять — отправить личные уведомления и опубликовать пост в группе.\n"
+        "📣 Только пост в группе — опубликовать пост без личной рассылки.\n"
+        "🔕 Нигде не уведомлять — сохранить видео без рассылки и без поста.\n\n"
+        "Личные уведомления получат только пользователи, которые включили их в профиле."
     ),
 }
 
@@ -203,6 +207,13 @@ def _series_summary(data: dict[str, Any]) -> str | None:
     return "Жеке фильм"
 
 
+def _notification_mode(data: dict[str, Any]) -> NotificationMode:
+    """У открытого визарда без нового поля сохраняем выбор личной рассылки."""
+    if data.get("notification_mode") is not None:
+        return NotificationMode(data["notification_mode"])
+    return NotificationMode.ALL if data.get("notify") else NotificationMode.CHANNEL_ONLY
+
+
 def _value(step: State, data: dict[str, Any]) -> str | None:
     """Что уже введено на шаге — показываем при возврате, чтобы было видно, что правим."""
     if step is AddMovie.video:
@@ -214,7 +225,7 @@ def _value(step: State, data: dict[str, Any]) -> str | None:
     if step is AddMovie.series:
         return _series_summary(data)
     if step is AddMovie.notify:
-        return None if "notify" not in data else ("Иә" if data["notify"] else "Жоқ")
+        return None if "notify" not in data else NOTIFY_LABELS[_notification_mode(data)]
     if step is AddMovie.category:
         return _category_titles(data) if data.get("categories") else None
     key = _name(step)
@@ -391,7 +402,12 @@ async def step_poster_retry(message: Message) -> None:
 async def step_notify(callback: CallbackQuery, state: FSMContext) -> None:
     if callback.data is None:
         return
-    await state.update_data(notify=callback.data.removeprefix(NOTIFY_PREFIX) == "1")
+    try:
+        mode = NotificationMode(callback.data.removeprefix(NOTIFY_PREFIX))
+    except ValueError:
+        await callback.answer("Белгісіз таңдау", show_alert=True)
+        return
+    await state.update_data(notify=mode is NotificationMode.ALL, notification_mode=mode.value)
     await callback.answer()
     await _advance(callback, state)
 
@@ -720,6 +736,7 @@ async def confirm_add(
             year=data.get("year"),
             rating=data.get("rating"),
             notify=bool(data.get("notify")),
+            notification_mode=_notification_mode(data),
             video_file_id=archive_file_id,
             poster_bytes=(
                 None if season_id is not None else await _download(bot, str(data["poster_file_id"]))
@@ -789,7 +806,7 @@ def _summary(data: dict[str, Any]) -> str:
     if not _season_active(data):
         lines.append(f"📝 {data.get('description') or '—'}")
     lines += [
-        f"🔔 Хабарлама: {'Иә' if data.get('notify') else 'Жоқ'}",
+        f"Уведомления: {NOTIFY_LABELS[_notification_mode(data)]}",
         "",
         "«✏️ Түзету» — жеке өрісті түзету.",
     ]

@@ -9,7 +9,9 @@ FSM — настоящий (aiogram + MemoryStorage), отправка сооб�
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
@@ -22,8 +24,18 @@ from app.bot.handlers.add_movie import (
     _next,
     _previous,
     _screen,
+    _summary,
+    step_notify,
 )
-from app.bot.keyboards.add_movie import BACK, EDIT_PREFIX, NEXT, edit_keyboard
+from app.bot.keyboards.add_movie import (
+    BACK,
+    EDIT_PREFIX,
+    NEXT,
+    NOTIFY_LABELS,
+    NOTIFY_PREFIX,
+    edit_keyboard,
+)
+from app.domain.catalog.notifications import NotificationMode
 
 _TARGET = cast(Message | CallbackQuery, object())  # заглушка адресата: сообщений не шлём
 
@@ -139,3 +151,37 @@ async def test_plain_flow_goes_to_the_next_step() -> None:
     await _advance(_TARGET, state)
 
     assert await state.get_state() == AddMovie.title_original.state
+
+
+async def test_notification_choices_are_saved_and_shown_in_summary() -> None:
+    state = _state()
+    for mode in NotificationMode:
+        await state.set_state(AddMovie.notify)
+        callback = cast(CallbackQuery, SimpleNamespace(
+            data=f"{NOTIFY_PREFIX}{mode}", answer=AsyncMock(),
+        ))
+        await step_notify(callback, state)
+        data = await state.get_data()
+        assert data["notification_mode"] == mode.value
+        assert data["notify"] is (mode is NotificationMode.ALL)
+        assert await state.get_state() == AddMovie.confirm.state
+        assert NOTIFY_LABELS[mode] in _summary(data)
+        text, markup = _screen(AddMovie.notify, data)
+        assert NOTIFY_LABELS[mode] in text
+        assert f"{NOTIFY_PREFIX}{NotificationMode.NONE}" in _codes(markup)
+        assert NEXT in _codes(markup)
+
+
+async def test_editing_silent_choice_resets_it_and_returns_to_summary() -> None:
+    state = _state()
+    await state.set_state(AddMovie.notify)
+    await state.update_data(edit=True, notify=False, notification_mode=NotificationMode.NONE.value)
+    callback = cast(CallbackQuery, SimpleNamespace(
+        data=f"{NOTIFY_PREFIX}{NotificationMode.ALL}", answer=AsyncMock(),
+    ))
+    await step_notify(callback, state)
+    data = await state.get_data()
+    assert data["notification_mode"] == NotificationMode.ALL.value
+    assert data["notify"] is True
+    assert data["edit"] is False
+    assert await state.get_state() == AddMovie.confirm.state

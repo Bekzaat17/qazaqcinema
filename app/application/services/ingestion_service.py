@@ -17,6 +17,7 @@ from app.application.ports.telegram import TelegramNotifier
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.channel_service import ChannelService
 from app.application.services.poster_service import PosterService
+from app.domain.catalog.notifications import NotificationMode
 from app.domain.entities.movie import Movie
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ class MovieIngestionService:
         video_file_id: str,
         poster_bytes: bytes | None = None,
         season_id: int | None = None,
+        notification_mode: NotificationMode | None = None,
     ) -> Movie:
         """Нормализовать/сохранить постер (+ hero-баннер), записать фильм, уведомить админов.
 
@@ -77,8 +79,10 @@ class MovieIngestionService:
         верный путь в блок. Кому именно уйдёт, решает не этот флаг, а тумблер в профиле
         (`BroadcastService.notify_new_movie` берёт только согласившихся).
 
-        Пост в публичный канал от этого флага НЕ зависит — уходит на каждый фильм: канал
-        читают и те, кто про кинотеатр не знает, и лента там должна повторять каталог.
+        `notification_mode` задаёт выбор явно и имеет приоритет над `notify`: ALL —
+        лички и канал, CHANNEL_ONLY — только канал, NONE — никаких объявлений,
+        включая уведомление других админов. Если режим не передан, `notify=False`
+        означает только канал, `notify=True` — лички и канал.
         """
         episode_number: int | None = None
         if season_id is not None:
@@ -119,6 +123,11 @@ class MovieIngestionService:
         # Сбрасываем ВЕСЬ кэш каталога (главная/чипы/страницы браузинга), иначе новинка не
         # видна до истечения TTL (invalidate чистит весь namespace catalog:*).
         await self._cache.invalidate()
+        mode = notification_mode
+        if mode is None:
+            mode = NotificationMode.ALL if notify else NotificationMode.CHANNEL_ONLY
+        if mode is NotificationMode.NONE:
+            return saved
         # Тоже в try/except: notify_admins шлёт КАЖДОМУ из BOT_ADMIN_USER_IDS, а админ,
         # не нажавший /start (или заблокировавший бота), даёт 403 — и ронял бы /add уже
         # ПОСЛЕ сохранения в БД, попутно съедая рассылку ниже. Уведомление второстепенно.
@@ -129,8 +138,7 @@ class MovieIngestionService:
             )
         except Exception:
             logger.exception("Не удалось уведомить админов о фильме #%s", saved.id)
-        # Пост в публичный канал уходит ВСЕГДА, тумблер визарда его не касается: канал —
-        # витрина, лента там и должна повторять каталог, а «не спамить» относится к личкам.
+        # В обоих режимах объявлений пост уходит в публичный канал.
         # Канал не настроен → publish сам вернёт False (no-op). Исключений публикатор не
         # бросает, но try/except оставляем: фильм уже в БД, и падать из-за витрины нельзя.
         try:
@@ -140,7 +148,7 @@ class MovieIngestionService:
             logger.exception("Не удалось опубликовать новинку #%s в канале", saved.id)
         # Рассылка в личку — только по выбору админа и в try/except: сбой рассылки НЕ
         # должен отменять добавление фильма (оно уже в БД). Очередь fail-open сама по себе.
-        if not notify:
+        if mode is not NotificationMode.ALL:
             return saved
         try:
             queued = await self._broadcast.notify_new_movie(saved)

@@ -5,12 +5,18 @@ from __future__ import annotations
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.domain.catalog.categories import all_categories
+from app.domain.catalog.notifications import NotificationMode
 from app.domain.entities.season import Season
 from app.domain.entities.series import Series
 
 CATEGORY_PREFIX = "addcat:"
 CATEGORY_DONE = "addcat:__done__"
 NOTIFY_PREFIX = "addnotify:"
+NOTIFY_LABELS = {
+    NotificationMode.ALL: "🔔 Уведомлять",
+    NotificationMode.CHANNEL_ONLY: "📣 Только пост в группе",
+    NotificationMode.NONE: "🔕 Нигде не уведомлять",
+}
 CONFIRM = "addmovie:confirm"
 CANCEL = "addmovie:cancel"
 BACK = "addmovie:back"
@@ -81,19 +87,11 @@ def step_keyboard(*, back: bool, forward: bool) -> InlineKeyboardMarkup | None:
 
 
 def notify_keyboard(*, back: bool = True, forward: bool = False) -> InlineKeyboardMarkup:
-    """«Жазылушыларға хабарлау керек пе?» — Иә/Жоқ.
-
-    Отдельный вопрос на каждый фильм, а не глобальная настройка: каталог заливают
-    пачками (десятки фильмов за вечер), и авто-рассылка на каждый превращалась в
-    десятки пушей за день — за такое бота блокируют. Массовую заливку админ проводит
-    с «Жоқ», а точечную новинку — с «Иә».
-    """
+    """Объявления о новинке: лички и канал, только канал или нигде."""
     return _with_nav(
         [
-            [
-                InlineKeyboardButton(text="🔔 Иә, хабарла", callback_data=f"{NOTIFY_PREFIX}1"),
-                InlineKeyboardButton(text="🔕 Жоқ", callback_data=f"{NOTIFY_PREFIX}0"),
-            ]
+            [InlineKeyboardButton(text=label, callback_data=f"{NOTIFY_PREFIX}{mode}")]
+            for mode, label in NOTIFY_LABELS.items()
         ],
         back=back,
         forward=forward,

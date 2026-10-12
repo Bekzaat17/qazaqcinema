@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.application.ports.images import POSTER, POSTER_THUMB, ImageSpec
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.poster_service import PosterService
+from app.domain.catalog.notifications import NotificationMode
 from app.domain.entities.movie import Movie
 from app.domain.entities.season import Season
 
@@ -235,3 +236,48 @@ async def test_ingest_episode_of_existing_season_reuses_its_fields() -> None:
     assert first.poster_url == "/posters/season2.jpg"
     assert posters.saved == []       # постер сезона уже сохранён — повторно не грузим
     assert images.calls == []        # и не нормализуем заново
+
+
+async def test_explicit_notification_mode_controls_all_announcements() -> None:
+    """Явный выбор имеет приоритет над старым флагом; «нигде» глушит всё."""
+    for mode in NotificationMode:
+        movies, notifier, cache = _FakeMovies(), _FakeNotifier(), _FakeCache()
+        broadcast, channel, posters = _FakeBroadcast(), _FakeChannel(), _FakePosters()
+        service = MovieIngestionService(
+            movies, _FakeSeasons(), notifier, PosterService(_FakeImages(), posters),
+            cache, broadcast, channel,
+        )
+        movie = await service.ingest(
+            title_kk="Тыныш фильм", categories=["anime"], description="сипаттама",
+            year=None, rating=None, notify=mode is not NotificationMode.ALL,
+            notification_mode=mode, video_file_id="vid", poster_bytes=b"poster",
+        )
+        assert movies.added == [movie]
+        assert posters.saved == [b"poster"]
+        assert cache.invalidated == 1
+        assert broadcast.notified == ([movie] if mode is NotificationMode.ALL else [])
+        assert channel.posted == ([] if mode is NotificationMode.NONE else [movie])
+        assert bool(notifier.messages) is (mode is not NotificationMode.NONE)
+
+
+async def test_silent_episode_is_saved_without_any_announcements() -> None:
+    season = Season(
+        id=9, series_id=1, season_number=2, poster_url="/posters/season2.jpg",
+        title_kk="Көліктер", description="сипаттама", categories=["disney"],
+    )
+    movies, notifier, cache = _FakeMovies(), _FakeNotifier(), _FakeCache()
+    broadcast, channel = _FakeBroadcast(), _FakeChannel()
+    service = MovieIngestionService(
+        movies, _FakeSeasons([season]), notifier, PosterService(_FakeImages(), _FakePosters()),
+        cache, broadcast, channel,
+    )
+    movie = await service.ingest(
+        year=None, rating=None, notify=False, notification_mode=NotificationMode.NONE,
+        video_file_id="ep1", season_id=9,
+    )
+    assert movies.added == [movie]
+    assert movie.title_kk == "Көліктер — 1-бөлім"
+    assert cache.invalidated == 1
+    assert notifier.messages == []
+    assert broadcast.notified == []
+    assert channel.posted == []
