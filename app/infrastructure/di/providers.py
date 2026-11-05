@@ -71,6 +71,7 @@ from app.application.services.seo_service import SeoBuilder
 from app.application.services.series_service import SeriesService
 from app.application.services.stars_service import StarsPaymentService
 from app.application.services.subscription_service import SubscriptionService
+from app.application.services.support_access_service import SupportAccessService
 from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
@@ -328,6 +329,7 @@ class RequestProvider(Provider):
     payment = provide(PaymentService)
     moderation = provide(PaymentModerationService)
     support = provide(SupportService)  # обращения из Mini App → в личку админам
+    support_access = provide(SupportAccessService)
     stars = provide(StarsPaymentService)
     activity = provide(UserActivityService)  # /start → юзер в БД + событие «пришёл»
 

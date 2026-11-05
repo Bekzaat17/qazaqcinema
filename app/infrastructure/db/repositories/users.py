@@ -46,6 +46,16 @@ class PgUserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def get_for_update(self, telegram_id: int) -> User | None:
+        stmt = (
+            select(UserModel)
+            .where(UserModel.telegram_id == telegram_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = await self._session.scalar(stmt)
+        return _user_to_domain(model) if model is not None else None
+
     async def get(self, telegram_id: int) -> User | None:
         model = await self._session.get(UserModel, telegram_id)
         return _user_to_domain(model) if model else None

@@ -38,6 +38,7 @@ from app.application.ports.telegram import (
 
 # Переиспользуем фабрику клавиатуры модерации, чтобы формат callback-data (pay:approve|
 # reject:<id>) жил в одном месте — тут её пишем, в bot/handlers/moderation.py читаем.
+from app.bot.keyboards.contact import contact_keyboard
 from app.bot.keyboards.moderation import moderation_keyboard
 from app.domain.mention import mention_html
 from app.infrastructure.telegram.media import photo_from_disk
@@ -70,7 +71,17 @@ class AiogramNotifier:
         self._media_root = Path(media_root)
 
     async def notify_user(self, telegram_id: int, text: str) -> None:
-        await self._bot.send_message(telegram_id, text)
+        try:
+            # Ответ поддержки — обычный текст: символы < и & не должны стать разметкой.
+            await self._bot.send_message(telegram_id, text, parse_mode=None)
+        except TelegramForbiddenError as exc:
+            raise RecipientUnreachableError(str(exc)) from exc
+        except TelegramBadRequest as exc:
+            if "chat not found" in str(exc).lower():
+                raise RecipientUnreachableError(str(exc)) from exc
+            raise
+        except (TelegramNetworkError, TelegramServerError, TelegramRetryAfter) as exc:
+            raise TelegramTemporarilyUnavailableError(str(exc)) from exc
 
     def _admin_recipients(self) -> list[int]:
         """Кому уходит карточка чека: чат модерации + личка КАЖДОГО админа, без повторов.
@@ -87,16 +98,21 @@ class AiogramNotifier:
                 recipients.append(chat_id)
         return recipients
 
-    async def notify_admins(self, text: str) -> None:
+    async def notify_admins(
+        self, text: str, *, user_id: int | None = None, username: str | None = None
+    ) -> None:
         # Каждому админу — НЕЗАВИСИМО: 403 от одного (не нажал /start, заблокировал бота)
         # не имеет права лишить уведомления остальных. Наверх молчим, только если не дошло
         # ни до кого — тогда вызывающий вправе сказать это юзеру.
+        keyboard = contact_keyboard(user_id) if user_id is not None else None
         delivered = 0
         for admin_id in self._admin_user_ids:
             try:
                 # HTML — карточки админа содержат ссылку-хэндл (`domain/mention.py`);
                 # подставляемые данные экранирует вызывающий (порт это оговаривает).
-                await self._bot.send_message(admin_id, text, parse_mode="HTML")
+                await self._bot.send_message(
+                    admin_id, text, parse_mode="HTML", reply_markup=keyboard
+                )
                 delivered += 1
             except TelegramAPIError:
                 logger.warning("Не доставлено админу %s", admin_id, exc_info=True)
@@ -248,6 +264,7 @@ class AiogramNotifier:
             f"{state}"
         )
         keyboard = moderation_keyboard(request_id, access_open=access_open)
+        keyboard.inline_keyboard.extend(contact_keyboard(user_id).inline_keyboard)
         # Копия — каждому админу, доставка независимая (как в `notify_admins`): админ, не
         # нажавший /start или заблокировавший бота, не должен оставить остальных без чека.
         # Одобрение идемпотентно (`PaymentModerationService` отдаёт ALREADY_HANDLED), так

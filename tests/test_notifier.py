@@ -180,6 +180,29 @@ async def test_notify_admins_sends_html() -> None:
     await notifier.notify_admins("сәлем")
 
     assert bot.message_calls[0]["parse_mode"] == "HTML"
+    assert bot.message_calls[0]["markup"] is None
+
+
+@pytest.mark.parametrize(
+    "username", ["beka", "@beka", None],
+)
+async def test_support_card_has_contact_button_for_every_admin(
+    username: str | None,
+) -> None:
+    bot = _FakeBot()
+    notifier = _notifier(bot, admin_user_ids=[1, 2])
+
+    await notifier.notify_admins("сұрақ", user_id=42, username=username)
+
+    assert [call["chat_id"] for call in bot.message_calls] == [1, 2]
+    for call in bot.message_calls:
+        button = call["markup"].inline_keyboard[0][0]
+        assert button.text == "✉️ Ответить через бота"
+        assert button.callback_data == "support:reply:42"
+        grants = call["markup"].inline_keyboard[1]
+        assert [button.callback_data for button in grants] == [
+            "support:grant:42:1_day", "support:grant:42:1_month"
+        ]
 
 
 # --- карточка чека: хэндл ссылкой ----------------------------------------
@@ -201,6 +224,9 @@ async def test_payment_proof_caption_links_the_handle() -> None:
     assert '<a href="https://t.me/beka">@beka</a>' in call["caption"]
     assert call["parse_mode"] == "HTML"
     assert call["markup"] is not None  # кнопки ✅/❌ на месте
+    rows = call["markup"].inline_keyboard
+    assert [button.callback_data for button in rows[0]] == ["pay:approve:5", "pay:reject:5"]
+    assert rows[1][0].callback_data == "support:reply:42"
 
 
 async def test_payment_proof_document_keeps_link_for_user_without_username() -> None:
@@ -219,6 +245,7 @@ async def test_payment_proof_document_keeps_link_for_user_without_username() -> 
     (call,) = bot.document_calls
     assert '<a href="tg://user?id=42">id 42</a>' in call["caption"]
     assert call["parse_mode"] == "HTML"
+    assert call["markup"].inline_keyboard[1][0].callback_data == "support:reply:42"
 
 
 # --- карточка чека: копия каждому админу ----------------------------------

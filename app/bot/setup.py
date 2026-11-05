@@ -18,6 +18,7 @@ from app.bot.handlers import (
     quiz,
     stars,
     start,
+    support,
 )
 
 
@@ -32,6 +33,7 @@ def build_dispatcher(container: AsyncContainer) -> Dispatcher:
         milestone.router,
         inline_query.router,
         moderation.router,
+        support.router,
         quiz.router,
         stars.router,
         # ПОСЛЕДНИМ: ловит то, что не разобрал никто выше (чек в личку вместо Mini App).

@@ -2,7 +2,7 @@
 
 Хендлер тонкий: парсит `request_id` из callback_data и делегирует
 `PaymentModerationService` (approve → активация подписки через Фазу 6; reject → отказ).
-После обработки правит подпись сообщения-чека и снимает кнопки.
+После обработки правит подпись сообщения-чека и снимает кнопки решения по оплате.
 
 Чек приходит копией каждому админу (см. `send_payment_proof_to_admins`), поэтому решение
 принимает тот, кто нажал первым: остальные копии на нажатие получают `ALREADY_HANDLED` и
@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 
 from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
 
@@ -25,6 +25,7 @@ from app.application.services.moderation_service import (
     ModerationResult,
     PaymentModerationService,
 )
+from app.bot.keyboards.contact import GRANT_PREFIX, REPLY_PREFIX
 from app.bot.keyboards.moderation import APPROVE_PREFIX, REJECT_PREFIX
 from app.bot.security import is_admin
 from app.config.settings import AppConfig
@@ -85,10 +86,22 @@ async def _finalize(
     mark = marks.get(result.outcome, _MARKS.get(result.outcome))
     if mark is not None and isinstance(callback.message, Message):
         base = callback.message.caption or ""
+        # После решения по чеку связь с пользователем остаётся доступной.
+        contact_rows = []
+        if callback.message.reply_markup:
+            for row in callback.message.reply_markup.inline_keyboard:
+                buttons = [
+                    button
+                    for button in row
+                    if (button.callback_data or "").startswith((REPLY_PREFIX, GRANT_PREFIX))
+                ]
+                if buttons:
+                    contact_rows.append(buttons)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=contact_rows) if contact_rows else None
         # Правка подписи — косметика поверх уже принятого решения: если Telegram откажет
         # (сообщение слишком старое, подпись не изменилась), решение всё равно в силе.
         with suppress(TelegramBadRequest):
-            await callback.message.edit_caption(caption=f"{base}\n\n{mark}", reply_markup=None)
+            await callback.message.edit_caption(caption=f"{base}\n\n{mark}", reply_markup=keyboard)
 
 
 @router.callback_query(F.data.startswith(APPROVE_PREFIX))

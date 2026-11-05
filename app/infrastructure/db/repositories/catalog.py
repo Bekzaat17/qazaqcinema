@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import ColumnElement, case, delete, false, func, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -297,7 +297,8 @@ class PgMovieRepository:
             .group_by(MovieModel.year)
         )
         result = await self._session.execute(stmt)
-        return {int(year): int(count) for year, count in result.all()}
+        # SQL исключает NULL; статический тип колонки всё ещё допускает None.
+        return {cast(int, year): int(count) for year, count in result.all()}
 
     async def list_related(
         self, *, categories: list[str], exclude_id: int, limit: int

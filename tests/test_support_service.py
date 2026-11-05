@@ -16,12 +16,16 @@ from app.domain.entities.user import User
 class _FakeNotifier:
     def __init__(self, *, unreachable: bool = False) -> None:
         self.messages: list[str] = []
+        self.contacts: list[tuple[int | None, str | None]] = []
         self._unreachable = unreachable
 
-    async def notify_admins(self, text: str) -> None:
+    async def notify_admins(
+        self, text: str, *, user_id: int | None = None, username: str | None = None
+    ) -> None:
         if self._unreachable:
             raise AdminsUnreachableError("никто не получил")
         self.messages.append(text)
+        self.contacts.append((user_id, username))
 
 
 async def test_submit_sends_card_with_handle_and_text() -> None:
@@ -36,6 +40,7 @@ async def test_submit_sends_card_with_handle_and_text() -> None:
     assert "id 42" in sent
     assert "active" in sent
     assert "Видео келмей жатыр" in sent  # текст обрезан по краям, но не изменён
+    assert notifier.contacts == [(42, "aibek")]
 
 
 async def test_submit_falls_back_to_id_without_username() -> None:
@@ -44,6 +49,7 @@ async def test_submit_falls_back_to_id_without_username() -> None:
     await SupportService(notifier).submit(User(telegram_id=7), "сұрақ бар")
 
     assert '<a href="tg://user?id=7">id 7</a>' in notifier.messages[0]
+    assert notifier.contacts == [(7, None)]
 
 
 async def test_submit_escapes_user_text() -> None:

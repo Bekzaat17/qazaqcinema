@@ -76,9 +76,15 @@ class AdminsUnreachableError(AppError):
 
 
 class TelegramNotifier(Protocol):
-    async def notify_user(self, telegram_id: int, text: str) -> None: ...
+    async def notify_user(self, telegram_id: int, text: str) -> None:
+        """Обычный текст пользователю. Недоставка → RecipientUnreachableError,
+        временный сбой → TelegramTemporarilyUnavailableError.
+        """
+        ...
 
-    async def notify_admins(self, text: str) -> None:
+    async def notify_admins(
+        self, text: str, *, user_id: int | None = None, username: str | None = None
+    ) -> None:
         """Разослать текст всем админам (`BOT_ADMIN_USER_IDS`); доставка — независимая.
 
         Админ, не нажавший /start или заблокировавший бота, не должен глушить
@@ -88,6 +94,7 @@ class TelegramNotifier(Protocol):
         `text` — **HTML** (карточки админа содержат ссылку-хэндл, см. `domain/mention.py`):
         подставляемые данные вызывающий экранирует сам (`html.escape`), иначе `<` в
         названии фильма или в сообщении юзера сломает парсинг и сообщение не дойдёт.
+        Если задан `user_id`, добавляется кнопка для ответа автору сообщения.
         """
         ...
 
