@@ -3,9 +3,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets
+from collections.abc import Callable
+from typing import cast
 
 from redis.asyncio import Redis
-from redis.exceptions import RedisError
+from redis.exceptions import RedisError, WatchError
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +23,25 @@ class RedisRoomEvents:
 
     async def publish(self, code: str, revision: int) -> None:
         try:
-            # Последняя версия закрывает гонку между HTTP-чтением и подпиской на канал.
-            async with self._redis.pipeline(transaction=True) as pipe:
-                pipe.set(f"board:revision:{code}", revision, ex=86400)
-                pipe.publish(f"board:events:{code}", revision)
-                await pipe.execute()
-        except RedisError:
+            # Публикации после commit могут прийти не по порядку. WATCH сохраняет
+            # максимальную версию и атомарность маркера с уведомлением подписчиков.
+            key = f"board:revision:{code}"
+            while True:
+                async with self._redis.pipeline(transaction=True) as pipe:
+                    try:
+                        await pipe.watch(key)
+                        latest = await pipe.get(key)
+                        if latest is not None and int(latest) >= revision:
+                            return
+                        # redis-py не аннотирует синхронный переключатель транзакции.
+                        cast(Callable[[], None], pipe.multi)()
+                        pipe.set(key, revision, ex=86400)
+                        pipe.publish(f"board:events:{code}", revision)
+                        await pipe.execute()
+                        return
+                    except WatchError:
+                        continue
+        except (RedisError, ValueError):
             logger.exception("Сигнал обновления комнаты не доставлен")
 
     async def wait(self, code: str, revision: int, wait_seconds: int) -> None:
