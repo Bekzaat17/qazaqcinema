@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import type { Board, Lot } from "../../types";
 
 export default function ArtworkHotspot({
@@ -21,12 +21,11 @@ export default function ArtworkHotspot({
   onHover: (index: number) => void;
 }) {
   const tile = board.tiles[index],
-    factor = 24 / board.tiles.length,
-    crop = useId().replace(/:/g, "");
+    factor = 24 / board.tiles.length;
   return (
     <g
       transform={`translate(${point.x} ${point.y})`}
-      className={`dala-svg-tile dala-artwork-hotspot ${selected ? "selected" : ""}`}
+      className={`dala-svg-tile dala-artwork-hotspot dala-square-tile ${selected ? "selected" : ""}`}
       role="button"
       tabIndex={0}
       aria-label={`${tile.name}${tile.price ? `, ${tile.price} теңге` : ""}${lot ? `, ${lot.level} ғимарат` : ""}`}
@@ -44,42 +43,26 @@ export default function ArtworkHotspot({
       style={{ "--tile-glow": color } as CSSProperties}
     >
       <title>{tile.name}</title>
-      <defs>
-        <clipPath id={crop}>
-          <path d="M0-38 65-3 0 32-65-3Z" />
-        </clipPath>
-      </defs>
       <g className="dala-svg-tile-rise" style={{ transformOrigin: "center" }}>
         <g transform={`scale(${factor})`}>
           <path
             className="dala-hotspot-hit"
-            d="M0-42 69-3 0 36-69-3Z"
+            d="M-56-56H56V56H-56Z"
             fill="transparent"
             stroke="none"
           />
-          <g className="dala-hotspot-fragment" clipPath={`url(#${crop})`}>
-            <image
-              href={board.illustration}
-              x={(40 - point.x) / factor}
-              y={(60 - point.y) / factor}
-              width={920 / factor}
-              height={650 / factor}
-              preserveAspectRatio="xMidYMid meet"
-              pointerEvents="none"
-            />
-          </g>
           <path
             className="dala-hotspot-outline"
-            d="M0-38 65-3 0 32-65-3Z"
+            d="M-54-54H54V54H-54Z"
             fill={color}
             fillOpacity=".1"
             stroke={color}
             strokeWidth="2"
           />
-          <g className="dala-hotspot-marker">
+          <g className="dala-hotspot-marker" transform="translate(0 -18)">
             <circle
               cy="4"
-              r={lot ? 12 : 9}
+              r={lot ? 15 : 12}
               fill={lot ? color : "#fff3d7"}
               stroke={lot ? "#fff0c5" : "#c3a369"}
               strokeWidth="2"
@@ -97,29 +80,18 @@ export default function ArtworkHotspot({
               <path d="m-7-4 14 14" stroke="#8e957b" strokeWidth="2" />
             )}
           </g>
-          <g className="dala-hotspot-label">
-            <rect
-              x="-77"
-              y="28"
-              width="154"
-              height={tile.price ? 41 : 27}
-              rx="8"
-              fill="#244b43"
-              fillOpacity=".95"
-              stroke="#e4c47e"
-              strokeWidth="1"
-            />
+          <g className="dala-square-tile-label" pointerEvents="none">
             <text
-              y="44"
+              y="16"
               textAnchor="middle"
-              fontSize="10.5"
+              fontSize="11"
               fontWeight="600"
-              fill="#fff7d9"
+              fill="#31564c"
             >
               {tile.name}
             </text>
             {tile.price > 0 && (
-              <text y="59" textAnchor="middle" fontSize="9" fill="#e6cd8c">
+              <text y="34" textAnchor="middle" fontSize="9" fill="#8a6d36">
                 {tile.price} ₸
               </text>
             )}

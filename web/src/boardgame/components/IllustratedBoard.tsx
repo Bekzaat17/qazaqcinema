@@ -27,9 +27,7 @@ export function illustratedPoint(
     z = -half + (index - side * 3) * step;
   }
   const point = { x: 500 + (x - z) * 0.7, y: 420 + (x + z) * 0.36 };
-  return painted
-    ? { x: 500 + (point.x - 500) * 0.87, y: 397 + (point.y - 420) * 0.65 }
-    : point;
+  return painted ? { x: 500 + x * 1.2, y: 500 + z * 1.2 } : point;
 }
 function words(text: string): string[] {
   const parts = text.split(" "),
@@ -404,7 +402,7 @@ export default function IllustratedBoard({
   return (
     <svg
       className="dala-illustrated-board"
-      viewBox="0 80 1000 730"
+      viewBox={board.illustration ? "0 0 1000 1000" : "0 80 1000 730"}
       role="group"
       aria-label="Қазақша ойын әлемі. Кәсіп ұяшығын басып ашыңыз."
       style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
@@ -451,12 +449,42 @@ export default function IllustratedBoard({
       )}
       {board.illustration ? (
         <g className="dala-painted-location" aria-hidden="true">
+          <rect
+            x="66"
+            y="66"
+            width="868"
+            height="868"
+            rx="30"
+            fill="#faf2dce8"
+            stroke="#bc9c5d"
+            strokeWidth="5"
+          />
+          <rect
+            x="82"
+            y="82"
+            width="836"
+            height="836"
+            rx="22"
+            fill="none"
+            stroke="#d9be82"
+            strokeWidth="2"
+          />
+          <rect
+            x="210"
+            y="210"
+            width="580"
+            height="580"
+            rx="18"
+            fill="#cddfc8"
+            stroke="#c1ac73"
+            strokeWidth="2"
+          />
           <image
             href={board.illustration}
-            x="40"
-            y="60"
-            width="920"
-            height="650"
+            x="180"
+            y="190"
+            width="640"
+            height="620"
             preserveAspectRatio="xMidYMid meet"
           />
           <path
