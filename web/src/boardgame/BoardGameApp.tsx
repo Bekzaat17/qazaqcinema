@@ -156,6 +156,7 @@ export default function BoardGameApp() {
     latest = useRef<RoomView | null>(null),
     pendingNew = useRef<Scenario | null>(null),
     serverOffset = useRef(0);
+  const selectMapTile = useCallback((index: number) => pick.current(index), []);
   const room = view?.room ?? null,
     match = room?.match ?? null,
     me = match?.players.findIndex((p) => p.id === view?.me) ?? -1,
@@ -313,15 +314,14 @@ export default function BoardGameApp() {
           if (stopped) break;
           setConnection(false);
           await new Promise<void>((resolve) => {
-            const timer = setTimeout(resolve, 4000);
-            controller.signal.addEventListener(
-              "abort",
-              () => {
-                clearTimeout(timer);
-                resolve();
-              },
-              { once: true },
-            );
+            const finish = () => {
+              clearTimeout(timer);
+              controller.signal.removeEventListener("abort", finish);
+              resolve();
+            };
+            const timer = setTimeout(finish, 4000);
+            controller.signal.addEventListener("abort", finish, { once: true });
+            if (controller.signal.aborted) finish();
           });
         }
       }
@@ -489,7 +489,7 @@ export default function BoardGameApp() {
               board={board}
               match={screen === "room" ? match : null}
               selected={screen === "room" ? selected : -1}
-              onSelect={(index) => pick.current(index)}
+              onSelect={selectMapTile}
               onAnimate={setAnimating}
               zoom={mapZoom}
               rotation={mapRotation}

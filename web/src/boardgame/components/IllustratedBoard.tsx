@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { memo, useEffect, useId, useRef, useState } from "react";
 import type { Board, Lot, Match, Move } from "../types";
 import Town, { Building, Yurt } from "./illustration/Scenery";
 import MapGarden from "./illustration/MapGarden";
@@ -381,7 +381,7 @@ function PawnLayer({
     </g>
   );
 }
-export default function IllustratedBoard({
+function IllustratedBoard({
   board,
   match,
   selected,
@@ -577,3 +577,5 @@ export default function IllustratedBoard({
     </svg>
   );
 }
+
+export default memo(IllustratedBoard);

@@ -2,6 +2,7 @@
 // Пустой BASE_URL → тот же origin (в dev это Vite-прокси на localhost:8000, см. vite.config).
 
 import { getInitData } from "./telegram";
+import { fetchWithTimeout, FetchTimeoutError } from "./transport";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -19,6 +20,7 @@ try {
 interface RequestOpts {
   auth?: string; // явный заголовок (bootstrap /api/auth всегда шлёт initData)
   retried?: boolean; // защита от бесконечного цикла ре-auth
+  timeoutMs?: number; // long-poll ждёт дольше обычных API-команд
 }
 
 function setSessionToken(token: string | null): void {
@@ -102,7 +104,11 @@ async function readError(response: Response): Promise<never> {
   throw new ApiError(response.status, code);
 }
 
-export async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts): Promise<T> {
+export async function request<T>(
+  path: string,
+  init?: RequestInit,
+  opts?: RequestOpts,
+): Promise<T> {
   // DEV вне Telegram (нет initData) → мок бэкенда, чтобы отлаживать вёрстку в браузере.
   // В прод-сборке import.meta.env.DEV === false → ветка мертва, devMock не бандлится.
   if (import.meta.env.DEV && !getInitData()) {
@@ -110,26 +116,22 @@ export async function request<T>(path: string, init?: RequestInit, opts?: Reques
     return mockJson<T>(path, init);
   }
 
-  // Таймаут через AbortController: единственный способ заставить зависший fetch
-  // реджектнуться (см. REQUEST_TIMEOUT_MS).
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        Authorization: opts?.auth ?? authHeader(),
-        ...(init?.headers ?? {}),
+    response = await fetchWithTimeout(
+      `${BASE_URL}${path}`,
+      {
+        ...init,
+        headers: {
+          Authorization: opts?.auth ?? authHeader(),
+          ...(init?.headers ?? {}),
+        },
       },
-    });
+      opts?.timeoutMs ?? REQUEST_TIMEOUT_MS,
+    );
   } catch (error) {
-    // И обрыв сети, и наш abort приходят сюда. Различаем их только для диагностики:
-    // лечение у обоих одно — предложить повторить.
-    throw new NetworkError(controller.signal.aborted);
-  } finally {
-    clearTimeout(timer);
+    if (init?.signal?.aborted) throw error;
+    throw new NetworkError(error instanceof FetchTimeoutError);
   }
   // Токен протух / Redis мигнул → сбрасываем сессию, чиним её и повторяем запрос ОДИН раз.
   // Ре-auth идёт по initData (stateless HMAC), поэтому переживает недоступность Redis.
@@ -141,7 +143,7 @@ export async function request<T>(path: string, init?: RequestInit, opts?: Reques
     // Если ре-auth сам упрётся в 401, он бросит `SessionExpiredError` строкой ниже
     // (его запрос идёт с `retried: true`) — и она пролетит наверх как есть.
     await refreshSession();
-    return request<T>(path, init, { retried: true });
+    return request<T>(path, init, { ...opts, retried: true });
   }
   // Уже перезаходили по initData и снова 401 — дальше повторять некуда.
   if (response.status === 401) throw new SessionExpiredError();

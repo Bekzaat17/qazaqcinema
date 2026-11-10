@@ -254,6 +254,7 @@ export class HttpGameGateway implements GameGateway {
     return request<RoomView>(
       `/api/boardgame/rooms/${code}${after === undefined ? "" : `?after=${after}`}`,
       { signal },
+      { timeoutMs: 35_000 },
     );
   }
   async act(code: string, command: Command) {

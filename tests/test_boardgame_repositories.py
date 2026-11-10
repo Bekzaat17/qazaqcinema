@@ -130,3 +130,64 @@ async def test_timeout_uses_server_clock_and_rewards_commit_once_per_scenario(
     session.expire_all()
     score = await PgQuestRepository(session).rank(42, RankingPeriod.ALL, week_start(NOW))
     assert score and score.points == 100
+
+
+async def test_four_people_reconnect_and_finish_after_concurrent_commands(
+    session: AsyncSession,
+) -> None:
+    ids = (42, 43, 44, 45)
+    for uid in ids:
+        await PgUserRepository(session).upsert(User(telegram_id=uid))
+    game = service(session)
+    created = await game.create(42, "Аян", "almaty_first")
+    assert created
+    maker = async_sessionmaker(session.bind, expire_on_commit=False)
+
+    async def join(uid: int) -> Outcome:
+        async with maker() as independent:
+            return (await service(independent).join(uid, str(uid), created.code, NOW)).outcome
+
+    assert await asyncio.gather(*(join(uid) for uid in ids[1:])) == [Outcome.APPLIED] * 3
+
+    async def command(uid: int, action: Action, revision: int) -> Outcome:
+        async with maker() as independent:
+            result = await service(independent).command(
+                uid, created.code, Command(revision, action), NOW
+            )
+            return result.outcome
+
+    ready = await asyncio.gather(*(command(uid, Action.READY, 3) for uid in ids[1:]))
+    assert ready.count(Outcome.APPLIED) == 1 and ready.count(Outcome.STALE) == 2
+    for uid, outcome in zip(ids[1:], ready, strict=True):
+        if outcome == Outcome.STALE:
+            current = await game.view(42, created.code)
+            assert current
+            assert await command(uid, Action.READY, current.room.revision) == Outcome.APPLIED
+    current = await game.view(42, created.code)
+    assert current
+    started = await game.command(
+        42, created.code, Command(current.room.revision, Action.START), NOW
+    )
+    assert started.record
+    revision = started.record.room.revision
+    duplicates = await asyncio.gather(*(command(42, Action.ROLL, revision) for _ in range(3)))
+    assert duplicates.count(Outcome.APPLIED) == 1 and duplicates.count(Outcome.STALE) == 2
+    # Каждый запрос создаёт новый сервис и сессию: продолжение не зависит от памяти API.
+    now = NOW
+    for _ in range(60):
+        async with maker() as independent:
+            resumed = service(independent)
+            current = await resumed.view(43, created.code)
+            assert current and current.room.match
+            if current.room.match.phase == Phase.FINISHED:
+                break
+            now += timedelta(seconds=181)
+            result = await resumed.command(
+                43, created.code, Command(current.room.revision, Action.TIMEOUT), now
+            )
+            assert result.outcome == Outcome.APPLIED
+    assert current and current.room.match and current.room.match.phase == Phase.FINISHED
+    for uid in ids:
+        async with maker() as independent:
+            observed = await service(independent).view(uid, created.code)
+            assert observed and observed.room == current.room
