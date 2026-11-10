@@ -79,3 +79,22 @@ class QuestChannelPostModel(Base):
     reserved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class BoardRoomModel(Base):
+    __tablename__ = "board_rooms"
+
+    code: Mapped[str] = mapped_column(String(10), primary_key=True)
+    state: Mapped[dict[str, object]] = mapped_column(JSONB)
+    members: Mapped[dict[str, str]] = mapped_column(JSONB)
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BoardAwardModel(Base):
+    __tablename__ = "board_awards"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True
+    )
+    scenario_id: Mapped[str] = mapped_column(String(48), primary_key=True)

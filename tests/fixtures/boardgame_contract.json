@@ -1,0 +1,102 @@
+{
+  "games": [
+    {
+      "scenario": "almaty_first",
+      "steps": 12,
+      "hash": "d0de3fc782a2806579b18ed2cbad9720b45dc14daaf70b3a15828bfb5d9cb4f8"
+    },
+    {
+      "scenario": "almaty_trade",
+      "steps": 20,
+      "hash": "e86b29b0eb9c8f89060eb10b2243a4aa718690b9fbd25ae5bd1a97a24ecd9b76"
+    },
+    {
+      "scenario": "almaty_tycoon",
+      "steps": 28,
+      "hash": "6cb7ec98a58dd1ad5c83cd3587801dabaafa4d9c53e6bcecb7656b7b286514b2"
+    },
+    {
+      "scenario": "turkistan_first",
+      "steps": 12,
+      "hash": "057d3754e7e2fbf26a88a775923129b47eca25af1341e1e16bb7ebd8d53c8d73"
+    },
+    {
+      "scenario": "turkistan_trade",
+      "steps": 20,
+      "hash": "ba827582df9ed00ef1ac2d11e9ed9d08545b1d1417b78481ce12925e2e99cec8"
+    },
+    {
+      "scenario": "turkistan_tycoon",
+      "steps": 28,
+      "hash": "0905d558330318d8c8c1a57205cbb1865a355d2137a8d466a17d4737540ba1e4"
+    }
+  ],
+  "commands": [
+    {
+      "command": {
+        "revision": 0,
+        "kind": "add_bot",
+        "target": "balanced",
+        "tile": -1,
+        "amount": 0
+      },
+      "outcome": "applied",
+      "hash": "6cd1cfeeeba2275c531156d4c5aee2253814707c9f50336a448a08dd4b095482"
+    },
+    {
+      "command": {
+        "revision": 1,
+        "kind": "start",
+        "target": "",
+        "tile": -1,
+        "amount": 0
+      },
+      "outcome": "applied",
+      "hash": "54ba1fe5ee8971054b1a2b97d8e6f77644989d42486bc9142bfddf760ebcf531"
+    },
+    {
+      "command": {
+        "revision": 2,
+        "kind": "roll",
+        "target": "",
+        "tile": -1,
+        "amount": 0
+      },
+      "outcome": "applied",
+      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+    },
+    {
+      "command": {
+        "revision": 3,
+        "kind": "buy",
+        "target": "",
+        "tile": -1,
+        "amount": 0
+      },
+      "outcome": "invalid",
+      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+    },
+    {
+      "command": {
+        "revision": 3,
+        "kind": "buy",
+        "target": "",
+        "tile": -1,
+        "amount": 0
+      },
+      "outcome": "invalid",
+      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+    },
+    {
+      "command": {
+        "revision": 4,
+        "kind": "end",
+        "target": "",
+        "tile": -1,
+        "amount": 0
+      },
+      "outcome": "stale",
+      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Location artwork
+
+Generated with the built-in image_gen tool. Final WebP and thumbnail are encodings
+of the selected transparent illustration.
+
+## Prompt
+
+Use case: stylized-concept. Asset type: transparent-background high-detail location cutout for an interactive Kazakh economic board game. A premium cinematic fantasy game environment diorama, richly detailed crafted stone, timber, plaster, cloth and foliage, believable stylized realism, vibrant lush colors, warm volumetric sun rays, luminous turquoise water, deep soft ambient occlusion, intricate material textures, sophisticated storybook game art. Original artwork, no game characters or logos. Isometric elevated three-quarter camera, entire small floating diamond-shaped island visible, wide composition about 3:2, isolated with genuinely transparent background, no sky, no solid background, no surrounding scenery. Island includes varied heights, tiny winding paths, believable miniature buildings and gardens, tiny market props, flowers and lanterns, visible rocky underside and a small waterfall, cinematic high quality, not flat vector, not simplistic low-poly primitives, not a UI mockup, no text or labels, no board cells, no coins, no people closeups. Keep all edges inside the image with transparent padding. Location: a beautiful original Kazakh Silk Road oasis town inspired by Turkistan: intricately patterned turquoise tiled domes, warm sand-colored brick arches, a small caravanserai courtyard, market stalls with woven fabrics and ceramic pots, slender cypress and fruit trees, blue water channels and a little fountain, carved wooden doors and sunlit steps. Rich tactile stone, glazed tiles, warm ochre, turquoise and lush green contrasts.

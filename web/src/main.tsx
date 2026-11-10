@@ -7,7 +7,7 @@ import { initWebApp } from "./lib/telegram";
 import { isQuestLaunch } from "./quest/launch";
 
 const App = lazy(() => import("./App"));
-const QuestApp = lazy(() => import("./quest/QuestApp"));
+const QuestApp = lazy(() => import("./boardgame/BoardGameApp"));
 
 function AppRouter() {
   const [quest, setQuest] = useState(isQuestLaunch);

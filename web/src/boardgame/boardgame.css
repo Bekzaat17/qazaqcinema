@@ -1,0 +1,2958 @@
+.dala-app {
+  --ink: #283f39;
+  --muted: #859183;
+  --paper: #fbf8ed;
+  --green: #357c6b;
+  --gold: #c8a35c;
+  position: relative;
+  min-height: 100dvh;
+  isolation: isolate;
+  background: #e4eadc;
+  color: var(--ink);
+  font:
+    14px Inter,
+    system-ui,
+    sans-serif;
+}
+.dala-app * {
+  box-sizing: border-box;
+}
+.dala-app button,
+.dala-app input,
+.dala-app select {
+  font: inherit;
+}
+.dala-app button {
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.dala-app button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.dala-app button:focus-visible,
+.dala-app input:focus-visible,
+.dala-app select:focus-visible {
+  outline: 3px solid #cbb478;
+  outline-offset: 4px;
+}
+.dala-world {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 790px;
+  overflow: hidden;
+  z-index: -3;
+}
+.dala-world canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.dala-wash {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 790px;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, #f1f0dff5, #eff0e0cf 26%, transparent 65%),
+    linear-gradient(0deg, #e4eadc, transparent 18%);
+}
+.dala-header {
+  height: 100px;
+  padding: 25px 4.5%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.dala-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: var(--ink);
+}
+.dala-brand > span {
+  width: 45px;
+  height: 45px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px 4px 14px 4px;
+  background: #378675;
+  color: #f8e1a2;
+  box-shadow: 0 4px 12px #37674e19;
+}
+.dala-brand > div {
+  font-family: Georgia, serif;
+  font-size: 25px;
+  letter-spacing: -0.8px;
+}
+.dala-brand em {
+  font-weight: 400;
+}
+.dala-brand small {
+  display: block;
+  font-family: Inter, sans-serif;
+  font-size: 7px;
+  letter-spacing: 2.3px;
+  margin-top: 5px;
+  font-weight: 600;
+  color: #6f8a72;
+}
+.dala-header nav {
+  display: flex;
+  gap: 8px;
+}
+.dala-icon {
+  width: 37px;
+  height: 37px;
+  background: #f7f8ebbb;
+  backdrop-filter: blur(9px);
+  border: 1px solid #bdcbb03b;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #64816e;
+}
+.dala-icon:hover {
+  background: #fffcee;
+}
+.dala-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 8px;
+  letter-spacing: 2.1px;
+  font-weight: 700;
+  color: #7f956f;
+}
+.dala-eyebrow > i {
+  width: 6px;
+  height: 6px;
+  background: #9cb083;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #91ad7815;
+}
+.dala-intro {
+  position: relative;
+  width: 50%;
+  min-height: 640px;
+  padding: 94px 0 40px 7%;
+}
+.dala-intro h1 {
+  font:
+    clamp(56px, 6.2vw, 90px)/1.04 Georgia,
+    serif;
+  letter-spacing: -3.8px;
+  margin: 23px 0 26px;
+  font-weight: 400;
+}
+.dala-intro h1 em {
+  color: #4e7860;
+}
+.dala-intro > p {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #86917d;
+  margin: 0 0 30px;
+}
+.dala-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.dala-primary,
+.dala-secondary {
+  border: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 17px;
+  min-height: 45px;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  text-decoration: none;
+}
+.dala-primary {
+  background: var(--green);
+  color: #fff8e5;
+  box-shadow: 0 5px 13px #35634d1f;
+}
+.dala-primary:hover:not(:disabled) {
+  background: #286655;
+  transform: translateY(-1px);
+}
+.dala-secondary {
+  border: 1px solid #a9b7964d;
+  color: #637f5b;
+  background: #f4f5e6d9;
+}
+.dala-secondary:hover:not(:disabled) {
+  background: #fffff2;
+}
+.dala-full {
+  width: 100%;
+}
+.dala-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 19px;
+  border-top: 1px solid #b9c3a638;
+  padding-top: 24px;
+  margin-top: 28px;
+  width: fit-content;
+  color: #879a78;
+}
+.dala-badges > span {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 9px;
+}
+.dala-intro > small {
+  display: block;
+  font-size: 9px;
+  color: #9aa78b;
+  margin-top: 21px;
+}
+.dala-preview-caption {
+  position: absolute;
+  right: 5.5%;
+  top: 567px;
+  max-width: 285px;
+  border-left: 2px solid #c9b77a;
+  border-radius: 0 14px 14px 0;
+  background: #fbf9eabf;
+  backdrop-filter: blur(12px);
+  padding: 20px 24px;
+  box-shadow: 0 12px 35px #5c705416;
+}
+.dala-preview-caption h2 {
+  font:
+    29px Georgia,
+    serif;
+  margin: 10px 0;
+}
+.dala-preview-caption p {
+  font-size: 10px;
+  color: #8a967c;
+  line-height: 1.8;
+  margin: 0;
+}
+.dala-setup {
+  position: relative;
+  margin: 0 auto;
+  max-width: 1400px;
+  padding: 30px 5% 50px;
+  scroll-margin-top: 20px;
+}
+.dala-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 26px;
+}
+.dala-section-title h2 {
+  font:
+    36px Georgia,
+    serif;
+  letter-spacing: -0.8px;
+  margin: 10px 0;
+}
+.dala-section-title > span {
+  font-size: 10px;
+  color: #a69872;
+}
+.dala-board-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+}
+.dala-board-card {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid #f8f8ea;
+  border-radius: 16px;
+  background: #f9f8eecf;
+  box-shadow: 0 4px 15px #53624507;
+  padding: 20px;
+  color: var(--ink);
+}
+.dala-board-card.selected {
+  border-color: #8ea47a;
+  box-shadow: 0 8px 22px #4b714314;
+}
+.dala-board-number {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #8d9d7e;
+}
+.dala-board-card h3 {
+  font:
+    26px Georgia,
+    serif;
+  margin: 2px 0 9px;
+  letter-spacing: -0.5px;
+}
+.dala-board-card p {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #939e85;
+  min-height: 36px;
+  margin: 0;
+}
+.dala-board-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #d3dbc15e;
+  margin-top: 15px;
+  padding-top: 13px;
+  color: #8c9d7a;
+  font-size: 9px;
+}
+.dala-board-art {
+  height: 105px;
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+}
+.dala-board-art > i {
+  position: absolute;
+  bottom: 12px;
+  right: 0;
+  width: 90px;
+  height: 75px;
+  background: #a4b4a5;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.dala-board-art > i:nth-of-type(2) {
+  right: 65px;
+  height: 62px;
+  background: #c1cdb5;
+}
+.dala-board-art > i:nth-of-type(3) {
+  right: 30px;
+  height: 92px;
+  background: #d0d9c6;
+}
+.dala-art-sun {
+  width: 35px;
+  height: 35px;
+  position: absolute;
+  right: 20px;
+  top: 10px;
+  background: #e0c794;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+.dala-art-road {
+  position: absolute;
+  bottom: 3px;
+  right: 0;
+  width: 175px;
+  height: 20px;
+  border-radius: 50%;
+  background: #d6ca9c;
+}
+.dala-board-art > b {
+  position: absolute;
+  width: 34px;
+  height: 32px;
+  bottom: 15px;
+  right: 80px;
+  background: #e7d9b9;
+  border-radius: 50% 50% 0 0;
+  border-bottom: 5px solid #b98b65;
+  z-index: 2;
+  box-shadow: 27px 3px 0 -5px #b5c5ac;
+}
+.art-astana > i {
+  clip-path: none;
+  right: 16px;
+  width: 23px;
+  height: 75px;
+  background: #b7c9c4;
+  border-radius: 4px 4px 0 0;
+}
+.art-astana > i:nth-of-type(2) {
+  right: 48px;
+  width: 35px;
+  background: #c7d6c8;
+}
+.art-astana > i:nth-of-type(3) {
+  right: 100px;
+  width: 8px;
+  height: 45px;
+  background: #c2c6af;
+}
+.art-astana > b {
+  width: 27px;
+  height: 27px;
+  border: 0;
+  border-radius: 50%;
+  background: #d8b76a;
+  bottom: 60px;
+  right: 90px;
+  box-shadow: 0 20px 0 -10px #d3ccb1;
+}
+.art-turkistan > i {
+  clip-path: none;
+  height: 37px;
+  width: 100px;
+  right: 30px;
+  background: #d0b98d;
+}
+.art-turkistan > i:nth-of-type(2) {
+  right: 16px;
+  height: 67px;
+  width: 11px;
+  border-radius: 6px 6px 0 0;
+  background: #b8b5a0;
+}
+.art-turkistan > i:nth-of-type(3) {
+  right: 135px;
+  height: 67px;
+  width: 11px;
+  border-radius: 6px 6px 0 0;
+  background: #bfad87;
+}
+.art-turkistan > b {
+  background: #7cadb0;
+  width: 49px;
+  height: 40px;
+  right: 55px;
+  bottom: 48px;
+  border: 0;
+  border-radius: 50% 50% 0 0;
+  box-shadow: none;
+}
+.art-steppe > i {
+  height: 35px;
+  width: 180px;
+  right: 0;
+  background: #bbcb98;
+  clip-path: none;
+  border-radius: 50%;
+}
+.art-steppe > i:nth-of-type(2) {
+  height: 23px;
+  right: 40px;
+  bottom: 20px;
+  background: #d0d7ab;
+}
+.art-steppe > i:nth-of-type(3) {
+  display: none;
+}
+.art-steppe > b {
+  height: 34px;
+  width: 56px;
+  right: 45px;
+  bottom: 19px;
+  background: #f0e4be;
+  border-bottom-color: #b69b6b;
+  box-shadow: -65px -6px 0 -8px #d4b88e;
+}
+.dala-setup-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.8fr;
+  gap: 45px;
+  margin-top: 35px;
+}
+.dala-scenario-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.dala-scenario-options button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  text-align: left;
+  padding: 15px 17px;
+  background: #f3f5e7a6;
+  border: 1px solid #c9d3ba6b;
+  border-radius: 10px;
+  color: #698362;
+}
+.dala-scenario-options button[aria-pressed="true"] {
+  background: #f8f9eccc;
+  border-color: #93ac83;
+}
+.dala-scenario-options button > span {
+  font-size: 12px;
+}
+.dala-scenario-options small {
+  font-size: 9px;
+  color: #98a286;
+  grid-row: 2;
+}
+.dala-scenario-options i {
+  grid-column: 2;
+  grid-row: 1/3;
+  align-self: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 1px solid #abbf98;
+  display: grid;
+  place-items: center;
+  color: #779b67;
+}
+.dala-muted {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #8d9a80;
+}
+.dala-start-card {
+  padding: 24px;
+  background: #f8f8eac9;
+  border: 1px solid #f9fbeb;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.dala-app label {
+  display: block;
+  font-size: 10px;
+  color: #879777;
+  margin: 0 0 8px;
+}
+.dala-app input,
+.dala-app select {
+  width: 100%;
+  border: 1px solid #d2dcc0;
+  border-radius: 9px;
+  background: #fffdf2;
+  color: #647858;
+  padding: 12px 13px;
+  min-height: 43px;
+  font-size: 12px;
+}
+.dala-start-card > small {
+  font-size: 9px;
+  line-height: 1.8;
+  color: #9ba78b;
+}
+.dala-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 25px 5% 40px;
+  font-size: 9px;
+  color: #9ba88c;
+  gap: 20px;
+}
+.dala-footer button {
+  background: none;
+  border: 0;
+  color: #819875;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.dala-lobby {
+  display: grid;
+  grid-template-columns: minmax(300px, 480px) minmax(250px, 320px);
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 25px;
+  gap: 35px;
+  align-items: start;
+}
+.dala-lobby-panel {
+  background: #fbfaedee;
+  backdrop-filter: blur(15px);
+  border: 1px solid #ffffed;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 15px 45px #51734612;
+}
+.dala-lobby-panel h1 {
+  font:
+    43px Georgia,
+    serif;
+  margin: 17px 0;
+}
+.dala-lobby-panel > p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #8c9b7c;
+  margin-bottom: 24px;
+}
+.dala-room-code {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #e9eddb;
+  border: 1px dashed #b9cba7;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.dala-room-code small {
+  font-size: 7px;
+  letter-spacing: 1.9px;
+  display: block;
+  color: #97a681;
+}
+.dala-room-code b {
+  font-size: 21px;
+  letter-spacing: 2px;
+  display: block;
+  margin-top: 5px;
+  font-weight: 550;
+  color: #5e8255;
+}
+.dala-invite-url {
+  font-size: 9px !important;
+  color: #99a488 !important;
+  background: transparent !important;
+  margin-top: 9px !important;
+  min-height: 30px !important;
+  padding: 7px !important;
+}
+.dala-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 24px 0;
+}
+.dala-seat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px dashed #cbd8b9;
+  border-radius: 11px;
+  padding: 13px;
+  background: #eff2e191;
+  min-height: 67px;
+}
+.dala-seat.filled {
+  background: #f9faec;
+  border-style: solid;
+}
+.dala-avatar {
+  position: relative;
+  width: 37px;
+  height: 37px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px 5px 13px 5px;
+  background: color-mix(in srgb, var(--avatar), white 82%);
+  color: var(--avatar);
+  font-size: 18px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.dala-seat > div {
+  flex: 1;
+}
+.dala-seat b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b845d;
+}
+.dala-seat small {
+  display: block;
+  font-size: 9px;
+  margin-top: 4px;
+  color: #a0ac8d;
+}
+.dala-seat > svg {
+  color: #92ae7e;
+  width: 16px;
+}
+.dala-seat .dala-icon {
+  width: 26px;
+  height: 26px;
+}
+.dala-add-bots {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.dala-add-bots .dala-secondary {
+  font-size: 9px !important;
+  padding: 8px 11px;
+  min-height: 34px;
+  gap: 6px;
+}
+.dala-text-button {
+  border: 0;
+  background: none;
+  color: #90a07e;
+  font-size: 10px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 20px auto 0;
+}
+.dala-lobby-settings {
+  padding: 25px;
+  background: #f3f4e4cb;
+  border: 1px solid #e8edd7;
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+}
+.dala-lobby-settings .dala-board-art {
+  height: 130px;
+}
+.dala-lobby-settings h2 {
+  font:
+    31px Georgia,
+    serif;
+  margin: 13px 0;
+}
+.dala-lobby-settings p {
+  font-size: 11px;
+  color: #93a080;
+  line-height: 1.9;
+}
+.dala-lobby-settings dl {
+  display: grid;
+  gap: 12px;
+  padding: 20px 0;
+  border-top: 1px solid #d5dfc3;
+  margin-top: 20px;
+}
+.dala-lobby-settings dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+}
+.dala-lobby-settings dt {
+  color: #96a382;
+}
+.dala-lobby-settings dd {
+  color: #657e59;
+  font-weight: 600;
+}
+.dala-lobby-settings select {
+  font-size: 10px;
+  line-height: 1.6;
+}
+.dala-lobby-settings > small {
+  display: block;
+  font-size: 8px;
+  line-height: 1.8;
+  color: #a3ad90;
+  margin-top: 11px;
+}
+.dala-in-room:has(.dala-lobby) .dala-world {
+  height: 100dvh;
+  opacity: 0.45;
+}
+.dala-in-room:has(.dala-lobby) .dala-wash {
+  height: 100dvh;
+  background: linear-gradient(#e6ecdc77, #e4eadc);
+}
+.dala-in-room:has(.dala-turn-dock) {
+  height: 100dvh;
+  min-height: 580px;
+  overflow: hidden;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-header {
+  height: 80px;
+  padding: 20px 25px;
+  align-items: flex-start;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-brand > span {
+  height: 36px;
+  width: 36px;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-brand > div {
+  font-size: 22px;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-brand small {
+  font-size: 6px;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-world {
+  inset: 95px 205px 135px 210px;
+  height: auto;
+  z-index: 0;
+  border-radius: 22px;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-wash {
+  height: 100%;
+  background: radial-gradient(ellipse at center, transparent 30%, #e4eadc 78%);
+  z-index: 1;
+}
+.dala-game-top {
+  position: absolute;
+  left: 50%;
+  top: 25px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #faf9e8cf;
+  backdrop-filter: blur(12px);
+  border: 1px solid #f8fbe9;
+  padding: 10px 20px;
+  border-radius: 30px;
+  color: #81976f;
+  font-size: 10px;
+}
+.dala-game-top > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.dala-game-top > b {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5e7e55;
+  white-space: nowrap;
+}
+.dala-game-top > b small {
+  font-size: 8px;
+  font-weight: 400;
+}
+.dala-game-top .dala-mode-badge {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #b19d6d;
+  border-left: 1px solid #d9e0c8;
+  padding-left: 18px;
+}
+.dala-players {
+  position: absolute;
+  left: 25px;
+  top: 112px;
+  width: 180px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.dala-player {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  border: 1px solid #d7e2c54d;
+  border-radius: 12px;
+  background: #f5f6e5d9;
+  padding: 14px 11px;
+  color: var(--ink);
+  box-shadow: 0 6px 20px #7b8c5f07;
+}
+.dala-player.active {
+  border-color: #b2c69a;
+  background: #fffef1;
+  box-shadow: 0 7px 24px #66845012;
+}
+.dala-player > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+.dala-player .dala-avatar {
+  width: 31px;
+  height: 36px;
+  font-size: 15px;
+}
+.dala-avatar svg {
+  position: absolute;
+  right: -5px;
+  top: -7px;
+  fill: #d5b964;
+  color: #b7a05a;
+}
+.dala-player > div {
+  flex: 1;
+  min-width: 0;
+}
+.dala-player b {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 550;
+  color: #748b63;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dala-player b small {
+  font-size: 7px;
+  color: #a7b398;
+}
+.dala-player strong {
+  font-size: 16px;
+  font-weight: 600;
+  display: block;
+  margin: 5px 0 3px;
+  color: #526e4b;
+  letter-spacing: -0.5px;
+}
+.dala-player > div > span {
+  font-size: 7px;
+  color: #a2ae90;
+}
+.dala-player.bankrupt {
+  opacity: 0.4;
+}
+.dala-journal-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  color: #8d9f7a;
+  font-size: 9px !important;
+  padding: 8px 5px;
+}
+.dala-map-tools {
+  position: absolute;
+  right: 220px;
+  top: 103px;
+  z-index: 2;
+  display: flex;
+  gap: 5px;
+}
+.dala-map-tools button {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #f5f7e8;
+  background: #fafbecb8;
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  color: #7a966b;
+}
+.dala-selected-card {
+  position: absolute;
+  right: 25px;
+  top: 119px;
+  width: 175px;
+  padding: 20px 17px;
+  background: #faf9e9d9;
+  backdrop-filter: blur(10px);
+  border: 1px solid #faffea;
+  border-radius: 14px;
+  z-index: 2;
+}
+.dala-selected-card > .dala-eyebrow {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.dala-selected-card h2 {
+  font:
+    26px/1.15 Georgia,
+    serif;
+  color: #5d774f;
+  margin: 15px 0;
+}
+.dala-selected-card > .dala-color-line {
+  height: 5px;
+  display: block;
+  border-radius: 4px;
+  width: 45px;
+  margin-bottom: 17px;
+}
+.dala-selected-owner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: #94a47f;
+}
+.dala-selected-owner i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.dala-selected-price {
+  font-size: 21px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+  display: block;
+  margin: 13px 0 17px;
+  color: #7d8d59;
+}
+.dala-selected-card p {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #9aa888;
+}
+.dala-selected-card > .dala-secondary {
+  padding: 10px 8px;
+  min-height: 36px;
+  font-size: 9px !important;
+  gap: 5px;
+}
+.dala-selected-card > svg {
+  margin-top: 23px;
+  color: #a6b58a;
+}
+.dala-offers-badge {
+  position: absolute;
+  right: 25px;
+  top: 450px;
+  z-index: 3;
+  border: 1px solid #d7b56d;
+  background: #faf0d0;
+  color: #9b804a;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  border-radius: 9px;
+  font-size: 10px !important;
+}
+.dala-turn-note {
+  position: absolute;
+  bottom: 131px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  line-height: 1.5;
+  color: #81936b;
+  padding: 8px 13px;
+  background: #f6f7e8c9;
+  backdrop-filter: blur(8px);
+  border-radius: 20px;
+  max-width: 400px;
+  text-align: center;
+  z-index: 3;
+  pointer-events: none;
+}
+.dala-turn-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 25px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 50px);
+  min-width: 620px;
+  background: #fffcedf0;
+  border: 1px solid #ffffed;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 10px 35px #6a834627;
+  border-radius: 17px;
+  padding: 18px 22px;
+  display: flex;
+  gap: 25px;
+  align-items: center;
+  z-index: 3;
+}
+.dala-turn-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 175px;
+}
+.dala-turn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px #c7d9b31f;
+  flex-shrink: 0;
+}
+.dala-turn-person b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #638053;
+}
+.dala-turn-person small {
+  display: block;
+  font-size: 8px;
+  color: #a2af8a;
+  margin-top: 6px;
+  max-width: 180px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.dala-dice-pair {
+  display: flex;
+  gap: 8px;
+  perspective: 300px;
+}
+.dala-die {
+  width: 41px;
+  height: 41px;
+  border: 1px solid #d9cfac;
+  background: linear-gradient(135deg, #fffef3, #f1e6c8);
+  border-radius: 9px;
+  box-shadow:
+    0 3px 0 #cabd95,
+    0 6px 10px #8d865321,
+    inset 0 1px 0 white;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  padding: 8px;
+  transform: rotate(-7deg);
+  color: #58876a;
+}
+.dala-die:nth-child(2) {
+  transform: rotate(8deg);
+}
+.dala-die i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  align-self: center;
+  justify-self: center;
+}
+.dala-die i.dot {
+  background: currentColor;
+  box-shadow: inset 0 1px 1px #315b4c55;
+}
+.dala-die.rolling {
+  animation: dala-dice-tumble 0.55s linear infinite;
+}
+.dala-die:nth-child(2).rolling {
+  animation-delay: -0.2s;
+}
+.dala-turn-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.dala-turn-actions .dala-primary {
+  white-space: nowrap;
+  padding: 13px 17px;
+  font-size: 11px !important;
+  min-height: 46px;
+}
+.dala-pass {
+  border: 0;
+  background: none;
+  color: #a0ad87;
+  font-size: 10px !important;
+  padding: 9px 0;
+}
+.dala-waiting {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #a0ad88;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+.dala-waiting .dala-secondary {
+  font-size: 9px !important;
+  min-height: 32px;
+  padding: 7px 10px;
+}
+.dala-message {
+  position: fixed;
+  top: 82px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  max-width: min(90%, 600px);
+  background: #f9f4db;
+  border: 1px solid #dbce9e;
+  border-radius: 11px;
+  box-shadow: 0 8px 30px #7683441c;
+  padding: 13px 17px;
+  font-size: 11px;
+  color: #9b8b5e;
+  z-index: 100;
+}
+.dala-message.error {
+  background: #fbebd9;
+  border-color: #e4c8a8;
+  color: #a27d59;
+}
+.dala-message button {
+  border: 0;
+  background: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.dala-offline {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  border-radius: 8px;
+  background: #eee6c9;
+  color: #9a8657;
+  padding: 9px 13px;
+  font-size: 9px;
+}
+.dala-webgl {
+  position: absolute;
+  z-index: 1;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  max-width: 260px;
+  text-align: center;
+  background: #f5f4e4e8;
+  border-radius: 14px;
+  padding: 25px;
+  color: #99a67e;
+  font-size: 12px;
+}
+.dala-webgl small {
+  font-size: 10px;
+  line-height: 1.8;
+}
+.dala-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 150px 20px;
+  color: #89a06f;
+}
+.dala-loading p {
+  font-size: 12px;
+  margin: 20px;
+}
+.dala-app .quest-dialog {
+  background: #faf8eb;
+  color: #6b7d57;
+  border: 1px solid #ececd5;
+  border-radius: 20px;
+  max-width: 500px;
+  width: calc(100% - 30px);
+  max-height: calc(100dvh - 40px);
+  padding: 25px;
+  box-shadow: 0 40px 100px #31462e50;
+  overflow-y: auto;
+  margin: auto;
+}
+.dala-app .quest-dialog::backdrop {
+  background: #304c4866;
+  backdrop-filter: blur(6px);
+}
+.dala-app .quest-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+.dala-app .quest-eyebrow {
+  font-size: 8px;
+  letter-spacing: 2.2px;
+  color: #baaa72;
+}
+.dala-app .quest-dialog-heading h2 {
+  font:
+    29px/1.2 Georgia,
+    serif;
+  margin: 9px 0;
+  color: #58734d;
+}
+.dala-app .quest-icon {
+  height: 30px;
+  width: 30px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e9eddb;
+  color: #8ea177;
+  flex-shrink: 0;
+}
+.dala-dialog-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dala-dialog-content form label {
+  margin-top: 10px;
+}
+.dala-dialog-content form .dala-primary {
+  margin-top: 14px;
+}
+.dala-dialog-content p {
+  font-size: 12px;
+  line-height: 1.9;
+}
+.dala-inline-notice {
+  font-size: 10px !important;
+  background: #ece8cd;
+  padding: 11px;
+  border-radius: 8px;
+  color: #a68d52;
+}
+.dala-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 25px 10px;
+  color: #9bae7e;
+}
+.dala-empty h3 {
+  font:
+    29px Georgia,
+    serif;
+  color: #70845a;
+  margin: 17px 0;
+}
+.dala-empty p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #99a883;
+  margin-bottom: 23px;
+}
+.dala-deed {
+  border: 1px solid #c9d7b8;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f4f5e2;
+}
+.dala-deed > div:first-child {
+  padding: 15px 20px;
+  background: var(--deed-color);
+  color: #fffae8;
+  position: relative;
+  overflow: hidden;
+}
+.dala-deed > div:first-child:after {
+  content: "◇ ◇ ◇ ◇ ◇ ◇ ◇";
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  color: #fffff02b;
+  font-size: 35px;
+  letter-spacing: 7px;
+  transform: rotate(35deg);
+}
+.dala-deed > div:first-child span {
+  font-size: 7px;
+  letter-spacing: 2px;
+}
+.dala-deed h3 {
+  font:
+    30px Georgia,
+    serif;
+  margin: 8px 0 3px;
+}
+.dala-deed-scene {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 25px;
+  background: linear-gradient(135deg, #e5ecd3, #f3edd5);
+  color: #94aa77;
+}
+.dala-deed-scene span {
+  font-size: 11px;
+}
+.dala-deed-owner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #d4dfc0;
+  padding: 12px 17px;
+  font-size: 10px;
+  color: #8e9f74;
+}
+.dala-deed-owner > i {
+  height: 8px;
+  width: 8px;
+  border-radius: 50%;
+}
+.dala-deed-owner > span {
+  margin-left: auto;
+  color: #b19a65;
+  font-size: 9px;
+}
+.dala-price-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  font-size: 11px;
+  padding: 15px 1px;
+  border-bottom: 1px solid #e1e6cc;
+  color: #99a680;
+}
+.dala-price-row b {
+  font-weight: 600;
+  color: #6c855a;
+}
+.dala-rent-table {
+  margin: 15px 0 20px;
+}
+.dala-rent-table > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 10px;
+  color: #a2ac8c;
+  border-radius: 5px;
+}
+.dala-rent-table .current {
+  background: #e6eed6;
+  color: #758e5e;
+}
+.dala-rent-table b {
+  font-weight: 550;
+}
+.dala-rent-table > small {
+  display: block;
+  font-size: 9px;
+  line-height: 1.8;
+  color: #a8b192;
+  margin: 14px 10px 0;
+}
+.dala-property-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 20px;
+}
+.dala-property-actions .dala-primary,
+.dala-property-actions .dala-secondary {
+  font-size: 10px !important;
+}
+.dala-offer-form {
+  border-top: 1px solid #dfe5ca;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+.dala-offer-form > div {
+  display: flex;
+  gap: 10px;
+}
+.dala-offer-form input {
+  min-width: 0;
+}
+.dala-offer-form .dala-secondary {
+  flex-shrink: 0;
+  min-height: 40px;
+}
+.dala-offer-form small {
+  display: block;
+  color: #a8b391;
+  font-size: 9px;
+  line-height: 1.9;
+  margin-top: 12px;
+}
+.dala-asset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.dala-asset-grid button {
+  position: relative;
+  text-align: left;
+  border: 1px solid #d9e2c7;
+  border-radius: 10px;
+  background: #f4f6e4;
+  overflow: hidden;
+  padding: 16px 13px;
+  color: #7a9065;
+}
+.dala-asset-grid button > span {
+  height: 5px;
+  background: var(--deed-color);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.dala-asset-grid button > b {
+  display: block;
+  font:
+    18px Georgia,
+    serif;
+  margin-bottom: 7px;
+}
+.dala-asset-grid small {
+  display: block;
+  font-size: 8px;
+  color: #a6b28e;
+}
+.dala-asset-grid strong {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  margin-top: 9px;
+  color: #b2a274;
+}
+.dala-debt-summary {
+  padding: 15px;
+  background: #f4e5cb;
+  border-radius: 10px;
+  margin-top: 20px;
+  color: #aa8d5c;
+}
+.dala-debt-summary p {
+  font-size: 11px;
+}
+.dala-debt-summary .dala-secondary {
+  color: #b08a57;
+  border-color: #dfc69e;
+}
+.dala-trade-list {
+  display: grid;
+  gap: 13px;
+}
+.dala-trade-list article {
+  padding: 20px;
+  border: 1px solid #d9e1c4;
+  border-radius: 12px;
+  background: #f0f3de;
+}
+.dala-trade-list h3 {
+  font:
+    25px Georgia,
+    serif;
+  margin: 12px 0;
+}
+.dala-trade-list article > b {
+  font-size: 25px;
+  color: #bc9d5a;
+  font-weight: 500;
+}
+.dala-trade-list small {
+  display: block;
+  font-size: 9px;
+  color: #acb593;
+  margin: 10px 0 20px;
+}
+.dala-trade-list article > div {
+  display: flex;
+  gap: 10px;
+}
+.dala-journal {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #91a078;
+  padding-left: 22px;
+}
+.dala-journal li {
+  padding: 10px 0 10px 4px;
+  border-bottom: 1px solid #e5e9d2;
+}
+.dala-result {
+  text-align: center;
+}
+.dala-result > span:first-child {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 25px;
+  color: #c4ac66;
+  background: #efead0;
+  box-shadow: 0 0 0 10px #ece6ca3d;
+}
+.dala-result > .dala-eyebrow {
+  justify-content: center;
+  font-size: 8px;
+}
+.dala-result h3 {
+  font:
+    38px Georgia,
+    serif;
+  margin: 18px 0;
+  color: #718454;
+}
+.dala-result > p {
+  font-size: 12px;
+  color: #acb290;
+}
+.dala-result ol {
+  list-style: none;
+  padding: 0;
+  margin: 22px 0;
+  display: grid;
+  gap: 7px;
+}
+.dala-result li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f0f3df;
+  border-radius: 9px;
+  padding: 13px;
+  font-size: 11px;
+  color: #8c9d6c;
+}
+.dala-result li > b {
+  font-size: 10px;
+  font-weight: 500;
+  color: #b5be9d;
+}
+.dala-result li i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.dala-result li strong {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 550;
+  color: #879c63;
+}
+.dala-result > small {
+  display: block;
+  font-size: 9px;
+  color: #b0ba96;
+  margin: 18px 0;
+  line-height: 1.8;
+}
+.dala-help p,
+.dala-help li {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #99a982;
+}
+.dala-help ol {
+  padding-left: 20px;
+}
+.dala-help li {
+  padding: 7px 0 7px 5px;
+}
+.dala-help b {
+  color: #728f5e;
+}
+.dala-learning-back {
+  position: fixed;
+  z-index: 80;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid #bccca2;
+  background: #fffbe9;
+  color: #829964;
+  font-size: 10px;
+  padding: 12px 17px;
+  border-radius: 25px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.dala-app .quest-tabs {
+  display: flex;
+  gap: 8px;
+}
+.dala-app .quest-tabs button {
+  flex: 1;
+  border: 1px solid #d7e0c3;
+  border-radius: 8px;
+  background: #f1f4df;
+  color: #92a478;
+  padding: 11px;
+  font-size: 11px;
+}
+.dala-app .quest-tabs button[aria-pressed="true"] {
+  background: #dfeacd;
+  border-color: #a8bd8d;
+}
+.dala-app .quest-muted {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #abb894;
+  margin: 15px 0;
+}
+.dala-app .quest-empty {
+  text-align: center;
+  padding: 22px 10px;
+  color: #9caf7c;
+}
+.dala-app .quest-empty > svg {
+  margin: 0 auto 18px;
+}
+.dala-app .quest-empty h3 {
+  font:
+    26px Georgia,
+    serif;
+  color: #7a9462;
+}
+.dala-app .quest-empty p {
+  font-size: 12px;
+  line-height: 1.9;
+}
+.dala-app .quest-primary,
+.dala-app .quest-secondary {
+  border: 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #7c9c62;
+  color: #fff9de;
+  font-size: 11px;
+}
+.dala-app .quest-ranking {
+  list-style: none;
+  padding: 0;
+}
+.dala-app .quest-ranking li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  border-bottom: 1px solid #dfe6c9;
+  font-size: 11px;
+}
+.dala-app .quest-ranking .is-self {
+  background: #e7efd5;
+  border-radius: 8px;
+}
+.dala-app .quest-ranking strong {
+  margin-left: auto;
+  color: #9b9668;
+}
+.dala-app .quest-ranking small {
+  display: block;
+  font-size: 8px;
+  color: #b3bd99;
+  margin-top: 3px;
+}
+.dala-app .quest-my-rank {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  background: #e7efd5;
+  border-radius: 8px;
+  padding: 14px;
+  color: #91a675;
+}
+@keyframes dala-dice-tumble {
+  0% {
+    transform: translateY(0) rotate3d(1, 1, 0, 0deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate3d(1, 0.4, 1, 180deg);
+  }
+  100% {
+    transform: translateY(0) rotate3d(1, 1, 0, 360deg);
+  }
+}
+@media (min-width: 1600px) {
+  .dala-intro {
+    padding-top: 125px;
+    min-height: 700px;
+  }
+  .dala-world,
+  .dala-wash {
+    height: 890px;
+  }
+  .dala-preview-caption {
+    top: 620px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-world {
+    left: 260px;
+    right: 260px;
+  }
+  .dala-players {
+    width: 210px;
+    left: 35px;
+  }
+  .dala-selected-card {
+    right: 35px;
+    width: 210px;
+  }
+  .dala-map-tools {
+    right: 275px;
+  }
+}
+@media (max-width: 1000px) {
+  .dala-header {
+    padding: 22px 25px;
+  }
+  .dala-intro {
+    padding-left: 5%;
+    width: 60%;
+  }
+  .dala-intro h1 {
+    font-size: 66px;
+  }
+  .dala-board-card {
+    padding: 17px;
+  }
+  .dala-board-card h3 {
+    font-size: 23px;
+  }
+  .dala-board-card p {
+    font-size: 9px;
+  }
+  .dala-setup-grid {
+    gap: 25px;
+  }
+  .dala-game-top {
+    gap: 12px;
+    padding: 10px 13px;
+  }
+  .dala-game-top > span:first-child {
+    display: none;
+  }
+  .dala-players {
+    width: 155px;
+    left: 15px;
+  }
+  .dala-player {
+    padding: 12px 8px;
+    gap: 7px;
+  }
+  .dala-player strong {
+    font-size: 14px;
+  }
+  .dala-player b {
+    font-size: 9px;
+  }
+  .dala-player .dala-avatar {
+    width: 26px;
+    height: 32px;
+    font-size: 13px;
+  }
+  .dala-selected-card {
+    width: 150px;
+    right: 15px;
+    padding: 16px 13px;
+  }
+  .dala-selected-card h2 {
+    font-size: 23px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-world {
+    left: 170px;
+    right: 160px;
+    top: 105px;
+  }
+  .dala-map-tools {
+    right: 175px;
+    top: 95px;
+  }
+  .dala-turn-dock {
+    gap: 18px;
+    padding: 16px;
+    min-width: 580px;
+  }
+  .dala-lobby {
+    gap: 25px;
+    margin-top: 10px;
+  }
+}
+@media (max-width: 700px) {
+  .dala-header {
+    height: 76px;
+    padding: 18px;
+  }
+  .dala-brand > span {
+    width: 35px;
+    height: 35px;
+    border-radius: 10px 4px 10px 4px;
+  }
+  .dala-brand > span svg {
+    width: 21px;
+  }
+  .dala-brand > div {
+    font-size: 23px;
+  }
+  .dala-brand small {
+    font-size: 6px;
+    letter-spacing: 1.6px;
+  }
+  .dala-header nav {
+    gap: 5px;
+  }
+  .dala-icon {
+    width: 30px;
+    height: 30px;
+  }
+  .dala-icon > svg {
+    width: 17px;
+  }
+  .dala-world {
+    height: 760px;
+    top: 15px;
+  }
+  .dala-wash {
+    height: 760px;
+    background:
+      linear-gradient(90deg, #f2f1e3f5, #e9efdfaa 50%, transparent),
+      linear-gradient(0deg, #e4eadc, transparent 28%);
+  }
+  .dala-intro {
+    width: 100%;
+    min-height: 630px;
+    padding: 45px 25px 0;
+    pointer-events: none;
+  }
+  .dala-intro h1 {
+    font-size: clamp(52px, 14vw, 75px);
+    letter-spacing: -2.8px;
+    margin: 23px 0;
+  }
+  .dala-intro > .dala-eyebrow {
+    font-size: 7px;
+    letter-spacing: 1.8px;
+  }
+  .dala-intro > p {
+    font-size: 12px;
+    line-height: 1.8;
+    margin-bottom: 24px;
+  }
+  .dala-intro-actions {
+    pointer-events: auto;
+  }
+  .dala-intro-actions .dala-primary,
+  .dala-intro-actions .dala-secondary {
+    font-size: 10px !important;
+    min-height: 40px;
+    padding: 10px 14px;
+    gap: 7px;
+  }
+  .dala-badges {
+    gap: 11px;
+    padding-top: 18px;
+    margin-top: 22px;
+  }
+  .dala-badges > span {
+    font-size: 8px;
+    gap: 5px;
+  }
+  .dala-badges svg {
+    width: 13px;
+  }
+  .dala-intro > small {
+    font-size: 8px;
+    margin-top: 14px;
+  }
+  .dala-preview-caption {
+    right: 18px;
+    top: 560px;
+    max-width: 220px;
+    padding: 12px 17px;
+  }
+  .dala-preview-caption h2 {
+    font-size: 23px;
+    margin: 8px 0;
+  }
+  .dala-preview-caption p {
+    font-size: 8px;
+  }
+  .dala-preview-caption .dala-eyebrow {
+    font-size: 6px;
+    letter-spacing: 1.2px;
+  }
+  .dala-setup {
+    padding: 23px 18px 25px;
+  }
+  .dala-section-title {
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .dala-section-title h2 {
+    font-size: 27px;
+    margin: 10px 0;
+  }
+  .dala-section-title .dala-eyebrow {
+    font-size: 6px;
+    letter-spacing: 1.2px;
+  }
+  .dala-section-title > span {
+    font-size: 8px;
+    white-space: nowrap;
+  }
+  .dala-board-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .dala-board-card {
+    padding: 15px;
+    border-radius: 12px;
+  }
+  .dala-board-card h3 {
+    font-size: 23px;
+  }
+  .dala-board-card p {
+    font-size: 9px;
+    min-height: 33px;
+    line-height: 1.8;
+  }
+  .dala-board-art {
+    height: 95px;
+    transform: scale(0.9);
+    transform-origin: bottom right;
+  }
+  .dala-board-number {
+    left: 15px;
+    top: 15px;
+    font-size: 8px;
+  }
+  .dala-board-card-bottom {
+    font-size: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+  .dala-setup-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-top: 28px;
+  }
+  .dala-scenario-options button {
+    padding: 13px 15px;
+  }
+  .dala-scenario-options button > span {
+    font-size: 11px;
+  }
+  .dala-scenario-options small {
+    font-size: 8px;
+  }
+  .dala-scenario-options .dala-eyebrow {
+    font-size: 7px;
+  }
+  .dala-start-card {
+    padding: 20px;
+    gap: 10px;
+  }
+  .dala-muted {
+    font-size: 10px;
+  }
+  .dala-footer {
+    padding: 20px 18px 30px;
+    font-size: 8px;
+    gap: 10px;
+  }
+  .dala-footer button {
+    font-size: 8px;
+  }
+  .dala-footer > span:last-child {
+    display: none;
+  }
+  .dala-lobby {
+    grid-template-columns: 1fr;
+    margin: 0;
+    padding: 15px 18px 30px;
+    gap: 16px;
+  }
+  .dala-lobby-panel {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+  .dala-lobby-panel h1 {
+    font-size: 37px;
+  }
+  .dala-lobby-panel > p {
+    font-size: 11px;
+  }
+  .dala-lobby-settings {
+    padding: 20px;
+  }
+  .dala-lobby-settings .dala-board-art {
+    height: 100px;
+    max-width: 200px;
+    margin-left: auto;
+    margin-bottom: -70px;
+  }
+  .dala-lobby-settings h2 {
+    font-size: 29px;
+    max-width: 170px;
+  }
+  .dala-lobby-settings > p {
+    max-width: 220px;
+    font-size: 10px;
+  }
+  .dala-seat {
+    padding: 11px;
+    min-height: 64px;
+  }
+  .dala-seat .dala-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+  .dala-seat b {
+    font-size: 11px;
+  }
+  .dala-seat small {
+    font-size: 8px;
+  }
+  .dala-add-bots {
+    gap: 7px;
+  }
+  .dala-add-bots .dala-secondary {
+    font-size: 8px !important;
+    padding: 8px 10px;
+  }
+  .dala-in-room:has(.dala-turn-dock) {
+    min-height: 560px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-header {
+    height: 62px;
+    padding: 14px 15px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-brand > span {
+    width: 30px;
+    height: 30px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-brand > div {
+    font-size: 20px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-brand small {
+    font-size: 5px;
+    letter-spacing: 1px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-header nav {
+    gap: 4px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-header .dala-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .dala-game-top {
+    top: 68px;
+    left: 15px;
+    right: 15px;
+    transform: none;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 9px;
+    gap: 10px;
+  }
+  .dala-game-top > span:first-child {
+    display: flex;
+    font-size: 8px;
+  }
+  .dala-game-top > b {
+    font-size: 12px;
+  }
+  .dala-game-top > b small {
+    font-size: 7px;
+  }
+  .dala-game-top .dala-mode-badge {
+    font-size: 7px;
+    padding-left: 10px;
+  }
+  .dala-players {
+    top: 116px;
+    left: 15px;
+    right: 15px;
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .dala-player {
+    padding: 8px 6px;
+    flex-direction: column;
+    gap: 5px;
+    border-radius: 10px;
+    align-items: flex-start;
+  }
+  .dala-player .dala-avatar {
+    width: 23px;
+    height: 23px;
+    border-radius: 8px 3px 8px 3px;
+    font-size: 11px;
+  }
+  .dala-player > div {
+    width: 100%;
+  }
+  .dala-player b {
+    font-size: 8px;
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dala-player b small {
+    font-size: 6px;
+    display: none;
+  }
+  .dala-player strong {
+    font-size: 12px;
+    letter-spacing: -0.5px;
+    margin-top: 4px;
+    white-space: nowrap;
+  }
+  .dala-player > div > span {
+    display: none;
+  }
+  .dala-player > i {
+    width: 2px;
+  }
+  .dala-journal-button {
+    position: absolute;
+    right: 0;
+    top: 97px;
+    padding: 6px 0;
+    font-size: 7px !important;
+    gap: 5px;
+  }
+  .dala-journal-button svg {
+    width: 12px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-world {
+    inset: 217px 0 172px;
+    height: auto;
+    z-index: 0;
+    border-radius: 0;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-wash {
+    height: 100%;
+    background: linear-gradient(#e4eadc00, #e4eadc00);
+    z-index: 1;
+  }
+  .dala-map-tools {
+    right: auto;
+    left: 15px;
+    top: 213px;
+    gap: 4px;
+  }
+  .dala-map-tools button {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+  }
+  .dala-map-tools svg {
+    width: 14px;
+  }
+  .dala-selected-card {
+    display: none;
+  }
+  .dala-offers-badge {
+    right: 15px;
+    top: 224px;
+    padding: 8px 10px;
+    font-size: 8px !important;
+    gap: 5px;
+  }
+  .dala-offers-badge svg {
+    width: 14px;
+  }
+  .dala-turn-note {
+    bottom: 165px;
+    max-width: calc(100% - 35px);
+    font-size: 8px;
+    padding: 7px 10px;
+    line-height: 1.6;
+    width: max-content;
+    background: #f8f9e9c9;
+  }
+  .dala-turn-dock {
+    left: 15px;
+    right: 15px;
+    bottom: max(15px, env(safe-area-inset-bottom));
+    transform: none;
+    min-width: 0;
+    max-width: none;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    border-radius: 13px;
+  }
+  .dala-turn-person {
+    min-width: 0;
+    gap: 9px;
+  }
+  .dala-turn-person b {
+    font-size: 11px;
+  }
+  .dala-turn-person small {
+    font-size: 8px;
+    max-width: 180px;
+    margin-top: 5px;
+  }
+  .dala-dice-pair {
+    gap: 7px;
+  }
+  .dala-die {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    padding: 6px;
+    gap: 2px;
+    box-shadow:
+      0 2px 0 #cdbf95,
+      0 5px 9px #8e855922;
+  }
+  .dala-die i {
+    width: 4px;
+    height: 4px;
+  }
+  .dala-turn-actions {
+    grid-column: 1/-1;
+    justify-content: stretch;
+    min-width: 0;
+    gap: 14px;
+  }
+  .dala-turn-actions > .dala-primary {
+    flex: 1;
+    min-height: 41px;
+    padding: 11px 13px;
+    font-size: 10px !important;
+  }
+  .dala-turn-actions > .dala-secondary {
+    min-height: 41px;
+    padding: 10px 12px;
+    font-size: 9px !important;
+  }
+  .dala-turn-actions .dala-pass {
+    font-size: 9px !important;
+    padding: 8px 4px;
+  }
+  .dala-turn-actions .dala-waiting {
+    font-size: 9px;
+    min-height: 35px;
+    width: 100%;
+    justify-content: center;
+  }
+  .dala-turn-actions .dala-waiting > .dala-secondary {
+    font-size: 8px !important;
+  }
+  .dala-app .quest-dialog {
+    padding: 22px 20px;
+    max-width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 17px;
+  }
+  .dala-app .quest-dialog-heading h2 {
+    font-size: 27px;
+  }
+  .dala-app .quest-dialog-heading {
+    margin-bottom: 20px;
+  }
+  .dala-deed h3 {
+    font-size: 27px;
+  }
+  .dala-deed-scene {
+    padding: 20px;
+  }
+  .dala-deed-scene svg {
+    width: 45px;
+  }
+  .dala-rent-table > div {
+    font-size: 10px;
+  }
+  .dala-property-actions .dala-primary,
+  .dala-property-actions .dala-secondary {
+    font-size: 10px !important;
+  }
+  .dala-offer-form .dala-secondary {
+    font-size: 10px !important;
+    gap: 6px;
+  }
+  .dala-asset-grid {
+    gap: 8px;
+  }
+  .dala-asset-grid button {
+    padding: 15px 12px;
+  }
+  .dala-asset-grid button > b {
+    font-size: 18px;
+  }
+  .dala-asset-grid strong {
+    font-size: 8px;
+  }
+  .dala-message {
+    top: 100px;
+    font-size: 10px;
+    gap: 9px;
+    padding: 11px 12px;
+  }
+  .dala-message button {
+    font-size: 9px;
+  }
+  .dala-offline {
+    top: 65px;
+    max-width: 90%;
+    font-size: 8px;
+    line-height: 1.8;
+  }
+  .dala-help p,
+  .dala-help li {
+    font-size: 10px;
+  }
+  .dala-journal {
+    font-size: 11px;
+  }
+  .dala-result h3 {
+    font-size: 33px;
+  }
+  .dala-result li {
+    font-size: 10px;
+    gap: 8px;
+    padding: 12px;
+  }
+  .dala-result li strong {
+    font-size: 11px;
+  }
+  .dala-result > span:first-child {
+    height: 85px;
+    width: 85px;
+  }
+  .dala-webgl {
+    top: 48%;
+    max-width: 240px;
+    padding: 18px;
+    font-size: 10px;
+  }
+  .dala-webgl small {
+    font-size: 9px;
+  }
+}
+@media (max-height: 720px) and (max-width: 700px) {
+  .dala-in-room:has(.dala-turn-dock) .dala-world {
+    top: 193px;
+    bottom: 158px;
+  }
+  .dala-players {
+    top: 109px;
+  }
+  .dala-player {
+    flex-direction: row;
+    gap: 5px;
+    padding: 7px 5px;
+  }
+  .dala-player .dala-avatar {
+    width: 17px;
+    height: 22px;
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+  .dala-player strong {
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .dala-player b {
+    font-size: 7px;
+  }
+  .dala-journal-button {
+    top: 58px;
+  }
+  .dala-map-tools {
+    top: 176px;
+  }
+  .dala-turn-dock {
+    bottom: 12px;
+    padding: 11px;
+    gap: 9px;
+  }
+  .dala-turn-note {
+    bottom: 148px;
+  }
+  .dala-offers-badge {
+    top: 180px;
+  }
+  .dala-turn-person small {
+    font-size: 7px;
+  }
+}
+@media (max-width: 360px) {
+  .dala-brand > div {
+    font-size: 21px;
+  }
+  .dala-header {
+    padding: 16px;
+  }
+  .dala-board-card {
+    padding: 13px;
+  }
+  .dala-board-card h3 {
+    font-size: 20px;
+  }
+  .dala-badges {
+    gap: 8px;
+  }
+  .dala-badges > span {
+    font-size: 7px;
+  }
+  .dala-game-top {
+    gap: 6px;
+    padding: 8px;
+  }
+  .dala-game-top > span:first-child {
+    font-size: 7px;
+  }
+  .dala-player strong {
+    font-size: 10px;
+  }
+  .dala-turn-person small {
+    max-width: 155px;
+  }
+  .dala-turn-actions > .dala-primary {
+    font-size: 9px !important;
+    gap: 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dala-app * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .dala-die.rolling {
+    animation: none;
+  }
+}
+.dala-header {
+  position: relative;
+  z-index: 5;
+}
+.dala-game-top {
+  z-index: 3;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-wash {
+  background: none;
+}
+/* Рисованный мир — WebP-окружение и самостоятельные интерактивные SVG-компоненты. */
+.dala-universe {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 100dvh;
+  min-height: 760px;
+  z-index: -4;
+  background: #b7d9d5 url("/boardgame/art/universe-v1.webp") center top/cover
+    no-repeat;
+  pointer-events: none;
+}
+.dala-app {
+  background: #dce8d9;
+}
+.dala-home .dala-wash {
+  background:
+    linear-gradient(90deg, #f5f0dced, #f0efdaaa 29%, transparent 63%),
+    linear-gradient(0deg, #dce8d9, transparent 25%);
+}
+.dala-setup {
+  background: linear-gradient(#dce8d900, #dce8d9 80px);
+}
+.dala-footer {
+  background: #dce8d9;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-universe {
+  height: 100%;
+  min-height: 0;
+  background-position: center center;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated {
+  inset: 70px 195px 110px 200px;
+  height: auto;
+  overflow: visible;
+}
+.dala-in-room:has(.dala-lobby) .dala-world.is-illustrated {
+  opacity: 0.5;
+}
+.dala-illustrated-board {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  transform-origin: center;
+  transition: transform 0.3s ease;
+  filter: drop-shadow(0 20px 30px #416e6335);
+}
+.dala-svg-tile {
+  cursor: pointer;
+  outline: none;
+}
+.dala-svg-tile-rise {
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+  transform-box: fill-box;
+}
+.dala-svg-tile:hover .dala-svg-tile-rise,
+.dala-svg-tile:focus-visible .dala-svg-tile-rise {
+  transform: translateY(-13px) scale(1.14);
+  filter: drop-shadow(0 0 8px var(--tile-glow));
+}
+.dala-svg-tile.selected .dala-svg-tile-rise {
+  transform: translateY(-5px);
+}
+.dala-svg-tile.selected:hover .dala-svg-tile-rise {
+  transform: translateY(-13px) scale(1.14);
+}
+.dala-svg-pawns {
+  pointer-events: none;
+}
+.dala-water-line {
+  animation: dala-water-shimmer 3s ease-in-out infinite;
+}
+.dala-view-toggle {
+  font-size: 9px !important;
+  letter-spacing: 0.5px;
+  font-weight: 650 !important;
+  color: #8a9468;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-player,
+.dala-in-room:has(.dala-turn-dock) .dala-selected-card {
+  background: #fff9e8eb;
+  box-shadow: 0 8px 25px #44766519;
+  border-color: #fffcec;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-game-top {
+  background: #fff9e8e0;
+}
+.dala-in-room:has(.dala-turn-dock) .dala-header {
+  background: linear-gradient(#e6eee5a8, transparent);
+}
+.dala-home .dala-world.is-illustrated {
+  left: 21%;
+  right: -5%;
+  top: 60px;
+  height: 700px;
+}
+.dala-in-room:has(.dala-lobby) .dala-universe {
+  opacity: 0.8;
+}
+.dala-players .dala-player strong {
+  color: #3e6c58;
+}
+.dala-turn-note {
+  color: #547b61;
+}
+.dala-citizen {
+  filter: drop-shadow(0 2px 1px #6c826330);
+}
+@keyframes dala-water-shimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (max-width: 1000px) {
+  .dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated {
+    left: 155px;
+    right: 150px;
+  }
+  .dala-home .dala-world.is-illustrated {
+    left: 15%;
+    right: -8%;
+  }
+}
+@media (max-width: 700px) {
+  .dala-universe {
+    background-position: 54% top;
+    height: 760px;
+  }
+  .dala-home .dala-world.is-illustrated {
+    left: 8%;
+    right: -28%;
+    top: 280px;
+    height: 425px;
+  }
+  .dala-home .dala-wash {
+    background:
+      linear-gradient(90deg, #f1f1deed, #e5eee0aa 65%, transparent),
+      linear-gradient(0deg, #dce8d9, transparent 25%);
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated {
+    inset: 205px 0 165px;
+    height: auto;
+    overflow: visible;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-universe {
+    background-position: center center;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-wash {
+    background: #dbead63b;
+  }
+  .dala-in-room:has(.dala-lobby) .dala-world.is-illustrated {
+    inset: 80px 0 auto;
+    opacity: 0.2;
+  }
+  .dala-illustrated-board {
+    filter: drop-shadow(0 12px 20px #416e6340);
+  }
+  .dala-svg-tile:hover .dala-svg-tile-rise {
+    transform: translateY(-7px) scale(1.08);
+  }
+  .dala-game-top {
+    backdrop-filter: blur(12px);
+  }
+  .dala-view-toggle {
+    font-size: 8px !important;
+  }
+  .dala-map-tools button {
+    background: #fffae5dd;
+  }
+  .dala-journal-button {
+    background: #fff9e3b8;
+    padding: 6px 9px;
+    border-radius: 10px;
+  }
+  .dala-turn-note {
+    background: #fff8e1dd;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-players {
+    z-index: 3;
+  }
+}
+@media (max-height: 720px) and (max-width: 700px) {
+  .dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated {
+    top: 180px;
+    bottom: 155px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dala-water-line {
+    animation: none;
+  }
+  .dala-svg-tile-rise {
+    transition: none;
+  }
+  .dala-illustrated-board {
+    transition: none;
+  }
+}
+
+.dala-in-room:has(.dala-turn-dock) .dala-wash {
+  background: none;
+}
+.dala-brand > div {
+  white-space: nowrap;
+  line-height: 1.08;
+}
+@media (max-width: 360px) {
+  .dala-brand {
+    gap: 8px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-brand > div {
+    font-size: 17px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-brand small {
+    font-size: 4.5px;
+    letter-spacing: 0.8px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-header .dala-icon {
+    width: 25px;
+    height: 25px;
+  }
+  .dala-in-room:has(.dala-turn-dock) .dala-header nav {
+    gap: 3px;
+  }
+}
+/* Детальные локации используют подготовленные иллюстрации; интерфейс — отдельные слои. */
+.dala-location-artwork {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  filter: drop-shadow(0 20px 25px #416b4f35);
+  transition:
+    filter 0.3s,
+    transform 0.3s !important;
+}
+.dala-location-artwork > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.4s ease;
+  pointer-events: none;
+}
+.dala-location-artwork:hover > img,
+.dala-location-artwork:focus-visible > img {
+  transform: translateY(-8px) scale(1.025);
+  filter: drop-shadow(0 0 15px #f2d5a140);
+}
+.dala-location-caption {
+  position: absolute;
+  bottom: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff2cb;
+  background: #294a3dbf;
+  border: 1px solid #dbc18d88;
+  padding: 11px 22px;
+  border-radius: 30px;
+  backdrop-filter: blur(12px);
+  font:
+    20px Georgia,
+    serif;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.dala-location-caption small {
+  display: block;
+  font:
+    8px Inter,
+    sans-serif;
+  letter-spacing: 1px;
+  color: #e5d8ad;
+  margin-top: 5px;
+  white-space: nowrap;
+}
+.dala-location-artwork:hover .dala-location-caption {
+  opacity: 1;
+}
+.dala-home .dala-world.is-illustrated {
+  left: 29%;
+  right: -6%;
+  top: 85px;
+  height: 670px;
+}
+.dala-illustration-thumb {
+  object-fit: contain !important;
+  display: block;
+  width: 100%;
+  height: 190px !important;
+  transform: none !important;
+  transition: transform 0.25s !important;
+  filter: drop-shadow(0 8px 8px #5d745e20);
+}
+.dala-board-card:hover .dala-illustration-thumb {
+  transform: translateY(-4px) scale(1.055) !important;
+}
+.dala-board-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dala-lobby-settings .dala-illustration-thumb {
+  height: 190px !important;
+  max-width: none;
+}
+.dala-artwork-hotspot .dala-hotspot-fragment {
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+.dala-artwork-hotspot:hover .dala-hotspot-fragment,
+.dala-artwork-hotspot:focus-visible .dala-hotspot-fragment {
+  opacity: 1;
+}
+.dala-hotspot-outline {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.dala-artwork-hotspot:hover .dala-hotspot-outline,
+.dala-artwork-hotspot:focus-visible .dala-hotspot-outline,
+.dala-artwork-hotspot.selected .dala-hotspot-outline {
+  opacity: 1;
+}
+.dala-hotspot-marker {
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 3px #294d3e50);
+  transition: opacity 0.2s;
+}
+.dala-artwork-hotspot:hover .dala-hotspot-marker,
+.dala-artwork-hotspot.selected .dala-hotspot-marker {
+  opacity: 1;
+}
+.dala-hotspot-label {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s;
+}
+.dala-artwork-hotspot:hover .dala-hotspot-label,
+.dala-artwork-hotspot:focus-visible .dala-hotspot-label,
+.dala-artwork-hotspot.selected .dala-hotspot-label {
+  opacity: 1;
+}
+.dala-artwork-hotspot .dala-svg-tile-rise {
+  filter: none;
+}
+.dala-artwork-hotspot:hover .dala-svg-tile-rise {
+  transform: translateY(-7px) scale(1.07);
+  filter: drop-shadow(0 0 8px #f4cf7788);
+}
+.dala-artwork-hotspot.selected .dala-svg-tile-rise {
+  transform: translateY(-3px);
+}
+.dala-painted-location {
+  filter: drop-shadow(0 17px 14px #304e3d33);
+}
+.dala-deed-rich-art {
+  position: relative;
+  height: 175px;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(120deg, #dae6d2, #eee4c7);
+}
+.dala-deed-rich-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+  transform: scale(1.1);
+}
+.dala-deed-rich-art > span {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  background: #23483dbb;
+  color: #fff1c8;
+  padding: 6px 10px;
+  border-radius: 15px;
+  font-size: 9px;
+  backdrop-filter: blur(6px);
+}
+@media (max-width: 1000px) {
+  .dala-home .dala-world.is-illustrated {
+    left: 24%;
+    right: -9%;
+  }
+}
+@media (max-width: 700px) {
+  .dala-home .dala-world.is-illustrated {
+    left: 0;
+    right: -30%;
+    top: 300px;
+    height: 410px;
+  }
+  .dala-illustration-thumb {
+    height: 120px !important;
+  }
+  .dala-lobby-settings .dala-illustration-thumb {
+    height: 130px !important;
+    margin-bottom: 0 !important;
+  }
+  .dala-artwork-hotspot:hover .dala-svg-tile-rise {
+    transform: translateY(-4px) scale(1.05);
+  }
+  .dala-location-caption {
+    font-size: 16px;
+    padding: 9px 16px;
+  }
+  .dala-location-caption small {
+    font-size: 7px;
+  }
+  .dala-deed-rich-art {
+    height: 150px;
+  }
+  .dala-board-card p {
+    min-height: 33px;
+  }
+}

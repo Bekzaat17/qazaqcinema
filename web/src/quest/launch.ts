@@ -7,7 +7,9 @@ export function isQuestLaunch(): boolean {
     window.location.pathname.replace(/\/$/, "") === "/quest" ||
     query.get("game") === "quest" ||
     query.get("tgWebAppStartParam") === "quest" ||
-    getWebApp()?.initDataUnsafe?.start_param === "quest"
+    query.get("tgWebAppStartParam")?.startsWith("quest_room_") === true ||
+    getWebApp()?.initDataUnsafe?.start_param === "quest" ||
+    getWebApp()?.initDataUnsafe?.start_param?.startsWith("quest_room_") === true
   );
 }
 

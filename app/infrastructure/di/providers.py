@@ -17,6 +17,7 @@ from dishka import AsyncContainer, Provider, Scope, make_async_container, provid
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.application.ports.boardgame import GameRandom, RoomEvents, RoomRepository
 from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.cards import CardRenderer
 from app.application.ports.catalog_cache import CatalogCache
@@ -59,6 +60,7 @@ from app.application.ports.telegram import TelegramNotifier
 from app.application.services.activity_service import UserActivityService
 from app.application.services.analytics_service import AnalyticsService
 from app.application.services.auth_service import AuthService
+from app.application.services.boardgame_service import BoardGameService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
 from app.application.services.channel_service import ChannelService
@@ -84,6 +86,7 @@ from app.application.services.support_access_service import SupportAccessService
 from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
+from app.domain.boardgame.game import Catalog
 from app.domain.channel.cards import style_for_channel
 from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.render import RENDERERS, ContentRenderer
@@ -92,6 +95,7 @@ from app.infrastructure.analytics.admin_filter import (
     AdminBlindEventRepository,
     AdminBlindSearchRepository,
 )
+from app.infrastructure.cache.boardgame import RedisRoomEvents, SystemGameRandom
 from app.infrastructure.cache.broadcast import RedisBroadcastQueue
 from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.daily_pin import RedisDailyPin
@@ -100,6 +104,7 @@ from app.infrastructure.cache.membership import CachedChannelMembership
 from app.infrastructure.cache.quest import RedisQuestRankingCache
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
+from app.infrastructure.content.boardgame import load_board_catalog
 from app.infrastructure.db.content_repositories import (
     PgContentRepository,
     PgPostLogRepository,
@@ -120,6 +125,7 @@ from app.infrastructure.db.repositories import (
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
+from app.infrastructure.db.repositories.boardgame import PgRoomRepository
 from app.infrastructure.db.repositories.quest import PgQuestChannelStore, PgQuestRepository
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from app.infrastructure.images.pillow import PillowImageProcessor
@@ -138,6 +144,13 @@ from app.infrastructure.telegram.quest import AiogramQuestChannelPublisher
 
 class AppProvider(Provider):
     scope = Scope.APP
+
+    @provide
+    def board_catalog(self, config: AppConfig) -> Catalog:
+        return load_board_catalog(Path(config.quest.board_catalog))
+
+    game_random = provide(SystemGameRandom, provides=GameRandom)
+    room_events = provide(RedisRoomEvents, provides=RoomEvents)
 
     quest_ranking_cache = provide(RedisQuestRankingCache, provides=QuestRankingCache)
 
@@ -285,6 +298,10 @@ class AppProvider(Provider):
 
 class RequestProvider(Provider):
     scope = Scope.REQUEST
+
+
+    room_repo = provide(PgRoomRepository, provides=RoomRepository)
+    boardgame_service = provide(BoardGameService)
 
     quest_repo = provide(PgQuestRepository, provides=QuestRepository)
     quest_posts = provide(PgQuestChannelStore, provides=QuestChannelStore)

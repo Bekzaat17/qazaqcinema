@@ -107,14 +107,15 @@
 
 		# Файлы сборки уже содержат хеш в имени (index-D7ZNyEhZ.js): их содержимое никогда
 		# не меняется, новая сборка = новое имя. Кэшируем максимально — это бесплатная
-		# скорость и экономия мобильного трафика.
-		@hashed path /assets/*
+		# скорость и экономия мобильного трафика. Игровые иллюстрации также версионированы
+		# в имени (almaty-v1.webp); при замене картинки нужно новое имя.
+		@hashed path /assets/* /boardgame/art/*
 		header @hashed Cache-Control "public, max-age=31536000, immutable"
 
 		# Всё остальное (в первую очередь index.html) — только со сверкой. no-cache не
 		# значит «не кэшировать»: копия хранится, но перед показом браузер спрашивает
 		# сервер. При неизменном файле ответ — пустой 304, трафика почти ноль.
-		@entry not path /assets/*
+		@entry not path /assets/* /boardgame/art/*
 		header @entry Cache-Control "no-cache"
 
 		try_files {path} /index.html

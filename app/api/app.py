@@ -17,6 +17,7 @@ from redis.asyncio import Redis
 
 from app.api.routers import (
     auth,
+    boardgame,
     catalog,
     events,
     favorites,
@@ -70,6 +71,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(support.router)
     app.include_router(health.router)
     app.include_router(quest.router)
+    app.include_router(boardgame.router)
 
     @app.exception_handler(QuestStorageError)
     async def quest_unavailable(request: Request, exc: QuestStorageError) -> JSONResponse:

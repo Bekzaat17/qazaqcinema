@@ -140,6 +140,7 @@ class QuestConfig(BaseSettings):
 
     channel_id: int = 0
     post_minute: int = Field(default=15, ge=0, le=59)
+    board_catalog: str = "web/public/boardgame/catalog.json"
 
 
 class AppConfig(BaseSettings):

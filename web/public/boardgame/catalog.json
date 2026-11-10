@@ -1,0 +1,915 @@
+{
+  "version": 2,
+  "boards": [
+    {
+      "id": "almaty",
+      "name": "Алматы бағы",
+      "subtitle": "Алма бақтары мен тау бөктеріндегі кәсіптер",
+      "biome": "almaty",
+      "ground": "#7fa77e",
+      "sky": "#e3ebdc",
+      "accent": "#c58d69",
+      "tiles": [
+        {
+          "id": "lot_0",
+          "name": "Бастау",
+          "kind": "start",
+          "group": "",
+          "color": "#e2c274",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_1",
+          "name": "Алма бағы",
+          "kind": "property",
+          "group": "group_0",
+          "color": "#c58d69",
+          "price": 100,
+          "rents": [
+            10,
+            35,
+            85,
+            170,
+            300
+          ],
+          "build_cost": 40,
+          "amount": 0
+        },
+        {
+          "id": "lot_2",
+          "name": "Көк базар",
+          "kind": "property",
+          "group": "group_0",
+          "color": "#c58d69",
+          "price": 100,
+          "rents": [
+            10,
+            35,
+            85,
+            170,
+            300
+          ],
+          "build_cost": 40,
+          "amount": 0
+        },
+        {
+          "id": "lot_3",
+          "name": "Сәттілік",
+          "kind": "chance",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_4",
+          "name": "Тау самалы",
+          "kind": "property",
+          "group": "group_1",
+          "color": "#8caa73",
+          "price": 120,
+          "rents": [
+            13,
+            41,
+            97,
+            192,
+            335
+          ],
+          "build_cost": 50,
+          "amount": 0
+        },
+        {
+          "id": "lot_5",
+          "name": "Медеу жолы",
+          "kind": "property",
+          "group": "group_1",
+          "color": "#8caa73",
+          "price": 120,
+          "rents": [
+            13,
+            41,
+            97,
+            192,
+            335
+          ],
+          "build_cost": 50,
+          "amount": 0
+        },
+        {
+          "id": "lot_6",
+          "name": "Керуен жолы",
+          "kind": "station",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 180,
+          "rents": [
+            25,
+            50
+          ],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_7",
+          "name": "Достық даңғылы",
+          "kind": "property",
+          "group": "group_2",
+          "color": "#66a59d",
+          "price": 140,
+          "rents": [
+            16,
+            47,
+            109,
+            214,
+            370
+          ],
+          "build_cost": 60,
+          "amount": 0
+        },
+        {
+          "id": "lot_8",
+          "name": "Шебер ауласы",
+          "kind": "property",
+          "group": "group_2",
+          "color": "#66a59d",
+          "price": 140,
+          "rents": [
+            16,
+            47,
+            109,
+            214,
+            370
+          ],
+          "build_cost": 60,
+          "amount": 0
+        },
+        {
+          "id": "lot_9",
+          "name": "Салық",
+          "kind": "tax",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 60
+        },
+        {
+          "id": "lot_10",
+          "name": "Есентай бағы",
+          "kind": "property",
+          "group": "group_3",
+          "color": "#789dc1",
+          "price": 160,
+          "rents": [
+            19,
+            53,
+            121,
+            236,
+            405
+          ],
+          "build_cost": 70,
+          "amount": 0
+        },
+        {
+          "id": "lot_11",
+          "name": "Кітап үйі",
+          "kind": "property",
+          "group": "group_3",
+          "color": "#789dc1",
+          "price": 160,
+          "rents": [
+            19,
+            53,
+            121,
+            236,
+            405
+          ],
+          "build_cost": 70,
+          "amount": 0
+        },
+        {
+          "id": "lot_12",
+          "name": "Наурыз алаңы",
+          "kind": "rest",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 40
+        },
+        {
+          "id": "lot_13",
+          "name": "Көк-Төбе",
+          "kind": "property",
+          "group": "group_4",
+          "color": "#a38cbd",
+          "price": 180,
+          "rents": [
+            22,
+            59,
+            133,
+            258,
+            440
+          ],
+          "build_cost": 80,
+          "amount": 0
+        },
+        {
+          "id": "lot_14",
+          "name": "Арбат көшесі",
+          "kind": "property",
+          "group": "group_4",
+          "color": "#a38cbd",
+          "price": 180,
+          "rents": [
+            22,
+            59,
+            133,
+            258,
+            440
+          ],
+          "build_cost": 80,
+          "amount": 0
+        },
+        {
+          "id": "lot_15",
+          "name": "Сәттілік",
+          "kind": "chance",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_16",
+          "name": "Жетісу үйі",
+          "kind": "property",
+          "group": "group_5",
+          "color": "#d6ad58",
+          "price": 200,
+          "rents": [
+            25,
+            65,
+            145,
+            280,
+            475
+          ],
+          "build_cost": 90,
+          "amount": 0
+        },
+        {
+          "id": "lot_17",
+          "name": "Саябақ маңы",
+          "kind": "property",
+          "group": "group_5",
+          "color": "#d6ad58",
+          "price": 200,
+          "rents": [
+            25,
+            65,
+            145,
+            280,
+            475
+          ],
+          "build_cost": 90,
+          "amount": 0
+        },
+        {
+          "id": "lot_18",
+          "name": "Теміржол",
+          "kind": "station",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 180,
+          "rents": [
+            25,
+            50
+          ],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_19",
+          "name": "Жібек жолы",
+          "kind": "property",
+          "group": "group_6",
+          "color": "#ca8092",
+          "price": 220,
+          "rents": [
+            28,
+            71,
+            157,
+            302,
+            510
+          ],
+          "build_cost": 100,
+          "amount": 0
+        },
+        {
+          "id": "lot_20",
+          "name": "Өнер ордасы",
+          "kind": "property",
+          "group": "group_6",
+          "color": "#ca8092",
+          "price": 220,
+          "rents": [
+            28,
+            71,
+            157,
+            302,
+            510
+          ],
+          "build_cost": 100,
+          "amount": 0
+        },
+        {
+          "id": "lot_21",
+          "name": "Қала алымы",
+          "kind": "tax",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 60
+        },
+        {
+          "id": "lot_22",
+          "name": "Алтын алаң",
+          "kind": "property",
+          "group": "group_7",
+          "color": "#6e9b93",
+          "price": 240,
+          "rents": [
+            31,
+            77,
+            169,
+            324,
+            545
+          ],
+          "build_cost": 110,
+          "amount": 0
+        },
+        {
+          "id": "lot_23",
+          "name": "Тау шаһары",
+          "kind": "property",
+          "group": "group_7",
+          "color": "#6e9b93",
+          "price": 240,
+          "rents": [
+            31,
+            77,
+            169,
+            324,
+            545
+          ],
+          "build_cost": 110,
+          "amount": 0
+        }
+      ],
+      "illustration": "/boardgame/art/almaty-v1.webp",
+      "thumbnail": "/boardgame/art/almaty-thumb-v1.webp"
+    },
+    {
+      "id": "turkistan",
+      "name": "Түркістан керуені",
+      "subtitle": "Керуен сарайлары, ұстаханалар және шығыс базарлары",
+      "biome": "turkistan",
+      "ground": "#c0a26b",
+      "sky": "#efe2ca",
+      "accent": "#a38cbd",
+      "tiles": [
+        {
+          "id": "lot_0",
+          "name": "Бастау",
+          "kind": "start",
+          "group": "",
+          "color": "#e2c274",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_1",
+          "name": "Керамика үйі",
+          "kind": "property",
+          "group": "group_0",
+          "color": "#c58d69",
+          "price": 100,
+          "rents": [
+            10,
+            35,
+            85,
+            170,
+            300
+          ],
+          "build_cost": 40,
+          "amount": 0
+        },
+        {
+          "id": "lot_2",
+          "name": "Шығыс базары",
+          "kind": "property",
+          "group": "group_0",
+          "color": "#c58d69",
+          "price": 100,
+          "rents": [
+            10,
+            35,
+            85,
+            170,
+            300
+          ],
+          "build_cost": 40,
+          "amount": 0
+        },
+        {
+          "id": "lot_3",
+          "name": "Сәттілік",
+          "kind": "chance",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_4",
+          "name": "Керуен қақпасы",
+          "kind": "property",
+          "group": "group_1",
+          "color": "#8caa73",
+          "price": 120,
+          "rents": [
+            13,
+            41,
+            97,
+            192,
+            335
+          ],
+          "build_cost": 50,
+          "amount": 0
+        },
+        {
+          "id": "lot_5",
+          "name": "Шайхана",
+          "kind": "property",
+          "group": "group_1",
+          "color": "#8caa73",
+          "price": 120,
+          "rents": [
+            13,
+            41,
+            97,
+            192,
+            335
+          ],
+          "build_cost": 50,
+          "amount": 0
+        },
+        {
+          "id": "lot_6",
+          "name": "Керуен жолы",
+          "kind": "station",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 180,
+          "rents": [
+            25,
+            50
+          ],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_7",
+          "name": "Ұста көшесі",
+          "kind": "property",
+          "group": "group_2",
+          "color": "#66a59d",
+          "price": 140,
+          "rents": [
+            16,
+            47,
+            109,
+            214,
+            370
+          ],
+          "build_cost": 60,
+          "amount": 0
+        },
+        {
+          "id": "lot_8",
+          "name": "Жібек дүкені",
+          "kind": "property",
+          "group": "group_2",
+          "color": "#66a59d",
+          "price": 140,
+          "rents": [
+            16,
+            47,
+            109,
+            214,
+            370
+          ],
+          "build_cost": 60,
+          "amount": 0
+        },
+        {
+          "id": "lot_9",
+          "name": "Салық",
+          "kind": "tax",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 60
+        },
+        {
+          "id": "lot_10",
+          "name": "Бақша сарайы",
+          "kind": "property",
+          "group": "group_3",
+          "color": "#789dc1",
+          "price": 160,
+          "rents": [
+            19,
+            53,
+            121,
+            236,
+            405
+          ],
+          "build_cost": 70,
+          "amount": 0
+        },
+        {
+          "id": "lot_11",
+          "name": "Қолөнер ауласы",
+          "kind": "property",
+          "group": "group_3",
+          "color": "#789dc1",
+          "price": 160,
+          "rents": [
+            19,
+            53,
+            121,
+            236,
+            405
+          ],
+          "build_cost": 70,
+          "amount": 0
+        },
+        {
+          "id": "lot_12",
+          "name": "Наурыз алаңы",
+          "kind": "rest",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 40
+        },
+        {
+          "id": "lot_13",
+          "name": "Көк күмбез",
+          "kind": "property",
+          "group": "group_4",
+          "color": "#a38cbd",
+          "price": 180,
+          "rents": [
+            22,
+            59,
+            133,
+            258,
+            440
+          ],
+          "build_cost": 80,
+          "amount": 0
+        },
+        {
+          "id": "lot_14",
+          "name": "Керуен сарайы",
+          "kind": "property",
+          "group": "group_4",
+          "color": "#a38cbd",
+          "price": 180,
+          "rents": [
+            22,
+            59,
+            133,
+            258,
+            440
+          ],
+          "build_cost": 80,
+          "amount": 0
+        },
+        {
+          "id": "lot_15",
+          "name": "Сәттілік",
+          "kind": "chance",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_16",
+          "name": "Сауран жолы",
+          "kind": "property",
+          "group": "group_5",
+          "color": "#d6ad58",
+          "price": 200,
+          "rents": [
+            25,
+            65,
+            145,
+            280,
+            475
+          ],
+          "build_cost": 90,
+          "amount": 0
+        },
+        {
+          "id": "lot_17",
+          "name": "Зергерлер үйі",
+          "kind": "property",
+          "group": "group_5",
+          "color": "#d6ad58",
+          "price": 200,
+          "rents": [
+            25,
+            65,
+            145,
+            280,
+            475
+          ],
+          "build_cost": 90,
+          "amount": 0
+        },
+        {
+          "id": "lot_18",
+          "name": "Теміржол",
+          "kind": "station",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 180,
+          "rents": [
+            25,
+            50
+          ],
+          "build_cost": 0,
+          "amount": 0
+        },
+        {
+          "id": "lot_19",
+          "name": "Жібек алаңы",
+          "kind": "property",
+          "group": "group_6",
+          "color": "#ca8092",
+          "price": 220,
+          "rents": [
+            28,
+            71,
+            157,
+            302,
+            510
+          ],
+          "build_cost": 100,
+          "amount": 0
+        },
+        {
+          "id": "lot_20",
+          "name": "Мәдениет үйі",
+          "kind": "property",
+          "group": "group_6",
+          "color": "#ca8092",
+          "price": 220,
+          "rents": [
+            28,
+            71,
+            157,
+            302,
+            510
+          ],
+          "build_cost": 100,
+          "amount": 0
+        },
+        {
+          "id": "lot_21",
+          "name": "Қала алымы",
+          "kind": "tax",
+          "group": "",
+          "color": "#a0b3a6",
+          "price": 0,
+          "rents": [],
+          "build_cost": 0,
+          "amount": 60
+        },
+        {
+          "id": "lot_22",
+          "name": "Алтын базар",
+          "kind": "property",
+          "group": "group_7",
+          "color": "#6e9b93",
+          "price": 240,
+          "rents": [
+            31,
+            77,
+            169,
+            324,
+            545
+          ],
+          "build_cost": 110,
+          "amount": 0
+        },
+        {
+          "id": "lot_23",
+          "name": "Түркістан бағы",
+          "kind": "property",
+          "group": "group_7",
+          "color": "#6e9b93",
+          "price": 240,
+          "rents": [
+            31,
+            77,
+            169,
+            324,
+            545
+          ],
+          "build_cost": 110,
+          "amount": 0
+        }
+      ],
+      "illustration": "/boardgame/art/turkistan-v1.webp",
+      "thumbnail": "/boardgame/art/turkistan-thumb-v1.webp"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "almaty_first",
+      "board": "almaty",
+      "name": "Алматы бағы · Алғашқы капитал",
+      "story": "Танысу партиясы: алғашқы кәсіптерді сатып алып, түсті жұптарды жина.",
+      "round_limit": 12,
+      "starting_cash": 1200,
+      "salary": 160,
+      "tax_multiplier": 1,
+      "event_multiplier": 1,
+      "reward": 100
+    },
+    {
+      "id": "almaty_trade",
+      "board": "almaty",
+      "name": "Алматы бағы · Сауда дәуірі",
+      "story": "Көбірек айналым мен мүмкіндік. Қай кәсіпке ақша салатыныңды ойлап таңда.",
+      "round_limit": 20,
+      "starting_cash": 1500,
+      "salary": 180,
+      "tax_multiplier": 1,
+      "event_multiplier": 1,
+      "reward": 150
+    },
+    {
+      "id": "almaty_tycoon",
+      "board": "almaty",
+      "name": "Алматы бағы · Іскерлер жарысы",
+      "story": "Ұзақ партия: ірі жобалар, жоғары алымдар және мықты бәсекелестер.",
+      "round_limit": 28,
+      "starting_cash": 1400,
+      "salary": 160,
+      "tax_multiplier": 2,
+      "event_multiplier": 2,
+      "reward": 200
+    },
+    {
+      "id": "turkistan_first",
+      "board": "turkistan",
+      "name": "Түркістан керуені · Алғашқы капитал",
+      "story": "Танысу партиясы: алғашқы кәсіптерді сатып алып, түсті жұптарды жина.",
+      "round_limit": 12,
+      "starting_cash": 1200,
+      "salary": 160,
+      "tax_multiplier": 1,
+      "event_multiplier": 1,
+      "reward": 100
+    },
+    {
+      "id": "turkistan_trade",
+      "board": "turkistan",
+      "name": "Түркістан керуені · Сауда дәуірі",
+      "story": "Көбірек айналым мен мүмкіндік. Қай кәсіпке ақша салатыныңды ойлап таңда.",
+      "round_limit": 20,
+      "starting_cash": 1500,
+      "salary": 180,
+      "tax_multiplier": 1,
+      "event_multiplier": 1,
+      "reward": 150
+    },
+    {
+      "id": "turkistan_tycoon",
+      "board": "turkistan",
+      "name": "Түркістан керуені · Іскерлер жарысы",
+      "story": "Ұзақ партия: ірі жобалар, жоғары алымдар және мықты бәсекелестер.",
+      "round_limit": 28,
+      "starting_cash": 1400,
+      "salary": 160,
+      "tax_multiplier": 2,
+      "event_multiplier": 2,
+      "reward": 200
+    }
+  ],
+  "cards": [
+    {
+      "id": "fair",
+      "text": "Жәрмеңкеден табыс түсті.",
+      "amount": 100,
+      "move": null,
+      "skip": 0
+    },
+    {
+      "id": "repairs",
+      "text": "Ғимаратқа күтім жасау шығыны.",
+      "amount": -60,
+      "move": null,
+      "skip": 0
+    },
+    {
+      "id": "grant",
+      "text": "Кәсіпкерлік байқауының марапаты!",
+      "amount": 80,
+      "move": null,
+      "skip": 0
+    },
+    {
+      "id": "delivery",
+      "text": "Жеткізу қызметіне ақы төле.",
+      "amount": -40,
+      "move": null,
+      "skip": 0
+    },
+    {
+      "id": "nauryz",
+      "text": "Наурыз сыйлығы!",
+      "amount": 60,
+      "move": null,
+      "skip": 0
+    },
+    {
+      "id": "start",
+      "text": "Керуен сені бастау алаңына жеткізді.",
+      "amount": 0,
+      "move": 0,
+      "skip": 0
+    },
+    {
+      "id": "rest",
+      "text": "Бір жүріс демаласың. Келесі айналымда қайта қосыласың.",
+      "amount": 0,
+      "move": null,
+      "skip": 1
+    },
+    {
+      "id": "bonus",
+      "text": "Серіктестік жобадан кіріс түсті.",
+      "amount": 120,
+      "move": null,
+      "skip": 0
+    }
+  ],
+  "bots": [
+    {
+      "id": "balanced",
+      "name": "Айша",
+      "reserve": 180,
+      "color": "#dfaf53"
+    },
+    {
+      "id": "builder",
+      "name": "Данияр",
+      "reserve": 100,
+      "color": "#7999c1"
+    },
+    {
+      "id": "careful",
+      "name": "Аружан",
+      "reserve": 300,
+      "color": "#b087b5"
+    }
+  ]
+}

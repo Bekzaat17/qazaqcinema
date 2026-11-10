@@ -88,3 +88,5 @@ cd web && npm run dev                           # Vite HMR → :5173, прокс
 - Видео — только `send_video(protect_content=True)` в личку; inline-режим видео не отдаёт.
 - Web App авторизуется по initData (HMAC + TTL) с серверной сессией в Redis и initData-фолбэком.
 - Админские действия — под явным гейтом `app/bot/security.is_admin`.
+
+«Дала дәулеті» — казахская 3D-игра с полем, комнатами, предприятиями и ботами: [BOARDGAME.md](BOARDGAME.md).

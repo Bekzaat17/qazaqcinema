@@ -19,6 +19,7 @@ COPY alembic.ini ./
 # Контент канала (YAML + исходники картинок) — читает сидер (./start.sh seed) внутри
 # контейнера бота; на диск (том uploads) картинки копирует он же.
 COPY content ./content
+COPY web/public/boardgame ./web/public/boardgame
 
 # По умолчанию — бот (polling). api/migrate переопределяют command в docker-compose.
 CMD ["python", "-m", "app.main"]
