@@ -50,7 +50,10 @@ async def _setup_commands(bot: Bot) -> None:
     """
     with contextlib.suppress(Exception):
         await bot.set_my_commands(
-            [BotCommand(command="start", description="🎬 Кинотеатрды ашу")]
+            [
+                BotCommand(command="start", description="🎬 Кинотеатрды ашу"),
+                BotCommand(command="quest", description="🏡 QazaqQuest — ауылыңды дамыт"),
+            ]
         )
         _log.info("Команды бота зарегистрированы")
 
@@ -110,7 +113,7 @@ async def main() -> None:
     await _setup_commands(bot)
     await _setup_menu_button(bot, config)
     dispatcher = build_dispatcher(container)
-    scheduler = build_scheduler(container)
+    scheduler = build_scheduler(container, quest_post_minute=config.quest.post_minute)
     scheduler.start()
     try:
         if config.bot.webhook_url:

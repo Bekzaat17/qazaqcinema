@@ -9,7 +9,12 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 // initData — bootstrap (HMAC один раз). Дальше ходим с непрозрачным токеном из Redis,
 // хранимым в localStorage. На 401 (протух / Redis мигнул) — прозрачный ре-auth по initData.
 const SESSION_KEY = "qc_session";
-let sessionToken: string | null = localStorage.getItem(SESSION_KEY);
+let sessionToken: string | null = null;
+try {
+  sessionToken = localStorage.getItem(SESSION_KEY);
+} catch {
+  // Приватный WebView: сессия останется в памяти.
+}
 
 interface RequestOpts {
   auth?: string; // явный заголовок (bootstrap /api/auth всегда шлёт initData)
@@ -18,8 +23,12 @@ interface RequestOpts {
 
 function setSessionToken(token: string | null): void {
   sessionToken = token;
-  if (token) localStorage.setItem(SESSION_KEY, token);
-  else localStorage.removeItem(SESSION_KEY);
+  try {
+    if (token) localStorage.setItem(SESSION_KEY, token);
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Запрет localStorage не должен блокировать авторизацию.
+  }
 }
 
 /** Authorization: серверный токен (после bootstrap) либо initData (bootstrap/фолбэк). */
@@ -93,7 +102,7 @@ async function readError(response: Response): Promise<never> {
   throw new ApiError(response.status, code);
 }
 
-async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts): Promise<T> {
   // DEV вне Telegram (нет initData) → мок бэкенда, чтобы отлаживать вёрстку в браузере.
   // В прод-сборке import.meta.env.DEV === false → ветка мертва, devMock не бандлится.
   if (import.meta.env.DEV && !getInitData()) {

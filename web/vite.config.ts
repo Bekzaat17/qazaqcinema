@@ -11,6 +11,14 @@ const API_TARGET = process.env.API_TARGET ?? "http://localhost:8000";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) =>
+          id.includes("/node_modules/three/") ? "three" : undefined,
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

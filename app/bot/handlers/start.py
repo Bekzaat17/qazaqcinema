@@ -14,7 +14,8 @@ from dishka.integrations.aiogram import inject
 
 from app.application.services.activity_service import UserActivityService
 from app.application.services.catalog_service import CatalogService
-from app.bot.keyboards.common import movie_keyboard, webapp_keyboard
+from app.bot.handlers.quest import QUEST_GREETING
+from app.bot.keyboards.common import movie_keyboard, quest_keyboard, webapp_keyboard
 from app.config.settings import AppConfig
 from app.domain.analytics.source import link_movie_id
 
@@ -58,6 +59,9 @@ async def handle_start(
     # на сам фильм. Mini App откроется ИЗ ЧАТА — только так «Чатқа өту» после выдачи видео
     # возвращает человека сюда, к видео (см. `movie_start_url`).
     url = config.bot.webapp_url
+    if command.args == "quest" and message.chat.type == "private":
+        await message.answer(QUEST_GREETING, reply_markup=quest_keyboard(url))
+        return
     movie_id = link_movie_id(command.args)
     movie = await catalog.get_movie(movie_id) if movie_id is not None and url else None
     if movie is not None and movie.id is not None:

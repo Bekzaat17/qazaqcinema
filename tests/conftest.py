@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 _TABLES = (
     "users, movies, payment_requests, user_events, favorites, "
     "daily_reports, milestones, search_queries, channel_member_events, "
-    "content_items, channel_post_log, quiz_answers"
+    "content_items, channel_post_log, quiz_answers, quest_channel_posts"
 )
 
 

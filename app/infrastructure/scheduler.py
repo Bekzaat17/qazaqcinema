@@ -85,6 +85,7 @@ from app.application.services.analytics_service import AnalyticsService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
+from app.application.services.quest_channel_service import QuestChannelService
 from app.application.services.quiz_service import QuizService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
@@ -144,6 +145,15 @@ async def _expire_due_job(container: AsyncContainer) -> None:
         count = await service.expire_due(datetime.now(UTC))
     if count:
         logger.info("Подписка истекла у %d пользователей → EXPIRED", count)
+
+
+async def _quest_ranking_job(container: AsyncContainer) -> None:
+    try:
+        async with container() as request_container:
+            service = await request_container.get(QuestChannelService)
+            await service.publish(datetime.now(UTC))
+    except Exception:
+        logger.exception("Не удалось обновить рейтинг QazaqQuest в канале")
 
 
 async def _purge_stale_videos_job(container: AsyncContainer) -> None:
@@ -286,7 +296,7 @@ async def _weekly_pick_closing_job(container: AsyncContainer) -> None:
             logger.info("Письмо о закрытии недельного выбора: %d адресатов", count)
 
 
-def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
+def build_scheduler(container: AsyncContainer, *, quest_post_minute: int = 15) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         _expire_due_job,
@@ -414,5 +424,14 @@ def build_scheduler(container: AsyncContainer) -> AsyncIOScheduler:
         # Разбор идемпотентен по `result_posted_at` — догонять можно смело.
         misfire_grace_time=3000,
         coalesce=True,
+    )
+    scheduler.add_job(
+        _quest_ranking_job,
+        CronTrigger(minute=quest_post_minute, timezone=REPORT_TZ),
+        args=[container],
+        id="quest_ranking",
+        misfire_grace_time=3000,
+        coalesce=True,
+        max_instances=1,
     )
     return scheduler

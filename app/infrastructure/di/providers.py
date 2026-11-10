@@ -31,6 +31,12 @@ from app.application.ports.discussion import DiscussionGroup
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
+from app.application.ports.quest import (
+    QuestChannelPublisher,
+    QuestChannelStore,
+    QuestRankingCache,
+    QuestRepository,
+)
 from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
     ChannelMemberEventRepository,
@@ -66,6 +72,9 @@ from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
 from app.application.services.poster_service import PosterService
+from app.application.services.quest_channel_service import QuestChannelService
+from app.application.services.quest_ranking_service import QuestRankingService
+from app.application.services.quest_service import QuestService
 from app.application.services.quiz_service import QuizService
 from app.application.services.seo_service import SeoBuilder
 from app.application.services.series_service import SeriesService
@@ -88,6 +97,7 @@ from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.daily_pin import RedisDailyPin
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.membership import CachedChannelMembership
+from app.infrastructure.cache.quest import RedisQuestRankingCache
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
 from app.infrastructure.db.content_repositories import (
@@ -110,6 +120,7 @@ from app.infrastructure.db.repositories import (
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
+from app.infrastructure.db.repositories.quest import PgQuestChannelStore, PgQuestRepository
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from app.infrastructure.images.pillow import PillowImageProcessor
 from app.infrastructure.payments.kaspi import KaspiManualProvider
@@ -122,10 +133,17 @@ from app.infrastructure.telegram.channel import (
 from app.infrastructure.telegram.discussion import AiogramDiscussionGroup
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.notifier import AiogramNotifier
+from app.infrastructure.telegram.quest import AiogramQuestChannelPublisher
 
 
 class AppProvider(Provider):
     scope = Scope.APP
+
+    quest_ranking_cache = provide(RedisQuestRankingCache, provides=QuestRankingCache)
+
+    @provide
+    def quest_publisher(self, bot: Bot, config: AppConfig) -> QuestChannelPublisher:
+        return AiogramQuestChannelPublisher(bot, config.quest.channel_id, config.bot.username)
 
     @provide
     def config(self) -> AppConfig:
@@ -267,6 +285,12 @@ class AppProvider(Provider):
 
 class RequestProvider(Provider):
     scope = Scope.REQUEST
+
+    quest_repo = provide(PgQuestRepository, provides=QuestRepository)
+    quest_posts = provide(PgQuestChannelStore, provides=QuestChannelStore)
+    quest = provide(QuestService)
+    quest_rankings = provide(QuestRankingService)
+    quest_channel = provide(QuestChannelService)
 
     @provide
     async def session(

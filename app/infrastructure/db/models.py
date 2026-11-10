@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.entities.enums import PaymentStatus, UserStatus
+from app.infrastructure.db import quest_models as quest_models  # регистрация metadata
 from app.infrastructure.db.base import Base
 
 

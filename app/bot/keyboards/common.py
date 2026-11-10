@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+
+
+def quest_keyboard(url: str) -> InlineKeyboardMarkup:
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query))
+    query["game"] = "quest"
+    target = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🏡 QazaqQuest ойнау", web_app=WebAppInfo(url=target)),
+    ]])
 
 
 def webapp_keyboard(url: str) -> InlineKeyboardMarkup:

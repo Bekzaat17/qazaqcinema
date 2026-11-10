@@ -135,6 +135,13 @@ class MediaConfig(BaseSettings):
     content_root: str = "content"
 
 
+class QuestConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="QUEST_", env_file=".env", extra="ignore")
+
+    channel_id: int = 0
+    post_minute: int = Field(default=15, ge=0, le=59)
+
+
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -152,6 +159,7 @@ class AppConfig(BaseSettings):
     payments: PaymentsConfig = Field(default_factory=PaymentsConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     media: MediaConfig = Field(default_factory=MediaConfig)
+    quest: QuestConfig = Field(default_factory=QuestConfig)
 
     @model_validator(mode="after")
     def _derive_from_public_origin(self) -> AppConfig:
