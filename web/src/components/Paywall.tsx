@@ -94,6 +94,11 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
       reset();
       onPending(accepted.status);
     } catch (e) {
+      if (e instanceof ApiError && e.code === "subscription_active") {
+        reset();
+        onPending("active");
+        return;
+      }
       let msg = "Чекті жіберу мүмкін болмады";
       if (e instanceof ApiError && e.status === 413) msg = "Файл тым үлкен";
       else if (e instanceof ApiError && e.status === 415) msg = "Тек сурет немесе PDF";

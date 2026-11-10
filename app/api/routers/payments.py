@@ -85,6 +85,8 @@ async def submit_proof(
         )
     except UnknownTariffError:
         raise HTTPException(status_code=400, detail="unknown_tariff") from None
+    if request is None:
+        raise HTTPException(status_code=409, detail="subscription_active")
     assert request.id is not None
     status = UserStatus.ACTIVE if request.granted_at else UserStatus.PENDING_REVIEW
     return ProofAccepted(request_id=request.id, status=status.value)

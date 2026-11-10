@@ -182,7 +182,7 @@ function WeeklyPickRow({ auth, onOpen }: { auth: Auth; onOpen: (() => void) | nu
 
 
 function StatusCard({ auth, onSubscribe }: { auth: Auth | null; onSubscribe: () => void }) {
-  if (auth?.status === "active") {
+  if (auth?.has_access) {
     const left = daysLeft(auth.expires_at);
     return (
       <div className="rounded-2xl border border-success/20 bg-success/5 p-4">

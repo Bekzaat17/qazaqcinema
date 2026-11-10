@@ -96,7 +96,7 @@ class PaymentService:
         *,
         filename: str,
         content_type: str,
-    ) -> PaymentRequest:
+    ) -> PaymentRequest | None:
         """Принять чек Kaspi: открыть доступ, завести заявку, уведомить админов.
 
         `filename`/`content_type` — чек может быть картинкой (скриншот) или PDF (чек из
@@ -110,6 +110,10 @@ class PaymentService:
         tariff = get_tariff(tariff_slug)
         if tariff is None:
             raise UnknownTariffError(tariff_slug)
+        # Старая форма оплаты может остаться открытой после активации подписки.
+        # Повторный чек при действующем доступе не создаёт заявку и не добавляет срок.
+        if user.has_active_access(now):
+            return None
 
         instant = await self._payments.count_rejected(user.telegram_id) < REJECT_LIMIT
         proof_ref = await self._notifier.acknowledge_payment_proof(

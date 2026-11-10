@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from app.application.ports.payments import PaymentInstruction
@@ -153,6 +153,7 @@ async def test_submit_proof_opens_access_immediately() -> None:
         user, "1_month", b"jpegbytes", _NOW, filename="proof.jpg", content_type="image/jpeg"
     )
 
+    assert request is not None
     # заявка PENDING с file_id, полученным при подтверждении приёма
     assert request.status is PaymentStatus.PENDING
     assert request.method is PaymentMethod.KASPI
@@ -180,6 +181,7 @@ async def test_submit_proof_after_reject_limit_waits_for_admin() -> None:
         user, "1_month", b"jpegbytes", _NOW, filename="proof.jpg", content_type="image/jpeg"
     )
 
+    assert request is not None
     assert subscription.activated == []
     assert payments.granted == []
     assert request.granted_at is None
@@ -188,6 +190,56 @@ async def test_submit_proof_after_reject_limit_waits_for_admin() -> None:
     assert notifier.admin[0][5] is False
     # человеку объяснили, почему он ждёт, а не получил доступ сразу
     assert str(REJECT_LIMIT) in notifier.ack[0][2]
+
+
+async def test_submit_proof_with_active_subscription_has_no_side_effects() -> None:
+    service, payments, users, notifier, subscription = _service()
+    expires_at = _NOW + timedelta(days=1)
+    user = User(telegram_id=42, status=UserStatus.ACTIVE, expires_at=expires_at)
+
+    request = await service.submit_proof(
+        user, "1_day", b"jpegbytes", _NOW, filename="proof.jpg", content_type="image/jpeg"
+    )
+
+    assert request is None
+    assert user.expires_at == expires_at
+    assert payments.added == []
+    assert users.upserted == []
+    assert notifier.ack == []
+    assert notifier.admin == []
+    assert subscription.activated == []
+
+
+async def test_submit_proof_again_after_instant_access_does_not_extend() -> None:
+    service, payments, _users, _notifier, subscription = _service()
+    user = User(telegram_id=42)
+
+    first = await service.submit_proof(
+        user, "1_day", b"jpegbytes", _NOW, filename="proof.jpg", content_type="image/jpeg"
+    )
+    second = await service.submit_proof(
+        user, "1_day", b"jpegbytes", _NOW, filename="proof.jpg", content_type="image/jpeg"
+    )
+
+    assert first is not None
+    assert second is None
+    assert len(payments.added) == 1
+    assert len(subscription.activated) == 1
+    assert user.expires_at == _NOW + timedelta(days=1)
+
+
+async def test_submit_proof_after_subscription_expires_opens_access() -> None:
+    service, payments, _users, _notifier, subscription = _service()
+    user = User(telegram_id=42, status=UserStatus.ACTIVE, expires_at=_NOW)
+
+    request = await service.submit_proof(
+        user, "1_day", b"jpegbytes", _NOW, filename="proof.jpg", content_type="image/jpeg"
+    )
+
+    assert request is not None
+    assert len(payments.added) == 1
+    assert len(subscription.activated) == 1
+    assert user.expires_at == _NOW + timedelta(days=1)
 
 
 async def test_submit_proof_pdf_is_sent_as_document() -> None:

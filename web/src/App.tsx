@@ -194,12 +194,13 @@ export default function App() {
    * считался бы дважды.
    */
   const openPaywall = useCallback((movie: Movie | null, track = true) => {
+    if (hasAccess) return;
     setPaywallMovie(movie);
     setPaywallOpen(true);
     // Фоном и без ожидания: метрика не имеет права задерживать шторку или ронять её
     // показ, если запрос не прошёл.
     if (track) void api.trackPaywall(movie?.id ?? null).catch(() => {});
-  }, []);
+  }, [hasAccess]);
 
   /** Отправка видео. `useWeeklyPick` — согласие потратить неделю (только из шторки). */
   const requestPlay = useCallback(
@@ -459,7 +460,7 @@ export default function App() {
       />
       <BotStartSheet open={botStartOpen} onClose={() => setBotStartOpen(false)} />
       <Paywall
-        open={paywallOpen}
+        open={paywallOpen && !hasAccess}
         movie={paywallMovie}
         tariffs={tariffs}
         onClose={() => setPaywallOpen(false)}
