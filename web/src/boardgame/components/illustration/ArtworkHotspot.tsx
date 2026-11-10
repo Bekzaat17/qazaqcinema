@@ -1,4 +1,5 @@
 import { type CSSProperties } from "react";
+import BuildingMiniature from "./BuildingMiniature";
 import type { Board, Lot } from "../../types";
 
 export default function ArtworkHotspot({
@@ -51,18 +52,24 @@ export default function ArtworkHotspot({
             fill="transparent"
             stroke="none"
           />
-          <path
-            className="dala-hotspot-outline"
-            d="M-54-54H54V54H-54Z"
+          <ellipse
+            className="dala-object-selection"
+            cy="8"
+            rx="52"
+            ry="27"
             fill={color}
-            fillOpacity=".1"
             stroke={color}
             strokeWidth="2"
           />
-          <g className="dala-hotspot-marker" transform="translate(0 -18)">
+          <BuildingMiniature
+            board={board}
+            tile={tile}
+            level={lot?.level ?? 0}
+          />
+          <g className="dala-hotspot-marker" transform="translate(-43 -42)">
             <circle
               cy="4"
-              r={lot ? 15 : 12}
+              r={lot ? 10 : 8}
               fill={lot ? color : "#fff3d7"}
               stroke={lot ? "#fff0c5" : "#c3a369"}
               strokeWidth="2"
@@ -82,16 +89,18 @@ export default function ArtworkHotspot({
           </g>
           <g className="dala-square-tile-label" pointerEvents="none">
             <text
-              y="16"
+              y="36"
               textAnchor="middle"
-              fontSize="11"
+              fontSize="10"
+              textLength={tile.name.length > 17 ? 100 : undefined}
+              lengthAdjust="spacingAndGlyphs"
               fontWeight="600"
               fill="#31564c"
             >
               {tile.name}
             </text>
             {tile.price > 0 && (
-              <text y="34" textAnchor="middle" fontSize="9" fill="#8a6d36">
+              <text y="49" textAnchor="middle" fontSize="9" fill="#8a6d36">
                 {tile.price} ₸
               </text>
             )}

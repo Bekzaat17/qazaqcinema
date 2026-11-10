@@ -1,3 +1,4 @@
+import BuildingMiniature from "./illustration/BuildingMiniature";
 import { useState, type CSSProperties } from "react";
 import { Landmark, ShoppingBag, Plus, HandCoins } from "lucide-react";
 import { groupIndices, rentFor } from "../rules";
@@ -53,7 +54,25 @@ export default function PropertyPanel({
         <div
           className={`dala-deed-scene ${board.illustration ? "dala-deed-rich-art" : ""}`}
         >
-          {board.illustration ? (
+          {board.miniature_atlas ? (
+            <svg
+              viewBox="-75 -80 150 140"
+              width="100%"
+              height="100%"
+              role="img"
+              aria-label={
+                selectedTile.landmark ||
+                selectedTile.street ||
+                selectedTile.name
+              }
+            >
+              <BuildingMiniature
+                board={board}
+                tile={selectedTile}
+                level={selectedLot?.level ?? 0}
+              />
+            </svg>
+          ) : board.illustration ? (
             <img src={board.illustration} alt="" width="1536" height="1024" />
           ) : (
             <Landmark size={54} strokeWidth={1} />

@@ -20,6 +20,9 @@ class Tile:
     rents: tuple[int, ...]
     build_cost: int
     amount: int
+    street: str = ""
+    landmark: str = ""
+    sprite: int = -1
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +37,7 @@ class Board:
     tiles: tuple[Tile, ...]
     illustration: str = ""
     thumbnail: str = ""
+    miniature_atlas: str = ""
 
 
 @dataclass(frozen=True, slots=True)

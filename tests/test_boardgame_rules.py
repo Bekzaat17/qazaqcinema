@@ -256,3 +256,25 @@ def test_content_constructor_rejects_invalid_rents_and_recursive_cards() -> None
         validate_catalog(
             replace(CATALOG, cards=(replace(CATALOG.cards[0], move=3), *CATALOG.cards[1:]))
         )
+
+
+@pytest.mark.parametrize("sprite", [-2, 8])
+def test_constructor_rejects_sprite_outside_the_atlas(sprite: int) -> None:
+    board = CATALOG.boards[0]
+    tile = replace(board.tiles[1], sprite=sprite)
+    with pytest.raises(ValueError, match="invalid_tile_sprite"):
+        validate_catalog(
+            replace(
+                CATALOG,
+                boards=(
+                    replace(board, tiles=(board.tiles[0], tile, *board.tiles[2:])),
+                    *CATALOG.boards[1:],
+                ),
+            )
+        )
+
+
+def test_constructor_rejects_remote_miniature_atlas() -> None:
+    board = replace(CATALOG.boards[0], miniature_atlas="https://example.com/atlas.webp")
+    with pytest.raises(ValueError, match="invalid_artwork_path"):
+        validate_catalog(replace(CATALOG, boards=(board, *CATALOG.boards[1:])))

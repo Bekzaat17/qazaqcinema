@@ -3,32 +3,32 @@
     {
       "scenario": "almaty_first",
       "steps": 12,
-      "hash": "d0de3fc782a2806579b18ed2cbad9720b45dc14daaf70b3a15828bfb5d9cb4f8"
+      "hash": "39d7c9eef38b56c780c12b694258b7831cd7e93416401cb3be81378ca5062fb9"
     },
     {
       "scenario": "almaty_trade",
       "steps": 20,
-      "hash": "e86b29b0eb9c8f89060eb10b2243a4aa718690b9fbd25ae5bd1a97a24ecd9b76"
+      "hash": "74b3deb399c5a82062d9e252889e95f04660e98a14a62734960d20bd1772ec41"
     },
     {
       "scenario": "almaty_tycoon",
       "steps": 28,
-      "hash": "6cb7ec98a58dd1ad5c83cd3587801dabaafa4d9c53e6bcecb7656b7b286514b2"
+      "hash": "9f8adba6ce695e23ac933aabf954ceeae520d17d907476cdf4554113fdf47f41"
     },
     {
       "scenario": "turkistan_first",
       "steps": 12,
-      "hash": "057d3754e7e2fbf26a88a775923129b47eca25af1341e1e16bb7ebd8d53c8d73"
+      "hash": "a03522e2cdfbe7f85b5612d1defad79d702dccf442e6fb070d4909641e55915a"
     },
     {
       "scenario": "turkistan_trade",
       "steps": 20,
-      "hash": "ba827582df9ed00ef1ac2d11e9ed9d08545b1d1417b78481ce12925e2e99cec8"
+      "hash": "3c1fdd9d48e62513c7ffce940ffcd589ae9965e07da3fe375ca4fe03ed0e22e4"
     },
     {
       "scenario": "turkistan_tycoon",
       "steps": 28,
-      "hash": "0905d558330318d8c8c1a57205cbb1865a355d2137a8d466a17d4737540ba1e4"
+      "hash": "abab825446e5b98933b793442da2b84282aff57e8f84bca0286d007ad0d3c6be"
     }
   ],
   "commands": [

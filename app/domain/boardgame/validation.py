@@ -25,7 +25,7 @@ def validate_catalog(catalog: Catalog) -> None:
         ):
             raise ValueError("duplicate_or_invalid_id")
     for board in catalog.boards:
-        for artwork in (board.illustration, board.thumbnail):
+        for artwork in (board.illustration, board.thumbnail, board.miniature_atlas):
             if artwork and not re.fullmatch(r"/boardgame/art/[a-z0-9_-]+\.webp", artwork):
                 raise ValueError("invalid_artwork_path")
         if board.biome not in {"almaty", "astana", "turkistan", "steppe"}:
@@ -40,6 +40,8 @@ def validate_catalog(catalog: Catalog) -> None:
             if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
                 raise ValueError("invalid_color")
         for tile in board.tiles:
+            if not -1 <= tile.sprite < 8 or (tile.sprite >= 0 and not board.miniature_atlas):
+                raise ValueError("invalid_tile_sprite")
             if tile.kind not in {"start", "property", "station", "tax", "chance", "rest"}:
                 raise ValueError("unknown_tile_kind")
             if (

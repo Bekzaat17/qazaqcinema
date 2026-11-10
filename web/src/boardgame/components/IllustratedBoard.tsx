@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { Board, Lot, Match, Move } from "../types";
 import Town, { Building, Yurt } from "./illustration/Scenery";
+import BoardCenter from "./BoardCenter";
 import ArtworkHotspot from "./illustration/ArtworkHotspot";
 
 type Point = { x: number; y: number };
@@ -383,6 +384,7 @@ export default function IllustratedBoard({
   match,
   selected,
   onSelect,
+  onInspect,
   onAnimate,
   zoom = 1,
   rotation = 0,
@@ -391,6 +393,7 @@ export default function IllustratedBoard({
   match: Match | null;
   selected: number;
   onSelect: (index: number) => void;
+  onInspect: () => void;
   onAnimate: (active: boolean) => void;
   zoom?: number;
   rotation?: number;
@@ -401,13 +404,17 @@ export default function IllustratedBoard({
     glow = `glow-${id}`;
   return (
     <svg
-      className="dala-illustrated-board"
+      className={`dala-illustrated-board ${board.miniature_atlas ? "dala-object-map" : ""}`}
       viewBox={board.illustration ? "0 0 1000 1000" : "0 80 1000 730"}
       role="group"
       aria-label="Қазақша ойын әлемі. Кәсіп ұяшығын басып ашыңыз."
       style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
     >
       <defs>
+        <radialGradient id={`grass-${id}`}>
+          <stop stopColor="#cad8b6" />
+          <stop offset="1" stopColor="#8fa97a" />
+        </radialGradient>
         <filter id={shadow} x="-30%" y="-50%" width="160%" height="220%">
           <feDropShadow
             dx="0"
@@ -455,8 +462,8 @@ export default function IllustratedBoard({
             width="868"
             height="868"
             rx="30"
-            fill="#faf2dce8"
-            stroke="#bc9c5d"
+            fill={`url(#grass-${id})`}
+            stroke="#8c8056"
             strokeWidth="5"
           />
           <rect
@@ -479,36 +486,49 @@ export default function IllustratedBoard({
             stroke="#c1ac73"
             strokeWidth="2"
           />
-          <image
-            href={board.illustration}
-            x="180"
-            y="190"
-            width="640"
-            height="620"
-            preserveAspectRatio="xMidYMid meet"
-          />
-          <path
-            d={
-              board.tiles
-                .map((_, i) => {
-                  const p = illustratedPoint(
-                    i,
-                    board.tiles.length,
-                    !!board.illustration,
-                  );
-                  return `${i ? "L" : "M"}${p.x},${p.y}`;
-                })
-                .join(" ") + "Z"
-            }
+          <rect
+            x="140"
+            y="140"
+            width="720"
+            height="720"
+            rx="20"
             fill="none"
-            stroke="#f6d78a"
+            stroke="#8d9d75"
+            strokeWidth="112"
+            opacity=".6"
+          />
+          <rect
+            x="140"
+            y="140"
+            width="720"
+            height="720"
+            rx="20"
+            fill="none"
+            stroke="#d7c89f"
+            strokeWidth="98"
+          />
+          <rect
+            x="140"
+            y="140"
+            width="720"
+            height="720"
+            rx="20"
+            fill="none"
+            stroke="#eee0b8"
             strokeWidth="2"
-            strokeDasharray="3 8"
-            opacity=".48"
+            strokeDasharray="4 12"
           />
         </g>
       ) : (
         <Town board={board} />
+      )}
+      {board.illustration && (
+        <BoardCenter
+          board={board}
+          match={match}
+          selected={selected}
+          onInspect={onInspect}
+        />
       )}
       <g>
         {board.tiles
