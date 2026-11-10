@@ -23,6 +23,7 @@ class Tile:
     street: str = ""
     landmark: str = ""
     sprite: int = -1
+    street_sprite: int = -1
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,7 @@ class Board:
     illustration: str = ""
     thumbnail: str = ""
     miniature_atlas: str = ""
+    street_atlas: str = ""
 
 
 @dataclass(frozen=True, slots=True)

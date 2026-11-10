@@ -31,3 +31,12 @@ Edit target: this exact 4 column 2 row sprite atlas of 8 Turkistan buildings. Ba
 
 Порядок клеток — игровой маршрут, не географическая карта и не адресный справочник.
 Улица без отдельного здания показывается дорожной миниатюрой; ей не приписывается чужой памятник.
+
+## neighborhoods-v1.webp
+
+Режим: встроенный image_gen, transparent_background=true.
+
+Use case stylized-concept. Asset: ONE production 4 columns by 2 rows sprite atlas of EIGHT isolated realistic 3D miniature street scenes for a Kazakh city board game. Truly transparent background, no white background, no grid, no text, no captions, no overlaps between cells. Each entire streetscape stays centered in its own equal cell with clear transparent padding. Elevated camera about 30 degrees above horizon, three quarter view from side, consistent view for all sprites. Soft bright sunny daylight, rich realistic brick wood stucco and paving materials, beautiful detailed premium architectural model photography, not toy cubes or low poly icons. Each scene is a small living quarter with a short paved street or walkway, two or three small facades, trees, a bench and a street lamp. NO standalone road tile, NO gray square platform, NO thick slab base. Irregular organic grass and cobblestone edges fade to transparency. No people, no real readable signage, no fantasy skyscrapers. Top row is ALMATY inspired real local urban character, left-to-right: 1 pedestrian Panfilov street quarter with mature plane trees and pastel early 20th century facades; 2 Abay avenue quarter with ochre Soviet neoclassical facades and planted boulevard; 3 Gogol street quarter with low historic cream wooden house, small blue shutters and lush trees; 4 Dostyk avenue quarter with cream modernist apartment facades, bus stop and ornamental flower beds. Bottom row TURKISTAN real local urban character, left-to-right: 5 Zhibek Zholy street quarter with warm sand brick shops, textile awnings and poplar trees; 6 Sattarkhanov avenue quarter with contemporary white and tan civic facades and palms; 7 Kazybek bi street quarter with small tan stucco homes, blue gates and planted sidewalk; 8 Tauke Khan avenue quarter with local warm brick shops, a tea courtyard and tall poplars. These are illustrative streetscapes, retain realistic local city architectural character. No famous landmark replication needed. Separate 4x2 cutout sprites.
+
+Кварталы — художественные примеры местной архитектуры. Они не утверждают точный адрес
+конкретного кафе или дома на подписанной улице. Распределение вариантов задаёт street_sprite.

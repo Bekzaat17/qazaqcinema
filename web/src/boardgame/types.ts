@@ -1,5 +1,6 @@
 export interface Tile {
   street?: string;
+  street_sprite?: number;
   landmark?: string;
   sprite?: number;
   id: string;
@@ -14,6 +15,7 @@ export interface Tile {
 }
 export interface Board {
   miniature_atlas?: string;
+  street_atlas?: string;
   illustration?: string;
   thumbnail?: string;
   id: string;

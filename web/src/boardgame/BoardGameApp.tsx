@@ -197,7 +197,7 @@ export default function BoardGameApp() {
   pick.current = (index) => {
     if (screen === "room" && match) {
       setSelected(index);
-      if (viewMode === "3d") setPanel("property");
+      setPanel("property");
     }
   };
   useEffect(() => {
@@ -490,7 +490,6 @@ export default function BoardGameApp() {
               match={screen === "room" ? match : null}
               selected={screen === "room" ? selected : -1}
               onSelect={(index) => pick.current(index)}
-              onInspect={() => setPanel("property")}
               onAnimate={setAnimating}
               zoom={mapZoom}
               rotation={mapRotation}

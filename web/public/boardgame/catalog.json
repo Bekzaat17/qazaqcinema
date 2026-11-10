@@ -39,7 +39,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Панфилов көшесі"
+          "street": "Панфилов көшесі",
+          "street_sprite": 0
         },
         {
           "id": "lot_2",
@@ -90,7 +91,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Абай даңғылы"
+          "street": "Абай даңғылы",
+          "street_sprite": 1
         },
         {
           "id": "lot_5",
@@ -127,7 +129,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": ""
+          "street": "",
+          "street_sprite": 2
         },
         {
           "id": "lot_7",
@@ -147,7 +150,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Достық даңғылы"
+          "street": "Достық даңғылы",
+          "street_sprite": 3
         },
         {
           "id": "lot_8",
@@ -198,7 +202,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Гоголь көшесі"
+          "street": "Гоголь көшесі",
+          "street_sprite": 0
         },
         {
           "id": "lot_11",
@@ -269,7 +274,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Жібек жолы"
+          "street": "Жібек жолы",
+          "street_sprite": 1
         },
         {
           "id": "lot_15",
@@ -357,7 +363,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Қонаев көшесі"
+          "street": "Қонаев көшесі",
+          "street_sprite": 2
         },
         {
           "id": "lot_20",
@@ -377,7 +384,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Назарбаев даңғылы"
+          "street": "Назарбаев даңғылы",
+          "street_sprite": 3
         },
         {
           "id": "lot_21",
@@ -408,7 +416,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Төле би көшесі"
+          "street": "Төле би көшесі",
+          "street_sprite": 0
         },
         {
           "id": "lot_23",
@@ -428,12 +437,14 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Әл-Фараби даңғылы"
+          "street": "Әл-Фараби даңғылы",
+          "street_sprite": 1
         }
       ],
       "illustration": "/boardgame/art/almaty-v1.webp",
       "thumbnail": "/boardgame/art/almaty-thumb-v1.webp",
-      "miniature_atlas": "/boardgame/art/almaty-buildings-v1.webp"
+      "miniature_atlas": "/boardgame/art/almaty-buildings-v1.webp",
+      "street_atlas": "/boardgame/art/neighborhoods-v1.webp"
     },
     {
       "id": "turkistan",
@@ -473,7 +484,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Жібек жолы көшесі"
+          "street": "Жібек жолы көшесі",
+          "street_sprite": 4
         },
         {
           "id": "lot_2",
@@ -524,7 +536,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Саттарханов даңғылы"
+          "street": "Саттарханов даңғылы",
+          "street_sprite": 5
         },
         {
           "id": "lot_5",
@@ -561,7 +574,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": ""
+          "street": "",
+          "street_sprite": 6
         },
         {
           "id": "lot_7",
@@ -581,7 +595,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Қазыбек би көшесі"
+          "street": "Қазыбек би көшесі",
+          "street_sprite": 7
         },
         {
           "id": "lot_8",
@@ -632,7 +647,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Тәуке хан даңғылы"
+          "street": "Тәуке хан даңғылы",
+          "street_sprite": 4
         },
         {
           "id": "lot_11",
@@ -734,7 +750,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Кенесары көшесі"
+          "street": "Кенесары көшесі",
+          "street_sprite": 5
         },
         {
           "id": "lot_17",
@@ -791,7 +808,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Тұран көшесі"
+          "street": "Тұран көшесі",
+          "street_sprite": 6
         },
         {
           "id": "lot_20",
@@ -811,7 +829,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Отырар көшесі"
+          "street": "Отырар көшесі",
+          "street_sprite": 7
         },
         {
           "id": "lot_21",
@@ -842,7 +861,8 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Мәдениет көшесі"
+          "street": "Мәдениет көшесі",
+          "street_sprite": 4
         },
         {
           "id": "lot_23",
@@ -862,12 +882,14 @@
           "amount": 0,
           "sprite": -1,
           "landmark": "",
-          "street": "Әл-Фараби көшесі"
+          "street": "Әл-Фараби көшесі",
+          "street_sprite": 5
         }
       ],
       "illustration": "/boardgame/art/turkistan-v1.webp",
       "thumbnail": "/boardgame/art/turkistan-thumb-v1.webp",
-      "miniature_atlas": "/boardgame/art/turkistan-buildings-v1.webp"
+      "miniature_atlas": "/boardgame/art/turkistan-buildings-v1.webp",
+      "street_atlas": "/boardgame/art/neighborhoods-v1.webp"
     }
   ],
   "scenarios": [

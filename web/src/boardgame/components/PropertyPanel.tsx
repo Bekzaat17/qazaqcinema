@@ -56,6 +56,7 @@ export default function PropertyPanel({
         >
           {board.miniature_atlas ? (
             <svg
+              className="dala-deed-miniature"
               viewBox="-75 -80 150 140"
               width="100%"
               height="100%"

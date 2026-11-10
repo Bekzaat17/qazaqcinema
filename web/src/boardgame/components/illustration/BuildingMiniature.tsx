@@ -76,8 +76,12 @@ export default function BuildingMiniature({
       </g>
     );
   }
-  const sprite = tile.sprite ?? -1;
-  if (sprite < 0 || !board.miniature_atlas) return <StreetMiniature />;
+  const landmarkSprite = tile.sprite ?? -1;
+  const sprite =
+    landmarkSprite >= 0 ? landmarkSprite : (tile.street_sprite ?? -1);
+  const atlas =
+    landmarkSprite >= 0 ? board.miniature_atlas : board.street_atlas;
+  if (sprite < 0 || !atlas) return <StreetMiniature />;
   return (
     <g className="dala-building-miniature" pointerEvents="none">
       <ellipse cy="16" rx="43" ry="12" fill="#365143" opacity=".23" />
@@ -90,7 +94,7 @@ export default function BuildingMiniature({
         overflow="hidden"
       >
         <image
-          href={board.miniature_atlas}
+          href={atlas}
           width="400"
           height="200"
           preserveAspectRatio="none"

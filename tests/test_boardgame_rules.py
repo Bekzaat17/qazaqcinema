@@ -258,11 +258,12 @@ def test_content_constructor_rejects_invalid_rents_and_recursive_cards() -> None
         )
 
 
+@pytest.mark.parametrize("field", ["sprite", "street_sprite"])
 @pytest.mark.parametrize("sprite", [-2, 8])
-def test_constructor_rejects_sprite_outside_the_atlas(sprite: int) -> None:
+def test_constructor_rejects_sprite_outside_the_atlas(field: str, sprite: int) -> None:
     board = CATALOG.boards[0]
-    tile = replace(board.tiles[1], sprite=sprite)
-    with pytest.raises(ValueError, match="invalid_tile_sprite"):
+    tile = replace(board.tiles[1], **{field: sprite})
+    with pytest.raises(ValueError, match=r"invalid_tile_sprite|invalid_street_sprite"):
         validate_catalog(
             replace(
                 CATALOG,

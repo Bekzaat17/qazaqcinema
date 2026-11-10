@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { Board, Lot, Match, Move } from "../types";
 import Town, { Building, Yurt } from "./illustration/Scenery";
-import BoardCenter from "./BoardCenter";
+import MapGarden from "./illustration/MapGarden";
 import ArtworkHotspot from "./illustration/ArtworkHotspot";
 
 type Point = { x: number; y: number };
@@ -28,7 +28,9 @@ export function illustratedPoint(
     z = -half + (index - side * 3) * step;
   }
   const point = { x: 500 + (x - z) * 0.7, y: 420 + (x + z) * 0.36 };
-  return painted ? { x: 500 + x * 1.2, y: 500 + z * 1.2 } : point;
+  return painted
+    ? { x: 500 + x * 1.032 + z * 0.3, y: 445 - x * 0.12 + z * 0.648 }
+    : point;
 }
 function words(text: string): string[] {
   const parts = text.split(" "),
@@ -384,7 +386,6 @@ export default function IllustratedBoard({
   match,
   selected,
   onSelect,
-  onInspect,
   onAnimate,
   zoom = 1,
   rotation = 0,
@@ -393,7 +394,6 @@ export default function IllustratedBoard({
   match: Match | null;
   selected: number;
   onSelect: (index: number) => void;
-  onInspect: () => void;
   onAnimate: (active: boolean) => void;
   zoom?: number;
   rotation?: number;
@@ -405,7 +405,7 @@ export default function IllustratedBoard({
   return (
     <svg
       className={`dala-illustrated-board ${board.miniature_atlas ? "dala-object-map" : ""}`}
-      viewBox={board.illustration ? "0 0 1000 1000" : "0 80 1000 730"}
+      viewBox={board.illustration ? "-60 100 1120 800" : "0 80 1000 730"}
       role="group"
       aria-label="Қазақша ойын әлемі. Кәсіп ұяшығын басып ашыңыз."
       style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
@@ -455,81 +455,91 @@ export default function IllustratedBoard({
         </g>
       )}
       {board.illustration ? (
-        <g className="dala-painted-location" aria-hidden="true">
-          <rect
-            x="66"
-            y="66"
-            width="868"
-            height="868"
-            rx="30"
-            fill={`url(#grass-${id})`}
-            stroke="#8c8056"
-            strokeWidth="5"
+        <g className="dala-map-base" aria-hidden="true">
+          <ellipse
+            cx="520"
+            cy="704"
+            rx="430"
+            ry="48"
+            fill="#618b73"
+            opacity=".14"
           />
-          <rect
-            x="82"
-            y="82"
-            width="836"
-            height="836"
-            rx="22"
-            fill="none"
-            stroke="#d9be82"
+          <path
+            d="M18 254 235 723 982 636v30L235 753 18 284Z"
+            fill="#ba9d68"
+            stroke="#ac915d"
             strokeWidth="2"
           />
-          <rect
-            x="210"
-            y="210"
-            width="580"
-            height="580"
-            rx="18"
-            fill="#cddfc8"
-            stroke="#c1ac73"
-            strokeWidth="2"
-          />
-          <rect
-            x="140"
-            y="140"
-            width="720"
-            height="720"
-            rx="20"
-            fill="none"
-            stroke="#8d9d75"
-            strokeWidth="112"
-            opacity=".6"
-          />
-          <rect
-            x="140"
-            y="140"
-            width="720"
-            height="720"
-            rx="20"
-            fill="none"
-            stroke="#d7c89f"
-            strokeWidth="98"
-          />
-          <rect
-            x="140"
-            y="140"
-            width="720"
-            height="720"
-            rx="20"
-            fill="none"
-            stroke="#eee0b8"
-            strokeWidth="2"
-            strokeDasharray="4 12"
-          />
+          <path d="m235 723 747-87v30l-747 87Z" fill="#d5bc86" />
+          <g transform="matrix(.86 -.1 .25 .54 -55 225)">
+            <rect
+              x="66"
+              y="66"
+              width="868"
+              height="868"
+              rx="30"
+              fill={`url(#grass-${id})`}
+              stroke="#8c8056"
+              strokeWidth="5"
+            />
+            <rect
+              x="82"
+              y="82"
+              width="836"
+              height="836"
+              rx="22"
+              fill="none"
+              stroke="#d9be82"
+              strokeWidth="2"
+            />
+            <rect
+              x="210"
+              y="210"
+              width="580"
+              height="580"
+              rx="18"
+              fill="#cddfc8"
+              stroke="#c1ac73"
+              strokeWidth="2"
+            />
+            <rect
+              x="140"
+              y="140"
+              width="720"
+              height="720"
+              rx="20"
+              fill="none"
+              stroke="#8d9d75"
+              strokeWidth="112"
+              opacity=".6"
+            />
+            <rect
+              x="140"
+              y="140"
+              width="720"
+              height="720"
+              rx="20"
+              fill="none"
+              stroke="#d7c89f"
+              strokeWidth="98"
+            />
+            <rect
+              x="140"
+              y="140"
+              width="720"
+              height="720"
+              rx="20"
+              fill="none"
+              stroke="#eee0b8"
+              strokeWidth="2"
+              strokeDasharray="4 12"
+            />
+          </g>
         </g>
       ) : (
         <Town board={board} />
       )}
-      {board.illustration && (
-        <BoardCenter
-          board={board}
-          match={match}
-          selected={selected}
-          onInspect={onInspect}
-        />
-      )}
+      {board.illustration && <MapGarden board={board} />}
       <g>
         {board.tiles
           .map((_, index) => index)
