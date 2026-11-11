@@ -1347,3 +1347,131 @@
   .quest-header .quest-brand-icon { width: 34px; height: 34px; border-radius: 10px; }
   .quest-header .quest-brand small { letter-spacing: 1px; font-size: 6px; }
 }
+
+/* Resource journal: clear next actions, warm paper and forest-green accents. */
+.quest-wallet {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--q-ink);
+  text-align: left;
+}
+.quest-wallet small { font-size: 11px; color: #54634f; }
+.quest-earn-button {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; border: 1px solid #d5dfc9; border-radius: 12px;
+  background: #f9f8ec; color: #305e4b; font-size: 12px !important; font-weight: 650 !important;
+}
+.quest-next-action {
+  position: absolute; top: 88px; left: 50%; transform: translateX(-50%);
+  width: min(380px, calc(100% - 580px)); display: flex; align-items: center; gap: 12px;
+  padding: 16px; border: 1px solid #fff9d3; border-radius: 19px;
+  background: linear-gradient(130deg, #fff8e7, #f0f3df); color: #2e513d;
+  box-shadow: 0 8px 30px #254b3520; text-align: left;
+}
+.quest-next-action > span:nth-child(2) { flex: 1; min-width: 0; }
+.quest-next-action small { display: block; font-size: 9px; color: #68724f; letter-spacing: .6px; line-height: 1.5; }
+.quest-next-action b { display: block; font-size: 14px; margin: 5px 0; line-height: 1.4; }
+.quest-next-action span span { font-size: 11px; line-height: 1.5; display: block; color: #5e6f54; }
+.quest-next-icon, .quest-resource-cta-icon { display: grid; place-items: center; flex-shrink: 0; width: 43px; height: 48px; background: #dce9cc; border-radius: 14px; color: #447348; }
+.quest-mission-intro { font-size: 11px; color: #426549; margin: 8px 0 12px; line-height: 1.5; }
+.quest-mission { min-height: 52px; }
+.quest-mission b { font-size: 12px; }
+.quest-mission small { font-size: 11px; color: #617256; line-height: 1.5; }
+.quest-intro-guide { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding: 0; border: 0; background: transparent; text-align: left; color: #305e4b; font-size: 12px !important; }
+.quest-intro-guide small { display: block; font-size: 11px; margin-top: 4px; color: #62745b; }
+.quest-journal-hero { background: radial-gradient(ellipse at top right, #c7dfab65, transparent 75%), #eaf0dd; border: 1px solid #d6dfc4; border-radius: 20px; padding: 22px; }
+.quest-journal-kicker { display: flex; gap: 8px; align-items: center; color: #52774d; font-size: 10px; letter-spacing: 1px; font-weight: 700; }
+.quest-journal-hero h3 { font: 28px/1.15 Georgia, serif; margin: 14px 0 10px; letter-spacing: -.6px; }
+.quest-journal-hero p { font-size: 13px; line-height: 1.6; margin: 0; color: #51664a; }
+.quest-journal-hero > small { display: block; font-size: 12px; color: #4c6246; line-height: 1.65; }
+.quest-journal-yield { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 20px 0; }
+.quest-journal-yield > span { display: flex; flex-direction: column; align-items: center; gap: 5px; background: #fffdf3c9; border: 1px solid #fff; border-radius: 13px; padding: 13px 5px; color: #4e7150; font-size: 11px; }
+.quest-journal-yield b { font-size: 25px; color: #2f5538; letter-spacing: -.8px; }
+.quest-journal-yield > span:nth-child(2) { color: #6c7a87; }
+.quest-journal-yield > span:nth-child(3) { color: #9b7a38; }
+.quest-journal-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 24px 0 12px; }
+.quest-journal-heading b { font-size: 14px; }
+.quest-journal-heading > span { font-size: 11px; color: #62745b; }
+.quest-task-list { display: grid; gap: 10px; }
+.quest-task { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 84px; padding: 14px; text-align: left; color: #305039; border: 1px solid #cedac0; background: #fffdf4; border-radius: 15px; transition: background .15s; }
+.quest-task:not(:disabled):hover { background: #edf3e1; border-color: #85a777; }
+.quest-task-art { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 48px; border-radius: 15px 15px 20px 20px; background: #e1edce; color: #4e7544; font: 25px Georgia, serif; }
+.spirit-river { background: #deeee9; color: #427f7c; }
+.spirit-sky { background: #e9e1f0; color: #886797; }
+.quest-task-copy { flex: 1; min-width: 0; }
+.quest-task-copy b { font-size: 14px; display: block; }
+.quest-task-copy small { display: block; margin-top: 6px; font-size: 12px; line-height: 1.6; color: #52654c; }
+.quest-task.is-done:disabled { opacity: .75; }
+.quest-journal-note { margin-top: 18px; padding: 16px; border: 1px dashed #b9c9a7; border-radius: 14px; background: #f2f2e4; }
+.quest-journal-note b { font-size: 13px; line-height: 1.6; }
+.quest-journal-note p, .quest-resource-explainer p { font-size: 12px; line-height: 1.7; margin: 7px 0 0; color: #54644d; }
+.quest-resource-explainer { display: flex; align-items: flex-start; gap: 10px; margin: 20px 2px 0; }
+.quest-resource-explainer > svg { flex-shrink: 0; margin-top: 4px; color: #6c855a; }
+.quest-resource-explainer p { margin: 0; }
+.quest-village-banner { display: flex; align-items: center; gap: 17px; padding: 18px; background: linear-gradient(120deg, #e0e9d3, #f0ead7); border-radius: 17px; margin-bottom: 16px; }
+.quest-village-banner > svg { color: #527347; flex-shrink: 0; }
+.quest-village-banner b { font: 22px/1.2 Georgia, serif; }
+.quest-village-banner p { font-size: 12px; line-height: 1.7; margin: 8px 0 0; color: #52644b; }
+.quest-resource-cta { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; border: 1px solid #bbd0a4; border-radius: 15px; background: #e8f0db; color: #345735; text-align: left; }
+.quest-resource-cta > span:nth-child(2) { flex: 1; }
+.quest-resource-cta b { font-size: 14px; }
+.quest-resource-cta small { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; color: #52664b; }
+.quest-cost-note { margin-top: 12px; font-size: 12px; line-height: 1.6; color: #7b5d3f; }
+.quest-cost-note button { display: flex; align-items: center; gap: 6px; border: 0; border-bottom: 1px solid #7a9367; padding: 5px 0; margin: 4px 0; background: transparent; color: #315b40; font-size: 12px; }
+.quest-cost-note small { display: block; font-size: 11px; line-height: 1.6; color: #657158; }
+.quest-buildings p { font-size: 12px; color: #5d6e53; }
+.quest-buildings .quest-build-highlight { padding: 18px 12px; margin-top: 12px; border: 2px solid #86a66d; border-radius: 17px; background: #edf3e2; box-shadow: 0 0 0 5px #e3edd530; }
+.quest-buildings .quest-build-guide { color: #335d36; font-weight: 650; }
+.quest-lesson-reward { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0; padding: 12px; font-size: 12px; border-radius: 11px; background: #e9efdb; color: #42653c; }
+.quest-lesson-reward > span { color: #596d50; margin-left: auto; font-size: 11px; }
+.quest-first-steps { text-align: center; }
+.quest-guide-art { display: grid; place-items: center; position: relative; width: 130px; height: 115px; margin: 8px auto 20px; color: #52734a; background: radial-gradient(ellipse, #dbe9c7 10%, transparent 70%); }
+.quest-guide-art > span { position: absolute; bottom: 0; display: grid; place-items: center; width: 42px; height: 42px; background: #f0ead5; color: #82704d; border-radius: 14px; border: 2px solid #fffcf2; transform: rotate(-8deg); }
+.quest-guide-art > span:first-of-type { left: 0; background: #e0ecd0; color: #497943; }
+.quest-guide-art > span:last-of-type { right: 0; transform: rotate(8deg); }
+.quest-first-steps h3 { font: 27px/1.2 Georgia, serif; }
+.quest-first-steps > p { font-size: 14px; line-height: 1.7; color: #596c51; }
+.quest-first-steps ol { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 18px; text-align: left; }
+.quest-first-steps li { display: flex; gap: 13px; }
+.quest-first-steps li > span { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border: 1px solid #c4d3b3; border-radius: 50%; background: #eaf0dd; color: #476f3e; font-size: 13px; font-weight: 700; }
+.quest-first-steps li b { font-size: 14px; display: block; line-height: 1.5; }
+.quest-first-steps li small { display: block; font-size: 12px; line-height: 1.7; color: #596c51; margin-top: 4px; }
+.quest-first-steps .quest-primary { width: 100%; }
+.quest-tour-progress { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 12px 5px; margin-bottom: 18px; background: #edf0e2; border-radius: 11px; font-size: 11px; color: #718063; }
+.quest-tour-progress .is-current { font-weight: 700; color: #305b3d; }
+.quest-first-build-hint { padding: 15px; border: 1px solid #b6cd9f; background: #eaf1dc; border-radius: 14px; color: #365c3b !important; font-size: 13px !important; line-height: 1.7; }
+@media (max-width: 1000px) and (min-width: 701px) {
+  .quest-next-action { top: auto; bottom: 180px; width: 340px; }
+}
+@media (max-width: 700px) {
+  .quest-hud { top: 74px; left: 13px; right: 13px; display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 8px; }
+  .quest-level { min-width: 0; padding: 9px; flex: 1; }
+  .quest-level > span { width: 28px; flex-shrink: 0; }
+  .quest-level b { font-size: 10px; }
+  .quest-wallet { gap: 5px; }
+  .quest-wallet > span { flex-direction: column; gap: 2px; padding: 7px 10px; min-width: 50px; }
+  .quest-wallet svg { display: none; }
+  .quest-wallet b { font-size: 16px; }
+  .quest-wallet small { font-size: 10px; }
+  .quest-earn-button { display: none; }
+  .quest-missions { display: none; }
+  .quest-next-action { top: 145px; left: 13px; right: 13px; transform: none; width: auto; padding: 12px; border-radius: 15px; gap: 10px; }
+  .quest-next-action small { font-size: 8px; }
+  .quest-next-action b { font-size: 13px; margin: 3px 0; }
+  .quest-next-action span span { font-size: 11px; }
+  .quest-next-icon { width: 37px; height: 43px; }
+  .quest-intro-guide { margin-top: 13px; font-size: 11px !important; }
+  .quest-intro-guide small { font-size: 10px; }
+  .quest-journal-hero { padding: 17px; }
+  .quest-journal-hero h3 { font-size: 26px; }
+  .quest-dialog { padding: 19px; }
+  .quest-village-banner { padding: 15px; gap: 12px; }
+  .quest-village-banner b { font-size: 21px; }
+  .quest-tour-progress { gap: 5px; font-size: 10px; }
+  .quest-buildings article { grid-template-columns: 46px minmax(0, 1fr); gap: 12px; }
+  .quest-resource-cta small { font-size: 11px; }
+  .quest-buildings .quest-secondary { font-size: 12px !important; min-height: 44px; }
+  .quest-first-steps h3 { font-size: 25px; }
+}
+@media (prefers-reduced-motion: reduce) { .quest-task { transition: none; } }

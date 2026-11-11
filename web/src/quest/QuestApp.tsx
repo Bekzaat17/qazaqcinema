@@ -28,6 +28,8 @@ import {
 } from "../lib/telegram";
 import { Brand, Progress as ProgressBar } from "../ui-kit";
 import QuestDialog from "./components/QuestDialog";
+import ResourceJournal from "./components/ResourceJournal";
+import { buildingShortfall, dailyTasks } from "./resources";
 import Joystick from "./components/Joystick";
 import RankingPanel from "./components/RankingPanel";
 import { HttpQuestGateway } from "./gateway";
@@ -46,7 +48,7 @@ import {
 import { QuestEngine } from "./world/engine";
 import "./quest.css";
 
-type Panel = "village" | "ranking" | "help" | "lesson" | null;
+type Panel = "village" | "ranking" | "help" | "lesson" | "resources" | "guide" | null;
 
 function errorText(error: unknown): string {
   if (error instanceof SessionExpiredError)
@@ -83,6 +85,8 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
   const [near, setNear] = useState<WorldTarget | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [run, setRun] = useState<Run | null>(null);
+  const [lessonTitle, setLessonTitle] = useState("");
+  const [rewardReceived, setRewardReceived] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -207,6 +211,9 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
   }, []);
 
   const startQuest = (target: WorldTarget) => {
+    if (inFlight.current) return;
+    setLessonTitle(target.name);
+    setRewardReceived(false);
     setPanel("lesson");
     setRun(null);
     setFeedback("");
@@ -236,13 +243,17 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
       );
       if (result.outcome === "correct") {
         haptic.success();
-        if (result.run.complete) engine.current?.cast();
+        if (result.run.complete) {
+          setRewardReceived(true);
+          engine.current?.cast();
+        }
       }
     });
   };
   const build = (building: Building) =>
     void perform(async () => {
       setProgress(await gateway.build(building));
+      setFeedback(`${building.name} — ${building.level ? "жақсартылды" : "салынды"}!`);
       haptic.success();
     });
   const closePanel = () => {
@@ -257,11 +268,20 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
     setFeedback("");
     setPanel(next);
   };
-  const nextQuest = SHRINES.find(
-    (target) => !progress?.completed_today.includes(target.id as QuestId),
-  );
+  const tasks = progress ? dailyTasks(progress, SHRINES) : [];
+  const nextQuest = tasks.find((task) => !task.done && !task.locked)?.target;
+  const firstBuild = progress?.buildings.every((building) => building.level === 0) ?? true;
+  const guiding = firstBuild;
   const villageLevel =
     progress?.buildings.reduce((sum, building) => sum + building.level, 0) ?? 0;
+  useEffect(() => {
+    if (panel !== "village" || !guiding || !progress?.total_xp) return;
+    const frame = requestAnimationFrame(() => {
+      document.querySelector(".quest-build-highlight")?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [panel, guiding, progress?.total_xp]);
+
 
   return (
     <main className={`quest-app ${playing ? "is-playing" : "is-intro"}`}>
@@ -359,7 +379,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
             <p className="quest-lead">
               Тылсым орманды зертте. Рухтарды оят.
               <br />
-              Қазақша үйреніп, арманыңдағы ауылды құр.
+              Үш сұраққа жауап бер → ағаш пен тас ал → ауыл сал.
             </p>
             <div className="quest-intro-actions">
               <button
@@ -367,6 +387,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                 disabled={!progress || busy}
                 onClick={() => {
                   setPlaying(true);
+                  if (progress?.total_xp === 0) setPanel("guide");
                   setError("");
                   haptic.medium();
                 }}
@@ -396,6 +417,9 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                 </button>
               </div>
             )}
+            <button className="quest-intro-guide" disabled={!progress || busy} onClick={() => openPanel("resources")}>
+              <TreePine size={18} /><span>Ағаш пен тасты қалай жинаймын?<small lang="ru">Как получить ресурсы для аула</small></span><ArrowRight size={18} />
+            </button>
             <div className="quest-intro-stats">
               <span>
                 <YurtIcon size={20} />
@@ -441,66 +465,29 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                   </div>
                 </div>
               </div>
-              <div className="quest-wallet">
-                <span title="Ағаш">
-                  <TreePine size={18} />
-                  <b>{progress.wood}</b>
-                </span>
-                <span title="Тас">
-                  <Mountain size={18} />
-                  <b>{progress.stone}</b>
-                </span>
-              </div>
+              <button className="quest-wallet" onClick={() => openPanel("resources")} aria-label={`Ресурстар: ${progress.wood} ағаш, ${progress.stone} тас. Қалай жинауға болады`}>
+                <span><TreePine size={18} /><b>{progress.wood}</b><small>Ағаш</small></span>
+                <span><Mountain size={18} /><b>{progress.stone}</b><small>Тас</small></span>
+              </button>
+              <button className="quest-earn-button" onClick={() => openPanel("resources")}><Sparkles size={16} /> Ресурс жинау <ArrowRight size={15} /></button>
             </div>
+            <button className="quest-next-action" disabled={busy} onClick={() => {
+              if (guiding && progress.total_xp > 0) openPanel("village");
+              else openPanel("resources");
+            }}>
+              <span className="quest-next-icon">{guiding && progress.total_xp > 0 ? <Hammer size={23} /> : <Leaf size={23} />}</span>
+              <span><small>{guiding ? "АЛҒАШҚЫ ҚАДАМДАР · ПЕРВЫЕ ШАГИ" : "ТАПСЫРМАЛАР · ЗАДАНИЯ"}</small><b>{guiding && progress.total_xp > 0 ? "Ресурсы собраны — построй юрту" : nextQuest ? "Получи дерево и камень" : "Все награды дня получены"}</b><span>{guiding && progress.total_xp > 0 ? "25 дерева + 10 камня → первая постройка" : nextQuest ? "Открыть задания · 3 вопроса за награду" : "Новые задания в 00:00 · Алматы"}</span></span><ArrowRight size={20} />
+            </button>
             <aside className="quest-missions">
-              <div className="quest-card-label">
-                <Compass size={15} /> БҮГІНГІ САЯХАТ{" "}
-                <span>{progress.completed_today.length}/3</span>
-              </div>
-              {SHRINES.map((target, index) => {
-                const done = progress.completed_today.includes(
-                  target.id as QuestId,
-                );
-                const locked =
-                  index > 0 &&
-                  !progress.completed_quests.includes(
-                    SHRINES[index - 1].id as QuestId,
-                  );
-                return (
-                  <button
-                    key={target.id}
-                    className={`quest-mission ${done ? "is-done" : ""}`}
-                    disabled={done || locked}
-                    onClick={() => {
-                      engine.current?.goTo(target);
-                      setFeedback("");
-                    }}
-                  >
-                    <span
-                      className="quest-spirit-dot"
-                      style={{ background: target.color }}
-                    >
-                      {done ? <Check size={14} /> : index + 1}
-                    </span>
-                    <span>
-                      <b>{target.name}</b>
-                      <small>
-                        {done
-                          ? "Бүгін оянды"
-                          : locked
-                            ? "Алдыңғы рухты оят"
-                            : "100 ұпайға дейін · бару"}
-                      </small>
-                    </span>
-                    {!done && !locked && <ArrowRight size={15} />}
-                  </button>
-                );
-              })}
-              {!nextQuest && (
-                <p className="quest-all-done">
-                  Үш рух оянды! Ауылыңды дамыт. Ертең жаңа ұпай жинай аласың.
-                </p>
-              )}
+              <div className="quest-card-label"><Compass size={15} /> БҮГІНГІ САЯХАТ <span>{progress.completed_today.length}/3</span></div>
+              <p className="quest-mission-intro">3 сұрақ → +25 ағаш, +15 тас</p>
+              {tasks.map(({ target, done, locked }) => (
+                <button key={target.id} className={`quest-mission ${done ? "is-done" : ""}`} disabled={busy || done || locked} onClick={() => startQuest(target)}>
+                  <span className="quest-spirit-dot" style={{ background: target.color }}>{done ? <Check size={14} /> : <Leaf size={14} />}</span>
+                  <span><b>{target.name}</b><small>{done ? "Марапат алынды ✓" : locked ? "Алдыңғы рухты оят" : "Тапсырманы бастау →"}</small></span>
+                </button>
+              ))}
+              {!nextQuest && <p className="quest-all-done">Марапаттар алынды! Жаңа тапсырмалар — 00:00, Алматы.</p>}
             </aside>
             {gateway.practice && (
               <div className="quest-practice-note">
@@ -567,18 +554,37 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
 
       {panel && (
         <QuestDialog
+          key={panel}
           title={
             {
               village: "Менің ауылым",
+              resources: "Ағаш пен тас жинау",
+              guide: "Алғашқы қадам · Начнём вместе",
               ranking: "Үздік саяхатшылар",
               help: "Алғашқы қадамың",
               lesson: run?.complete
                 ? "Рух оянды!"
-                : (near?.name ?? "Рухтың сынағы"),
+                : (lessonTitle || "Рухтың сынағы"),
             }[panel]
           }
           onClose={closePanel}
         >
+          {guiding && (panel === "lesson" || panel === "village") && <div className="quest-tour-progress" aria-label="Алғашқы қадамдар">
+            <span className={panel === "lesson" && !run?.complete ? "is-current" : ""}>1. Тапсырма</span><ArrowRight size={12} /><span className={progress?.total_xp ? "is-current" : ""}>2. Марапат</span><ArrowRight size={12} /><span className={panel === "village" ? "is-current" : ""}>3. Киіз үй</span>
+          </div>}
+          {panel === "guide" && progress && <div className="quest-first-steps">
+            <div className="quest-guide-art"><YurtIcon size={64} /><span><TreePine size={24} /></span><span><Mountain size={23} /></span></div>
+            <h3>Бірге алғашқы үйді салайық</h3>
+            <p lang="ru">Давай построим твою первую юрту. Я покажу каждый шаг — искать задания по карте не нужно.</p>
+            <ol lang="ru">
+              <li><span>1</span><div><b>Ответь на 3 вопроса</b><small>Кнопка ниже сразу откроет задание духа леса. Если ошибёшься, можно ответить ещё раз.</small></div></li>
+              <li><span>2</span><div><b>Получи 25 дерева и 15 камня</b><small>Они появятся в запасах после последнего ответа. XP — это опыт, а не монеты.</small></div></li>
+              <li><span>3</span><div><b>Построй юрту</b><small>Первая юрта стоит 25 дерева и 10 камня. Одного задания хватит!</small></div></li>
+            </ol>
+            <button className="quest-primary" disabled={busy} onClick={() => startQuest(tasks[0].target)}>Первое задание <ArrowRight size={19} /></button>
+            <button className="quest-text-button" onClick={closePanel}>Сначала осмотрюсь</button>
+          </div>}
+          {panel === "resources" && progress && <ResourceJournal progress={progress} busy={busy} onStart={startQuest} />}
           {panel === "ranking" && <RankingPanel gateway={gateway} />}
           {panel === "help" && (
             <div className="quest-help">
@@ -589,11 +595,11 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
               <ol>
                 <li>
                   <b>Зертте.</b> Жерді бас, джойстикті жылжыт немесе WASD
-                  қолдан. Тапсырманы бассаң, кейіпкер сол жаққа жүреді.
+                  қолдан. Картада рухқа қарай жүр немесе тапсырманы бірден аш.
                 </li>
                 <li>
-                  <b>Үйрен.</b> Рухқа жақындап, сиқыр батырмасын немесе E бас.
-                  Үш сұраққа жауап бер.
+                  <b>Үйрен.</b> «Ресурс жинау» батырмасын басып, тапсырманы таңда.
+                  Немесе рухқа жақындап, E бас. Үш сұраққа жауап бер.
                 </li>
                 <li>
                   <b>Құр.</b> Әр сынақ 25 ағаш пен 15 тас береді. «Менің ауылым»
@@ -610,6 +616,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                 жауаптар мен құрылысқа интернет керек. Жаттығудағы аул осы
                 браузерде сақталады және рейтингке көшірілмейді.
               </p>
+              <button className="quest-primary" disabled={!progress} onClick={() => openPanel("resources")}><TreePine size={18} /> Ресурс жинау</button>
               <div className="quest-quality">
                 <Settings2 size={19} />
                 <span>Графика</span>
@@ -630,10 +637,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
           )}
           {panel === "village" && progress && (
             <>
-              <p className="quest-muted">
-                Әр ғимараттың үш деңгейі бар. Рухтарға көмектесіп, ауылға
-                материал жина.
-              </p>
+              <div className="quest-village-banner"><YurtIcon size={42} /><div><b>Кішкентай ауыл. Үлкен арман.</b><p>Тапсырма орында → материал жина → құрылыс сал</p></div></div>
               <div className="quest-village-progress">
                 <span><YurtIcon size={18} /> Ауылдың дамуы <b>{villageLevel} / 9</b></span>
                 <ProgressBar value={villageLevel} max={9} label="Ауылдың дамуы" />
@@ -647,16 +651,19 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                   <Mountain size={18} /> {progress.stone} тас
                 </span>
               </div>
+              <button className="quest-resource-cta" onClick={() => openPanel("resources")}><span className="quest-resource-cta-icon"><TreePine size={24} /></span><span><b>Ресурс жинау</b><small lang="ru">3 вопроса = 25 дерева + 15 камня</small></span><ArrowRight size={20} /></button>
+              {feedback && <p className="quest-feedback" role="status">{feedback}</p>}
               <div className="quest-buildings">
                 {progress.buildings.map((building, index) => {
                   const BuildingIcon = { yurt: YurtIcon, well: WellIcon, workshop: Hammer }[building.id];
                   const max = building.wood_cost === null;
+                  const missing = buildingShortfall(building, progress);
                   const affordable =
                     !max &&
                     progress.wood >= building.wood_cost! &&
                     progress.stone >= building.stone_cost!;
                   return (
-                    <article key={building.id}>
+                    <article key={building.id} className={guiding && building.id === "yurt" && affordable ? "quest-build-highlight" : ""}>
                       <div
                         className={`quest-building-art building-${building.id}`}
                       >
@@ -665,6 +672,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                       </div>
                       <div>
                         <h3>{building.name}</h3>
+                        {guiding && building.id === "yurt" && affordable && <p className="quest-build-guide" lang="ru">Твоя первая постройка! Нажми «Салу» ↓</p>}
                         <div className="quest-building-levels">
                           {[1, 2, 3].map((level) => (
                             <i
@@ -701,9 +709,11 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                           )}
                         </button>
                         {!max && !affordable && (
-                          <small className="quest-cost-note">
-                            Материал жинау керек
-                          </small>
+                          <div className="quest-cost-note">
+                            <span lang="ru">Не хватает: {[missing.wood ? `${missing.wood} дерева` : "", missing.stone ? `${missing.stone} камня` : ""].filter(Boolean).join(" и ")}.</span>
+                            <button onClick={() => openPanel("resources")}>Ресурс жинау <ArrowRight size={14} /></button>
+                            <small lang="ru">{missing.lessons} заданий до постройки{missing.lessons > tasks.filter((task) => !task.done).length ? " · понадобятся награды следующих дней" : ""}</small>
+                          </div>
                         )}
                       </div>
                     </article>
@@ -742,7 +752,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                 <div className="quest-reward-icon">
                   <Gem size={43} />
                 </div>
-                <h3>Алқапқа жарық оралды</h3>
+                <h3>{rewardReceived ? "Марапат сенің қоржыныңда!" : "Бүгінгі марапат алынды"}</h3>
                 <p>
                   {feedback ||
                     "Бүгінгі сынақ аяқталған. Келесі марапат ертең қолжетімді."}
@@ -759,11 +769,12 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                   </span>
                 </div>
                 <p className="quest-muted">
-                  Марапат бір рет есептеледі.
+                  Ағаш пен тас автоматты түрде қосылды. Қайта ашқанда марапат қайталанбайды.
                   {gateway.practice
                     ? " Бұл — жаттығу нәтижесі."
                     : " Прогресс сақталды."}
                 </p>
+                {guiding && <p className="quest-first-build-hint" lang="ru">Отлично! Этого хватит на первую юрту: 25 дерева и 10 камня. Нажми ниже — покажу, где её построить.</p>}
                 <button
                   className="quest-primary"
                   onClick={() => {
@@ -771,7 +782,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                     setFeedback("");
                   }}
                 >
-                  Ауылымды дамыту <YurtIcon size={20} />
+                  {guiding ? "Построить первую юрту" : "Ауылымды дамыту"} <YurtIcon size={20} />
                 </button>
                 <button className="quest-text-button" onClick={closePanel}>
                   Саяхатты жалғастыру <ArrowRight size={16} />
@@ -785,6 +796,7 @@ export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
                   </span>
                   <span>{run.points} ұпай</span>
                 </div>
+                <div className="quest-lesson-reward"><TreePine size={16} /> +25 ағаш <Mountain size={16} /> +15 тас <span>3 жауаптан кейін</span></div>
                 <div className="quest-question-progress">
                   {[0, 1, 2].map((i) => (
                     <i
