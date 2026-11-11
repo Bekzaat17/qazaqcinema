@@ -1,0 +1,23 @@
+.kit-showcase { max-width: 1200px; margin: auto; padding: 28px clamp(20px, 5vw, 64px) 64px; font-family: var(--ui-font); }
+.kit-showcase > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ui-muted); font-size: 10px; letter-spacing: 1.5px; }
+.kit-showcase > header a { color: inherit; display: flex; align-items: center; gap: 8px; letter-spacing: 0; text-decoration: none; font-size: 12px; }
+.kit-intro { padding: 72px 0 32px; }
+.kit-intro h1 { font: 650 clamp(40px, 7vw, 76px)/1.05 var(--ui-font); letter-spacing: -.06em; margin: 20px 0; }
+.kit-intro h1 em { font-style: normal; color: var(--ui-brand); }
+.kit-intro p { font-size: 13px; color: var(--ui-muted); }
+.kit-palette { display: flex; gap: 12px; margin: 16px 0 40px; }
+.kit-palette > div { flex: 1; }
+.kit-palette i { display: block; height: 48px; border: 1px solid #ffffff20; border-radius: 12px; }
+.kit-palette span { display: block; font-size: 10px; color: #a1a1ab; margin-top: 8px; }
+.kit-themes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.kit-theme { background: var(--ui-bg); color: var(--ui-ink); padding: clamp(20px, 3vw, 32px); border: 1px solid var(--ui-border); border-radius: 28px; }
+.kit-theme-heading h2 { font-size: 28px; letter-spacing: -1px; margin: 12px 0 8px; }
+.kit-theme p { color: var(--ui-muted); font-size: 13px; line-height: 1.7; }
+.kit-row, .kit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
+.kit-card-icon { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 18px; color: var(--ui-brand); background: color-mix(in srgb, var(--ui-brand) 12%, transparent); }
+.kit-theme .ui-card h3 { font-size: 21px; letter-spacing: -.6px; margin-bottom: 8px; }
+.kit-resource { display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin: 24px 0 12px; }
+.kit-resource > span { display: flex; align-items: center; gap: 6px; }
+.kit-theme .ui-card > .ui-button { margin-top: 24px; }
+@media (max-width: 700px) { .kit-themes { grid-template-columns: 1fr; } .kit-showcase > header > span { display: none; } }
+.kit-brand-pair { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 24px; }

@@ -1,31 +1,9 @@
 import type { Board } from "../types";
+import IllustratedBoard from "./IllustratedBoard";
+const ignoreAnimation = () => {};
 
-export default function LocationArtwork({
-  board,
-  onSelect,
-}: {
-  board: Board;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="dala-location-artwork"
-      aria-label={`${board.name} — ойынды таңдау`}
-      onClick={onSelect}
-    >
-      <img
-        src={board.illustration}
-        alt={board.name}
-        width="1536"
-        height="1024"
-        fetchPriority="high"
-        draggable={false}
-      />
-      <span className="dala-location-caption">
-        {board.name}
-        <small>Өлкені зертте · Партияны таңда</small>
-      </span>
-    </button>
-  );
+export default function LocationArtwork({ board, onSelect }: { board: Board; onSelect: () => void }) {
+  return <div className="dala-location-artwork" aria-label={`${board.name} — 40 ұяшықты классикалық алаң`}>
+    <IllustratedBoard board={board} match={null} selected={-1} onSelect={onSelect} onAnimate={ignoreAnimation} />
+  </div>;
 }

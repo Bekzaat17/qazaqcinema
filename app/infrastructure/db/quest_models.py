@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -98,3 +99,23 @@ class BoardAwardModel(Base):
         BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True
     )
     scenario_id: Mapped[str] = mapped_column(String(48), primary_key=True)
+
+
+class BoardResultModel(Base):
+    __tablename__ = "board_results"
+
+    code: Mapped[str] = mapped_column(String(10), ForeignKey("board_rooms.code"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True
+    )
+    name: Mapped[str] = mapped_column(String(24))
+    scenario_id: Mapped[str] = mapped_column(String(48))
+    board_id: Mapped[str] = mapped_column(String(48))
+    rounds: Mapped[int] = mapped_column(Integer)
+    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    winner_name: Mapped[str] = mapped_column(String(24))
+    player_count: Mapped[int] = mapped_column(Integer)
+    capital: Mapped[int] = mapped_column(BigInteger)
+    won: Mapped[bool] = mapped_column(Boolean)
+
+    __table_args__ = (Index("ix_board_results_history", "user_id", text("finished_at DESC")),)

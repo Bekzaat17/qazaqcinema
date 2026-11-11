@@ -1,7 +1,8 @@
 // Липкая шапка: компактный логотип слева, профиль/статус справа.
 
-import { CircleUserRound, TentTree } from "lucide-react";
+import { CircleUserRound, Gamepad2 } from "../ui-kit/adapters/icons";
 
+import { Brand } from "../ui-kit";
 import type { UserStatus } from "../lib/api";
 import { haptic } from "../lib/telegram";
 import { navigateApp } from "../quest/launch";
@@ -21,13 +22,7 @@ export default function TopBar({
   const dot = STATUS_DOT[status];
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-bg/80 px-4 py-3 backdrop-blur-xl">
-      <div className="flex items-center gap-2">
-        <img src="/logo-icon.png" alt="" className="h-8 w-8 shrink-0" />
-        <span className="font-display text-lg font-bold leading-none tracking-tight">
-          <span className="text-text">Qazaq</span>
-          <span className="text-brand">Cinema</span>
-        </span>
-      </div>
+      <Brand product="cinema" compact />
       <div className="flex items-center gap-2">
         <a
           href="/quest"
@@ -35,10 +30,10 @@ export default function TopBar({
             event.preventDefault();
             navigateApp("quest");
           }}
-          aria-label="QazaqQuest — ауылыңды дамыт"
-          className="rounded-full p-2 text-muted"
+          aria-label="QazaqPlay — ойындар мен өз ауылың"
+          className="ui-play-entry"
         >
-          <TentTree size={23} />
+          <Gamepad2 size={18} /><span>Ойындар</span>
         </a>
         <button
           onClick={() => {

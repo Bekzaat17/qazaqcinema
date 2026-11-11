@@ -1,0 +1,55 @@
+/* Общий визуальный контракт; темы меняют поверхности, адаптеры — реализацию. */
+:root, [data-ui-theme="cinema"] {
+  --ui-font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ui-display: "Poppins", "Inter", system-ui, sans-serif;
+  --ui-brand: #3d8bff;
+  --ui-brand-hover: #2f6fe0;
+  --ui-action: #2569cf;
+  --ui-action-hover: #1e59b4;
+  --ui-on-action: #fff;
+  --ui-action-shadow: #3d8bff26;
+  --ui-accent-text: #edc979;
+  --ui-gold: #edc979;
+  --ui-radius-sm: 10px;
+  --ui-radius: 16px;
+  --ui-radius-lg: 24px;
+  --ui-duration: 160ms;
+  --ui-ease: cubic-bezier(.22, 1, .36, 1);
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-6: 24px;
+  --ui-space-8: 32px;
+  --ui-focus: #80b4ff;
+  --ui-bg: #09090b;
+  --ui-surface: #141418;
+  --ui-elevated: #232329;
+  --ui-ink: #f4f4f5;
+  --ui-muted: #a1a1ab;
+  --ui-border: #34343e;
+  --ui-success: #34d399;
+  --ui-danger: #ff7770;
+  --ui-shadow: 0 12px 32px #00000025;
+}
+[data-ui-theme="steppe"], .dala-app, .quest-app, .quest-dialog {
+  --ui-action: #e3b64e;
+  --ui-action-hover: #d3a23a;
+  --ui-on-action: #382b17;
+  --ui-action-shadow: #ad782526;
+  --ui-focus: #ad7b22;
+  --ui-bg: #e4eadc;
+  --ui-surface: #fbf8ed;
+  --ui-elevated: #edf0e3;
+  --ui-ink: #283f39;
+  --ui-muted: #596e63;
+  --ui-border: #c6d0bb;
+  --ui-accent-text: #846222;
+  --ui-success: #287460;
+  --ui-danger: #b74138;
+  --ui-shadow: 0 12px 32px #304a3212;
+  color-scheme: light;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --ui-duration: 0ms; }
+}

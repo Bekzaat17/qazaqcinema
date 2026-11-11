@@ -2,7 +2,7 @@
 // Сообщение уходит админам в личку Telegram, отвечают они там же (переписки в приложении нет —
 // это не мессенджер, а витрина; ответ приходит от бота, где юзер и так сидит).
 
-import { LifeBuoy, Send } from "lucide-react";
+import { LifeBuoy, Send } from "../ui-kit/adapters/icons";
 import { useEffect, useState } from "react";
 
 import { ApiError, api } from "../lib/api";

@@ -1,0 +1,1608 @@
+{
+  "games": [
+    {
+      "scenario": "almaty_classic_first",
+      "steps": 12,
+      "hash": "994a8a392e6cf04d4f761de4e695cd59c1a26a059678458d524a2345d12ef25f"
+    },
+    {
+      "scenario": "almaty_classic_trade",
+      "steps": 20,
+      "hash": "20704e1ee83fabce7f9c7f9fcdcd8b2fc10eafa7d155e4c547613e7e8fd6332d"
+    },
+    {
+      "scenario": "almaty_classic_tycoon",
+      "steps": 28,
+      "hash": "9fc5a1bec83699439629207fc34f1587edc26b9bc76712edfb23d69a3497693b"
+    },
+    {
+      "scenario": "turkistan_classic_first",
+      "steps": 12,
+      "hash": "f68f7d11178ca7302e781d16a4ac36b1573ea6e8881a59775124726e6bead7ba"
+    },
+    {
+      "scenario": "turkistan_classic_trade",
+      "steps": 20,
+      "hash": "ad4a2e17ab387a65e7515b098d8ceefd23d1770beb69140d1f7a09ddc780e472"
+    },
+    {
+      "scenario": "turkistan_classic_tycoon",
+      "steps": 28,
+      "hash": "ebb8bf2b5cd50c865cab0c7ea211773f84a4396995a06223c5873e897e125b31"
+    }
+  ],
+  "vectors": [
+    {
+      "name": "seller proposes swap",
+      "room": {
+        "revision": 1,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            },
+            "6": {
+              "owner": 1,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 1,
+        "kind": "ask",
+        "target": "other",
+        "tile": 1,
+        "amount": 100,
+        "give_tile": 6
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "222bb8490fdc77ab14caced91b551a5bd3613cfc4a647497c2fb29dba0af2d16"
+    },
+    {
+      "name": "cannot accept own proposal",
+      "room": {
+        "revision": 2,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            },
+            "6": {
+              "owner": 1,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [
+            {
+              "id": "1:0",
+              "buyer": 1,
+              "seller": 0,
+              "tile": 1,
+              "amount": 100,
+              "expires": 3,
+              "give_tile": 6,
+              "proposer": 0
+            }
+          ],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 2,
+        "kind": "accept",
+        "target": "1:0",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "forbidden",
+      "hash": "222bb8490fdc77ab14caced91b551a5bd3613cfc4a647497c2fb29dba0af2d16"
+    },
+    {
+      "name": "buyer counters price",
+      "room": {
+        "revision": 2,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            },
+            "6": {
+              "owner": 1,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [
+            {
+              "id": "1:0",
+              "buyer": 1,
+              "seller": 0,
+              "tile": 1,
+              "amount": 100,
+              "expires": 3,
+              "give_tile": 6,
+              "proposer": 0
+            }
+          ],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "other",
+      "command": {
+        "revision": 2,
+        "kind": "counter",
+        "target": "1:0",
+        "tile": -1,
+        "amount": 50,
+        "give_tile": 6
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "2406980edaad09c1e7d851209e2c26e741f197dbca9c137db2f267fb43f59cb4"
+    },
+    {
+      "name": "seller accepts counter",
+      "room": {
+        "revision": 3,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            },
+            "6": {
+              "owner": 1,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [
+            {
+              "id": "2:1",
+              "buyer": 1,
+              "seller": 0,
+              "tile": 1,
+              "amount": 50,
+              "expires": 3,
+              "give_tile": 6,
+              "proposer": 1
+            }
+          ],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 3,
+        "kind": "accept",
+        "target": "2:1",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "1374bfcbcbc9e42cf6092f95473c17683aa5428b6a9f25551309db5067da9d30"
+    },
+    {
+      "name": "buyer makes offer",
+      "room": {
+        "revision": 4,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1550,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1450,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 1,
+              "level": 0,
+              "mortgaged": false
+            },
+            "6": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі.",
+            "Айырбас: Панфилов көшесі ↔ Абай даңғылы · 50 ◈"
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 4,
+        "kind": "offer",
+        "target": "",
+        "tile": 1,
+        "amount": 60,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "a15f6a4d72e6c6efa606914c177e73c4b09bbbe1f968f998e6a7379990a35415"
+    },
+    {
+      "name": "sender withdraws",
+      "room": {
+        "revision": 5,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1550,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1450,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 1,
+              "level": 0,
+              "mortgaged": false
+            },
+            "6": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [
+            {
+              "id": "4:0",
+              "buyer": 0,
+              "seller": 1,
+              "tile": 1,
+              "amount": 60,
+              "expires": 3,
+              "give_tile": -1,
+              "proposer": 0
+            }
+          ],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі.",
+            "Айырбас: Панфилов көшесі ↔ Абай даңғылы · 50 ◈"
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 5,
+        "kind": "withdraw",
+        "target": "4:0",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "a4d36d17ec57760d8ccb8b6301a0984cc1983e405adde12830755f11daf18851"
+    },
+    {
+      "name": "third doubles jail no salary",
+      "room": {
+        "revision": 1,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 39,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {},
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 2,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 1,
+        "kind": "roll",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "8c5b970a49e43138971ff059841242b06c4b085bb59f9d980679d9628d58267d"
+    },
+    {
+      "name": "jail attempt 1",
+      "room": {
+        "revision": 1,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 40,
+              "position": 10,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {
+              "0": 0
+            },
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 1,
+        "kind": "roll",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0,
+        1
+      ],
+      "outcome": "applied",
+      "hash": "b9607bfe924434abce5193728d6f07f59db6abc66c59652383ac9a6b107d6dd8"
+    },
+    {
+      "name": "jail attempt 3",
+      "room": {
+        "revision": 1,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 40,
+              "position": 10,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {
+              "0": 2
+            },
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 1,
+        "kind": "roll",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0,
+        1
+      ],
+      "outcome": "applied",
+      "hash": "c0564cfbc5f7aebd99964f6674b034b675ab2e59c3dd8a729ff2b423b3e5cc6b"
+    },
+    {
+      "name": "mortgage to pay mandatory jail fine",
+      "room": {
+        "revision": 2,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 40,
+              "position": 10,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": false
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "debt",
+          "dice": [
+            1,
+            2
+          ],
+          "pending": -1,
+          "debt": {
+            "amount": 50,
+            "creditor": -1
+          },
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі.",
+            "Аян: төлеуге 50 ₸ керек."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 3
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 2,
+        "kind": "mortgage",
+        "target": "",
+        "tile": 1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "15e366832f64413f0cd0e42af85ea669bcd0c8858156d48b65137e02971b5f8b"
+    },
+    {
+      "name": "settle fine then move",
+      "room": {
+        "revision": 3,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 70,
+              "position": 10,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {
+            "1": {
+              "owner": 0,
+              "level": 0,
+              "mortgaged": true
+            }
+          },
+          "turn": 0,
+          "round": 1,
+          "phase": "debt",
+          "dice": [
+            1,
+            2
+          ],
+          "pending": -1,
+          "debt": {
+            "amount": 50,
+            "creditor": -1
+          },
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі.",
+            "Аян: төлеуге 50 ₸ керек.",
+            "Кепілге қойылды: Панфилов көшесі"
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 3
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 3,
+        "kind": "settle",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0,
+        1
+      ],
+      "outcome": "applied",
+      "hash": "853bbfbe54d55f9bf33bde83b98fca4fc36645a622b3343f92bf0686881ff1e5"
+    },
+    {
+      "name": "double releases without repeat",
+      "room": {
+        "revision": 1,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 10,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {},
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {
+              "0": 0
+            },
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 1,
+        "kind": "roll",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "466a78cf6b098df706ca5931a795fc625e49b7179f50e7ba55b586420338f55d"
+    },
+    {
+      "name": "pay bail before roll",
+      "room": {
+        "revision": 1,
+        "host": "human",
+        "scenario_id": "almaty_classic_first",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Аян",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Айша",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Аян",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 10,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Айша",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {},
+          "turn": 0,
+          "round": 1,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {
+              "0": 0
+            },
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 1,
+        "kind": "bail",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "e6384294a9cf5e1fe8d9ba84c3b6fccc71a779bcbf35c47d526bd9026ed02309"
+    },
+    {
+      "name": "unlimited: continues after round 100",
+      "room": {
+        "revision": 1,
+        "host": "human",
+        "scenario_id": "almaty_classic_unlimited",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Player",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Player",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Other",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {},
+          "turn": 1,
+          "round": 100,
+          "phase": "end",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "other",
+      "command": {
+        "revision": 1,
+        "kind": "end",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "2c5fe79b66760337e17d8247ce8840a2ed47f1d35dc46d9423c860dd89cb7b29",
+      "auto": false
+    },
+    {
+      "name": "unlimited: last survivor wins",
+      "room": {
+        "revision": 2,
+        "host": "human",
+        "scenario_id": "almaty_classic_unlimited",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Player",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Player",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 0,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Other",
+              "color": "#d6a854",
+              "bot": "",
+              "cash": 1500,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {},
+          "turn": 0,
+          "round": 101,
+          "phase": "debt",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": {
+            "amount": 50,
+            "creditor": -1
+          },
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 2,
+        "kind": "bankrupt",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "2226f51b320e04166f9d312a9e880d7cb0bdf3b899ae6a40130d951bc46aaeb1",
+      "auto": false
+    },
+    {
+      "name": "unlimited: bot batch does not force victory",
+      "room": {
+        "revision": 2,
+        "host": "human",
+        "scenario_id": "almaty_classic_unlimited",
+        "seats": [
+          {
+            "id": "human",
+            "name": "Player",
+            "color": "#479e8b",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "color": "#d6a854",
+            "bot": "",
+            "ready": true
+          },
+          {
+            "id": "third",
+            "name": "Bot",
+            "color": "#d6a854",
+            "bot": "builder",
+            "ready": true
+          }
+        ],
+        "match": {
+          "catalog_version": 3,
+          "players": [
+            {
+              "id": "human",
+              "name": "Player",
+              "color": "#479e8b",
+              "bot": "",
+              "cash": 0,
+              "position": 0,
+              "bankrupt": true,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "other",
+              "name": "Other",
+              "color": "#d6a854",
+              "bot": "balanced",
+              "cash": 1000000,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            },
+            {
+              "id": "third",
+              "name": "Other",
+              "color": "#d6a854",
+              "bot": "builder",
+              "cash": 1000000,
+              "position": 0,
+              "bankrupt": false,
+              "skip": 0,
+              "laps": 0
+            }
+          ],
+          "lots": {},
+          "turn": 1,
+          "round": 1000,
+          "phase": "roll",
+          "dice": [
+            0,
+            0
+          ],
+          "pending": -1,
+          "debt": null,
+          "offers": [],
+          "log": [
+            "Сәтті партия! Алғашқы жүріс сенікі."
+          ],
+          "moves": [],
+          "winner": -1,
+          "classic": {
+            "jailed": {},
+            "doubles": 0,
+            "release_steps": 0
+          }
+        },
+        "closed": false
+      },
+      "actor": "human",
+      "command": {
+        "revision": 2,
+        "kind": "timeout",
+        "target": "",
+        "tile": -1,
+        "amount": 0,
+        "give_tile": -1
+      },
+      "random": [
+        0
+      ],
+      "outcome": "applied",
+      "hash": "7c9a804a41fa73a6274a5d258b1a2d5d2a7fa01e11f7e1075debb977e88c930b",
+      "auto": true
+    }
+  ]
+}

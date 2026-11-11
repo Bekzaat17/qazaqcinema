@@ -2,7 +2,7 @@
 // скролле. Оверлеи (карточка/пэйволл/профиль) перекрывают его своим бэкдропом (z выше).
 // Профиль — отдельной иконкой в топбаре (это аккаунт, а не раздел-витрина).
 
-import { Home, LayoutGrid, Star, type LucideIcon } from "lucide-react";
+import { Home, LayoutGrid, Star, type LucideIcon } from "../ui-kit/adapters/icons";
 
 import { haptic } from "../lib/telegram";
 

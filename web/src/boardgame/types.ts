@@ -1,3 +1,4 @@
+import type { PlayerAppearance } from "../ui-kit/PlayerAvatar";
 export interface Tile {
   street?: string;
   street_sprite?: number;
@@ -32,7 +33,7 @@ export interface Scenario {
   board: string;
   name: string;
   story: string;
-  round_limit: number;
+  round_limit: number; // 0 — до одного оставшегося участника.
   starting_cash: number;
   salary: number;
   tax_multiplier: number;
@@ -45,6 +46,7 @@ export interface Card {
   amount: number;
   move: number | null;
   skip: number;
+  deck?: string;
 }
 export interface Bot {
   id: string;
@@ -58,6 +60,7 @@ export interface Catalog {
   scenarios: Scenario[];
   cards: Card[];
   bots: Bot[];
+  legacy_catalogs?: Catalog[];
 }
 export type Phase = "roll" | "buy" | "end" | "debt" | "finished";
 export type Action =
@@ -67,6 +70,7 @@ export type Action =
   | "remove_bot"
   | "ready"
   | "roll"
+  | "bail"
   | "buy"
   | "pass"
   | "end"
@@ -77,10 +81,14 @@ export type Action =
   | "settle"
   | "bankrupt"
   | "offer"
+  | "ask"
+  | "counter"
+  | "withdraw"
   | "accept"
   | "reject"
   | "timeout";
 export type Outcome =
+  | "channel_required"
   | "applied"
   | "stale"
   | "forbidden"
@@ -134,8 +142,12 @@ export interface Offer {
   tile: number;
   amount: number;
   expires: number;
+  give_tile?: number;
+  proposer?: number;
 }
+export interface ClassicState { jailed: Record<string, number>; doubles: number; release_steps: number }
 export interface Match {
+  classic?: ClassicState | null;
   catalog_version: number;
   players: Player[];
   lots: Record<string, Lot>;
@@ -151,6 +163,7 @@ export interface Match {
   winner: number;
 }
 export interface Room {
+  appearances?: Record<string, PlayerAppearance>;
   revision: number;
   host: string;
   scenario_id: string;
@@ -164,12 +177,16 @@ export interface Command {
   target?: string;
   tile?: number;
   amount?: number;
+  give_tile?: number;
 }
 export interface Result {
   room: Room;
   outcome: Outcome;
 }
 export interface RoomView {
+  blocked_seats?: string[];
+  is_public?: boolean;
+  appearances?: Record<string, PlayerAppearance>;
   code: string;
   room: Room;
   me: string;
@@ -178,3 +195,10 @@ export interface RoomView {
   outcome: Outcome;
 }
 export type RandomBelow = (maximum: number) => number;
+
+export interface PublicRoom { code: string; host_name: string; scenario_id: string; players: number }
+export interface ActiveRoom extends PublicRoom { started: boolean; is_public: boolean }
+export interface GameAccess { games_started: number; free_left: number; allowed: boolean; channel_url: string }
+export interface GameHistory { code: string; scenario_id: string; board_id: string; rounds: number; finished_at: string; winner_name: string; player_count: number; capital: number; won: boolean }
+export interface GameRank { rank: number; name: string; played: number; wins: number; is_me: boolean }
+export interface GameRanking { entries: GameRank[]; me: GameRank | null }

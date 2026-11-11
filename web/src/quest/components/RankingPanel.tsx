@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trophy } from "lucide-react";
+import { Trophy } from "../../ui-kit/adapters/icons";
 import { BOT_URL, openTelegramLink } from "../../lib/telegram";
 import type { Period, QuestGateway, Ranking } from "../types";
 

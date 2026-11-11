@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <meta name="description" content="{{ description }}" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <link rel="canonical" href="{{ seo.canonical }}" />
+  <link rel="icon" type="image/png" href="/logo-icon.png" />
+  <meta name="theme-color" content="#fbf8ed" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="QazaqPlay" />
+  <meta property="og:locale" content="kk_KZ" />
+  <meta property="og:title" content="{{ title }}" />
+  <meta property="og:description" content="{{ description }}" />
+  <meta property="og:url" content="{{ seo.canonical }}" />
+  <meta property="og:image" content="{{ site_url }}/boardgame/art/almaty-map-v2.webp" />
+  <meta property="og:image:alt" content="Алматы стиліндегі QazaqPlay ойын қаласы" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ title }}" />
+  <meta name="twitter:description" content="{{ description }}" />
+  <meta name="twitter:image" content="{{ site_url }}/boardgame/art/almaty-map-v2.webp" />
+  <link rel="stylesheet" href="/play-fonts.css" />
+  <link rel="stylesheet" href="/qazaqplay.css" />
+  <script type="application/ld+json">{{ seo.jsonld|safe }}</script>
+</head>
+<body>
+  <header class="play-header">
+    <a class="play-brand" href="/games" aria-label="QazaqPlay"><img src="/logo-icon.png" width="42" height="42" alt="" /><span>Qazaq<b>Play</b></span></a>
+    <nav aria-label="Басты мәзір"><a href="#how">Қалай ойнаймыз?</a><a href="/catalog">Кинотеатр</a><a class="play-button" href="{{ seo.telegram_url }}">Telegram-да ойнау</a></nav>
+  </header>
+  <main>
+    <section class="play-hero">
+      <div><span class="play-eyebrow">ҚАЗАҚША · ДОСТАРМЕН · БІР ӘЛЕМДЕ</span>
+        <h1>Өз жолың.<br />Өз <em>дәулетің.</em></h1>
+        <p class="play-lead">Алматы мен Түркістанда кәсіп құр, түсті топтарды жина, саудалас. Қазақша экономикалық үстел ойыны — енді достарыңмен онлайн.</p>
+        <p class="play-ru" lang="ru">Настольная игра в стиле монополии на казахском языке: города Казахстана, сделки с друзьями и свой аул.</p>
+        <div class="play-actions"><a class="play-button" href="{{ seo.telegram_url }}">Telegram-да ойнау ↗</a><a class="play-button secondary" href="/quest">Браузерде жаттығу</a></div>
+        <p class="play-note">Алғашқы 3 партия — бірден. Одан кейін арнаға жазылып жалғастыр. Dala — тек ойын монетасы.</p>
+        <div class="play-facts"><span><b>2–4</b> ойыншы</span><span><b>40</b> ұяшық</span><span><b>∞</b> шектеусіз режим</span></div>
+      </div>
+      <figure class="play-hero-art"><img src="/boardgame/art/almaty-map-v2.webp" width="1254" height="1254" alt="Алматы: Көк-Төбе, Медеу, Қазақстан қонақүйі, жасыл көшелер мен көлік жолдары" fetchpriority="high" /><figcaption>Таныс қала. Жаңа мүмкіндіктер.</figcaption></figure>
+    </section>
+    <section class="play-section" id="how"><span class="play-eyebrow">БАСТАУ ОҢАЙ</span><h2>Бір сілтеме — бір үстел.</h2><div class="play-grid steps">
+      <article><span>01</span><h3>Бөлме құр</h3><p>Карта мен режимді таңда. Тек достарға арналған немесе бәріне ашық бөлме жаса.</p></article>
+      <article><span>02</span><h3>Досыңды шақыр</h3><p>Telegram-да сілтеме жібер немесе бөлме кодымен бөліс. Ашық бөлмелерден ойыншы таба аласың.</p></article>
+      <article><span>03</span><h3>Дайын болып, баста</h3><p>Екі адамнан бастауға болады. Бос орынға бот қос. Дайындықты растаған соң бөлме иесі ойынды бастайды.</p></article>
+    </div></section>
+    <section class="play-section"><div class="play-section-heading"><div><span class="play-eyebrow">ЕКІ ҚАЛА · БІР ЕРЕЖЕ</span><h2>Алматы ма, Түркістан ба?</h2></div><a href="/quest">Картаны таңдау →</a></div><div class="play-grid cities">
+      <article><img src="/boardgame/art/almaty-map-v2.webp" width="1254" height="1254" loading="lazy" alt="Алматының ойынға арналған суретті қаласы" /><div><h3>Алматы бағы</h3><p>Алма бақтары, таулар, Медеу және қаланың таныс сәулеті.</p></div></article>
+      <article><img src="/boardgame/art/turkistan-map-v2.webp" width="1254" height="1254" loading="lazy" alt="Түркістан: Ясауи кесенесі, Керуен-сарай және субұрқақтар" /><div><h3>Түркістан керуені</h3><p>Көне кесенелер, көгілдір күмбездер, керуен сарайлары мен шығыс базарлары.</p></div></article>
+    </div><p class="play-rule-note">Классикалық тәртіптегі 40 ұяшық: төрт көлік бекеті, электр желісі, су арнасы, мүмкіндік пен қазына, салық, түрме және тұрақ. Үй салу үшін бір түстегі барлық кәсіпті жина. Айырбас жаса, қарсы баға ұсын, төрт үйден кейін қонақүй сал.</p></section>
+    <section class="play-village"><div><span class="play-eyebrow">ПАРТИЯ АРАСЫНДА</span><h2>Өз ауылыңды дамыт.</h2><p>3D-аулда киіз үй салып, құдық қаз, шеберханаңды жақсарт. Қазақша тапсырмаларды орындап, құрылысқа материал жина.</p><p>Ортақ партияның нәтижелері мен рейтингі серверде сақталады. Браузердегі жаттығу тек осы құрылғыда қалады.</p><a class="play-button secondary" href="/quest">QazaqPlay ашу →</a></div><div class="play-yurt" aria-hidden="true"><svg viewBox="0 0 320 240"><ellipse cx="160" cy="200" rx="130" ry="24" fill="#748d5c" opacity=".25"/><path d="M52 127Q160 66 268 127V192Q160 236 52 192Z" fill="#efe1b9"/><path d="M32 128 160 38 288 128Q160 184 32 128Z" fill="#bd7854"/><ellipse cx="160" cy="40" rx="23" ry="7" fill="#e5bd6b"/><path d="M53 159Q160 204 267 159" fill="none" stroke="#ae6d4c" stroke-width="12"/><path d="M141 215V151Q160 142 179 151V215" fill="#3c6e60"/><path d="M152 154V211" stroke="#d6b56a" stroke-width="3"/><path d="M46 177v26m-15-17 15-39 16 39M275 164v31m-18-11 18-47 19 47" stroke="#56734e" stroke-width="6" stroke-linejoin="round"/></svg></div></section>
+    <section class="play-section faq"><span class="play-eyebrow">ОЙЫН ТУРАЛЫ</span><h2>Жиі қойылатын сұрақтар</h2>{% for item in faq %}<details><summary>{{ item.question }}</summary><p>{{ item.answer }}</p></details>{% endfor %}</section>
+    <section class="play-last"><h2>Бірінші жүріс сенікі.</h2><p>Қазақша ойна. Достарыңмен жарыс. Өз әлеміңді құр.</p><div class="play-actions"><a class="play-button" href="{{ seo.telegram_url }}">Telegram-да ойнау ↗</a><a class="play-button secondary" href="/quest">Браузерде бастау</a></div></section>
+  </main>
+  <footer class="play-footer"><a class="play-brand" href="/games"><span>Qazaq<b>Play</b></span></a><a href="/catalog">QazaqCinema кинотеатры</a><a href="{{ seo.telegram_url }}">Telegram</a><span>Қазақша ойындар · 2026</span></footer>
+</body>
+</html>

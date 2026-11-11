@@ -51,6 +51,13 @@ from app.application.services.seo_service import HubSeo, MovieSeo, SeoBuilder
 from app.config.settings import AppConfig
 from app.domain.catalog.categories import Category, get_category
 from app.domain.entities.movie import Movie
+from app.domain.seo.games import (
+    GAMES_DESCRIPTION,
+    GAMES_FAQ,
+    GAMES_PATH,
+    GAMES_TITLE,
+    GAMES_UPDATED,
+)
 from app.domain.seo.hubs import (
     COLLECTIONS,
     Hub,
@@ -79,6 +86,7 @@ class _CategoryLink:
     category: Category
     path: str
     count: int
+
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 # Фильтр `thumb`: в сетках страниц постер показывается в 120–200 px, и грузить туда
@@ -251,7 +259,28 @@ def _page_gate(request: Request, path: str, page: int) -> RedirectResponse | Non
         return RedirectResponse(url=path, status_code=301)
     return None
 
+
 router = APIRouter(tags=["seo"], route_class=DishkaRoute, include_in_schema=False)
+
+
+@router.get(GAMES_PATH, response_class=HTMLResponse)
+async def games_page(
+    request: Request,
+    seo: FromDishka[SeoBuilder],
+    config: FromDishka[AppConfig],
+) -> Response:
+    return _TEMPLATES.TemplateResponse(
+        request,
+        "games.html",
+        {
+            "seo": seo.games_seo(),
+            "title": GAMES_TITLE,
+            "description": GAMES_DESCRIPTION,
+            "faq": GAMES_FAQ,
+            "site_url": config.public_origin.rstrip("/"),
+        },
+        headers={"Cache-Control": "public, max-age=600"},
+    )
 
 
 @router.get("/m/{slug}", response_class=HTMLResponse)
@@ -334,9 +363,7 @@ async def catalog_page(
     }
 
     if query:
-        found = (
-            await catalog.search_movies(query) if len(query) >= _SEARCH_MIN_LEN else []
-        )
+        found = await catalog.search_movies(query) if len(query) >= _SEARCH_MIN_LEN else []
         items = [
             _CatalogItem(m, seo.movie_seo(m)) for m in found[:_SEARCH_LIMIT] if m.id is not None
         ]
@@ -459,6 +486,9 @@ async def sitemap(
     # притом что меняются они чаще карточек: каждый новый фильм меняет и каталог, и
     # свои разделы. Дата хаба = дата самого свежего фильма внутри него.
     urls: list[str] = [
+        _url_entry(
+            f"{site}{GAMES_PATH}", priority="0.9", changefreq="monthly", lastmod=GAMES_UPDATED
+        ),
         _url_entry(
             f"{site}{_CATALOG_PATH}", priority="1.0", changefreq="daily", lastmod=_newest(movies)
         ),
@@ -700,9 +730,7 @@ def _catalog_jsonld(site: str, items: list[_CatalogItem], pager: Pagination) -> 
     )
 
 
-def _hub_jsonld(
-    site: str, meta: HubSeo, items: list[_CatalogItem], pager: Pagination
-) -> str:
+def _hub_jsonld(site: str, meta: HubSeo, items: list[_CatalogItem], pager: Pagination) -> str:
     """CollectionPage с вложенным ItemList — «это раздел, и вот что в нём»."""
     return _as_script(
         {

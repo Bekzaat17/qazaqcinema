@@ -1,3 +1,5 @@
+import { cellCorners } from "../../layout";
+import { money, moneyLabel } from "../../format";
 import { type CSSProperties } from "react";
 import BuildingMiniature from "./BuildingMiniature";
 import type { Board, Lot } from "../../types";
@@ -29,7 +31,7 @@ export default function ArtworkHotspot({
       className={`dala-svg-tile dala-artwork-hotspot dala-square-tile ${selected ? "selected" : ""}`}
       role="button"
       tabIndex={0}
-      aria-label={`${tile.name}${tile.price ? `, ${tile.price} теңге` : ""}${lot ? `, ${lot.level} ғимарат` : ""}`}
+      aria-label={`№ ${index + 1}. ${tile.name}${tile.price ? `, ${moneyLabel(tile.price)}` : ""}${lot ? `, ${lot.level} ғимарат` : ""}`}
       onClick={() => onSelect(index)}
       onPointerEnter={() => onHover(index)}
       onPointerLeave={() => onHover(-1)}
@@ -44,14 +46,11 @@ export default function ArtworkHotspot({
       style={{ "--tile-glow": color } as CSSProperties}
     >
       <title>{tile.name}</title>
+      <polygon className="dala-hotspot-hit" fill="transparent"
+        points={cellCorners(index, board.tiles.length)
+          .map((p) => `${p.x - point.x},${p.y - point.y}`).join(" ")} />
       <g className="dala-svg-tile-rise" style={{ transformOrigin: "center" }}>
         <g transform={`scale(${factor})`}>
-          <path
-            className="dala-hotspot-hit"
-            d="M-56-56H56V56H-56Z"
-            fill="transparent"
-            stroke="none"
-          />
           <ellipse
             className="dala-object-selection"
             cy="8"
@@ -61,12 +60,12 @@ export default function ArtworkHotspot({
             stroke={color}
             strokeWidth="2"
           />
-          <BuildingMiniature
+          <g transform="translate(0 -7) scale(.8)"><BuildingMiniature
             board={board}
             tile={tile}
             level={lot?.level ?? 0}
-          />
-          <g className="dala-hotspot-marker" transform="translate(-43 -42)">
+          /></g>
+          <g className="dala-hotspot-marker" transform="translate(-38 -24)">
             <circle
               cy="4"
               r={lot ? 10 : 8}
@@ -81,7 +80,7 @@ export default function ArtworkHotspot({
               fontSize="9"
               fontWeight="700"
             >
-              {lot?.level ? (lot.level === 4 ? "★" : lot.level) : index + 1}
+              {index + 1}
             </text>
             {lot?.mortgaged && (
               <path d="m-7-4 14 14" stroke="#8e957b" strokeWidth="2" />
@@ -89,7 +88,7 @@ export default function ArtworkHotspot({
           </g>
           <g className="dala-square-tile-label" pointerEvents="none">
             <text
-              y="36"
+              y="27"
               textAnchor="middle"
               fontSize="10"
               textLength={tile.name.length > 17 ? 100 : undefined}
@@ -100,8 +99,8 @@ export default function ArtworkHotspot({
               {tile.name}
             </text>
             {tile.price > 0 && (
-              <text y="49" textAnchor="middle" fontSize="9" fill="#8a6d36">
-                {tile.price} ₸
+              <text y="40" textAnchor="middle" fontSize="9" fill="#8a6d36">
+                {money(tile.price)}
               </text>
             )}
           </g>

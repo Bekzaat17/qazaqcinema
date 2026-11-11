@@ -1,0 +1,74 @@
+{
+  "author": "Kenney",
+  "license": "CC0-1.0",
+  "source": "https://kenney.nl/assets/nature-kit",
+  "mirror_commit": "3ddcc695adbba9fb918cf31b7c139b3f95b76910",
+  "models": [
+    {
+      "file": "rock-largea.glb",
+      "bytes": 7552,
+      "sha256": "6dd15390fd96501dcd1454765a17ba61dbbd8d47705dfe5149c8dd92b353ce25",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/rock-largea.glb"
+    },
+    {
+      "file": "rock-largeb.glb",
+      "bytes": 8560,
+      "sha256": "caa8b025833d4dabf6d98fe2e96cf2fbd886693ac990df0db75f9d827194374b",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/rock-largeb.glb"
+    },
+    {
+      "file": "flower-purplea.glb",
+      "bytes": 7112,
+      "sha256": "f6fc34c96a03420a74fe36d4c2d0ec88f15204fcad99cd1416c3c4ecb22e48c4",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/flower-purplea.glb"
+    },
+    {
+      "file": "flower-yellowa.glb",
+      "bytes": 7120,
+      "sha256": "8a3b08cd2ca411c21f9c581d5bda651d78b13c50cba45ad8fa0389398ead6d1d",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/flower-yellowa.glb"
+    },
+    {
+      "file": "log-stack.glb",
+      "bytes": 10896,
+      "sha256": "90eaae4a01ba1f25c2f0c6d83087e4a7a8fac684f2452615245333968d118d68",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/log-stack.glb"
+    },
+    {
+      "file": "pot-large.glb",
+      "bytes": 6168,
+      "sha256": "57e60214bc6ab1dc3764c9ffe80091ff45f2bfd49fbc313c1b68dcaab1537aef",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/pot-large.glb"
+    },
+    {
+      "file": "crop-pumpkin.glb",
+      "bytes": 10840,
+      "sha256": "5b4878c5996033629419c26ac32153ce8ac06bbbdac98e4fa8a5cbab98f78077",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/crop-pumpkin.glb"
+    },
+    {
+      "file": "crops-wheatstageb.glb",
+      "bytes": 30040,
+      "sha256": "589db4d6fe0bd7616c1f1c2f10a335704b2dad5d24638dc08a5b2e5334c68852",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/crops-wheatstageb.glb"
+    },
+    {
+      "file": "fence-simple.glb",
+      "bytes": 5712,
+      "sha256": "ecaf6c29532aa9fd305a8ef71df769d60748bd797f2eb1c63bdefc4edb8062a7",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/fence-simple.glb"
+    },
+    {
+      "file": "campfire-stones.glb",
+      "bytes": 17344,
+      "sha256": "54869db23243a3f4905bc00bd4cd93b1037b28556ab3ef93e7a893a093791e35",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/campfire-stones.glb"
+    },
+    {
+      "file": "lily-large.glb",
+      "bytes": 8044,
+      "sha256": "c8f7080df0ae3166e9d33f523b66360c2ac7556dff36cc9c8ee78b6a676c7db2",
+      "download": "https://raw.githubusercontent.com/Hidencod/tge-assets/3ddcc695adbba9fb918cf31b7c139b3f95b76910/packs/nature-kit/lily-large.glb"
+    }
+  ]
+}

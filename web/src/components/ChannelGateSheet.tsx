@@ -9,7 +9,7 @@
 // только спросив сервер. Поэтому человек сам возвращается и жмёт «Тексеру» — и это же
 // единственный способ дать ему мгновенный ответ вместо «подождите, обновится».
 
-import { Megaphone, RefreshCw } from "lucide-react";
+import { Megaphone, RefreshCw } from "../ui-kit/adapters/icons";
 
 import type { Movie } from "../lib/api";
 import { haptic, openTelegramLink } from "../lib/telegram";

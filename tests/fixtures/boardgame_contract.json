@@ -3,32 +3,32 @@
     {
       "scenario": "almaty_first",
       "steps": 12,
-      "hash": "39d7c9eef38b56c780c12b694258b7831cd7e93416401cb3be81378ca5062fb9"
+      "hash": "a7fe130defb2529168b397eca38e7cf05d26cc01d59d75508cc1a79b5f178ddc"
     },
     {
       "scenario": "almaty_trade",
       "steps": 20,
-      "hash": "74b3deb399c5a82062d9e252889e95f04660e98a14a62734960d20bd1772ec41"
+      "hash": "c7284e0ff0dba5cc9a87d7c6b653022d35afc6184623974912a192b8f798591b"
     },
     {
       "scenario": "almaty_tycoon",
       "steps": 28,
-      "hash": "9f8adba6ce695e23ac933aabf954ceeae520d17d907476cdf4554113fdf47f41"
+      "hash": "c1bc3bc832d9162047be820fc9a3622dec7e5b2da21101fad8f54d4d6aa2ae8a"
     },
     {
       "scenario": "turkistan_first",
       "steps": 12,
-      "hash": "a03522e2cdfbe7f85b5612d1defad79d702dccf442e6fb070d4909641e55915a"
+      "hash": "cbdb883c5f02de6e081444d56b1536a55e6cc842c0a7eb1e235a59c92711c6e5"
     },
     {
       "scenario": "turkistan_trade",
       "steps": 20,
-      "hash": "3c1fdd9d48e62513c7ffce940ffcd589ae9965e07da3fe375ca4fe03ed0e22e4"
+      "hash": "694865d81e7675bea676abb71f9b16d81f0a847875cd28b7b621d1f2a36b5168"
     },
     {
       "scenario": "turkistan_tycoon",
       "steps": 28,
-      "hash": "abab825446e5b98933b793442da2b84282aff57e8f84bca0286d007ad0d3c6be"
+      "hash": "bf4bfaa2f6a6179550913bf2ef0363e4ba41f9f05b88ca99a19870907424500e"
     }
   ],
   "commands": [
@@ -52,7 +52,7 @@
         "amount": 0
       },
       "outcome": "applied",
-      "hash": "54ba1fe5ee8971054b1a2b97d8e6f77644989d42486bc9142bfddf760ebcf531"
+      "hash": "84349c7606c1f8cdcc4e7f98074f7ebcfb0db99fcc22962e80575955bf631035"
     },
     {
       "command": {
@@ -63,7 +63,7 @@
         "amount": 0
       },
       "outcome": "applied",
-      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+      "hash": "c45fda847512e3e8ae8365fc1a2260385ba79feb5778985264f75840052c15f9"
     },
     {
       "command": {
@@ -74,7 +74,7 @@
         "amount": 0
       },
       "outcome": "invalid",
-      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+      "hash": "c45fda847512e3e8ae8365fc1a2260385ba79feb5778985264f75840052c15f9"
     },
     {
       "command": {
@@ -85,7 +85,7 @@
         "amount": 0
       },
       "outcome": "invalid",
-      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+      "hash": "c45fda847512e3e8ae8365fc1a2260385ba79feb5778985264f75840052c15f9"
     },
     {
       "command": {
@@ -96,7 +96,7 @@
         "amount": 0
       },
       "outcome": "stale",
-      "hash": "fb3886a5598bbeb2fb1cfdb99fedb9c812808d535486c643826bccf17cf9637e"
+      "hash": "c45fda847512e3e8ae8365fc1a2260385ba79feb5778985264f75840052c15f9"
     }
   ]
 }

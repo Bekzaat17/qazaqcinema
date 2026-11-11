@@ -4,7 +4,7 @@
 // На постере это ОТДЕЛЬНАЯ кнопка поверх кнопки-карточки, поэтому клик обязан гаситься
 // (`stopPropagation`) — иначе тап по звезде заодно открывал бы карточку фильма.
 
-import { Star } from "lucide-react";
+import { Star } from "../ui-kit/adapters/icons";
 
 import { useFavorites } from "../hooks/useFavorites";
 

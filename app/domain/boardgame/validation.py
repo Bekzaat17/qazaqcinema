@@ -51,31 +51,51 @@ def validate_catalog(catalog: Catalog) -> None:
                 tile.street_sprite >= 0 and not board.street_atlas
             ):
                 raise ValueError("invalid_street_sprite")
-            if tile.kind not in {"start", "property", "station", "tax", "chance", "rest"}:
+            if tile.kind not in {
+                "start",
+                "property",
+                "station",
+                "utility",
+                "tax",
+                "chance",
+                "community",
+                "rest",
+                "jail",
+                "parking",
+                "go_to_jail",
+            }:
                 raise ValueError("unknown_tile_kind")
             if (
                 min(tile.price, tile.amount, tile.build_cost) < 0
                 or max(tile.price, tile.amount, tile.build_cost) > 10000
             ):
                 raise ValueError("invalid_tile_economy")
-            if tile.kind in {"property", "station"} and (
+            if tile.kind in {"property", "station", "utility"} and (
                 tile.price < 1 or not tile.rents or any(n < 1 for n in tile.rents)
             ):
                 raise ValueError("invalid_rent")
             if tile.kind == "property":
                 peers = [other for other in board.tiles if other.group == tile.group]
-                if not tile.group or len(peers) < 2 or tile.build_cost < 1 or len(tile.rents) != 5:
+                if (
+                    not tile.group
+                    or len(peers) < 2
+                    or tile.build_cost < 1
+                    or len(tile.rents) != (6 if len(board.tiles) == 40 else 5)
+                ):
                     raise ValueError("invalid_property_group")
                 if any(peer.kind != "property" or peer.color != tile.color for peer in peers):
                     raise ValueError("inconsistent_group")
         for card in catalog.cards:
             if card.move is not None and (
-                not 0 <= card.move < len(board.tiles) or board.tiles[card.move].kind == "chance"
+                not 0 <= card.move < len(board.tiles)
+                or board.tiles[card.move].kind in {"chance", "community"}
             ):
                 raise ValueError("invalid_card_destination")
     boards = {board.id for board in catalog.boards}
     for scenario in catalog.scenarios:
-        if scenario.board not in boards or not 5 <= scenario.round_limit <= 50:
+        if scenario.board not in boards or not (
+            scenario.round_limit == 0 or 5 <= scenario.round_limit <= 50
+        ):
             raise ValueError("invalid_scenario")
         if not 300 <= scenario.starting_cash <= 10000 or not 20 <= scenario.salary <= 1000:
             raise ValueError("invalid_cash")
@@ -91,3 +111,8 @@ def validate_catalog(catalog: Catalog) -> None:
     for bot in catalog.bots:
         if not 0 <= bot.reserve <= 1000 or not re.fullmatch(r"#[0-9a-fA-F]{6}", bot.color):
             raise ValueError("invalid_bot")
+
+    for archived in catalog.legacy_catalogs:
+        if archived.version >= catalog.version:
+            raise ValueError("invalid_catalog_archive")
+        validate_catalog(archived)

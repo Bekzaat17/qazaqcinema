@@ -1,4 +1,5 @@
 import { getWebApp } from "../lib/telegram";
+import { isQuestStartParam } from "./startParam";
 
 export function isQuestLaunch(): boolean {
   const query = new URLSearchParams(window.location.search);
@@ -6,10 +7,8 @@ export function isQuestLaunch(): boolean {
   return (
     window.location.pathname.replace(/\/$/, "") === "/quest" ||
     query.get("game") === "quest" ||
-    query.get("tgWebAppStartParam") === "quest" ||
-    query.get("tgWebAppStartParam")?.startsWith("quest_room_") === true ||
-    getWebApp()?.initDataUnsafe?.start_param === "quest" ||
-    getWebApp()?.initDataUnsafe?.start_param?.startsWith("quest_room_") === true
+    isQuestStartParam(query.get("tgWebAppStartParam")) ||
+    isQuestStartParam(getWebApp()?.initDataUnsafe?.start_param)
   );
 }
 

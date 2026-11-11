@@ -6,6 +6,7 @@
   --gold: #c8a35c;
   position: relative;
   min-height: 100dvh;
+  overflow-x: clip;
   isolation: isolate;
   background: #e4eadc;
   color: var(--ink);
@@ -1660,22 +1661,6 @@
 .dala-help b {
   color: #728f5e;
 }
-.dala-learning-back {
-  position: fixed;
-  z-index: 80;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 1px solid #bccca2;
-  background: #fffbe9;
-  color: #829964;
-  font-size: 10px;
-  padding: 12px 17px;
-  border-radius: 25px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
 .dala-app .quest-tabs {
   display: flex;
   gap: 8px;
@@ -3061,4 +3046,220 @@ body:has(.dala-app dialog[open]) {
   .dala-park-ripple {
     animation: none;
   }
+}
+
+.dala-village-entry {
+  position: relative;
+  margin: 20px auto 48px;
+  width: 86%;
+  max-width: 1240px;
+  display: grid;
+  grid-template-columns: minmax(200px, .85fr) 1.4fr;
+  overflow: hidden;
+  border: 1px solid #738e6b33;
+  border-radius: 24px;
+  background: linear-gradient(120deg, #e1e7cc, #fbf7e8);
+  box-shadow: 0 16px 40px #3b573d0a;
+}
+.dala-village-landscape { display: grid; align-items: end; background: #a1b59020; }
+.dala-village-landscape svg { width: 100%; height: auto; }
+.dala-village-copy { padding: 32px; }
+.dala-village-copy h2 { font: 400 clamp(24px, 3vw, 36px)/1.15 Georgia, serif; margin: 12px 0; }
+.dala-village-copy p { max-width: 550px; line-height: 1.8; color: #576a5b; }
+.dala-village-features { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 18px 0; font-size: 11px; color: #58775e; }
+.dala-village-features span::before { content: "✦"; margin-right: 7px; color: #b28b48; }
+.dala-village-copy > small { display: block; margin-top: 14px; max-width: 470px; font-size: 11px; line-height: 1.7; color: #657365; }
+@media (max-width: 700px) {
+  .dala-village-entry { width: calc(100% - 32px); grid-template-columns: 1fr; margin-bottom: 28px; }
+  .dala-village-landscape { max-height: 180px; overflow: hidden; }
+  .dala-village-landscape svg { max-height: 210px; }
+  .dala-village-copy { padding: 24px; }
+}
+
+.dala-coin-amount { display: inline-flex; align-items: center; justify-content: center; gap: 5px; vertical-align: middle; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dala-coin-amount svg { flex-shrink: 0; }
+.dala-currency-note { display: flex; align-items: center; gap: 9px; margin-top: 22px; font-size: 11px; color: #5a6d5a; }
+.dala-currency-note > span { line-height: 1.6; }
+.dala-currency-note b { color: #87652d; }
+.dala-currency-note small { display: block; font-size: 9px; color: #64745f; }
+
+.dala-appearance-picker { margin: 14px 0 20px; }
+.dala-appearance-picker > span { display: block; font-size: 11px; font-weight: 650; margin-bottom: 9px; }
+.dala-portrait-options { display: flex; gap: 8px; }
+.dala-portrait-options button { flex: 1; display: flex; align-items: center; gap: 7px; border: 1px solid var(--ui-border); background: var(--ui-surface); border-radius: 12px; padding: 8px; color: var(--ui-ink); font-size: 10px; }
+.dala-portrait-options button[aria-pressed="true"] { background: #fbefce; border-color: #b4852e; box-shadow: 0 0 0 1px #b4852e; }
+.dala-appearance-picker > small { display: block; color: var(--ui-muted); font-size: 10px; line-height: 1.6; margin-top: 8px; }
+.dala-telegram-avatar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12px; }
+.dala-telegram-avatar small { display: block; font-size: 10px; color: var(--ui-muted); margin-top: 4px; }
+.dala-avatar:has(>svg) { background: transparent; border-radius: 50%; overflow: visible; padding: 0; }
+.dala-avatar > svg { display: block; width: 100%; height: 100%; }
+.dala-route-cells { filter: drop-shadow(0 2px 1px #5e543c20); }
+.dala-object-map .dala-hotspot-marker { opacity: 1; }
+.dala-object-map .dala-square-tile-label text { stroke: #fff8e8; stroke-width: 2; }
+
+.dala-flat-board { filter: none; overflow: visible; }
+.dala-flat-cell { cursor: pointer; outline: none; }
+.dala-flat-cell .dala-cell-ground { transition: fill var(--ui-duration), stroke var(--ui-duration); }
+.dala-flat-cell:hover .dala-cell-ground, .dala-flat-cell:focus-visible .dala-cell-ground { fill: #fff0c6; stroke: #ad7926; stroke-width: 3; }
+.dala-flat-cell .dala-building-miniature { filter: none; }
+.dala-deed .dala-deed-scene { background: #fffaf0; }
+.dala-deed .dala-deed-rich-art { background: #fffaf0; }
+.dala-deed .dala-deed-rich-art > span { background: #f4edda; color: #655432; border: 1px solid #dbcead; }
+.dala-deed > div:first-child { background: #fffaf0; color: #33473b; border-top: 7px solid var(--deed-color); }
+.dala-deed > div:first-child:after { display: none; }
+.dala-deed > div:first-child > span { color: #8a7850; }
+.dala-deed h3 { color: #33473b; font-family: var(--ui-font); font-size: 25px; font-weight: 700; }
+.dala-deed h3::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 9px; border-radius: 50%; background: var(--deed-color); vertical-align: middle; }
+
+.dala-trade-form { display: grid; gap: 12px; padding: 14px 0; }
+.dala-trade-form label { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 12px; color: #5d6858; }
+.dala-trade-form :is(input, select), .dala-offer-form > label > select { width: 100%; min-width: 0; border: 1px solid #c9cdb9; border-radius: 12px; background: #fffcf3; color: #3a493c; padding: 12px; }
+.dala-offer-form > label { display: grid; gap: 8px; font-size: 12px; }
+.dala-offer-form h4 { margin: 12px 0; font-size: 15px; }
+.dala-offer-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.dala-exchange-line { display: flex; align-items: center; gap: 8px; color: #916b2a; }
+.dala-group-summary { border: 1px solid #d8d4be; border-radius: 14px; padding: 16px; margin: 18px 0; background: #fffaf0; }
+.dala-group-summary > div { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 12px; }
+.dala-group-summary i { width: 12px; height: 12px; border-radius: 4px; }
+.dala-group-summary > div > span { margin-left: auto; font-weight: 700; }
+.dala-group-summary p { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 11px; margin: 8px 0; }
+.dala-group-summary p b { font-size: 10px; white-space: nowrap; }
+.dala-group-summary small { display: block; border-top: 1px solid #e5dec8; margin-top: 12px; padding-top: 10px; font-size: 11px; line-height: 1.6; color: #756946; }
+.dala-flat-board .dala-building-miniature { filter: drop-shadow(2px 4px 2px #364b3d3b); }
+
+:is(.dala-app, .quest-dialog) button.dala-action-buy { background: #2f8058; border-color: #2f8058; color: #fff; box-shadow: 0 4px 12px #2f805824; }
+:is(.dala-app, .quest-dialog) button.dala-action-buy:hover:not(:disabled) { background: #266a49; color: #fff; }
+:is(.dala-app, .quest-dialog) button.dala-action-sell { background: #bf5147; border-color: #bf5147; color: #fff; box-shadow: none; }
+:is(.dala-app, .quest-dialog) button.dala-action-sell:hover:not(:disabled) { background: #a84037; color: #fff; }
+:is(.dala-app, .quest-dialog) button { max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
+:is(.dala-app, .quest-dialog) button > svg { flex-shrink: 0; }
+.dala-trade-choice { display: flex; gap: 10px; flex-wrap: wrap; }
+.dala-trade-choice button { flex: 1 1 150px; }
+.dala-property-trade { margin-top: 20px; border-top: 1px solid #ddd5c2; padding-top: 16px; }
+.dala-property-trade h4 { font-size: 15px; margin: 0 0 14px; }
+.dala-property-trade small { display: block; color: #746b58; font-size: 11px; line-height: 1.6; margin-top: 10px; }
+.dala-trade-details { background: #f3efdf; border-radius: 14px; padding: 14px; margin-top: 14px; }
+.dala-trade-details > label { display: grid; gap: 8px; font-size: 12px; }
+.dala-trade-details select { width: 100%; padding: 10px; border: 1px solid #cbc5b1; border-radius: 10px; background: #fffaf0; }
+@media(max-width:700px) { .dala-offer-actions > button { flex: 1 1 140px; } .dala-trade-choice > button { font-size: 12px; } }
+.dala-trade-explanation { font-size: 12px; line-height: 1.65; margin: 0 0 14px; overflow-wrap: anywhere; }
+.dala-rent-details { margin: 16px 0; border-block: 1px solid #ded9c7; padding: 14px 0; }
+.dala-rent-details summary { cursor: pointer; font-size: 12px; font-weight: 650; color: #6d684f; }
+.dala-exchange-line { flex-wrap: wrap; overflow-wrap: anywhere; }
+
+.dala-fountain-ripple { transform-box: fill-box; transform-origin: center; animation: dala-water-ring 4.2s linear infinite; }
+@keyframes dala-water-ring { 0% { transform: scale(.25); opacity: .7; } 100% { transform: scale(1.1); opacity: 0; } }
+.dala-signal-red { animation: dala-signal-stop 12s steps(1) infinite; }
+.dala-signal-yellow { animation: dala-signal-wait 12s steps(1) infinite; }
+.dala-signal-green { animation: dala-signal-go 12s steps(1) infinite; }
+@keyframes dala-signal-stop { 0%, 49% { opacity: 1; } 50%, 100% { opacity: .15; } }
+@keyframes dala-signal-wait { 0%, 42%, 50%, 92%, 100% { opacity: .15; } 43%, 49%, 93%, 99% { opacity: 1; } }
+@keyframes dala-signal-go { 0%, 49%, 93%, 100% { opacity: .15; } 50%, 92% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .dala-flat-board :is(.dala-signal-red, .dala-signal-yellow, .dala-signal-green, .dala-fountain-ripple) { animation: none; }
+}
+
+/* Управление занимает свою строку над полем и не перекрывает клетки. */
+.dala-in-room:has(.dala-turn-dock) .dala-map-tools { top: 108px; left: 210px; right: 210px; justify-content: center; align-items: center; gap: 7px; min-height: 42px; padding: 4px 10px; border-radius: 14px; background: #fbf8edd9; border: 1px solid #d4d9c4; }
+.dala-map-tools button { position: relative; flex: 0 0 32px; width: 32px; height: 32px; }
+.dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated { top: 158px; }
+.dala-tool-count { position: absolute; top: -3px; right: -3px; border-radius: 20px; background: #a6473e; color: white; padding: 2px 4px; font-size: 9px; }
+.dala-room-entry-actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 12px 0; }
+.dala-room-entry-actions > button { flex: 1 1 150px; font-size: 12px; }
+.dala-room-explorer h3, .dala-room-empty h3 { font-size: 18px; line-height: 1.35; }
+.dala-room-empty { text-align: center; padding: 26px 12px; border: 1px dashed #cbc9ad; border-radius: 16px; margin: 18px 0; }
+.dala-room-empty > svg { margin: 0 auto 10px; color: #ae8532; }
+.dala-room-empty p { font-size: 12px; line-height: 1.7; }
+.dala-room-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 24px 0 12px; }
+.dala-public-rooms { display: grid; gap: 12px; }
+.dala-public-rooms article { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; border: 1px solid #d7d5bf; background: #fffaf0; padding: 16px; border-radius: 16px; }
+.dala-public-rooms article > div { min-width: 0; flex: 1 1 180px; overflow-wrap: anywhere; }
+.dala-public-rooms h3 { font-size: 16px; margin: 6px 0; }
+.dala-public-rooms article :is(p,small,span) { font-size: 11px; color: #6f795f; }
+.dala-room-create { display: grid; gap: 12px; }
+.dala-room-create > :is(input, select) { min-width: 0; width: 100%; border: 1px solid #ceceb8; background: #fffcf3; color: #3c4d3c; border-radius: 12px; padding: 12px; }
+.dala-room-create > label { font-size: 12px; font-weight: 650; }
+.dala-visibility { border: 0; padding: 0; margin: 10px 0; min-width: 0; display: grid; gap: 10px; }
+.dala-visibility legend { font-size: 12px; font-weight: 650; margin-bottom: 10px; }
+.dala-visibility > label { display: flex; gap: 10px; align-items: center; border: 1px solid #d5d3bd; background: #fffaf0; border-radius: 14px; padding: 14px; cursor: pointer; }
+.dala-visibility > label:has(input:checked) { border-color: #b58b35; background: #f7edcf; }
+.dala-visibility input { width: 16px; height: 16px; accent-color: #aa7a26; flex-shrink: 0; }
+.dala-visibility b { display: block; font-size: 13px; margin-bottom: 5px; }
+.dala-visibility small { display: block; font-size: 11px; line-height: 1.5; }
+.dala-visibility svg { flex-shrink: 0; }
+.dala-room-steps { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0; list-style: none; color: #987327; font-size: 11px; margin: 22px 0; }
+.dala-room-privacy { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin: 16px 0; font-size: 11px; }
+.dala-room-privacy > span, .dala-room-privacy label { display: flex; gap: 7px; align-items: center; }
+.dala-room-privacy input { accent-color: #ad8131; }
+.dala-invite-details { margin: 12px 0; font-size: 11px; }
+.dala-invite-details summary, .dala-bot-picker summary { cursor: pointer; }
+.dala-bot-picker { padding: 12px 0; font-size: 12px; }
+.dala-bot-picker summary { display: flex; align-items: center; gap: 8px; }
+.dala-ready-status { padding: 12px 14px; border-radius: 12px; background: #e8ecd8; font-size: 12px; line-height: 1.6; }
+.dala-game-history { border: 1px solid #d6d4bf; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+.dala-game-history > div { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.dala-game-history :is(p,small) { font-size: 11px; line-height: 1.7; color: #78816a; }
+.dala-game-history .is-win { background: #dcead7; color: #376f4b; padding: 4px 9px; border-radius: 10px; }
+.dala-my-rank { padding: 14px; background: #f4e9c8; border-radius: 14px; font-size: 12px; }
+.dala-standings { list-style: none; padding: 0; }
+.dala-standings li { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #dedcc7; padding: 14px 8px; }
+.dala-standings li.is-me { background: #efe7ca; border-radius: 12px; }
+.dala-standings li > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dala-standings strong { font-size: 13px; }
+.dala-standings small { display: block; font-size: 10px; color: #7a836c; margin-top: 5px; }
+.dala-standings li > span { font-size: 12px; white-space: nowrap; }
+@media (max-width: 700px) {
+  .dala-in-room:has(.dala-turn-dock) .dala-map-tools { top: 207px; left: 16px; right: 16px; min-height: 42px; gap: 7px; }
+  .dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated { top: 257px; }
+  .dala-map-tools button { flex-basis: 32px; width: 32px; height: 32px; }
+}
+@media (max-height: 720px) and (max-width: 700px) {
+  .dala-in-room:has(.dala-turn-dock) .dala-map-tools { top: 173px; }
+  .dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated { top: 223px; }
+}
+
+.dala-app .dala-header .dala-icon, .dala-in-room:has(.dala-turn-dock) .dala-map-tools button { background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; }
+.dala-in-room:has(.dala-turn-dock) .dala-map-tools { background: transparent; border-color: transparent; }
+.dala-map-tools button:hover:not(:disabled), .dala-header .dala-icon:hover { color: #a67a28; }
+.dala-assets-strip { position: absolute; left: 210px; right: 210px; bottom: 111px; z-index: 2; min-width: 0; }
+.dala-assets-title { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin: 0 0 6px; font-size: 11px; }
+.dala-assets-title > span { font-size: 9px; color: #6d7b64; }
+.dala-assets-row { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; padding: 3px 0 7px; scrollbar-width: thin; }
+.dala-assets-row > button { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 calc((100% - 24px) / 5); width: calc((100% - 24px) / 5); padding: 4px 3px; border: 1px solid #d6d9c3; border-top: 3px solid; border-radius: 9px; background: #fffbee; color: #3c513e; text-align: center; }
+.dala-assets-row > button.is-mortgaged { opacity: .6; }
+.dala-assets-row > button > svg { flex: 0 0 30px; width: 30px; height: 30px; }
+.dala-assets-row > button > span { min-width: 0; }
+.dala-assets-row b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 9px; line-height: 1.25; min-height: 22px; }
+.dala-assets-row small { display: block; margin-top: 4px; font-size: 8px; color: #7e876e; }
+.dala-assets-row > p { font-size: 11px; line-height: 1.6; margin: 0; background: #fff9e1b5; border-radius: 10px; padding: 12px; width: 100%; }
+.dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated { bottom: 212px; }
+.dala-in-room:has(.dala-turn-dock) .dala-turn-note { bottom: 196px; padding: 3px 10px; font-size: 8px; background: transparent; backdrop-filter: none; }
+@media (max-width: 1000px) and (min-width: 701px) { .dala-assets-strip { left: 170px; right: 160px; } }
+@media (max-width: 700px) {
+  .dala-in-room:has(.dala-turn-dock) { display: flex; flex-direction: column; height: auto; min-height: 100dvh; overflow: clip; }
+  .dala-in-room:has(.dala-turn-dock) .dala-header { order: 1; flex-shrink: 0; }
+  .dala-in-room:has(.dala-turn-dock) .dala-game-top { order: 2; position: relative; inset: auto; width: calc(100% - 30px); margin: 6px 15px 10px; }
+  .dala-in-room:has(.dala-turn-dock) .dala-players { order: 3; position: relative; inset: auto; width: calc(100% - 30px); margin: 0 15px; }
+  .dala-in-room:has(.dala-turn-dock) .dala-map-tools { order: 4; position: relative; inset: auto; width: calc(100% - 30px); margin: 8px 15px 0; flex-shrink: 0; }
+  .dala-in-room:has(.dala-turn-dock) .dala-world, .dala-in-room:has(.dala-turn-dock) .dala-world.is-illustrated { order: 5; position: relative; inset: auto; width: calc(100% - 24px); height: auto; aspect-ratio: 1; margin: 2px 12px 0; overflow: hidden; flex-shrink: 0; }
+  .dala-assets-strip { order: 6; position: relative; inset: auto; width: calc(100% - 30px); margin: 4px 15px 0; }
+  .dala-in-room:has(.dala-turn-dock) .dala-turn-note { order: 7; position: relative; inset: auto; transform: none; margin: 0 auto; width: calc(100% - 30px); }
+  .dala-in-room:has(.dala-turn-dock) .dala-turn-dock { order: 8; position: sticky; inset: auto; bottom: 10px; transform: none; width: calc(100% - 30px); margin: 10px 15px 15px; flex-shrink: 0; }
+}
+.dala-legacy-upgrade { display: block; padding: 3px 0; margin-top: 3px; border: 0; background: transparent; color: #926a24; font-size: 8px !important; text-decoration: underline; }
+.dala-home .dala-world.is-illustrated { left: 44%; right: 2%; top: 100px; height: 570px; }
+.dala-home .dala-location-artwork { filter: none; }
+.dala-home .dala-location-artwork > svg { width: 100%; height: 100%; }
+.dala-home .dala-preview-caption { top: 655px; padding: 12px 18px; }
+@media (max-width: 700px) {
+  .dala-home .dala-intro { min-height: 850px; }
+  .dala-home .dala-world.is-illustrated { left: 12px; right: 12px; top: 500px; height: 350px; }
+  .dala-home .dala-preview-caption { display: none; }
+}
+@media (max-width: 400px) {
+  .dala-header { gap: 8px; }
+  .dala-header .ui-brand-mark { width: 30px; height: 30px; }
+  .dala-header .ui-brand-name { font-size: 17px; }
+  .dala-header .ui-brand-subtitle { display: none; }
+  .dala-header nav { gap: 3px; }
 }

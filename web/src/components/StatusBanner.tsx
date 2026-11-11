@@ -1,6 +1,6 @@
 // Баннер статуса под шапкой (сейчас — «чек на модерации»).
 
-import { Clock } from "lucide-react";
+import { Clock } from "../ui-kit/adapters/icons";
 
 export default function StatusBanner() {
   return (

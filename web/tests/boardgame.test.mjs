@@ -11,7 +11,7 @@ import {
 
 const catalog = JSON.parse(
   readFileSync(
-    new URL("../public/boardgame/catalog.json", import.meta.url),
+    new URL("../public/boardgame/catalog-v2.json", import.meta.url),
     "utf8",
   ),
 );

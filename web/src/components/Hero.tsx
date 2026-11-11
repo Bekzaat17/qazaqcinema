@@ -17,7 +17,7 @@
 // Клик по площади открывает карточку фильма, клик по кнопке сразу шлёт видео — поэтому
 // подложка это отдельная невидимая кнопка, а не обёртка (кнопка в кнопке невалидна).
 
-import { Gift, Play, Timer } from "lucide-react";
+import { Gift, Play, Timer } from "../ui-kit/adapters/icons";
 
 import { useCountdown } from "../hooks/useCountdown";
 import type { Movie } from "../lib/api";

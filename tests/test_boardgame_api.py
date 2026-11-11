@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tests.test_boardgame_repositories import Events, FixedRandom
 from tests.test_quest_api import _Limiter, _Sessions
 
-CATALOG = load_board_catalog(Path("web/public/boardgame/catalog.json"))
+CATALOG = load_board_catalog(Path("web/public/boardgame/catalog-v2.json"))
 
 
 async def test_people_join_ready_and_play_while_api_rejects_forged_money_and_dice(
@@ -54,7 +54,15 @@ async def test_people_join_ready_and_play_while_api_rejects_forged_money_and_dic
         def sessions(self) -> SessionStore:
             return _Sessions()
 
-        game = provide(BoardGameService)
+        @provide
+        def game(
+            self,
+            repository: RoomRepository,
+            definitions: Catalog,
+            random: GameRandom,
+            events: RoomEvents,
+        ) -> BoardGameService:
+            return BoardGameService(repository, definitions, random, events)
 
     container = make_async_container(TestProvider())
     app = create_app(container)

@@ -13,7 +13,7 @@
 // Классовый компонент — не стиль, а необходимость: `componentDidCatch`/
 // `getDerivedStateFromError` в хуках не существуют.
 
-import { RotateCcw } from "lucide-react";
+import { RotateCcw } from "../ui-kit/adapters/icons";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 interface State {

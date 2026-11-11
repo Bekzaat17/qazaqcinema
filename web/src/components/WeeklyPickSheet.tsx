@@ -10,7 +10,7 @@
 // неделю. Формулировка «қарай аласыз», а не «жібереміз»: видео из чата уборка сносит
 // через ~40 ч, а право живёт до понедельника — обещать файл значило бы обмануть.
 
-import { CalendarCheck, Ticket } from "lucide-react";
+import { CalendarCheck, Ticket } from "../ui-kit/adapters/icons";
 
 import type { Movie } from "../lib/api";
 import { untilLabel } from "../lib/week";

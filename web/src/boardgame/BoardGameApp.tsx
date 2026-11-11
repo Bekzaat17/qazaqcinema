@@ -1,8 +1,20 @@
+import TradeOffers from "./components/TradeOffers";
+import RoomExplorer from "./components/RoomExplorer";
+import GameRecords from "./components/GameRecords";
+import AssetStrip from "./components/AssetStrip";
+import GameChannelGate from "./components/GameChannelGate";
+import { roomCode, roomLink, shareRoomLink } from "./rooms";
+import PlayerAvatar, { type Portrait } from "../ui-kit/PlayerAvatar";
+import { playerAppearance, savedPortrait, savePortrait, telegramAvatar } from "./appearance";
+import AppearancePicker from "./components/AppearancePicker";
+import { GameCoin } from "../ui-kit/GameIcons";
+import CoinAmount from "./components/CoinAmount";
+import { Brand } from "../ui-kit";
 import Dice from "./components/Dice";
 import PropertyPanel from "./components/PropertyPanel";
 import HomeScreen from "./components/HomeScreen";
 import LobbyScreen from "./components/LobbyScreen";
-import { money } from "./format";
+import { gameText, money } from "./format";
 import {
   lazy,
   Suspense,
@@ -13,10 +25,8 @@ import {
   type CSSProperties,
 } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
-  Banknote,
-  Check,
+  Clapperboard,
   ChevronRight,
   Crown,
   Dices,
@@ -32,11 +42,15 @@ import {
   X,
   ZoomIn,
   ZoomOut,
-} from "lucide-react";
+  History,
+  Globe2,
+  LockKeyhole,
+} from "../ui-kit/adapters/icons";
 import { ApiError, NetworkError, SessionExpiredError } from "../lib/api";
 import {
   BOT_URL,
   getInitData,
+  getTelegramUser,
   getWebApp,
   haptic,
   openTelegramLink,
@@ -44,16 +58,13 @@ import {
 } from "../lib/telegram";
 import { navigateApp } from "../quest/launch";
 import QuestDialog from "../quest/components/QuestDialog";
-import RankingPanel from "../quest/components/RankingPanel";
-import { HttpQuestGateway } from "../quest/gateway";
-import { PracticeQuestGateway } from "../quest/practice";
 import {
   HttpGameGateway,
   LIVE_ROOM_KEY,
   PracticeGameGateway,
   type GameGateway,
 } from "./gateway";
-import { boardFor, netWorth, rentFor } from "./rules";
+import { activeCatalog, boardFor, netWorth, rentFor, offerRecipient } from "./rules";
 import type { BoardWorld } from "./world";
 import IllustratedBoard from "./components/IllustratedBoard";
 import LocationArtwork from "./components/LocationArtwork";
@@ -62,10 +73,11 @@ import "./boardgame.css";
 
 const Learning = lazy(() => import("../quest/QuestApp"));
 const MESSAGES: Record<string, string> = {
+  channel_required: "Келесі партия үшін арнаға жазылуыңды раста.",
   stale: "Бөлме жаңарды. Ағымдағы күй көрсетілді — әрекетті қайта таңда.",
   forbidden: "Қазір бұл әрекетті орындау құқығың жоқ.",
   invalid: "Бұл әрекет қазір қолжетімсіз.",
-  insufficient: "Ойын теңгесі жеткіліксіз.",
+  insufficient: "Dala монетасы жеткіліксіз.",
   group_required:
     "Алдымен осы түстегі барлық кәсіпті сатып ал. Кепілдегі кәсіптерді қайтар.",
   even_building: "Түсті топтағы ғимараттарды біркелкі дамыт немесе сат.",
@@ -73,7 +85,7 @@ const MESSAGES: Record<string, string> = {
   not_ready: "Кемінде екі қатысушы керек және адамдар дайын болуы тиіс.",
   full: "Бөлмедегі төрт орын толды.",
   bot_declined:
-    "Бот ұсынысты қабылдамады. Ол бастапқы бағаның кемінде 150%-ын сұрайды.",
+    "Бот ұсынысты қабылдамады. Сатып алсаң — кемінде 150%; сатсаң — ең көбі бастапқы бағаның 2/3 бөлігі.",
   too_early: "Бұл қатысушының жүріс уақыты әлі аяқталған жоқ.",
 };
 function errorText(error: unknown) {
@@ -105,7 +117,13 @@ function invitation(): string {
     "";
   return /^[a-f0-9]{10}$/i.test(value) ? value.toUpperCase() : "";
 }
+const startIntent = () => getWebApp()?.initDataUnsafe?.start_param
+  ?? new URLSearchParams(window.location.search).get("tgWebAppStartParam");
 type Panel =
+  | "channel"
+  | "rooms"
+  | "create"
+  | "history"
   | "help"
   | "ranking"
   | "join"
@@ -126,7 +144,8 @@ export default function BoardGameApp() {
     [screen, setScreen] = useState<"home" | "room">("home"),
     [boardId, setBoardId] = useState("almaty"),
     [scenarioId, setScenarioId] = useState("almaty_first"),
-    [name, setName] = useState("Саяхатшы"),
+    [name, setName] = useState(() => (getTelegramUser()?.first_name || "Саяхатшы").slice(0, 24)),
+    [isPublic, setIsPublic] = useState(() => startIntent() === "quest_create_public"),
     [code, setCode] = useState(invitation),
     [panel, setPanel] = useState<Panel>(null),
     [selected, setSelected] = useState(-1),
@@ -142,11 +161,11 @@ export default function BoardGameApp() {
     [clock, setClock] = useState(Date.now());
   const [viewMode, setViewMode] = useState<"illustrated" | "3d">("illustrated");
   const [mapZoom, setMapZoom] = useState(1);
+  const [portrait, setPortrait] = useState<Portrait>(savedPortrait);
+  const appearance = { avatar_url: telegramAvatar(getTelegramUser()?.photo_url), portrait };
+  const choosePortrait = (value: Portrait) => { setPortrait(value); savePortrait(value); };
   const [mapRotation, setMapRotation] = useState(0);
   const [worldVersion, setWorldVersion] = useState(0);
-  const [rankGateway] = useState(() =>
-    getInitData() ? new HttpQuestGateway() : new PracticeQuestGateway(),
-  );
   const host = useRef<HTMLDivElement>(null),
     world = useRef<BoardWorld | null>(null),
     inFlight = useRef(false),
@@ -166,7 +185,11 @@ export default function BoardGameApp() {
       ? boardFor(catalog, room)
       : (catalog.boards.find((b) => b.id === boardId) ?? catalog.boards[0])
     : null;
-  const scenario = catalog?.scenarios.find(
+  const appearances = view ? {
+    ...view.appearances,
+    [view.me]: view.appearances?.[view.me] ?? appearance,
+  } : undefined;
+  const scenario = (catalog && screen === "room" && room ? activeCatalog(catalog, room) : catalog)?.scenarios.find(
     (s) => s.id === (screen === "room" && room ? room.scenario_id : scenarioId),
   );
   const disabled = busy || animating;
@@ -184,6 +207,10 @@ export default function BoardGameApp() {
     setConnection(true);
     if (next.outcome !== "applied")
       setNotice(MESSAGES[next.outcome] ?? "Қайта көр.");
+    if (next.outcome === "channel_required") {
+      if (next.blocked_seats?.includes(next.me)) setPanel("channel");
+      else setNotice(`${next.room.seats.filter((s) => next.blocked_seats?.includes(s.id)).map((s) => s.name).join(", ")}: ойынды жалғастыру үшін арнаға жазылуы керек.`);
+    }
     if (
       next.room.match?.phase === "buy" &&
       next.room.match.players[next.room.match.turn].id === next.me
@@ -244,8 +271,12 @@ export default function BoardGameApp() {
         } catch {
           /* Отсутствующая локальная партия — обычный первый вход. */
         }
-        if (active && invitation())
-          setPanel(client.practice ? "telegram" : "join");
+        if (active && invitation()) setPanel("join");
+        else if (active) {
+          const intent = startIntent();
+          if (intent === "quest_rooms") setPanel("rooms");
+          else if (intent?.startsWith("quest_create")) setPanel("create");
+        }
       } catch (e) {
         if (active) setError(errorText(e));
       }
@@ -337,17 +368,16 @@ export default function BoardGameApp() {
   }, []);
   useEffect(() => {
     const title = document.title;
-    document.title = "Дала дәулеті — қазақша үстел ойыны";
+    document.title = "QazaqPlay — Дала дәулеті";
     return () => {
       document.title = title;
     };
   }, []);
   useEffect(() => {
-    if (!getInitData()) return;
+    if (!getInitData() || learning) return;
     return showBackButton(() => {
       if (inFlight.current) return;
-      if (learning) setLearning(false);
-      else if (panel) setPanel(null);
+      if (panel) setPanel(null);
       else if (screen === "room") setScreen("home");
       else navigateApp("cinema");
     });
@@ -368,7 +398,7 @@ export default function BoardGameApp() {
       inFlight.current = false;
     }
   }, []);
-  const send = (kind: Action, target = "", tile = -1, amount = 0) => {
+  const send = (kind: Action, target = "", tile = -1, amount = 0, giveTile = -1) => {
     if (!gateway || !view) return;
     const command: Command = {
       revision: view.room.revision,
@@ -376,17 +406,43 @@ export default function BoardGameApp() {
       target,
       tile,
       amount,
+      give_tile: giveTile,
     };
     void perform(async () => {
       const next = await gateway.act(view.code, command);
       setRoom(next);
-      if (next.outcome === "applied") haptic.light();
+      if (next.outcome === "applied") {
+        haptic.light();
+        if (["offer", "ask", "counter"].includes(kind)) {
+          const pending = next.room.match?.offers.some((o) => (o.proposer ?? o.buyer) === me);
+          if (pending) setPanel("offers");
+          setNotice(pending ? "Ұсыныс жіберілді. Жауап күтеміз." : "Мәміле аяқталды.");
+        }
+      }
     });
   };
+  useEffect(() => {
+    if (!gateway || !view || inFlight.current) return;
+    let active = true;
+    void gateway.setAppearance(view.code, appearance).then((next) => {
+      if (active) setRoom(next);
+    }).catch(() => {
+      if (active) setNotice("Бейнең сақталмады. Байланыс қалпына келгенде қайта кір.");
+    });
+    return () => { active = false; };
+    // Метаданные обновляются при входе или выборе портрета, не при каждом ходе.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gateway, view?.code, appearance.avatar_url, appearance.portrait, setRoom]);
+  useEffect(() => {
+    if (!gateway || !view || view.room.match) return;
+    let active = true;
+    void gateway.access().then((status) => { if (active && !status.allowed) setPanel("channel"); }).catch(() => {});
+    return () => { active = false; };
+  }, [gateway, view?.code, !!view?.room.match]);
   const create = (next: Scenario) => {
     if (!gateway) return;
     void perform(async () => {
-      const created = await gateway.create(name.trim() || "Саяхатшы", next.id);
+      const created = await gateway.create(name.trim() || "Саяхатшы", next.id, appearance, isPublic);
       setRoom(created);
       setScreen("room");
       setPanel(null);
@@ -406,16 +462,18 @@ export default function BoardGameApp() {
       setPanel("new");
     } else create(scenario);
   };
-  const join = () => {
+  const join = (providedCode = roomCode(code)) => {
     if (!gateway) return;
+    if (!providedCode) return;
     if (gateway.practice) {
-      setPanel("telegram");
+      openTelegramLink(roomLink(BOT_URL, providedCode));
       return;
     }
     void perform(async () => {
       const joined = await gateway.join(
         name.trim() || "Саяхатшы",
-        code.trim().toUpperCase(),
+        providedCode,
+        appearance,
       );
       setRoom(joined);
       setScreen("room");
@@ -433,32 +491,24 @@ export default function BoardGameApp() {
       setNotice("");
     }
   };
-  const copyInvite = () => {
-    if (!view) return;
-    const text = `${BOT_URL}?startapp=quest_room_${view.code}`;
-    void navigator.clipboard?.writeText(text).then(
-      () => setNotice("Шақыру сілтемесі көшірілді. Достарыңа жібер."),
-      () => setNotice("Кодты немесе сілтемені қолмен көшіріп ал."),
-    );
+  const copyText = async (text: string, success: string) => {
+    try {
+      if (!navigator.clipboard) throw new Error("clipboard_unavailable");
+      await navigator.clipboard.writeText(text);
+      setNotice(success);
+    } catch { setNotice("Кодты немесе сілтемені белгілеп, қолмен көшір."); }
   };
+  const copyInvite = () => { if (view) void copyText(roomLink(BOT_URL, view.code), "Сілтеме көшірілді. Досыңа жібер."); };
   if (learning)
     return (
-      <>
-        <button
-          className="dala-learning-back"
-          onClick={() => setLearning(false)}
-        >
-          <ArrowLeft size={16} /> Үстел ойынына оралу
-        </button>
-        <Suspense fallback={<p>Жүктелуде…</p>}>
-          <Learning />
-        </Suspense>
-      </>
+      <Suspense fallback={<p role="status">Ауылың жүктелуде…</p>}>
+        <Learning onReturn={() => setLearning(false)} />
+      </Suspense>
     );
   const selectedTile = selected >= 0 ? board?.tiles[selected] : null,
     selectedLot = match?.lots[selected],
     owner = selectedLot ? match?.players[selectedLot.owner] : null;
-  const inbox = match?.offers.filter((o) => o.seller === me) ?? [];
+  const inbox = match?.offers.filter((o) => offerRecipient(o) === me) ?? [];
   const player = match && me >= 0 ? match.players[me] : null;
   const deadline = view?.deadline ? new Date(view.deadline).getTime() : null;
   const canTimeout =
@@ -488,6 +538,7 @@ export default function BoardGameApp() {
             <IllustratedBoard
               board={board}
               match={screen === "room" ? match : null}
+              appearances={appearances}
               selected={screen === "room" ? selected : -1}
               onSelect={selectMapTile}
               onAnimate={setAnimating}
@@ -499,19 +550,13 @@ export default function BoardGameApp() {
       <div className="dala-wash" />
       <header className="dala-header">
         <button
-          className="dala-brand"
-          aria-label="Дала дәулеті — басты бет"
+          className="ui-brand-trigger"
+          aria-label="QazaqPlay — басты бет"
           onClick={() => {
             if (!busy) setScreen("home");
           }}
         >
-          <span>
-            <Landmark size={25} />
-          </span>
-          <div>
-            Дала <em>дәулеті</em>
-            <small>QAZAQQUEST · ҮСТЕЛ ОЙЫНЫ</small>
-          </div>
+          <Brand subtitle="Дала дәулеті · Үстел ойыны" />
         </button>
         <nav aria-label="Мәзір">
           {!board?.illustration && (
@@ -550,12 +595,13 @@ export default function BoardGameApp() {
           >
             <HelpCircle size={20} />
           </button>
+          <button className="dala-icon" aria-label="Менің партияларым" onClick={() => setPanel("history")}><History size={18} /></button>
           <button
             className="dala-icon"
             aria-label="Кинотеатр"
             onClick={() => navigateApp("cinema")}
           >
-            <ArrowLeft size={18} />
+            <Clapperboard size={18} />
           </button>
         </nav>
       </header>
@@ -622,6 +668,8 @@ export default function BoardGameApp() {
           setPanel={setPanel}
           setLearning={setLearning}
           requestCreate={requestCreate}
+          appearance={appearance}
+          onPortrait={choosePortrait}
         />
       ) : room && !match ? (
         <LobbyScreen
@@ -633,6 +681,9 @@ export default function BoardGameApp() {
           practice={!!gateway?.practice}
           send={send}
           copyInvite={copyInvite}
+          copyCode={() => void copyText(view!.code, "Бөлме коды көшірілді.")}
+          shareInvite={() => openTelegramLink(shareRoomLink(BOT_URL, view!.code))}
+          setVisibility={(value) => void perform(async () => setRoom(await gateway!.setVisibility(view!.code, value)))}
           onLeave={() => setPanel("leave")}
         />
       ) : match && view && scenario ? (
@@ -643,11 +694,15 @@ export default function BoardGameApp() {
               {board.name}
             </span>
             <b>
-              {match.round} / {scenario.round_limit}
+              {match.round} / {scenario.round_limit || "∞"}
               <small> айналым</small>
             </b>
             <span className="dala-mode-badge">
               {gateway?.practice ? "Жаттығу" : `${view.code}`}
+              {board.tiles.length !== 40 && <button className="dala-legacy-upgrade" onClick={() => {
+                pendingNew.current = catalog!.scenarios.find((s) => s.board === board.id && s.round_limit === 0) ?? catalog!.scenarios[0];
+                setPanel("new");
+              }}>40 ұяшықты жаңа ойын</button>}
             </span>
           </div>
           <aside className="dala-players" aria-label="Қатысушылар">
@@ -664,7 +719,7 @@ export default function BoardGameApp() {
                   className="dala-avatar"
                   style={{ "--avatar": p.color } as CSSProperties}
                 >
-                  {p.name[0]}
+                  <PlayerAvatar appearance={playerAppearance(p, appearances)} color={p.color} size={44} />
                   {i === match.winner && match.phase === "finished" && (
                     <Crown size={14} />
                   )}
@@ -674,18 +729,12 @@ export default function BoardGameApp() {
                     {p.name}
                     <small>{i === me ? "Сен" : p.bot ? "Бот" : ""}</small>
                   </b>
-                  <strong>{money(p.cash)}</strong>
+                  <strong><CoinAmount value={p.cash} /></strong>
                   <span>Капитал {money(netWorth(board, match, i))}</span>
                 </div>
                 <i style={{ background: p.color }} />
               </button>
             ))}
-            <button
-              className="dala-journal-button"
-              onClick={() => setPanel("journal")}
-            >
-              <ScrollText size={15} /> Партия шежіресі
-            </button>
           </aside>
           <div className="dala-map-tools">
             <button
@@ -718,6 +767,8 @@ export default function BoardGameApp() {
             >
               <ZoomOut size={18} />
             </button>
+            <button aria-label="Сауда және айырбас" onClick={() => setPanel("offers")}><HandCoins size={18} />{inbox.length > 0 && <span className="dala-tool-count">{inbox.length}</span>}</button>
+            <button aria-label="Партия шежіресі" onClick={() => setPanel("journal")}><ScrollText size={18} /></button>
             <button
               aria-label="Барлық кәсіптер"
               onClick={() => {
@@ -769,18 +820,10 @@ export default function BoardGameApp() {
               </>
             )}
           </aside>
-          {inbox.length > 0 && (
-            <button
-              className="dala-offers-badge"
-              onClick={() => setPanel("offers")}
-            >
-              <HandCoins size={17} />
-              {inbox.length} ұсыныс
-            </button>
-          )}
           <div className="dala-turn-note" aria-live="polite">
-            {match.log.at(-1)}
+            {gameText(match.log.at(-1) ?? "")}
           </div>
+          <AssetStrip board={board} match={match} me={me} onSelect={selectMapTile} />
           <section
             className={`dala-turn-dock phase-${match.phase}`}
             aria-label="Жүрісті басқару"
@@ -799,7 +842,7 @@ export default function BoardGameApp() {
                       : `${match.players[match.turn].name} жүрісі`}
                 </b>
                 <small>
-                  {animating
+                  {match.classic && String(match.turn) in match.classic.jailed ? "Түрмеде: дубль немесе 50 ◈ төлеп шық." : animating
                     ? "Фишкалар қозғалып жатыр…"
                     : match.phase === "buy"
                       ? board.tiles[match.pending]?.name
@@ -823,6 +866,8 @@ export default function BoardGameApp() {
                 </button>
               ) : myTurn ? (
                 match.phase === "roll" ? (
+                  <>
+                  {match.classic && String(me) in match.classic.jailed && <button className="dala-secondary dala-action-sell" disabled={disabled || player!.cash < 50} onClick={() => send("bail")}>Түрмеден шығу · 50 ◈</button>}
                   <button
                     className="dala-primary"
                     disabled={disabled}
@@ -831,10 +876,12 @@ export default function BoardGameApp() {
                     <Dices size={20} />
                     {disabled ? "Кубиктер айналуда…" : "Кубик лақтыру"}
                   </button>
+
+                  </>
                 ) : match.phase === "buy" ? (
                   <>
                     <button
-                      className="dala-primary"
+                      className="dala-primary dala-action-buy"
                       disabled={
                         disabled ||
                         player!.cash < board.tiles[match.pending].price
@@ -861,7 +908,7 @@ export default function BoardGameApp() {
                       }
                       onClick={() => send("settle")}
                     >
-                      <Banknote size={18} /> Төлеу
+                      <GameCoin size={18} /> Төлеу
                     </button>
                     <button
                       className="dala-secondary"
@@ -885,14 +932,14 @@ export default function BoardGameApp() {
               ) : (
                 <div className="dala-waiting">
                   <Users size={17} />
-                  <span>Қатысушыны күтеміз…</span>
-                  {canTimeout && (
+                  <span>{match.players[match.turn].bot ? "Боттар ойнап жатыр…" : "Қатысушыны күтеміз…"}</span>
+                  {(canTimeout || !!match.players[match.turn].bot) && (
                     <button
                       className="dala-secondary"
                       disabled={disabled}
                       onClick={() => send("timeout")}
                     >
-                      Уақыты өтті · авто-жүріс
+                      {match.players[match.turn].bot ? "Боттар ойынын жалғастыру" : "Уақыты өтті · авто-жүріс"}
                     </button>
                   )}
                 </div>
@@ -905,6 +952,10 @@ export default function BoardGameApp() {
         <QuestDialog
           title={
             {
+              rooms: "Бөлме табу",
+              channel: "Арнаға жазылу",
+              create: "Бөлме құру",
+              history: "Менің партияларым",
               help: "Ойын ережелері",
               ranking: "Үздік кәсіпкерлер",
               join: "Бөлмеге қосылу",
@@ -924,7 +975,31 @@ export default function BoardGameApp() {
           onClose={close}
         >
           <div className="dala-dialog-content">
+            {panel === "channel" && gateway && <GameChannelGate gateway={gateway} onAllowed={() => { setPanel(null); setNotice("Жазылым расталды. Ойынды бастауға болады."); }} />}
             {notice && <p className="dala-inline-notice">{notice}</p>}
+            {error && <p className="dala-inline-notice" role="alert">{error}</p>}
+            {panel === "rooms" && gateway && <RoomExplorer gateway={gateway} catalog={catalog} busy={busy}
+              onJoin={(value) => { setCode(value); join(value); }} onCode={() => setPanel("join")}
+              onCreate={() => { setIsPublic(true); setPanel("create"); }} />}
+            {panel === "create" && <form className="dala-room-create" onSubmit={(event) => {
+              event.preventDefault();
+              if (gateway?.practice) openTelegramLink(`${BOT_URL}?startapp=${isPublic ? "quest_create_public" : "quest_create"}`);
+              else requestCreate();
+            }}>
+              <p className="dala-muted">Түрін таңда, бөлмені құр, досыңды шақыр. Екі ойыншыдан бастап ойнайсыңдар.</p>
+              <label htmlFor="dala-create-name">Ойындағы атың</label>
+              <input id="dala-create-name" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
+              <label htmlFor="dala-create-scenario">Карта және режим</label>
+              <select id="dala-create-scenario" value={scenarioId} onChange={(e) => {
+                setScenarioId(e.target.value); setBoardId(catalog.scenarios.find((s) => s.id === e.target.value)!.board);
+              }}>{catalog.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+              <fieldset className="dala-visibility"><legend>Кім қосыла алады?</legend>
+                <label><input type="radio" name="room-visibility" checked={!isPublic} onChange={() => setIsPublic(false)} /><LockKeyhole size={20} /><span><b>Тек достар</b><small>Сілтеме не код арқылы. Жалпы тізімде көрінбейді.</small></span></label>
+                <label><input type="radio" name="room-visibility" checked={isPublic} onChange={() => setIsPublic(true)} /><Globe2 size={20} /><span><b>Барлығына ашық</b><small>Басқа ойыншылар бөлмеңді тізімнен таба алады.</small></span></label>
+              </fieldset>
+              {gateway?.practice && <p className="dala-inline-notice">Ортақ бөлме Telegram ішінде құрылады. Браузердегі жаттығуың сақталады.</p>}
+              <button className="dala-primary dala-full" disabled={busy || !name.trim()} type="submit"><Users size={18} />{gateway?.practice ? "Telegram-да бөлме құру" : "Бөлмені құру"}</button>
+            </form>}
             {panel === "property" && match && (
               <PropertyPanel
                 key={selected}
@@ -945,7 +1020,7 @@ export default function BoardGameApp() {
                 }}
               >
                 <p className="dala-muted">
-                  Досыңнан он таңбалы бөлме кодын сұра.
+                  Досың жіберген кодты немесе шақыру сілтемесін қой. Ол бірден осы бөлмені ашады.
                 </p>
                 <label htmlFor="dala-join-name">Ойындағы атың</label>
                 <input
@@ -954,23 +1029,25 @@ export default function BoardGameApp() {
                   maxLength={24}
                   onChange={(e) => setName(e.target.value)}
                 />
-                <label htmlFor="dala-code">Бөлме коды</label>
+                <AppearancePicker appearance={appearance} onChange={choosePortrait} />
+                <label htmlFor="dala-code">Код немесе шақыру сілтемесі</label>
                 <input
                   id="dala-code"
                   value={code}
-                  maxLength={10}
-                  placeholder="A1B2C3D4E5"
+                  maxLength={2048}
+                  placeholder="A1B2C3D4E5 немесе https://t.me/…"
                   autoCapitalize="characters"
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  spellCheck={false}
+                  onChange={(e) => setCode(e.target.value)}
                 />
                 <button
                   type="submit"
                   className="dala-primary dala-full"
                   disabled={
-                    busy || !/^[A-F0-9]{10}$/.test(code) || !name.trim()
+                    busy || !roomCode(code) || !name.trim()
                   }
                 >
-                  Бөлмеге кіру <ArrowRight size={17} />
+                  {gateway?.practice ? "Telegram-да бөлмеге кіру" : "Бөлмеге кіру"} <ArrowRight size={17} />
                 </button>
               </form>
             )}
@@ -1008,7 +1085,7 @@ export default function BoardGameApp() {
                 </p>
                 <div className="dala-asset-grid">
                   {board.tiles.map((tile, i) => {
-                    if (!["property", "station"].includes(tile.kind))
+                    if (!["property", "station", "utility"].includes(tile.kind))
                       return null;
                     const lot = match.lots[i];
                     if (assetsPlayer >= 0 && lot?.owner !== assetsPlayer)
@@ -1030,7 +1107,7 @@ export default function BoardGameApp() {
                         </small>
                         <strong>
                           {lot
-                            ? `${lot.level === 4 ? "Қонақүй" : `${lot.level} ғимарат`} · ${money(rentFor(board, match, i))}`
+                            ? `${lot.level === tile.rents.length - 1 ? "Қонақүй" : `${lot.level} ғимарат`} · ${money(rentFor(board, match, i))}`
                             : money(tile.price)}
                         </strong>
                       </button>
@@ -1062,44 +1139,12 @@ export default function BoardGameApp() {
                 )}
               </>
             )}
-            {panel === "offers" && match && (
-              <div className="dala-trade-list">
-                {inbox.length ? (
-                  inbox.map((offer) => (
-                    <article key={offer.id}>
-                      <span className="dala-eyebrow">
-                        {match.players[offer.buyer].name} ҰСЫНЫСЫ
-                      </span>
-                      <h3>{board.tiles[offer.tile].name}</h3>
-                      <b>{money(offer.amount)}</b>
-                      <small>{offer.expires}-айналымға дейін жарамды</small>
-                      <div>
-                        <button
-                          className="dala-primary"
-                          disabled={disabled}
-                          onClick={() => send("accept", offer.id)}
-                        >
-                          Қабылдау <Check size={16} />
-                        </button>
-                        <button
-                          className="dala-secondary"
-                          disabled={disabled}
-                          onClick={() => send("reject", offer.id)}
-                        >
-                          Бас тарту
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <p className="dala-empty">Жаңа ұсыныстар жоқ.</p>
-                )}
-              </div>
-            )}
+            {panel === "offers" && match && <TradeOffers board={board} match={match} me={me}
+              disabled={disabled} send={send} />}
             {panel === "journal" && match && (
               <ol className="dala-journal">
                 {match.log.map((line, i) => (
-                  <li key={i}>{line}</li>
+                  <li key={i}>{gameText(line)}</li>
                 ))}
               </ol>
             )}
@@ -1130,6 +1175,8 @@ export default function BoardGameApp() {
             )}
             {panel === "new" && (
               <>
+                <p><b>{pendingNew.current?.name}</b></p>
+                {match && match.catalog_version < catalog.version && <p className="dala-inline-notice">Қазіргі партия — бұрынғы 24 ұяшықты нұсқа. Жаңа партия классикалық 40 ұяшықпен басталады.</p>}
                 <p>
                   Жаңа бөлме ашылады.{" "}
                   {gateway?.practice
@@ -1199,7 +1246,7 @@ export default function BoardGameApp() {
                 </button>
               </div>
             )}
-            {panel === "ranking" && <RankingPanel gateway={rankGateway} />}
+            {(panel === "ranking" || panel === "history") && gateway && <GameRecords key={panel} gateway={gateway} catalog={catalog} mode={panel} />}
             {panel === "help" && (
               <div className="dala-help">
                 <p>
@@ -1209,9 +1256,7 @@ export default function BoardGameApp() {
                 </p>
                 <ol>
                   <li>
-                    <b>Жүріс.</b> Екі кубик лақтырып, фишканы жылжыт. Дубль
-                    қосымша жүріс бермейді. Бастаудан өткенде айналым табысын
-                    аласың.
+                    <b>Жүріс.</b> Екі кубик лақтырып, фишканы жылжыт. {board.tiles.length === 40 ? "Дубль тағы бір лақтыру береді. Қатарынан үш дубль — түрме." : "Бұл бұрынғы партияда дубль қосымша жүріс бермейді."} Бастаудан өткенде айналым табысын аласың.
                   </li>
                   <li>
                     <b>Кәсіп.</b> Бос кәсіпті сатып ал немесе өткіз. Өзге
@@ -1221,7 +1266,7 @@ export default function BoardGameApp() {
                   <li>
                     <b>Түсті топ.</b> Бір түстегі кәсіптерді толық жинасаң,
                     бастапқы жалдау ақысы екі еселенеді. Ғимараттарды топ ішінде
-                    біркелкі сал. Төртінші жақсарту — қонақүй.
+                    біркелкі сал. {board.tiles.length === 40 ? "Төрт үйден кейін қонақүй салынады." : "Төртінші жақсарту — қонақүй."}
                   </li>
                   <li>
                     <b>Қаражат.</b> Ғимаратты жарты бағасына сатуға, бос кәсіпті
@@ -1229,9 +1274,10 @@ export default function BoardGameApp() {
                     қарыз және 10% үстеме.
                   </li>
                   <li>
-                    <b>Сауда.</b> Өзге ойыншыға ғимаратсыз кәсіпті сатып алуға
-                    ұсыныс жібер. Бот бастапқы бағаның 150%-ынан бастап
-                    қабылдайды.
+                    <b>Сауда.</b> Кәсіпті сатып алуды не сатуды ұсын, кәсіпке кәсіп айырбаста. Қарсы баға ұсынып саудалас. Мәміле екінші тарап келіскенде ғана орындалады.
+                  </li>
+                  <li>
+                    <b>Арнайы ұяшықтар.</b> {board.tiles.length === 40 ? "Төрт вокзал: жалдау 25 / 50 / 100 / 200 ◈. Екі коммуналдық қызмет: кубик × 4 немесе × 10. Түрмеден дубльмен не 50 ◈ төлеп шық; үшінші сәтсіз лақтыруда 50 ◈ міндетті. Тегін тұрақта төлем жоқ." : "Бұл бұрынғы партияда көлік пен демалыс ұяшықтары бар."} Сәттілік карталары кездейсоқ оқиға береді.
                   </li>
                   <li>
                     <b>Достар.</b> Бөлме иесі бот қосады және партияны бастайды.
@@ -1239,9 +1285,7 @@ export default function BoardGameApp() {
                     уақыт өтсе, бөлмедегі қатысушы авто-жүрісті іске қоса алады.
                   </li>
                   <li>
-                    <b>Қорытынды.</b> Айналым лимиті біткенде немесе бір ойыншы
-                    қалған кезде капитал салыстырылады. Тең капиталда үстелдегі
-                    бастапқы орын реті қолданылады.
+                    <b>Қорытынды.</b> {scenario?.round_limit === 0 ? "Айналым шектелмейді. Басқалар банкрот болғанда, соңғы қалған ойыншы жеңеді." : "Айналым лимиті біткенде немесе бір ойыншы қалған кезде капитал салыстырылады. Тең капиталда үстелдегі бастапқы орын реті қолданылады."}
                   </li>
                 </ol>
                 <p>

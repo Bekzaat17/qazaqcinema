@@ -177,7 +177,7 @@ class AppProvider(Provider):
     @provide
     async def redis(self, config: AppConfig) -> AsyncIterator[Redis]:
         # APP-scope синглтон-пул к Redis. Фундамент под сессии/кэш/rate-limit/локи
-        #. Закрывается при остановке контейнера (graceful).
+        # . Закрывается при остановке контейнера (graceful).
         client = Redis.from_url(config.redis.dsn, decode_responses=True)
         try:
             yield client
@@ -236,9 +236,7 @@ class AppProvider(Provider):
     def channel_publisher(self, bot: Bot, config: AppConfig) -> ChannelPublisher:
         # APP-scope, как и нотификатор: состояния у публикатора нет, только Bot и id.
         # id = 0 → адаптер сам работает как no-op (см. `AiogramChannelPublisher`).
-        return AiogramChannelPublisher(
-            bot, config.bot.public_channel_id, config.media.root
-        )
+        return AiogramChannelPublisher(bot, config.bot.public_channel_id, config.media.root)
 
     @provide
     def channel_membership(self, bot: Bot, config: AppConfig, redis: Redis) -> ChannelMembership:
@@ -299,9 +297,21 @@ class AppProvider(Provider):
 class RequestProvider(Provider):
     scope = Scope.REQUEST
 
-
     room_repo = provide(PgRoomRepository, provides=RoomRepository)
-    boardgame_service = provide(BoardGameService)
+
+    @provide
+    def boardgame_service(
+        self,
+        repository: RoomRepository,
+        catalog: Catalog,
+        random: GameRandom,
+        events: RoomEvents,
+        membership: ChannelMembership,
+        config: AppConfig,
+    ) -> BoardGameService:
+        return BoardGameService(
+            repository, catalog, random, events, membership, config.bot.public_channel_username
+        )
 
     quest_repo = provide(PgQuestRepository, provides=QuestRepository)
     quest_posts = provide(PgQuestChannelStore, provides=QuestChannelStore)
@@ -310,9 +320,7 @@ class RequestProvider(Provider):
     quest_channel = provide(QuestChannelService)
 
     @provide
-    async def session(
-        self, maker: async_sessionmaker[AsyncSession]
-    ) -> AsyncIterator[AsyncSession]:
+    async def session(self, maker: async_sessionmaker[AsyncSession]) -> AsyncIterator[AsyncSession]:
         async with maker() as session:
             yield session
 
@@ -341,9 +349,7 @@ class RequestProvider(Provider):
         # Pg-адаптер в декораторе: события админов в журнал не попадают (служебные заходы
         # не должны выглядеть живой аудиторией). Фильтр — снаружи, чтобы запись отсекалась
         # до БД, а не вычиталась потом при подсчёте.
-        return AdminBlindEventRepository(
-            PgUserEventRepository(session), config.bot.admin_user_ids
-        )
+        return AdminBlindEventRepository(PgUserEventRepository(session), config.bot.admin_user_ids)
 
     @provide
     def searches(self, session: AsyncSession, config: AppConfig) -> SearchQueryRepository:
@@ -385,6 +391,7 @@ class RequestProvider(Provider):
         # Из конфига — только @-имя бота для кнопки (как у BroadcastService: сервис
         # получает строку, а не весь AppConfig). Постер сервис берёт через PosterStorage.
         return ChannelService(publisher, daily, posters, config.bot.username)
+
     milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
     content_posting = provide(ContentPostingService)  # контент-план канала: ежечасный джоб
     content_seed = provide(ContentSeedService)  # заливка пула из YAML (tools/seed_content)
@@ -417,7 +424,14 @@ class RequestProvider(Provider):
         # admin_ids — примитив из конфига (как webapp_url у рассылок), поэтому явный
         # метод: сервис получает список id, а не весь AppConfig.
         return AnalyticsService(
-            users, events, movies, reports, milestones, searches, members, channel,
+            users,
+            events,
+            movies,
+            reports,
+            milestones,
+            searches,
+            members,
+            channel,
             config.bot.admin_user_ids,
         )
 

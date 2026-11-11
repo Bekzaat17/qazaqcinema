@@ -4,6 +4,7 @@ import type {
   Catalog,
   Command,
   Match,
+  Offer,
   Outcome,
   RandomBelow,
   Result,
@@ -11,12 +12,15 @@ import type {
   Scenario,
 } from "./types.ts";
 
-export const boardFor = (catalog: Catalog, room: Room): Board =>
-  catalog.boards.find(
-    (board) =>
-      board.id ===
-      catalog.scenarios.find((s) => s.id === room.scenario_id)!.board,
-  )!;
+export function activeCatalog(catalog: Catalog, room: Room): Catalog {
+  if (room.match?.catalog_version === catalog.version || (!room.match && catalog.scenarios.some((s) => s.id === room.scenario_id))) return catalog;
+  return catalog.legacy_catalogs?.find((past) => room.match ? past.version === room.match.catalog_version
+    : past.scenarios.some((s) => s.id === room.scenario_id)) ?? catalog;
+}
+export const boardFor = (catalog: Catalog, room: Room): Board => {
+  const definitions = activeCatalog(catalog, room);
+  return definitions.boards.find((b) => b.id === definitions.scenarios.find((s) => s.id === room.scenario_id)!.board)!;
+};
 export const groupIndices = (board: Board, tile: number): number[] =>
   board.tiles.flatMap((t, i) =>
     board.tiles[tile].group && t.group === board.tiles[tile].group ? [i] : [],
@@ -48,6 +52,10 @@ export function rentFor(board: Board, match: Match, tile: number): number {
         board.tiles[+key].kind === "station",
     ).length;
     return spec.rents[Math.min(count - 1, spec.rents.length - 1)];
+  }
+  if (spec.kind === "utility") {
+    const count = Object.entries(match.lots).filter(([key, owned]) => owned.owner === lot.owner && !owned.mortgaged && board.tiles[+key].kind === "utility").length;
+    return (match.dice[0] + match.dice[1]) * (count >= 2 ? 10 : 4);
   }
   let rent = spec.rents[lot.level];
   if (
@@ -99,7 +107,7 @@ function land(
     index = player.position,
     tile = board.tiles[index];
   log(match, `${player.name} → ${tile.name}`);
-  if (["property", "station"].includes(tile.kind)) {
+  if (["property", "station", "utility"].includes(tile.kind)) {
     const lot = match.lots[index];
     if (!lot) {
       match.phase = "buy";
@@ -122,9 +130,13 @@ function land(
   } else if (tile.kind === "rest") {
     player.cash += tile.amount;
     log(match, `Наурыз сыйлығы: +${tile.amount} ₸`);
-  } else if (tile.kind === "chance") {
-    const card = catalog.cards[random(catalog.cards.length)];
+  } else if (tile.kind === "go_to_jail") {
+    toJail(match); return;
+  } else if (["chance", "community"].includes(tile.kind)) {
+    const cards = catalog.cards.filter((card) => (card.deck ?? "chance") === (tile.kind === "community" ? "community" : "chance"));
+    const card = cards[random(cards.length)];
     log(match, card.text);
+    if (card.id === "jail" && match.classic) { toJail(match); return; }
     if (card.move !== null) {
       const salary = card.move < index ? scenario.salary : 0;
       player.position = card.move;
@@ -146,33 +158,58 @@ function land(
   }
   match.phase = "end";
 }
-function roll(
-  catalog: Catalog,
-  scenario: Scenario,
-  board: Board,
-  match: Match,
-  random: RandomBelow,
-) {
-  const player = match.players[match.turn];
-  if (player.skip) {
-    player.skip--;
-    match.phase = "end";
-    log(match, `${player.name}: демалыс жүрісі.`);
-    return;
+function toJail(match: Match) {
+  if (match.classic) {
+    match.players[match.turn].position = 10;
+    match.classic.jailed[match.turn] = 0;
+    match.classic.doubles = 0;
+    match.classic.release_steps = 0;
+    log(match, "Түрмеге бар. Шығу: дубль немесе 50 ◈.");
   }
-  const dice: [number, number] = [random(6) + 1, random(6) + 1],
-    steps = dice[0] + dice[1],
-    start = player.position,
-    end = (start + steps) % board.tiles.length,
-    laps = Math.floor((start + steps) / board.tiles.length);
-  player.position = end;
-  player.cash += laps * scenario.salary;
-  player.laps += laps;
-  match.dice = dice;
-  match.moves.push({ player: match.turn, start, steps, end, dice });
+  match.phase = "end"; match.pending = -1;
+}
+function advance(catalog: Catalog, scenario: Scenario, board: Board, match: Match,
+  steps: number, random: RandomBelow) {
+  const player = match.players[match.turn], start = player.position;
+  const end = (start + steps) % board.tiles.length, laps = Math.floor((start + steps) / board.tiles.length);
+  player.position = end; player.cash += laps * scenario.salary; player.laps += laps;
+  match.moves.push({ player: match.turn, start, steps, end, dice: match.dice });
   match.moves = match.moves.slice(-8);
   if (laps) log(match, `${player.name}: айналым табысы +${scenario.salary} ₸`);
   land(catalog, scenario, board, match, random);
+}
+function settlePayment(catalog: Catalog, scenario: Scenario, board: Board, match: Match, random: RandomBelow) {
+  const debt = match.debt!;
+  charge(match, debt.amount, debt.creditor);
+  if (match.classic?.release_steps) {
+    const steps = match.classic.release_steps; match.classic.release_steps = 0;
+    advance(catalog, scenario, board, match, steps, random);
+  }
+}
+function roll(catalog: Catalog, scenario: Scenario, board: Board, match: Match, random: RandomBelow) {
+  const player = match.players[match.turn];
+  if (player.skip) { player.skip--; match.phase = "end"; log(match, `${player.name}: демалыс жүрісі.`); return; }
+  match.dice = [random(6) + 1, random(6) + 1];
+  const steps = match.dice[0] + match.dice[1], classic = match.classic;
+  if (classic) {
+    const key = String(match.turn);
+    if (key in classic.jailed) {
+      const attempts = classic.jailed[key] + 1;
+      if (match.dice[0] !== match.dice[1] && attempts < 3) {
+        classic.jailed[key] = attempts; classic.doubles = 0; match.phase = "end";
+        log(match, "Дубль түспеді. Келесі жүрісте қайта көр."); return;
+      }
+      delete classic.jailed[key]; classic.doubles = 0; classic.release_steps = 0;
+      if (match.dice[0] !== match.dice[1]) {
+        if (player.cash < 50) { classic.release_steps = steps; charge(match, 50); return; }
+        player.cash -= 50;
+      }
+      advance(catalog, scenario, board, match, steps, random); return;
+    }
+    classic.doubles = match.dice[0] === match.dice[1] ? classic.doubles + 1 : 0;
+    if (classic.doubles === 3) { toJail(match); return; }
+  }
+  advance(catalog, scenario, board, match, steps, random);
 }
 function bankrupt(board: Board, match: Match) {
   const debtor = match.turn,
@@ -195,6 +232,11 @@ function bankrupt(board: Board, match: Match) {
     finish(board, match);
 }
 function next(scenario: Scenario, board: Board, match: Match) {
+  if (match.classic?.doubles && !(String(match.turn) in match.classic.jailed) && !match.players[match.turn].bankrupt) {
+    match.phase = "roll"; match.pending = -1; match.debt = null;
+    log(match, "Дубль! Тағы бір рет лақтыр."); return;
+  }
+  if (match.classic) { match.classic.doubles = 0; match.classic.release_steps = 0; }
   if (match.players.filter((p) => !p.bankrupt).length <= 1) {
     finish(board, match);
     return;
@@ -205,7 +247,7 @@ function next(scenario: Scenario, board: Board, match: Match) {
     index = (index + 1) % match.players.length;
     if (index === 0) {
       round++;
-      if (round > scenario.round_limit) {
+      if (scenario.round_limit > 0 && round > scenario.round_limit) {
         finish(board, match);
         return;
       }
@@ -281,77 +323,93 @@ function manage(
   log(match, `${labels[kind]}: ${spec.name}`);
   return "applied";
 }
-function trade(
-  board: Board,
-  room: Room,
-  actor: number,
-  command: Command,
-): Outcome {
+function tradeable(board: Board, match: Match, tile: number, owner: number): Outcome {
+  if (tile < 0 || tile >= board.tiles.length) return "invalid";
+  const lot = match.lots[tile];
+  if (!lot || lot.owner !== owner || lot.level || lot.mortgaged) return "invalid";
+  if (groupIndices(board, tile).some((i) => (match.lots[i]?.level ?? 0) > 0)) return "sell_first";
+  return "applied";
+}
+function transferTrade(board: Board, match: Match, buyer: number, seller: number,
+  tile: number, amount: number, giveTile: number) {
+  match.players[buyer].cash -= amount;
+  match.players[seller].cash += amount;
+  match.lots[tile].owner = buyer;
+  if (giveTile >= 0) {
+    match.lots[giveTile].owner = seller;
+    log(match, `Айырбас: ${board.tiles[tile].name} ↔ ${board.tiles[giveTile].name} · ${amount} ◈`);
+  } else log(match, `Мәміле: ${board.tiles[tile].name} — ${amount} ₸`);
+}
+export const offerSender = (offer: Offer) => (offer.proposer ?? -1) >= 0 ? offer.proposer! : offer.buyer;
+export const offerRecipient = (offer: Offer) => offerSender(offer) === offer.buyer ? offer.seller : offer.buyer;
+function trade(board: Board, room: Room, actor: number, command: Command): Outcome {
   const match = room.match!;
-  if (
-    ["debt", "finished"].includes(match.phase) ||
-    match.players[actor].bankrupt
-  )
-    return "invalid";
-  const tile = command.tile ?? -1,
-    amount = command.amount ?? 0;
-  if (command.kind === "offer") {
-    if (tile < 0 || tile >= board.tiles.length || amount < 1) return "invalid";
-    const lot = match.lots[tile];
-    if (!lot || lot.owner === actor || lot.level || lot.mortgaged)
-      return "invalid";
-    if (groupIndices(board, tile).some((i) => (match.lots[i]?.level ?? 0) > 0))
-      return "sell_first";
-    if (match.players[actor].cash < amount) return "insufficient";
-    if (match.players[lot.owner].bot) {
-      if (amount < Math.floor((board.tiles[tile].price * 3) / 2))
-        return "bot_declined";
-      match.players[actor].cash -= amount;
-      match.players[lot.owner].cash += amount;
-      lot.owner = actor;
-      log(match, `Мәміле: ${board.tiles[tile].name} — ${amount} ₸`);
+  if (["debt", "finished"].includes(match.phase) || match.players[actor].bankrupt) return "invalid";
+  const amount = command.amount ?? 0, giveTile = command.give_tile ?? -1;
+  if (["offer", "ask", "counter"].includes(command.kind)) {
+    let previous: Offer | undefined;
+    let buyer: number, seller: number, tile: number;
+    if (command.kind === "counter") {
+      previous = match.offers.find((o) => o.id === command.target);
+      if (!previous || offerRecipient(previous) !== actor) return "forbidden";
+      if (previous.expires < match.round) return "invalid";
+      ({ buyer, seller, tile } = previous);
+    } else if (command.kind === "ask") {
+      buyer = match.players.findIndex((p) => p.id === command.target);
+      seller = actor; tile = command.tile ?? -1;
+      if (buyer < 0 || buyer === actor) return "invalid";
+    } else {
+      buyer = actor; tile = command.tile ?? -1;
+      const lot = match.lots[tile];
+      if (!lot || lot.owner === actor) return "invalid";
+      seller = lot.owner;
+    }
+    if (giveTile < -1 || amount < 0 || (giveTile === -1 && amount < 1)
+      || match.players[buyer].bankrupt || match.players[seller].bankrupt) return "invalid";
+    const wanted = tradeable(board, match, tile, seller);
+    if (wanted !== "applied") return wanted;
+    if (giveTile >= 0) {
+      const offered = tradeable(board, match, giveTile, buyer);
+      if (offered !== "applied") return offered;
+    }
+    if (match.players[buyer].cash < amount) return "insufficient";
+    const recipient = actor === buyer ? seller : buyer;
+    if (match.players[recipient].bot) {
+      const cost = amount + (giveTile >= 0 ? board.tiles[giveTile].price : 0);
+      const accepted = recipient === seller ? cost >= Math.floor(board.tiles[tile].price * 3 / 2)
+        : cost <= Math.floor(board.tiles[tile].price * 2 / 3);
+      if (!accepted) return "bot_declined";
+      transferTrade(board, match, buyer, seller, tile, amount, giveTile);
       return "applied";
     }
-    match.offers = match.offers.filter((o) => o.buyer !== actor);
-    match.offers.push({
-      id: `${room.revision}:${actor}`,
-      buyer: actor,
-      seller: lot.owner,
-      tile,
-      amount,
-      expires: match.round + 2,
-    });
+    match.offers = match.offers.filter((o) => offerSender(o) !== actor && o.id !== previous?.id);
+    match.offers.push({ id: `${room.revision}:${actor}`, buyer, seller, tile, amount,
+      expires: match.round + 2, give_tile: giveTile, proposer: actor });
     return "applied";
   }
   const offer = match.offers.find((o) => o.id === command.target);
-  if (!offer || offer.seller !== actor) return "forbidden";
+  if (!offer) return "forbidden";
+  if (command.kind === "withdraw") {
+    if (offerSender(offer) !== actor) return "forbidden";
+    match.offers = match.offers.filter((o) => o.id !== offer.id);
+    return "applied";
+  }
+  if (offerRecipient(offer) !== actor) return "forbidden";
   if (command.kind === "reject") {
     match.offers = match.offers.filter((o) => o.id !== offer.id);
     return "applied";
   }
-  const lot = match.lots[offer.tile];
-  if (
-    !lot ||
-    lot.owner !== actor ||
-    lot.level ||
-    lot.mortgaged ||
-    offer.expires < match.round
-  )
-    return "invalid";
-  if (
-    groupIndices(board, offer.tile).some((i) => (match.lots[i]?.level ?? 0) > 0)
-  )
-    return "sell_first";
-  if (
-    match.players[offer.buyer].bankrupt ||
-    match.players[offer.buyer].cash < offer.amount
-  )
-    return "insufficient";
-  match.players[actor].cash += offer.amount;
-  match.players[offer.buyer].cash -= offer.amount;
-  lot.owner = offer.buyer;
+  if (offer.expires < match.round || match.players[offer.seller].bankrupt) return "invalid";
+  const wanted = tradeable(board, match, offer.tile, offer.seller);
+  if (wanted !== "applied") return wanted;
+  const offeredTile = offer.give_tile ?? -1;
+  if (offeredTile >= 0) {
+    const offered = tradeable(board, match, offeredTile, offer.buyer);
+    if (offered !== "applied") return offered;
+  }
+  if (match.players[offer.buyer].bankrupt || match.players[offer.buyer].cash < offer.amount) return "insufficient";
+  transferTrade(board, match, offer.buyer, offer.seller, offer.tile, offer.amount, offeredTile);
   match.offers = match.offers.filter((o) => o.id !== offer.id);
-  log(match, `Мәміле: ${board.tiles[offer.tile].name} — ${offer.amount} ₸`);
   return "applied";
 }
 function botTurn(
@@ -401,9 +459,10 @@ function botTurn(
           }
         if (!changed) break;
       }
-    if (match.debt && match.players[match.turn].cash >= match.debt.amount)
-      charge(match, match.debt.amount, match.debt.creditor);
-    else bankrupt(board, match);
+    if (match.debt && match.players[match.turn].cash >= match.debt.amount) {
+      settlePayment(catalog, scenario, board, match, random);
+      if (["buy", "debt"].includes(match.phase)) { botTurn(catalog, scenario, board, match, random); return; }
+    } else bankrupt(board, match);
   }
   if ((match.phase as string) === "end") next(scenario, board, match);
 }
@@ -414,17 +473,19 @@ function bots(
   match: Match,
   random: RandomBelow,
 ) {
-  for (let i = 0; i < (scenario.round_limit + 1) * match.players.length; i++) {
+  const limit = scenario.round_limit > 0 ? (scenario.round_limit + 1) * match.players.length : 128;
+  for (let i = 0; i < limit; i++) {
     if (match.phase === "finished" || !match.players[match.turn].bot) return;
     botTurn(catalog, scenario, board, match, random);
   }
-  finish(board, match);
+  if (scenario.round_limit > 0) finish(board, match);
 }
 export function autoTurn(
   catalog: Catalog,
   room: Room,
   random: RandomBelow,
 ): Room {
+  catalog = activeCatalog(catalog, room);
   if (!room.match || room.match.phase === "finished") return room;
   const result = structuredClone(room),
     scenario = catalog.scenarios.find((s) => s.id === room.scenario_id)!,
@@ -441,6 +502,7 @@ export function applyCommand(
   command: Command,
   random: RandomBelow,
 ): Result {
+  catalog = activeCatalog(catalog, room);
   const reject = (outcome: Outcome): Result => ({ room, outcome });
   if (command.revision !== room.revision) return reject("stale");
   if (room.closed || !room.seats.some((s) => s.id === actor))
@@ -522,6 +584,7 @@ export function applyCommand(
         log: ["Сәтті партия! Алғашқы жүріс сенікі."],
         moves: [],
         winner: -1,
+        classic: boardFor(catalog, result).tiles.length === 40 ? { jailed: {}, doubles: 0, release_steps: 0 } : null,
       };
       return applied();
     }
@@ -533,13 +596,19 @@ export function applyCommand(
   const index = match.players.findIndex((p) => p.id === actor),
     board = boardFor(catalog, room),
     scenario = catalog.scenarios.find((s) => s.id === room.scenario_id)!;
-  if (["offer", "accept", "reject"].includes(command.kind)) {
+  if (["offer", "ask", "counter", "withdraw", "accept", "reject"].includes(command.kind)) {
     const outcome = trade(board, result, index, command);
     if (outcome !== "applied") return reject(outcome);
   } else {
     if (index !== match.turn) return reject("forbidden");
     if (command.kind === "roll" && match.phase === "roll")
       roll(catalog, scenario, board, match, random);
+    else if (command.kind === "bail" && match.phase === "roll") {
+      if (!match.classic || !(String(index) in match.classic.jailed)) return reject("invalid");
+      if (match.players[index].cash < 50) return reject("insufficient");
+      match.players[index].cash -= 50; delete match.classic.jailed[index];
+      match.classic.doubles = 0; match.classic.release_steps = 0;
+    }
     else if (["buy", "pass"].includes(command.kind) && match.phase === "buy") {
       if (command.kind === "buy") {
         const tile = board.tiles[match.pending],
@@ -567,7 +636,7 @@ export function applyCommand(
     ) {
       if (match.players[index].cash < match.debt.amount)
         return reject("insufficient");
-      charge(match, match.debt.amount, match.debt.creditor);
+      settlePayment(catalog, scenario, board, match, random);
     } else if (command.kind === "bankrupt" && match.phase === "debt") {
       bankrupt(board, match);
       if ((match.phase as string) !== "finished") next(scenario, board, match);

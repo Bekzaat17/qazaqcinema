@@ -24,7 +24,7 @@ from app.domain.boardgame.game import (
 from app.domain.boardgame.validation import validate_catalog
 from app.infrastructure.content.boardgame import load_board_catalog
 
-CATALOG = load_board_catalog(Path("web/public/boardgame/catalog.json"))
+CATALOG = load_board_catalog(Path("web/public/boardgame/catalog-v2.json"))
 
 
 def lobby(scenario: str = "almaty_first") -> Room:

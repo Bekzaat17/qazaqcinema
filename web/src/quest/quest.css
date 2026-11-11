@@ -1329,3 +1329,21 @@
     transition: none;
   }
 }
+
+.quest-board-return { border: 1px solid #738e6b50; border-radius: 12px; background: #fbf8eda6; }
+.quest-village-progress { padding: 16px; border: 1px solid #a0ad8e40; border-radius: 16px; background: #edf0e2; margin-bottom: 20px; }
+.quest-village-progress > span { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.quest-village-progress b { margin-left: auto; }
+.quest-village-progress [role="progressbar"] { height: 7px; margin: 12px 0; background: #d6dfcb; border-radius: 8px; overflow: hidden; }
+.quest-village-progress i { display: block; height: 100%; background: #468576; border-radius: inherit; }
+.quest-village-progress small { color: #576d58; font-size: 11px; line-height: 1.6; }
+@media (max-width: 700px) {
+  .quest-header { gap: 8px; padding-left: 16px; padding-right: 16px; }
+  .quest-header nav { gap: 6px; }
+  .quest-board-return { padding: 8px; }
+  .quest-board-return span { display: inline; font-size: 10px; }
+  .quest-header .quest-cinema { display: none; }
+  .quest-header .quest-brand { font-size: 18px; gap: 6px; }
+  .quest-header .quest-brand-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .quest-header .quest-brand small { letter-spacing: 1px; font-size: 6px; }
+}

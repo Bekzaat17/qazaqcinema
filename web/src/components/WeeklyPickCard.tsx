@@ -8,7 +8,7 @@
 //
 // Про постер 2:3 и размытую подложку — подробности в `Hero`, приём и причины те же.
 
-import { Ticket, Timer } from "lucide-react";
+import { Ticket, Timer } from "../ui-kit/adapters/icons";
 
 import type { Movie } from "../lib/api";
 import { haptic } from "../lib/telegram";

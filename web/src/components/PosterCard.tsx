@@ -1,7 +1,7 @@
 // Постер-карточка для полки (портрет 2:3). Замок на карточке НЕ рисуем — гейт подписки
 // живёт только на кнопке «Көру» (PLAN, Фаза 9).
 
-import { Ticket } from "lucide-react";
+import { Ticket } from "../ui-kit/adapters/icons";
 
 import { useWeeklyPick } from "../hooks/useWeeklyPick";
 import type { Movie } from "../lib/api";

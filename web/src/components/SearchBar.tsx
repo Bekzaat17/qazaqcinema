@@ -1,6 +1,6 @@
 // Поиск отдельной строкой во всю ширину (PLAN: не рядом с лого).
 
-import { Search, X } from "lucide-react";
+import { Search, X } from "../ui-kit/adapters/icons";
 
 interface SearchBarProps {
   value: string;

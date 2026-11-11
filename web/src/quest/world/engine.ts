@@ -63,11 +63,11 @@ export class QuestEngine {
     this.renderer.setClearColor("#d5e4dc");
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.25;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "QazaqQuest 3D әлемі. Жерді басып қозғалыңыз немесе WASD пернелерін қолданыңыз.",
+      "QazaqPlay 3D әлемі. Жерді басып қозғалыңыз немесе WASD пернелерін қолданыңыз.",
     );
     this.renderer.domElement.style.touchAction = "none";
     host.appendChild(this.renderer.domElement);
@@ -306,6 +306,7 @@ export class QuestEngine {
   }
   setQuality(quality: Quality) {
     this.quality = quality;
+    this.world.terrain.setQuality(quality);
     this.renderer.setPixelRatio(
       Math.min(window.devicePixelRatio || 1, quality === "low" ? 1 : 1.5),
     );

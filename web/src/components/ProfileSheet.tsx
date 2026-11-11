@@ -1,6 +1,6 @@
 // Профиль (👤): аватар + имя + карточка статуса подписки + тумблер рассылок + связь с поддержкой.
 
-import { BadgeCheck, Bell, CalendarClock, ChevronRight, Clock, LifeBuoy, Sparkles, Ticket } from "lucide-react";
+import { BadgeCheck, Bell, CalendarClock, ChevronRight, Clock, LifeBuoy, Sparkles, Ticket } from "../ui-kit/adapters/icons";
 import { useEffect, useState } from "react";
 
 import type { Auth } from "../lib/api";

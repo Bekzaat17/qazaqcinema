@@ -1,20 +1,22 @@
+import { YurtIcon, WellIcon } from "../ui-kit/GameIcons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft,
+  Clapperboard,
+  Hammer,
   ArrowRight,
   Check,
   Compass,
+  Dices,
   Gem,
   HelpCircle,
   Leaf,
   Mountain,
   Settings2,
   Sparkles,
-  TentTree,
   TreePine,
   Trophy,
   WandSparkles,
-} from "lucide-react";
+} from "../ui-kit/adapters/icons";
 import { ApiError, NetworkError, SessionExpiredError } from "../lib/api";
 import {
   BOT_URL,
@@ -24,6 +26,7 @@ import {
   openTelegramLink,
   showBackButton,
 } from "../lib/telegram";
+import { Brand, Progress as ProgressBar } from "../ui-kit";
 import QuestDialog from "./components/QuestDialog";
 import Joystick from "./components/Joystick";
 import RankingPanel from "./components/RankingPanel";
@@ -67,7 +70,7 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : "Қате шықты. Қайталап көр.";
 }
 
-export default function QuestApp() {
+export default function QuestApp({ onReturn }: { onReturn?: () => void }) {
   const [gateway] = useState(() =>
     getInitData() ? new HttpQuestGateway() : new PracticeQuestGateway(),
   );
@@ -91,7 +94,7 @@ export default function QuestApp() {
 
   useEffect(() => {
     const originalTitle = document.title;
-    document.title = "QazaqQuest — Өз ауылыңды құр";
+    document.title = "QazaqPlay — Менің ауылым";
     if (getInitData()) {
       getWebApp()?.setHeaderColor("#d5e4dc");
       getWebApp()?.setBackgroundColor("#d5e4dc");
@@ -183,9 +186,10 @@ export default function QuestApp() {
       if (inFlight.current) return;
       if (panel) setPanel(null);
       else if (playing) setPlaying(false);
+      else if (onReturn) onReturn();
       else navigateApp("cinema");
     });
-  }, [panel, playing]);
+  }, [panel, playing, onReturn]);
 
   const perform = useCallback(async (operation: () => Promise<void>) => {
     if (inFlight.current) return;
@@ -265,24 +269,23 @@ export default function QuestApp() {
       {!playing && <div className="quest-world-wash" />}
       <header className="quest-header">
         <a
-          className="quest-brand"
+          className="ui-brand-trigger"
           href="/quest"
-          aria-label="QazaqQuest"
+          aria-label="QazaqPlay — Менің ауылым"
           onClick={(event) => {
             event.preventDefault();
             setPanel(null);
             setPlaying(false);
           }}
         >
-          <span className="quest-brand-icon">
-            <Sparkles size={24} />
-          </span>
-          <span>
-            Qazaq<span>Quest</span>
-            <small>ТУҒАН ЖЕРДІҢ СИҚЫРЫ</small>
-          </span>
+          <Brand subtitle="Менің ауылым · Сиқырлы алқап" />
         </a>
         <nav aria-label="Ойын мәзірі">
+          {onReturn && (
+            <button className="quest-nav quest-board-return" disabled={busy} onClick={onReturn}>
+              <Dices size={18} /><span>Дала дәулеті</span>
+            </button>
+          )}
           <button
             className="quest-nav"
             aria-label="Рейтинг"
@@ -307,7 +310,7 @@ export default function QuestApp() {
               navigateApp("cinema");
             }}
           >
-            <ArrowLeft size={15} />
+            <Clapperboard size={15} />
             <span>Кинотеатр</span>
           </a>
         </nav>
@@ -327,6 +330,11 @@ export default function QuestApp() {
           >
             Қайта ашу
           </button>
+          {onReturn && (
+            <button className="quest-secondary" onClick={onReturn}>
+              <Dices size={18} /> Үстел ойынына оралу
+            </button>
+          )}
           <a
             href="/"
             onClick={(event) => {
@@ -363,7 +371,7 @@ export default function QuestApp() {
                   haptic.medium();
                 }}
               >
-                <WandSparkles size={21} />
+                <Compass size={21} />
                 {progress && progress.total_xp > 0
                   ? "Саяхатты жалғастыру"
                   : "Саяхатты бастау"}
@@ -390,7 +398,7 @@ export default function QuestApp() {
             )}
             <div className="quest-intro-stats">
               <span>
-                <TentTree size={20} />
+                <YurtIcon size={20} />
                 <b>Өз ауылың</b>
                 <small>Сал және дамыт</small>
               </span>
@@ -515,7 +523,7 @@ export default function QuestApp() {
                 className="quest-village-button"
                 onClick={() => openPanel("village")}
               >
-                <TentTree size={22} />
+                <YurtIcon size={22} />
                 <span>
                   Менің ауылым<small>{villageLevel} / 9 даму</small>
                 </span>
@@ -531,7 +539,7 @@ export default function QuestApp() {
                   }
                   onClick={interact}
                 >
-                  <WandSparkles size={30} />
+                  {near?.kind === "building" ? <Hammer size={30} /> : near?.kind === "quest" ? <Leaf size={30} /> : <WandSparkles size={30} />}
                 </button>
                 <small>
                   {near?.kind === "quest"
@@ -626,6 +634,11 @@ export default function QuestApp() {
                 Әр ғимараттың үш деңгейі бар. Рухтарға көмектесіп, ауылға
                 материал жина.
               </p>
+              <div className="quest-village-progress">
+                <span><YurtIcon size={18} /> Ауылдың дамуы <b>{villageLevel} / 9</b></span>
+                <ProgressBar value={villageLevel} max={9} label="Ауылдың дамуы" />
+                <small>Әр жақсартумен ауылыңда жаңа бөлшектер пайда болады.</small>
+              </div>
               <div className="quest-materials">
                 <span>
                   <TreePine size={18} /> {progress.wood} ағаш
@@ -636,6 +649,7 @@ export default function QuestApp() {
               </div>
               <div className="quest-buildings">
                 {progress.buildings.map((building, index) => {
+                  const BuildingIcon = { yurt: YurtIcon, well: WellIcon, workshop: Hammer }[building.id];
                   const max = building.wood_cost === null;
                   const affordable =
                     !max &&
@@ -646,7 +660,7 @@ export default function QuestApp() {
                       <div
                         className={`quest-building-art building-${building.id}`}
                       >
-                        <TentTree size={36 + index * 2} strokeWidth={1.4} />
+                        <BuildingIcon size={36 + index * 2} strokeWidth={1.4} />
                         <span>{building.level || "+"}</span>
                       </div>
                       <div>
@@ -757,7 +771,7 @@ export default function QuestApp() {
                     setFeedback("");
                   }}
                 >
-                  Ауылымды дамыту <TentTree size={20} />
+                  Ауылымды дамыту <YurtIcon size={20} />
                 </button>
                 <button className="quest-text-button" onClick={closePanel}>
                   Саяхатты жалғастыру <ArrowRight size={16} />

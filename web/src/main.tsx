@@ -6,13 +6,18 @@ import "./index.css";
 import { initWebApp } from "./lib/telegram";
 import { isQuestLaunch } from "./quest/launch";
 
+const Showcase = lazy(() => import("./ui-kit/Showcase"));
 const App = lazy(() => import("./App"));
 const QuestApp = lazy(() => import("./boardgame/BoardGameApp"));
 
 function AppRouter() {
   const [quest, setQuest] = useState(isQuestLaunch);
+  const [showcase, setShowcase] = useState(() => location.pathname === "/ui-kit");
   useEffect(() => {
-    const onNavigate = () => setQuest(isQuestLaunch());
+    const onNavigate = () => {
+      setQuest(isQuestLaunch());
+      setShowcase(location.pathname === "/ui-kit");
+    };
     window.addEventListener("popstate", onNavigate);
     return () => window.removeEventListener("popstate", onNavigate);
   }, []);
@@ -24,7 +29,7 @@ function AppRouter() {
         </div>
       }
     >
-      {quest ? <QuestApp /> : <App />}
+      {showcase ? <Showcase /> : quest ? <QuestApp /> : <App />}
     </Suspense>
   );
 }

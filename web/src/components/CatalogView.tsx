@@ -3,7 +3,7 @@
 // скролле. Всю выборку/пагинацию делает бэкенд (`/api/movies`), фронт лишь рисует и
 // гасит гонки страниц монотонным reqId.
 
-import { ArrowDown, ArrowUp, Loader2, SearchX } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2, SearchX } from "../ui-kit/adapters/icons";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { api, type CategoryCount, type Movie, type SortDir, type SortField } from "../lib/api";

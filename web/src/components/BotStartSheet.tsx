@@ -17,7 +17,7 @@
 // /start руками догадается разработчик, а не зритель. Сама команда зарегистрирована в
 // боте (`_setup_commands` в main.py), поэтому она предлагается списком и нажимается.
 
-import { MessageCircle, Play } from "lucide-react";
+import { MessageCircle, Play } from "../ui-kit/adapters/icons";
 
 import { openBotChat } from "../lib/telegram";
 import Button from "../ui/Button";

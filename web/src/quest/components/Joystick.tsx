@@ -1,5 +1,5 @@
 import { useRef, useState, type PointerEvent } from "react";
-import { Move } from "lucide-react";
+import { Move } from "../../ui-kit/adapters/icons";
 
 export default function Joystick({
   onMove,

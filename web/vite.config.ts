@@ -24,6 +24,7 @@ export default defineConfig({
     proxy: {
       "/api": { target: API_TARGET, changeOrigin: true },
       "/posters": { target: API_TARGET, changeOrigin: true },
+      "/games": { target: API_TARGET, changeOrigin: true },
     },
   },
 });

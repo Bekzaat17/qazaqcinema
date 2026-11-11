@@ -1,5 +1,6 @@
 import type { Board, Tile } from "../../types";
 import { Tree } from "./Scenery";
+import SpecialMiniature from "./SpecialMiniature";
 
 function StreetMiniature() {
   return (
@@ -44,38 +45,7 @@ export default function BuildingMiniature({
   tile: Tile;
   level: number;
 }) {
-  if (tile.kind !== "property" && tile.kind !== "station") {
-    const symbol =
-      tile.kind === "start"
-        ? "✦"
-        : tile.kind === "chance"
-          ? "?"
-          : tile.kind === "tax"
-            ? "₸"
-            : "❋";
-    return (
-      <g className="dala-miniature-special" pointerEvents="none">
-        <ellipse cy="0" rx="30" ry="15" fill="#a99159" opacity=".25" />
-        <ellipse
-          cy="-9"
-          rx="29"
-          ry="22"
-          fill="#d7b86d"
-          stroke="#f9e6aa"
-          strokeWidth="3"
-        />
-        <text
-          y="1"
-          textAnchor="middle"
-          fontSize="30"
-          fontFamily="Georgia"
-          fill="#fff4c9"
-        >
-          {symbol}
-        </text>
-      </g>
-    );
-  }
+  if (tile.kind !== "property") return <SpecialMiniature board={board} tile={tile} />;
   const landmarkSprite = tile.sprite ?? -1;
   const sprite =
     landmarkSprite >= 0 ? landmarkSprite : (tile.street_sprite ?? -1);
@@ -104,7 +74,7 @@ export default function BuildingMiniature({
         <g transform="translate(31 -40)">
           <circle r="13" fill="#316551" stroke="#f3d590" strokeWidth="2" />
           <text y="4" textAnchor="middle" fontSize="12" fill="#fff0bf">
-            {level === 4 ? "★" : level}
+            {level === tile.rents.length - 1 ? "★" : level}
           </text>
         </g>
       )}

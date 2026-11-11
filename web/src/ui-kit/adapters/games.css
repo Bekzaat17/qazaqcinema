@@ -1,0 +1,24 @@
+/* Мост для игровых компонентов: экраны можно переносить на публичный API постепенно. */
+:is(.dala-app, .quest-app, .quest-dialog) button:is(.dala-primary, .quest-primary) {
+  background: var(--ui-action); color: var(--ui-on-action); border-radius: var(--ui-radius);
+  box-shadow: 0 5px 18px var(--ui-action-shadow); font-family: var(--ui-font);
+}
+:is(.dala-app, .quest-app, .quest-dialog) button:is(.dala-primary, .quest-primary):hover:not(:disabled) {
+  background: var(--ui-action-hover);
+}
+:is(.dala-app, .quest-app, .quest-dialog) button:is(.dala-secondary, .quest-secondary) {
+  background: var(--ui-surface); color: var(--ui-ink); border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius); font-family: var(--ui-font);
+}
+:is(.dala-app, .quest-app, .quest-dialog) button:focus-visible {
+  outline: 3px solid var(--ui-focus); outline-offset: 3px;
+}
+:is(.dala-app.dala-app, .quest-app.quest-app) :is(h1, h2), .dala-app .dala-brand > div {
+  font-family: var(--ui-font); font-weight: 650; letter-spacing: -.055em;
+}
+:is(.dala-app.dala-app, .quest-app.quest-app) h1 em { color: var(--ui-brand); font-style: normal; }
+.dala-app .dala-brand > span, .quest-app .quest-brand-icon { background: var(--ui-action); color: var(--ui-on-action); }
+:is(.dala-app, .quest-app) button, .quest-dialog button { min-height: 36px; }
+.quest-app .quest-xp > i { background: var(--ui-brand); }
+.dala-app :is(.dala-start-card, .dala-board-card) { border-radius: var(--ui-radius-lg); }
+:is(.dala-app, .quest-app, .quest-dialog) { font-family: var(--ui-font); }

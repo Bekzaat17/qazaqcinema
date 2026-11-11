@@ -1,6 +1,9 @@
 import * as THREE from "three";
+import { ModelLibrary } from "../../graphics/models";
+import { forestBatches, meadowBatches } from "./nature";
 import { PLOTS, SHRINES, TARGETS, type Progress } from "../types";
 import { seededRandom, WorldAssets } from "./assets";
+import { TerrainView } from "./terrain";
 import { VillageView } from "./village";
 
 export interface Obstacle {
@@ -12,9 +15,12 @@ export interface Obstacle {
 export class QuestScene {
   readonly scene = new THREE.Scene();
   readonly assets = new WorldAssets();
+  private models = new ModelLibrary();
+  private disposed = false;
   readonly hero = new THREE.Group();
   readonly companion = new THREE.Group();
   readonly ground: THREE.Mesh;
+  readonly terrain: TerrainView;
   readonly obstacles: Obstacle[] = [];
   readonly sun = new THREE.DirectionalLight("#fff2cf", 3.1);
   readonly village: VillageView;
@@ -54,9 +60,8 @@ export class QuestScene {
     scene.add(this.sun);
     m(scene, "cylinder", "#8e9785", [0, -2.3, 0], [22, 4, 22]);
     m(scene, "cylinder", "#a7b78a", [0, -0.5, 0], [22.2, 0.6, 22.2]);
-    this.ground = m(scene, "cylinder", "#9eb982", [0, -0.15, 0], [22, 0.3, 22]);
-    this.ground.castShadow = false;
-    m(scene, "cylinder", "#c6c89a", [0, -0.01, 4], [8.5, 0.05, 8.5]);
+    this.terrain = new TerrainView(scene);
+    this.ground = this.terrain.ground;
     const random = seededRandom(7341);
     for (let i = 0; i < 9; i++) {
       const a = (i / 9) * Math.PI * 2;
@@ -76,9 +81,9 @@ export class QuestScene {
         const stone = m(
           scene,
           "cylinder",
-          j % 3 ? "#d4cfad" : "#e1d9b7",
+          j % 3 ? "#acaa8d" : "#beb79a",
           [target.x * t + (random() - 0.5) * 0.4, 0.04, 5 + (target.z - 5) * t],
-          [0.5 + random() * 0.4, 0.1, 0.4],
+          [0.22 + random() * 0.18, 0.06, 0.22],
         );
         stone.rotation.y = random() * 6;
       }
@@ -167,6 +172,8 @@ export class QuestScene {
       positions.push([x, z, 2.2 + random() * 2.4]);
       this.obstacles.push({ x, z, radius: 0.55 });
     }
+    const fallback = new THREE.Group();
+    this.scene.add(fallback);
     const matrix = new THREE.Object3D();
     const parts = [
       {
@@ -212,7 +219,7 @@ export class QuestScene {
       });
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      this.scene.add(mesh);
+      fallback.add(mesh);
     }
     const flowers = new THREE.InstancedMesh(
       this.assets.geometry("rock"),
@@ -227,7 +234,20 @@ export class QuestScene {
       matrix.updateMatrix();
       flowers.setMatrixAt(i, matrix.matrix);
     }
-    this.scene.add(flowers);
+    fallback.add(flowers);
+    // Геометрический лес остаётся доступным при ошибке сети или загрузки GLB.
+    void Promise.all(forestBatches(positions).map(({ model, placements }) =>
+      this.models.batch(model, placements),
+    )).then((groups) => {
+      if (this.disposed || groups.some((group) => !group)) return;
+      fallback.visible = false;
+      groups.forEach((group) => this.scene.add(group!));
+    });
+    for (const { model, placements } of meadowBatches()) {
+      void this.models.batch(model, placements).then((group) => {
+        if (group && !this.disposed) this.scene.add(group);
+      });
+    }
   }
 
   private makeHero() {
@@ -295,6 +315,9 @@ export class QuestScene {
     );
   }
   animate(time: number, dt: number, moving: boolean) {
+    this.terrain.animate(time);
+    this.models.animate(time);
+    this.village.animate(time);
     this.spirits.forEach((s, i) => {
       s.position.y = 1.7 + Math.sin(time * 1.7 + i) * 0.15;
       s.rotation.y = Math.sin(time * 0.6 + i) * 0.2;
@@ -314,11 +337,15 @@ export class QuestScene {
     if (this.pulse.visible) this.pulse.scale.setScalar(0.3 + this.pulseAge * 6);
   }
   dispose() {
+    this.disposed = true;
+    this.models.dispose();
     this.village.dispose();
+    this.terrain.dispose();
     this.particleGeometry.dispose();
     this.particleMaterial.dispose();
     this.scene.traverse((object) => {
-      if (object instanceof THREE.InstancedMesh) object.dispose();
+      if (object instanceof THREE.InstancedMesh && !object.parent?.name.startsWith("model:"))
+        object.dispose();
     });
     this.assets.dispose();
     this.scene.clear();

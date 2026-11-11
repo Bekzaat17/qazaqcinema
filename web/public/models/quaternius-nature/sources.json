@@ -1,0 +1,117 @@
+{
+  "author": "Quaternius",
+  "license": "CC0-1.0",
+  "source": "https://quaternius.com/packs/stylizednaturemegakit.html",
+  "mirror_commit": "85064399bbdacc0e8cc50807179490314bc4ff1c",
+  "models": [
+    {
+      "file": "CommonTree_1.glb",
+      "bytes": 1093936,
+      "sha256": "ecb9cd2644b66f8bb1fbfeb8d7592b223e4fb8bc69b88b949495c4370d02e44f",
+      "source": "https://raw.githubusercontent.com/tilakpatell/tilakverse-assets/85064399bbdacc0e8cc50807179490314bc4ff1c/quaternius/stylized-nature-megakit/glTF/CommonTree_1.gltf",
+      "input_files": [
+        {
+          "file": "CommonTree_1.bin",
+          "sha256": "9dd689e84e1aa2f5b08db8def591254d582783c73737af54ba0d89b3e549c3ae"
+        },
+        {
+          "file": "Bark_NormalTree_Normal.png",
+          "sha256": "852f6155404b8c39e100e41e26970e02a6a5c81b482d3726618dab28e3ad03a2"
+        },
+        {
+          "file": "Bark_NormalTree.png",
+          "sha256": "f36e94fdd73255347325b998e02a0b2575fdf714b0315bfe5e8ff34bc8e13603"
+        },
+        {
+          "file": "Leaves_NormalTree_C.png",
+          "sha256": "998612bdf0b76a22f5f54d65cd7a457815d2842d89653fa4348a4ebb42933ad3"
+        }
+      ],
+      "changes": "Textures resized to <=512px PNG, embedded into GLB; non-metallic rough materials."
+    },
+    {
+      "file": "Birch_1.glb",
+      "bytes": 1395844,
+      "sha256": "6761f0ca4fbd83ead8fec06ce9fe58ed6179cbfe134e283af4fa30dccbb9cc49",
+      "source": "https://raw.githubusercontent.com/tilakpatell/tilakverse-assets/85064399bbdacc0e8cc50807179490314bc4ff1c/quaternius/stylized-nature-megakit/glTF/Birch_1.gltf",
+      "input_files": [
+        {
+          "file": "Birch_1.bin",
+          "sha256": "e8cf3eba0129dd60c7d5b73fbc28f39fe1b09d60d80d32d811ced06332c3d601"
+        },
+        {
+          "file": "Bark_BirchTree_Normal.png",
+          "sha256": "d452137c934b243d33e4855281d3e750b5035f20e86b8a45c4693cc8130ca256"
+        },
+        {
+          "file": "Bark_BirchTree.png",
+          "sha256": "7b9b222019803a5cffeb13f0b99c1c5fa591a5cd87e4c4b04f1215311295a19b"
+        },
+        {
+          "file": "Leaves_Birch_C.png",
+          "sha256": "65d2eeed4ca14cde70c0d3b6a1aece5b8d29923ebbf16fa0870a3ce93849dd7d"
+        }
+      ],
+      "changes": "Textures resized to <=512px PNG, embedded into GLB; non-metallic rough materials."
+    },
+    {
+      "file": "GiantPine_1.glb",
+      "bytes": 1147736,
+      "sha256": "d0ed3aeed0e052e302ea5311dbbf13d50222d81c1d184041825f318e1b977bf5",
+      "source": "https://raw.githubusercontent.com/tilakpatell/tilakverse-assets/85064399bbdacc0e8cc50807179490314bc4ff1c/quaternius/stylized-nature-megakit/glTF/GiantPine_1.gltf",
+      "input_files": [
+        {
+          "file": "GiantPine_1.bin",
+          "sha256": "83034cdb122750b1d326ec29a698c0fc863cfd115f4c202da228b497387e8fd0"
+        },
+        {
+          "file": "Bark_PineTree_Normal.png",
+          "sha256": "47274aa54aa6e493a075d0af2692b45f035da7e231cadcbce38f396c19f9386b"
+        },
+        {
+          "file": "Bark_PineTree.png",
+          "sha256": "3b24991d5cea6e2cdbcde76998411cb676e6cb0085108f93fb3c626ea4aa78d3"
+        },
+        {
+          "file": "Leaves_GiantPine_C.png",
+          "sha256": "57f375e6a8ee339a415986033d54513186b0d82b9fa865070a2ef2afe61a0aa3"
+        }
+      ],
+      "changes": "Textures resized to <=512px PNG, embedded into GLB; non-metallic rough materials."
+    },
+    {
+      "file": "Bush_Common.glb",
+      "bytes": 154124,
+      "sha256": "f2e3c5af8b3f5f157d281f465470cbf298b962c0f800018f1fc88ac8c126db6b",
+      "source": "https://raw.githubusercontent.com/tilakpatell/tilakverse-assets/85064399bbdacc0e8cc50807179490314bc4ff1c/quaternius/stylized-nature-megakit/glTF/Bush_Common.gltf",
+      "input_files": [
+        {
+          "file": "Bush_Common.bin",
+          "sha256": "a5e1a773c8ba78fd9c05a8b342131eba4879302a8fddd2c5186cab9ee1ef4966"
+        },
+        {
+          "file": "Leaves_TwistedTree_C.png",
+          "sha256": "0e459b56b14c0e81b1b7cf3d1e8c6f0bb71790eb6c46bb02a76a922d8df646ea"
+        }
+      ],
+      "changes": "Textures resized to <=512px PNG, embedded into GLB; non-metallic rough materials."
+    },
+    {
+      "file": "Grass_Common_Short.glb",
+      "bytes": 40468,
+      "sha256": "9cf5e57afbe708861bf31d6e568ce46b2cb22e3b3a073ca8f25a92f8a216e395",
+      "source": "https://raw.githubusercontent.com/tilakpatell/tilakverse-assets/85064399bbdacc0e8cc50807179490314bc4ff1c/quaternius/stylized-nature-megakit/glTF/Grass_Common_Short.gltf",
+      "input_files": [
+        {
+          "file": "Grass_Common_Short.bin",
+          "sha256": "7a0f0f7a9ac39cfa4b303bac03a6594f43e48d873b73553fa06a79e4df1271e9"
+        },
+        {
+          "file": "Grass.png",
+          "sha256": "5d69048193b246a73c996b892607fb36c75d0c60afcb2dab8aa12de3c0b2d9bd"
+        }
+      ],
+      "changes": "Textures resized to <=512px PNG, embedded into GLB; non-metallic rough materials."
+    }
+  ]
+}

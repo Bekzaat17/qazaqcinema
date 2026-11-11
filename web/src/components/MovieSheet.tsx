@@ -2,7 +2,7 @@
 // Гейт подписки — замок на кнопке (подсказка по has_access), но настоящий гейт — на сервере
 // (App: если доступа нет → пэйволл; есть → POST /play → хэндофф-модалка).
 
-import { ChevronRight, Gift, Lock, Play, ShieldCheck, Ticket } from "lucide-react";
+import { ChevronRight, Gift, Lock, Play, ShieldCheck, Ticket } from "../ui-kit/adapters/icons";
 
 import type { Movie, UserStatus } from "../lib/api";
 import { categoryLabel } from "../lib/catalog";

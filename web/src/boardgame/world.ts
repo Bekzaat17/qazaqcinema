@@ -1,4 +1,6 @@
+import { money } from "./format";
 import * as THREE from "three";
+import { ModelLibrary, type ModelPlacement } from "../graphics/models";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { WorldAssets, seededRandom } from "../quest/world/assets";
 import type { Board, Match, Move } from "./types";
@@ -91,7 +93,7 @@ function yurt(
   root.scale.setScalar(scale);
   g.add(root);
   m(root, "cylinder", "#f7e9c8", [0, 0.6, 0], [1.25, 1.2, 1.25]);
-  m(root, "cone", color, [0, 1.65, 0], [1.42, 0.95, 1.42]);
+  m(root, "yurtRoof", color, [0, 1.65, 0], [1.42, 0.95, 1.42]);
   m(root, "cylinder", "#d8b76d", [0, 1.05, 0], [1.27, 0.12, 1.27]);
   m(root, "box", "#487b72", [0, 0.45, 1.25], [0.5, 0.9, 0.04]);
   m(root, "cylinder", "#705846", [0, 2.16, 0], [0.2, 0.12, 0.2]);
@@ -118,6 +120,7 @@ export class BoardWorld {
   private last = 0;
   private paused = false;
   private disposed = false;
+  private models = new ModelLibrary();
   private board: Board | null = null;
   private signature = "";
   private previousMoves: Move[] = [];
@@ -287,6 +290,8 @@ export class BoardWorld {
     }
   };
   private reset() {
+    this.models.dispose();
+    this.models = new ModelLibrary();
     this.map.clear();
     this.property.clear();
     this.decorations.clear();
@@ -337,11 +342,11 @@ export class BoardWorld {
         tile.name,
         tile.color,
         tile.price
-          ? `${tile.price} ₸`
+          ? money(tile.price)
           : tile.kind === "tax"
-            ? `${tile.amount} ₸`
+            ? money(tile.amount)
             : tile.kind === "rest"
-              ? `+${tile.amount} ₸`
+              ? `+${money(tile.amount)}`
               : "",
         tile.kind,
       );
@@ -369,6 +374,10 @@ export class BoardWorld {
     const random = seededRandom(
       board.id.split("").reduce((s, c) => s + c.charCodeAt(0), 734),
     );
+    const treeFallback = new THREE.Group();
+    const forest = new THREE.Group();
+    this.decorations.add(treeFallback, forest);
+    const treePlacements: ModelPlacement[] = [];
     for (let i = 0; i < 28; i++) {
       const angle = random() * Math.PI * 2,
         r = 2.5 + random() * (half - 5),
@@ -376,15 +385,16 @@ export class BoardWorld {
         z = Math.sin(angle) * r;
       if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
       const h = 0.55 + random() * 0.7;
+      treePlacements.push({ x, z, y: 0.14, height: h * 1.8, rotation: random() * 6.28 });
       m(
-        this.decorations,
+        treeFallback,
         "cylinder",
         "#907956",
         [x, h * 0.35, z],
         [0.04, h * 0.7, 0.04],
       );
       m(
-        this.decorations,
+        treeFallback,
         "sphere",
         i % 2 ? "#83aa7b" : "#9dbb82",
         [x, h + 0.2, z],
@@ -392,13 +402,22 @@ export class BoardWorld {
       );
       if (board.biome === "almaty" && i % 3 === 0)
         m(
-          this.decorations,
+          treeFallback,
           "sphere",
           "#cf8864",
           [x + 0.25, h + 0.2, z],
           [0.11, 0.11, 0.11],
         );
     }
+    void Promise.all([
+      this.models.batch("oak", treePlacements.filter((_, i) => i % 2 === 0)),
+      this.models.batch("pine", treePlacements.filter((_, i) => i % 2 === 1)),
+    ]).then((groups) => {
+      if (this.disposed || forest.parent !== this.decorations || groups.some((group) => !group)) return;
+      treeFallback.visible = false;
+      groups.forEach((group) => forest.add(group!));
+      this.draw();
+    });
     if (board.biome === "almaty") {
       for (let i = 0; i < 5; i++) {
         const height = 2 + random() * 2.5;
@@ -579,7 +598,7 @@ export class BoardWorld {
           m(group, "cylinder", color, [0.9, 0.7, -0.85], [0.15, 0.3, 0.15]);
           return;
         }
-        if (level === 4) {
+        if (level === tile.rents.length - 1) {
           m(group, "box", "#f1e5c8", [0, 1.2, -0.45], [1.7, 1.4, 1.1]);
           m(group, "roof", color, [0, 2.1, -0.45], [1.5, 0.7, 1]);
           for (const x of [-0.5, 0, 0.5])
@@ -771,6 +790,7 @@ export class BoardWorld {
     this.listeners.abort();
     this.controls.removeEventListener("change", this.draw);
     this.controls.dispose();
+    this.models.dispose();
     this.assets.dispose();
     this.textures.forEach((t) => t.dispose());
     this.materials.forEach((m) => m.dispose());

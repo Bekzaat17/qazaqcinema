@@ -48,7 +48,7 @@ class Scenario:
     board: str
     name: str
     story: str
-    round_limit: int
+    round_limit: int  # 0 — до одного оставшегося участника.
     starting_cash: int
     salary: int
     tax_multiplier: int
@@ -63,6 +63,7 @@ class Card:
     amount: int
     move: int | None
     skip: int
+    deck: str = "chance"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +81,7 @@ class Catalog:
     scenarios: tuple[Scenario, ...]
     cards: tuple[Card, ...]
     bots: tuple[Bot, ...]
+    legacy_catalogs: tuple[Catalog, ...] = ()
 
 
 class Phase(StrEnum):
@@ -91,6 +93,7 @@ class Phase(StrEnum):
 
 
 class Action(StrEnum):
+    BAIL = "bail"
     START = "start"
     CONFIGURE = "configure"
     ADD_BOT = "add_bot"
@@ -107,12 +110,16 @@ class Action(StrEnum):
     SETTLE = "settle"
     BANKRUPT = "bankrupt"
     OFFER = "offer"
+    ASK = "ask"
+    COUNTER = "counter"
+    WITHDRAW = "withdraw"
     ACCEPT = "accept"
     REJECT = "reject"
     TIMEOUT = "timeout"
 
 
 class Outcome(StrEnum):
+    CHANNEL_REQUIRED = "channel_required"
     APPLIED = "applied"
     STALE = "stale"
     FORBIDDEN = "forbidden"
@@ -179,6 +186,15 @@ class Offer:
     tile: int
     amount: int
     expires: int
+    give_tile: int = -1
+    proposer: int = -1
+
+
+@dataclass(frozen=True, slots=True)
+class ClassicState:
+    jailed: dict[str, int] = field(default_factory=dict)
+    doubles: int = 0
+    release_steps: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,6 +212,7 @@ class Match:
     log: tuple[str, ...] = ()
     moves: tuple[Move, ...] = ()
     winner: int = -1
+    classic: ClassicState | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,6 +232,7 @@ class Command:
     target: str = ""
     tile: int = -1
     amount: int = 0
+    give_tile: int = -1
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,7 +241,21 @@ class Result:
     outcome: Outcome
 
 
+def active_catalog(catalog: Catalog, room: Room) -> Catalog:
+    if room.match and room.match.catalog_version == catalog.version:
+        return catalog
+    if not room.match and any(s.id == room.scenario_id for s in catalog.scenarios):
+        return catalog
+    for archived in catalog.legacy_catalogs:
+        if (room.match and room.match.catalog_version == archived.version) or (
+            not room.match and any(s.id == room.scenario_id for s in archived.scenarios)
+        ):
+            return archived
+    return catalog
+
+
 def board_for(catalog: Catalog, room: Room) -> Board:
+    catalog = active_catalog(catalog, room)
     scenario = next(s for s in catalog.scenarios if s.id == room.scenario_id)
     return next(board for board in catalog.boards if board.id == scenario.board)
 
@@ -259,6 +291,15 @@ def rent_for(board: Board, match: Match, tile: int) -> int:
             and board.tiles[int(key)].kind == "station"
         )
         return spec.rents[min(count - 1, len(spec.rents) - 1)]
+    if spec.kind == "utility":
+        count = sum(
+            1
+            for key, owned in match.lots.items()
+            if owned.owner == lot.owner
+            and not owned.mortgaged
+            and board.tiles[int(key)].kind == "utility"
+        )
+        return sum(match.dice) * (10 if count >= 2 else 4)
     rent = spec.rents[lot.level]
     if lot.level == 0 and all(
         (owned := match.lots.get(str(index))) is not None
@@ -317,7 +358,7 @@ def _land(
     index = player.position
     tile = board.tiles[index]
     match = _log(match, f"{player.name} → {tile.name}")
-    if tile.kind in ("property", "station"):
+    if tile.kind in ("property", "station", "utility"):
         lot = match.lots.get(str(index))
         if lot is None:
             return replace(match, phase=Phase.BUY, pending=index)
@@ -333,9 +374,18 @@ def _land(
     elif tile.kind == "rest":
         match = _player(match, match.turn, cash=player.cash + tile.amount)
         match = _log(match, f"Наурыз сыйлығы: +{tile.amount} ₸")
-    elif tile.kind == "chance":
-        card = catalog.cards[random(len(catalog.cards))]
+    elif tile.kind == "go_to_jail":
+        return _to_jail(match)
+    elif tile.kind in ("chance", "community"):
+        cards = tuple(
+            c
+            for c in catalog.cards
+            if c.deck == ("community" if tile.kind == "community" else "chance")
+        )
+        card = cards[random(len(cards))]
         match = _log(match, card.text)
+        if card.id == "jail" and match.classic:
+            return _to_jail(match)
         if card.move is not None:
             salary = scenario.salary if card.move < index else 0
             match = _player(
@@ -357,17 +407,26 @@ def _land(
     return replace(match, phase=Phase.END)
 
 
-def _roll(
-    catalog: Catalog, scenario: Scenario, board: Board, match: Match, random: RandomBelow
+def _to_jail(match: Match) -> Match:
+    if not match.classic:
+        return replace(match, phase=Phase.END)
+    jailed = {**match.classic.jailed, str(match.turn): 0}
+    match = _player(match, match.turn, position=10)
+    return _log(
+        replace(match, phase=Phase.END, pending=-1, classic=ClassicState(jailed)),
+        "Түрмеге бар. Шығу: дубль немесе 50 ◈.",
+    )
+
+
+def _advance(
+    catalog: Catalog,
+    scenario: Scenario,
+    board: Board,
+    match: Match,
+    steps: int,
+    random: RandomBelow,
 ) -> Match:
     player = match.players[match.turn]
-    if player.skip:
-        return _log(
-            replace(_player(match, match.turn, skip=player.skip - 1), phase=Phase.END),
-            f"{player.name}: демалыс жүрісі.",
-        )
-    dice = (random(6) + 1, random(6) + 1)
-    steps = sum(dice)
     end = (player.position + steps) % len(board.tiles)
     laps = (player.position + steps) // len(board.tiles)
     match = _player(
@@ -378,13 +437,71 @@ def _roll(
         laps=player.laps + laps,
     )
     match = replace(
-        match,
-        dice=dice,
-        moves=(*match.moves, Move(match.turn, player.position, steps, end, dice))[-8:],
+        match, moves=(*match.moves, Move(match.turn, player.position, steps, end, match.dice))[-8:]
     )
     if laps:
         match = _log(match, f"{player.name}: айналым табысы +{scenario.salary} ₸")
     return _land(catalog, scenario, board, match, random)
+
+
+def _settle_payment(
+    catalog: Catalog,
+    scenario: Scenario,
+    board: Board,
+    match: Match,
+    random: RandomBelow,
+) -> Match:
+    assert match.debt
+    match = _charge(match, match.debt.amount, match.debt.creditor)
+    if match.classic and match.classic.release_steps:
+        steps = match.classic.release_steps
+        match = replace(match, classic=replace(match.classic, release_steps=0))
+        match = _advance(catalog, scenario, board, match, steps, random)
+    return match
+
+
+def _roll(
+    catalog: Catalog, scenario: Scenario, board: Board, match: Match, random: RandomBelow
+) -> Match:
+    player = match.players[match.turn]
+    if player.skip:
+        return _log(
+            replace(_player(match, match.turn, skip=player.skip - 1), phase=Phase.END),
+            f"{player.name}: демалыс жүрісі.",
+        )
+    dice = (random(6) + 1, random(6) + 1)
+    match = replace(match, dice=dice)
+    steps = sum(dice)
+    classic = match.classic
+    if classic:
+        key = str(match.turn)
+        if key in classic.jailed:
+            attempts = classic.jailed[key] + 1
+            if dice[0] != dice[1] and attempts < 3:
+                return _log(
+                    replace(
+                        match,
+                        phase=Phase.END,
+                        classic=replace(
+                            classic, jailed={**classic.jailed, key: attempts}, doubles=0
+                        ),
+                    ),
+                    "Дубль түспеді. Келесі жүрісте қайта көр.",
+                )
+            jailed = {k: v for k, v in classic.jailed.items() if k != key}
+            match = replace(match, classic=ClassicState(jailed))
+            if dice[0] != dice[1]:
+                if player.cash < 50:
+                    return _charge(
+                        replace(match, classic=ClassicState(jailed, release_steps=steps)), 50
+                    )
+                match = _player(match, match.turn, cash=player.cash - 50)
+            return _advance(catalog, scenario, board, match, steps, random)
+        doubles = classic.doubles + 1 if dice[0] == dice[1] else 0
+        match = replace(match, classic=replace(classic, doubles=doubles))
+        if doubles == 3:
+            return _to_jail(match)
+    return _advance(catalog, scenario, board, match, steps, random)
 
 
 def _bankrupt(board: Board, match: Match) -> Match:
@@ -416,6 +533,17 @@ def _bankrupt(board: Board, match: Match) -> Match:
 
 
 def _next(scenario: Scenario, board: Board, match: Match) -> Match:
+    if (
+        match.classic
+        and match.classic.doubles
+        and str(match.turn) not in match.classic.jailed
+        and not match.players[match.turn].bankrupt
+    ):
+        return _log(
+            replace(match, phase=Phase.ROLL, pending=-1, debt=None), "Дубль! Тағы бір рет лақтыр."
+        )
+    if match.classic:
+        match = replace(match, classic=replace(match.classic, doubles=0, release_steps=0))
     if sum(not p.bankrupt for p in match.players) <= 1:
         return _finish(board, match)
     index = match.turn
@@ -424,7 +552,7 @@ def _next(scenario: Scenario, board: Board, match: Match) -> Match:
         index = (index + 1) % len(match.players)
         if index == 0:
             round_number += 1
-            if round_number > scenario.round_limit:
+            if scenario.round_limit and round_number > scenario.round_limit:
                 return _finish(board, match)
         if not match.players[index].bankrupt:
             return replace(
@@ -497,64 +625,146 @@ def _manage(board: Board, match: Match, kind: Action, tile: int) -> tuple[Match,
     return _log(match, f"{labels[kind]}: {spec.name}"), Outcome.APPLIED
 
 
+def _tradeable(board: Board, match: Match, tile: int, owner: int) -> Outcome:
+    if not 0 <= tile < len(board.tiles):
+        return Outcome.INVALID
+    lot = match.lots.get(str(tile))
+    if not lot or lot.owner != owner or lot.level or lot.mortgaged:
+        return Outcome.INVALID
+    if any(match.lots.get(str(i), Lot(-1)).level for i in group_indices(board, tile)):
+        return Outcome.SELL_FIRST
+    return Outcome.APPLIED
+
+
+def _transfer_trade(
+    board: Board,
+    match: Match,
+    buyer: int,
+    seller: int,
+    tile: int,
+    amount: int,
+    give_tile: int,
+) -> Match:
+    match = _player(match, buyer, cash=match.players[buyer].cash - amount)
+    match = _player(match, seller, cash=match.players[seller].cash + amount)
+    lots = dict(match.lots)
+    lots[str(tile)] = replace(lots[str(tile)], owner=buyer)
+    if give_tile >= 0:
+        lots[str(give_tile)] = replace(lots[str(give_tile)], owner=seller)
+        label = f"Айырбас: {board.tiles[tile].name} ↔ {board.tiles[give_tile].name} · {amount} ◈"
+    else:
+        label = f"Мәміле: {board.tiles[tile].name} — {amount} ₸"
+    return _log(replace(match, lots=lots), label)
+
+
+def _offer_sender(offer: Offer) -> int:
+    return offer.proposer if offer.proposer >= 0 else offer.buyer
+
+
+def _offer_recipient(offer: Offer) -> int:
+    return offer.seller if _offer_sender(offer) == offer.buyer else offer.buyer
+
+
 def _trade(board: Board, room: Room, actor: int, command: Command) -> tuple[Match, Outcome]:
     assert room.match is not None
     match = room.match
     if match.phase in (Phase.DEBT, Phase.FINISHED) or match.players[actor].bankrupt:
         return match, Outcome.INVALID
-    if command.kind == Action.OFFER:
-        if not 0 <= command.tile < len(board.tiles) or command.amount < 1:
+    if command.kind in (Action.OFFER, Action.ASK, Action.COUNTER):
+        previous = None
+        if command.kind == Action.COUNTER:
+            previous = next((o for o in match.offers if o.id == command.target), None)
+            if not previous or _offer_recipient(previous) != actor:
+                return match, Outcome.FORBIDDEN
+            if previous.expires < match.round:
+                return match, Outcome.INVALID
+            buyer, seller, tile = previous.buyer, previous.seller, previous.tile
+        elif command.kind == Action.ASK:
+            buyer = next((i for i, p in enumerate(match.players) if p.id == command.target), -1)
+            seller, tile = actor, command.tile
+            if buyer < 0 or buyer == actor:
+                return match, Outcome.INVALID
+        else:
+            buyer, tile = actor, command.tile
+            lot = match.lots.get(str(tile))
+            if not lot or lot.owner == actor:
+                return match, Outcome.INVALID
+            seller = lot.owner
+        if (
+            command.give_tile < -1
+            or command.amount < 0
+            or (command.give_tile == -1 and command.amount < 1)
+            or match.players[buyer].bankrupt
+            or match.players[seller].bankrupt
+        ):
             return match, Outcome.INVALID
-        lot = match.lots.get(str(command.tile))
-        if not lot or lot.owner == actor or lot.level or lot.mortgaged:
-            return match, Outcome.INVALID
-        if any(match.lots.get(str(i), Lot(-1)).level for i in group_indices(board, command.tile)):
-            return match, Outcome.SELL_FIRST
-        if match.players[actor].cash < command.amount:
+        outcome = _tradeable(board, match, tile, seller)
+        if outcome != Outcome.APPLIED:
+            return match, outcome
+        if command.give_tile >= 0:
+            outcome = _tradeable(board, match, command.give_tile, buyer)
+            if outcome != Outcome.APPLIED:
+                return match, outcome
+        if match.players[buyer].cash < command.amount:
             return match, Outcome.INSUFFICIENT
-        if match.players[lot.owner].bot:
-            if command.amount < board.tiles[command.tile].price * 3 // 2:
+        recipient = seller if actor == buyer else buyer
+        if match.players[recipient].bot:
+            cost = command.amount + (
+                board.tiles[command.give_tile].price if command.give_tile >= 0 else 0
+            )
+            accepted = (
+                cost >= board.tiles[tile].price * 3 // 2
+                if recipient == seller
+                else cost <= board.tiles[tile].price * 2 // 3
+            )
+            if not accepted:
                 return match, Outcome.BOT_DECLINED
-            match = _player(match, actor, cash=match.players[actor].cash - command.amount)
-            match = _player(match, lot.owner, cash=match.players[lot.owner].cash + command.amount)
-            lots = dict(match.lots)
-            lots[str(command.tile)] = replace(lot, owner=actor)
-            return _log(
-                replace(match, lots=lots),
-                f"Мәміле: {board.tiles[command.tile].name} — {command.amount} ₸",
+            return _transfer_trade(
+                board, match, buyer, seller, tile, command.amount, command.give_tile
             ), Outcome.APPLIED
         proposed = Offer(
             f"{room.revision}:{actor}",
-            actor,
-            lot.owner,
-            command.tile,
+            buyer,
+            seller,
+            tile,
             command.amount,
             match.round + 2,
+            command.give_tile,
+            actor,
         )
-        return replace(
-            match, offers=(*tuple(o for o in match.offers if o.buyer != actor), proposed)
-        ), Outcome.APPLIED
+        remaining = tuple(
+            o
+            for o in match.offers
+            if _offer_sender(o) != actor and (previous is None or o.id != previous.id)
+        )
+        return replace(match, offers=(*remaining, proposed)), Outcome.APPLIED
     offer = next((o for o in match.offers if o.id == command.target), None)
-    if not offer or offer.seller != actor:
+    if not offer:
         return match, Outcome.FORBIDDEN
     remaining = tuple(o for o in match.offers if o.id != offer.id)
+    if command.kind == Action.WITHDRAW:
+        if _offer_sender(offer) != actor:
+            return match, Outcome.FORBIDDEN
+        return replace(match, offers=remaining), Outcome.APPLIED
+    if _offer_recipient(offer) != actor:
+        return match, Outcome.FORBIDDEN
     if command.kind == Action.REJECT:
         return replace(match, offers=remaining), Outcome.APPLIED
-    lot = match.lots.get(str(offer.tile))
-    if not lot or lot.owner != actor or lot.level or lot.mortgaged or offer.expires < match.round:
+    if offer.expires < match.round or match.players[offer.seller].bankrupt:
         return match, Outcome.INVALID
-    if any(match.lots.get(str(i), Lot(-1)).level for i in group_indices(board, offer.tile)):
-        return match, Outcome.SELL_FIRST
+    outcome = _tradeable(board, match, offer.tile, offer.seller)
+    if outcome != Outcome.APPLIED:
+        return match, outcome
+    if offer.give_tile >= 0:
+        outcome = _tradeable(board, match, offer.give_tile, offer.buyer)
+        if outcome != Outcome.APPLIED:
+            return match, outcome
     if match.players[offer.buyer].bankrupt or match.players[offer.buyer].cash < offer.amount:
         return match, Outcome.INSUFFICIENT
-    match = _player(match, actor, cash=match.players[actor].cash + offer.amount)
-    match = _player(match, offer.buyer, cash=match.players[offer.buyer].cash - offer.amount)
-    lots = dict(match.lots)
-    lots[str(offer.tile)] = replace(lot, owner=offer.buyer)
-    return _log(
-        replace(match, lots=lots, offers=remaining),
-        f"Мәміле: {board.tiles[offer.tile].name} — {offer.amount} ₸",
-    ), Outcome.APPLIED
+    match = _transfer_trade(
+        board, match, offer.buyer, offer.seller, offer.tile, offer.amount, offer.give_tile
+    )
+    return replace(match, offers=remaining), Outcome.APPLIED
 
 
 def _bot_turn(
@@ -596,7 +806,9 @@ def _bot_turn(
                     break
         debt = match.debt
         if debt and match.players[match.turn].cash >= debt.amount:
-            match = _charge(match, debt.amount, debt.creditor)
+            match = _settle_payment(catalog, scenario, board, match, random)
+            if match.phase in (Phase.BUY, Phase.DEBT):
+                return _bot_turn(catalog, scenario, board, match, random)
         else:
             match = _bankrupt(board, match)
     if match.phase == Phase.END:
@@ -607,16 +819,19 @@ def _bot_turn(
 def _bots(
     catalog: Catalog, scenario: Scenario, board: Board, match: Match, random: RandomBelow
 ) -> Match:
-    for _ in range((scenario.round_limit + 1) * len(match.players)):
+    # Без лимита кругов обрабатываем ботов порциями, не назначая победителя по таймауту.
+    limit = (scenario.round_limit + 1) * len(match.players) if scenario.round_limit else 128
+    for _ in range(limit):
         if match.phase == Phase.FINISHED or not match.players[match.turn].bot:
             return match
         match = _bot_turn(catalog, scenario, board, match, random)
-    return _finish(board, match)
+    return _finish(board, match) if scenario.round_limit else match
 
 
 def apply_command(
     catalog: Catalog, room: Room, actor: str, command: Command, random: RandomBelow
 ) -> Result:
+    catalog = active_catalog(catalog, room)
     if room.revision != command.revision:
         return Result(room, Outcome.STALE)
     if room.closed or not any(seat.id == actor for seat in room.seats):
@@ -629,7 +844,14 @@ def apply_command(
     index = next(i for i, player in enumerate(match.players) if player.id == actor)
     board = board_for(catalog, room)
     scenario = next(s for s in catalog.scenarios if s.id == room.scenario_id)
-    if command.kind in (Action.OFFER, Action.ACCEPT, Action.REJECT):
+    if command.kind in (
+        Action.OFFER,
+        Action.ASK,
+        Action.COUNTER,
+        Action.WITHDRAW,
+        Action.ACCEPT,
+        Action.REJECT,
+    ):
         match, outcome = _trade(board, replace(room, match=match), index, command)
         if outcome != Outcome.APPLIED:
             return Result(room, outcome)
@@ -638,6 +860,17 @@ def apply_command(
             return Result(room, Outcome.FORBIDDEN)
         if command.kind == Action.ROLL and match.phase == Phase.ROLL:
             match = _roll(catalog, scenario, board, match, random)
+        elif command.kind == Action.BAIL and match.phase == Phase.ROLL:
+            if not match.classic or str(index) not in match.classic.jailed:
+                return Result(room, Outcome.INVALID)
+            if match.players[index].cash < 50:
+                return Result(room, Outcome.INSUFFICIENT)
+            jailed = {k: v for k, v in match.classic.jailed.items() if k != str(index)}
+            match = _player(
+                replace(match, classic=ClassicState(jailed)),
+                index,
+                cash=match.players[index].cash - 50,
+            )
         elif command.kind in (Action.BUY, Action.PASS) and match.phase == Phase.BUY:
             if command.kind == Action.BUY:
                 tile = board.tiles[match.pending]
@@ -658,7 +891,7 @@ def apply_command(
         elif command.kind == Action.SETTLE and match.phase == Phase.DEBT and match.debt:
             if match.players[index].cash < match.debt.amount:
                 return Result(room, Outcome.INSUFFICIENT)
-            match = _charge(match, match.debt.amount, match.debt.creditor)
+            match = _settle_payment(catalog, scenario, board, match, random)
         elif command.kind == Action.BANKRUPT and match.phase == Phase.DEBT:
             match = _bankrupt(board, match)
             if match.phase != Phase.FINISHED:
@@ -670,6 +903,7 @@ def apply_command(
 
 
 def auto_turn(catalog: Catalog, room: Room, random: RandomBelow) -> Room:
+    catalog = active_catalog(catalog, room)
     if not room.match or room.match.phase == Phase.FINISHED:
         return room
     scenario = next(s for s in catalog.scenarios if s.id == room.scenario_id)
@@ -723,6 +957,12 @@ def _lobby(catalog: Catalog, room: Room, actor: str, command: Command) -> Result
         scenario = next(s for s in catalog.scenarios if s.id == room.scenario_id)
         seats = tuple(sorted(seats, key=lambda seat: seat.id != room.host))
         players = tuple(Player(s.id, s.name, s.color, s.bot, scenario.starting_cash) for s in seats)
-        match = Match(catalog.version, players, log=("Сәтті партия! Алғашқы жүріс сенікі.",))
+        board = next(b for b in catalog.boards if b.id == scenario.board)
+        match = Match(
+            catalog.version,
+            players,
+            log=("Сәтті партия! Алғашқы жүріс сенікі.",),
+            classic=ClassicState() if len(board.tiles) == 40 else None,
+        )
         return Result(replace(room, revision=room.revision + 1, match=match), Outcome.APPLIED)
     return Result(room, Outcome.INVALID)

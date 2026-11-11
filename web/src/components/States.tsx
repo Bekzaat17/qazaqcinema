@@ -1,6 +1,6 @@
 // Пустые/ошибочные состояния.
 
-import { Film, LayoutGrid, RefreshCw, SearchX, Send, Star, WifiOff } from "lucide-react";
+import { Film, LayoutGrid, RefreshCw, SearchX, Send, Star, WifiOff } from "../ui-kit/adapters/icons";
 import type { ReactNode } from "react";
 
 import { BOT_USERNAME, BOT_URL } from "../lib/telegram";

@@ -1,6 +1,7 @@
+import PropertyTrade from "./PropertyTrade";
 import BuildingMiniature from "./illustration/BuildingMiniature";
-import { useState, type CSSProperties } from "react";
-import { Landmark, ShoppingBag, Plus, HandCoins } from "lucide-react";
+import { type CSSProperties } from "react";
+import { Landmark, ShoppingBag, Hammer } from "../../ui-kit/adapters/icons";
 import { groupIndices, rentFor } from "../rules";
 import { money } from "../format";
 import type { Action, Board, Match, Scenario } from "../types";
@@ -25,14 +26,12 @@ export default function PropertyPanel({
     target?: string,
     tile?: number,
     amount?: number,
+    giveTile?: number,
   ) => void;
 }) {
   const selectedTile = board.tiles[selected],
     selectedLot = match.lots[selected],
     owner = selectedLot ? match.players[selectedLot.owner] : null;
-  const [offerAmount, setOfferAmount] = useState(
-    String(Math.floor((selectedTile?.price ?? 100) * 1.5)),
-  );
   const ownedSet =
     selected >= 0 &&
     groupIndices(board, selected).every(
@@ -79,7 +78,7 @@ export default function PropertyPanel({
             <Landmark size={54} strokeWidth={1} />
           )}
           <span>
-            {selectedLot?.level === 4
+            {selectedTile.kind !== "property" ? selectedTile.kind === "station" ? "Көлік бекеті" : selectedTile.kind === "utility" ? "Қалалық қызмет" : "Арнайы ұяшық" : selectedLot?.level === selectedTile.rents.length - 1
               ? "Қонақүй"
               : selectedLot?.level
                 ? `${selectedLot.level} ғимарат`
@@ -92,16 +91,28 @@ export default function PropertyPanel({
           {selectedLot?.mortgaged && <span>Кепілде</span>}
         </div>
       </div>
-      {["property", "station"].includes(selectedTile.kind) ? (
+      {selectedLot && player && !player.bankrupt && match.phase !== "finished" && <PropertyTrade
+        board={board} match={match} selected={selected} me={me} disabled={disabled} send={send} />}
+      {selectedTile.kind === "property" && <div className="dala-group-summary">
+        <div><i style={{ background: selectedTile.color }} /><b>Түсті топ</b><span>
+          {groupIndices(board, selected).filter((i) => match.lots[i]?.owner === me).length} / {groupIndices(board, selected).length}
+        </span></div>
+        {groupIndices(board, selected).map((i) => <p key={i}>
+          <span>{board.tiles[i].name}</span><b>{match.lots[i]?.owner === me ? "✓ Сенде" : match.lots[i] ? match.players[match.lots[i].owner].name : "Банк"}</b>
+        </p>)}
+        <small>{ownedSet ? "Топ толық! Құрылысты біркелкі дамыт." : "Үй салу үшін осы түстегі барлық кәсіпті жина."}</small>
+      </div>}
+      {["property", "station", "utility"].includes(selectedTile.kind) ? (
         <>
           <div className="dala-price-row">
             <span>Сатып алу</span>
             <b>{money(selectedTile.price)}</b>
           </div>
+          {selectedTile.kind === "utility" && <p className="dala-muted">Бір қызмет — кубик қосындысы × 4. Екеуі де бір иеде болса — × 10.</p>}
           <div className="dala-price-row">
             <span>Қазіргі жалдау ақысы</span>
             <b>
-              {money(
+              {selectedTile.kind === "utility" && !selectedLot ? "Кубик × 4 / × 10" : money(
                 selectedLot
                   ? rentFor(board, match, selected)
                   : selectedTile.rents[0],
@@ -109,7 +120,7 @@ export default function PropertyPanel({
             </b>
           </div>
           {selectedTile.kind === "property" && (
-            <div className="dala-rent-table">
+            <details className="dala-rent-details"><summary>Жалдау ақысының кестесі</summary><div className="dala-rent-table">
               {selectedTile.rents.map((rent, i) => (
                 <div
                   key={i}
@@ -118,7 +129,7 @@ export default function PropertyPanel({
                   <span>
                     {i === 0
                       ? "Бастапқы"
-                      : i === 4
+                      : i === selectedTile.rents.length - 1
                         ? "Қонақүй"
                         : `${i} ғимарат`}
                   </span>
@@ -128,14 +139,14 @@ export default function PropertyPanel({
               <small>
                 Түсті топ толық жиналса, ғимаратсыз жалдау ақысы екі еселенеді.
               </small>
-            </div>
+            </div></details>
           )}
           {!selectedLot &&
             myTurn &&
             match.phase === "buy" &&
             match.pending === selected && (
               <button
-                className="dala-primary dala-full"
+                className="dala-primary dala-action-buy dala-full"
                 disabled={disabled || player!.cash < selectedTile.price}
                 onClick={() => send("buy")}
               >
@@ -148,20 +159,20 @@ export default function PropertyPanel({
               <div className="dala-property-actions">
                 {selectedTile.kind === "property" && (
                   <button
-                    className="dala-primary"
+                    className="dala-primary dala-action-buy"
                     disabled={
                       disabled ||
                       !myTurn ||
                       match.phase === "debt" ||
                       !ownedSet ||
                       selectedLot.mortgaged ||
-                      selectedLot.level >= 4 ||
+                      selectedLot.level >= selectedTile.rents.length - 1 ||
                       player!.cash < selectedTile.build_cost
                     }
                     onClick={() => send("build", "", selected)}
                   >
-                    <Plus size={16} />
-                    {selectedLot.level === 3
+                    <Hammer size={16} />
+                    {selectedLot.level === selectedTile.rents.length - 2
                       ? "Қонақүй салу"
                       : "Ғимарат салу"}{" "}
                     · {money(selectedTile.build_cost)}
@@ -169,7 +180,7 @@ export default function PropertyPanel({
                 )}
                 {selectedLot.level > 0 && (
                   <button
-                    className="dala-secondary"
+                    className="dala-secondary dala-action-sell"
                     disabled={disabled || !myTurn}
                     onClick={() => send("sell", "", selected)}
                   >
@@ -209,54 +220,16 @@ export default function PropertyPanel({
               )}
             </>
           )}
-          {selectedLot &&
-            selectedLot.owner !== me &&
-            player &&
-            !player.bankrupt &&
-            match.phase !== "finished" && (
-              <div className="dala-offer-form">
-                <label htmlFor="dala-offer">Сатып алуға ұсыныс, ₸</label>
-                <div>
-                  <input
-                    id="dala-offer"
-                    type="number"
-                    min="1"
-                    max="1000000"
-                    value={offerAmount}
-                    onChange={(e) => setOfferAmount(e.target.value)}
-                  />
-                  <button
-                    className="dala-secondary"
-                    disabled={
-                      disabled ||
-                      selectedLot.level > 0 ||
-                      selectedLot.mortgaged ||
-                      match.phase === "debt" ||
-                      !Number.isInteger(Number(offerAmount)) ||
-                      Number(offerAmount) < 1 ||
-                      Number(offerAmount) > player.cash
-                    }
-                    onClick={() =>
-                      send("offer", "", selected, Number(offerAmount))
-                    }
-                  >
-                    <HandCoins size={17} /> Ұсыну
-                  </button>
-                </div>
-                <small>
-                  {owner?.bot
-                    ? "Бот бастапқы бағаның кемінде 150%-ын қабылдайды."
-                    : "Ұсынысты кәсіп иесі өз терезесінде қабылдайды немесе бас тартады."}
-                </small>
-              </div>
-            )}
         </>
       ) : (
         <p className="dala-muted">
           {selectedTile.kind === "start"
             ? `Осы алаңнан өткенде ${money(scenario?.salary ?? 0)} айналым табысын аласың.`
-            : selectedTile.kind === "chance"
+            : ["chance", "community"].includes(selectedTile.kind)
               ? "Картаны ашып, кездейсоқ мүмкіндік немесе шығын аласың."
+              : selectedTile.kind === "jail" ? "Түрмеге қонаққа келдің. Төлем жоқ."
+              : selectedTile.kind === "go_to_jail" ? "Түрмеге бірден өтесің. Бастаудың табысы берілмейді."
+              : selectedTile.kind === "parking" ? "Тегін тұрақ. Төлем де, табыс та жоқ."
               : selectedTile.kind === "rest"
                 ? `Наурыз сыйлығы: ${money(selectedTile.amount)}.`
                 : `Төлем: ${money(selectedTile.amount * (scenario?.tax_multiplier ?? 1))}.`}

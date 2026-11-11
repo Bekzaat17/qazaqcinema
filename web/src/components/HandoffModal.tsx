@@ -15,7 +15,7 @@
 //
 // Исход уходит в метрику (`api.trackHandoff`) с платформой и способом запуска.
 
-import { CircleCheckBig, Loader2, Sparkles, Ticket } from "lucide-react";
+import { CircleCheckBig, Loader2, Sparkles, Ticket } from "../ui-kit/adapters/icons";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "../lib/api";

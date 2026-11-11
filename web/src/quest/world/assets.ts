@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-type Shape = "box" | "sphere" | "cone" | "cylinder" | "rock" | "ring" | "roof";
+type Shape = "box" | "sphere" | "cone" | "cylinder" | "rock" | "ring" | "roof" | "yurtRoof";
 
 export class WorldAssets {
   private geometries = new Map<Shape, THREE.BufferGeometry>();
@@ -11,11 +11,16 @@ export class WorldAssets {
     if (cached) return cached;
     const factories: Record<Shape, () => THREE.BufferGeometry> = {
       box: () => new THREE.BoxGeometry(1, 1, 1),
-      sphere: () => new THREE.SphereGeometry(1, 10, 7),
-      cone: () => new THREE.ConeGeometry(1, 1, 7),
-      cylinder: () => new THREE.CylinderGeometry(1, 1, 1, 12),
+      sphere: () => new THREE.SphereGeometry(1, 24, 16),
+      cone: () => new THREE.ConeGeometry(1, 1, 32),
+      cylinder: () => new THREE.CylinderGeometry(1, 1, 1, 64),
       rock: () => new THREE.IcosahedronGeometry(1, 0),
       ring: () => new THREE.TorusGeometry(1, 0.09, 5, 24),
+      yurtRoof: () => new THREE.LatheGeometry([
+        new THREE.Vector2(1, -.5), new THREE.Vector2(.88, -.22),
+        new THREE.Vector2(.62, .12), new THREE.Vector2(.32, .4),
+        new THREE.Vector2(.12, .5), new THREE.Vector2(0, .5),
+      ], 48),
       roof: () => new THREE.ConeGeometry(1, 1, 4),
     };
     const geometry = factories[shape]();
@@ -23,13 +28,14 @@ export class WorldAssets {
     return geometry;
   }
 
-  material(color: string): THREE.MeshLambertMaterial {
-    if (!this.materials.has(color))
+  material(color: string, flatShading = false): THREE.MeshLambertMaterial {
+    const key = `${color}:${flatShading}`;
+    if (!this.materials.has(key))
       this.materials.set(
-        color,
-        new THREE.MeshLambertMaterial({ color, flatShading: true }),
+        key,
+        new THREE.MeshLambertMaterial({ color, flatShading }),
       );
-    return this.materials.get(color)!;
+    return this.materials.get(key)!;
   }
 
   mesh(
@@ -39,7 +45,7 @@ export class WorldAssets {
     position: [number, number, number],
     scale: [number, number, number],
   ): THREE.Mesh {
-    const mesh = new THREE.Mesh(this.geometry(shape), this.material(color));
+    const mesh = new THREE.Mesh(this.geometry(shape), this.material(color, shape === "rock" || shape === "roof"));
     mesh.position.set(...position);
     mesh.scale.set(...scale);
     mesh.castShadow = true;

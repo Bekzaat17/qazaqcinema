@@ -1,7 +1,7 @@
 // Пэйволл (bottom sheet): выбор тарифа → способ оплаты. Kaspi первым/акцентным (ручной чек),
 // Telegram Stars вторым (мгновенно). Оплата активирует подписку на бэке (Фазы 6–8).
 
-import { ChevronLeft, CreditCard, Check, Copy, ExternalLink, ShieldCheck, Star, Upload } from "lucide-react";
+import { ChevronLeft, CreditCard, Check, Copy, ExternalLink, ShieldCheck, Star, Upload } from "../ui-kit/adapters/icons";
 import { useMemo, useRef, useState } from "react";
 
 import { ApiError, api, type Movie, type Tariff, type UserStatus } from "../lib/api";

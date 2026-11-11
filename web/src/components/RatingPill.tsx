@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import { Star } from "../ui-kit/adapters/icons";
 
 /** Компактный бейдж рейтинга со звездой. */
 export default function RatingPill({ rating, className = "" }: { rating: number; className?: string }) {

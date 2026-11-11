@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { ModelLibrary } from "../../graphics/models";
+import { villageDetails } from "./villageDetails";
 import { PLOTS, type BuildingId, type Progress } from "../types";
 import { WorldAssets } from "./assets";
 
@@ -28,7 +30,7 @@ function createBuilding(
   const height = 1 + level * 0.16;
   if (id === "yurt") {
     m(group, "cylinder", "#fff1cc", [0, height / 2, 0], [1.6, height, 1.6]);
-    m(group, "cone", "#d27d5a", [0, height + 0.55, 0], [1.82, 1.15, 1.82]);
+    m(group, "yurtRoof", "#d27d5a", [0, height + 0.55, 0], [1.82, 1.15, 1.82]);
     m(group, "cylinder", "#efc775", [0, height - 0.13, 0], [1.62, 0.14, 1.62]);
     m(group, "box", "#285c58", [0, 0.5, 1.6], [0.62, 1, 0.12]);
     m(group, "cylinder", "#493e4c", [0, height + 1.15, 0], [0.3, 0.12, 0.3]);
@@ -73,6 +75,7 @@ function createBuilding(
 }
 
 export class VillageView {
+  private models = new ModelLibrary();
   private levels = new Map<string, number>();
   private groups = new Map<string, THREE.Group>();
   constructor(
@@ -93,10 +96,13 @@ export class VillageView {
       const group = this.groups.get(building.id)!;
       group.clear();
       createBuilding(this.assets, group, building.id, building.level);
+      villageDetails(this.assets, this.models, group, building.id, building.level);
       this.levels.set(building.id, building.level);
     }
   }
+  animate(time: number) { this.models.animate(time); }
   dispose() {
+    this.models.dispose();
     this.groups.forEach((group) => this.scene.remove(group));
   }
 }

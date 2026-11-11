@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from tests.test_quest_rules import NOW
 
-CATALOG = load_board_catalog(Path("web/public/boardgame/catalog.json"))
+CATALOG = load_board_catalog(Path("web/public/boardgame/catalog-v2.json"))
 
 
 class FixedRandom:
@@ -191,3 +191,87 @@ async def test_four_people_reconnect_and_finish_after_concurrent_commands(
         async with maker() as independent:
             observed = await service(independent).view(uid, created.code)
             assert observed and observed.room == current.room
+
+
+async def test_public_lobbies_and_completed_games_are_persistent_and_idempotent(
+    session: AsyncSession,
+) -> None:
+    from datetime import timedelta
+
+    from app.application.ports.boardgame import CompletedGame, ResultPlayer
+
+    for uid in (142, 143):
+        await PgUserRepository(session).upsert(User(telegram_id=uid))
+    repo = PgRoomRepository(session)
+    game = BoardGameService(repo, CATALOG, FixedRandom(), Events())
+    public = await game.create(142, "Owner", "almaty_first", is_public=True)
+    private = await game.create(143, "Guest", "almaty_first")
+    assert public and private
+    visible = await repo.public_rooms(NOW)
+    assert public.code in {r.code for r in visible} and private.code not in {
+        r.code for r in visible
+    }
+    result = CompletedGame(
+        public.code,
+        "almaty_first",
+        "almaty",
+        10,
+        NOW,
+        "Owner",
+        2,
+        (ResultPlayer(142, "Owner", 2400, True), ResultPlayer(143, "Guest", 500, False)),
+    )
+    await repo.complete(result)
+    await repo.complete(result)
+    await session.commit()
+    history = await repo.history(142, 0)
+    assert len(history) == 1 and history[0].won and history[0].capital == 2400
+    assert not await repo.history(999, 0)
+    assert not await repo.history(142, 20)
+    ranking = await repo.ranking(142)
+    assert ranking.me and ranking.me.played == 1 and ranking.me.wins == 1
+    assert ranking.entries[0].is_me
+    assert not (await repo.history(143, 0))[0].won
+    assert not await repo.public_rooms(NOW + timedelta(days=365))
+
+
+async def test_parallel_room_starts_cannot_spend_the_same_third_free_game(
+    session: AsyncSession,
+) -> None:
+    class NotSubscribed:
+        async def is_member(self, user_id: int) -> bool:
+            return False
+
+        async def count_members(self) -> int | None:
+            return None
+
+    await PgUserRepository(session).upsert(User(telegram_id=242))
+    maker = async_sessionmaker(bind=session.bind, expire_on_commit=False)
+
+    def game_for(db: AsyncSession) -> BoardGameService:
+        return BoardGameService(
+            PgRoomRepository(db), CATALOG, FixedRandom(), Events(), NotSubscribed(), "our_channel"
+        )
+
+    game = game_for(session)
+    for _ in range(2):
+        room = await game.create(242, "Player", "almaty_first")
+        assert room
+        await game.command(242, room.code, Command(0, Action.ADD_BOT, "balanced"), NOW)
+        assert (
+            await game.command(242, room.code, Command(1, Action.START), NOW)
+        ).outcome == Outcome.APPLIED
+    codes = []
+    for _ in range(2):
+        room = await game.create(242, "Player", "almaty_first")
+        assert room
+        await game.command(242, room.code, Command(0, Action.ADD_BOT, "balanced"), NOW)
+        codes.append(room.code)
+
+    async def start(code: str) -> Outcome:
+        async with maker() as db:
+            return (await game_for(db).command(242, code, Command(1, Action.START), NOW)).outcome
+
+    outcomes = await asyncio.gather(*(start(code) for code in codes))
+    assert sorted(outcomes) == sorted([Outcome.APPLIED, Outcome.CHANNEL_REQUIRED])
+    assert await PgRoomRepository(session).games_started(242) == 3

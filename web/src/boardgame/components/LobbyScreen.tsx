@@ -1,15 +1,21 @@
+import PlayerAvatar from "../../ui-kit/PlayerAvatar";
+import { playerAppearance } from "../appearance";
 import type { CSSProperties } from "react";
 import {
   Copy,
   Plus,
   Check,
   X,
-  Dices,
+  Gamepad2,
+  Bot,
   ArrowRight,
   DoorOpen,
-} from "lucide-react";
+  Send,
+  Globe2,
+  LockKeyhole,
+} from "../../ui-kit/adapters/icons";
 import { BOT_URL } from "../../lib/telegram";
-import { money } from "../format";
+import { money, roundLimitLabel } from "../format";
 import type { Action, Board, Catalog, RoomView, Scenario } from "../types";
 import BoardArt from "./BoardArt";
 export default function LobbyScreen({
@@ -21,6 +27,9 @@ export default function LobbyScreen({
   practice,
   send,
   copyInvite,
+  copyCode,
+  shareInvite,
+  setVisibility,
   onLeave,
 }: {
   catalog: Catalog;
@@ -31,42 +40,48 @@ export default function LobbyScreen({
   practice: boolean;
   send: (kind: Action, target?: string, tile?: number, amount?: number) => void;
   copyInvite: () => void;
+  copyCode: () => void;
+  shareInvite: () => void;
+  setVisibility: (value: boolean) => void;
   onLeave: () => void;
 }) {
   const room = view.room;
+  const isHost = room.host === view.me;
+  const waiting = room.seats.filter((s) => !s.bot && s.id !== room.host && !s.ready);
+  const canStart = room.seats.length >= 2 && !waiting.length;
+  const ready = room.seats.find((s) => s.id === view.me)?.ready;
   return (
     <section className="dala-lobby">
       <div className="dala-lobby-panel">
         <span className="dala-eyebrow">БІР ҮСТЕЛ · ОРТАҚ ПАРТИЯ</span>
-        <h1>Достарды жина.</h1>
+        <h1>{practice ? "Боттармен жаттығу" : "Ойын алдындағы бөлме"}</h1>
         <p>
           {practice
             ? "Жаттығуда бос орындарға бот қосып бастай аласың."
             : "Бөлме кодын бөліс немесе шақыру сілтемесін достарыңа жібер."}
         </p>
+        {!practice && <>
+          <ol className="dala-room-steps"><li>1. Досыңды шақыр</li><li>2. Дайындықты раста</li><li>3. Ойынды баста</li></ol>
+          <div className="dala-room-privacy"><span>{view.is_public ? <Globe2 size={17} /> : <LockKeyhole size={17} />}{view.is_public ? "Ашық бөлме · тізімде көрінеді" : "Достарға арналған · сілтеме не кодпен"}</span>
+            {isHost && <label><input type="checkbox" checked={!!view.is_public} disabled={busy} onChange={(e) => setVisibility(e.target.checked)} /> Бәріне ашу</label>}
+          </div>
+          <button className="dala-primary dala-full" onClick={shareInvite}><Send size={18} /> Досымды шақыру</button>
+          <div className="dala-room-entry-actions"><button className="dala-secondary" onClick={copyInvite}><Copy size={16} /> Сілтемені көшіру</button><button className="dala-secondary" onClick={copyCode}><Copy size={16} /> Кодты көшіру</button></div>
+        </>}
         <div className="dala-room-code">
           <div>
             <small>{practice ? "ЖЕРГІЛІКТІ ЖАТТЫҒУ" : "БӨЛМЕ КОДЫ"}</small>
             <b>{practice ? "Боттармен" : view!.code}</b>
           </div>
-          {!practice && (
-            <button
-              className="dala-icon"
-              aria-label="Шақыру сілтемесін көшіру"
-              onClick={copyInvite}
-            >
-              <Copy size={18} />
-            </button>
-          )}
         </div>
         {!practice && (
-          <input
+          <details className="dala-invite-details"><summary>Шақыру сілтемесі</summary><input
             className="dala-invite-url"
             readOnly
             aria-label="Шақыру сілтемесі"
             value={`${BOT_URL}?startapp=quest_room_${view!.code}`}
             onFocus={(e) => e.target.select()}
-          />
+          /></details>
         )}
         <div className="dala-seats">
           {Array.from({ length: 4 }, (_, i) => {
@@ -84,7 +99,7 @@ export default function LobbyScreen({
                     } as CSSProperties
                   }
                 >
-                  {seat ? seat.name[0] : <Plus size={20} />}
+                  {seat ? <PlayerAvatar appearance={playerAppearance(seat, view.appearances)} color={seat.color} size={44} /> : <Plus size={20} />}
                 </span>
                 <div>
                   <b>{seat?.name ?? "Бос орын"}</b>
@@ -117,7 +132,7 @@ export default function LobbyScreen({
         </div>
         {room.host === view?.me ? (
           <>
-            <div className="dala-add-bots">
+            <details className="dala-bot-picker"><summary><Bot size={16} /> Бос орынға бот қосу</summary><div className="dala-add-bots">
               {catalog.bots
                 .filter((bot) => !room.seats.some((s) => s.bot === bot.id))
                 .map((bot) => (
@@ -127,34 +142,34 @@ export default function LobbyScreen({
                     disabled={busy || room.seats.length >= 4}
                     onClick={() => send("add_bot", bot.id)}
                   >
-                    <Plus size={15} />
+                    <Bot size={15} />
                     {bot.name} бот
                   </button>
                 ))}
-            </div>
+            </div></details>
+            <p className="dala-ready-status" role="status">{canStart ? "Бәрі дайын. Ойынды бастауға болады!" : room.seats.length < 2 ? "Досыңды күт немесе бір бот қос. Кемінде 2 ойыншы керек." : `${waiting.map((s) => s.name).join(", ")} дайын екенін растауы керек.`}</p>
             <button
               className="dala-primary dala-full"
               disabled={
                 busy ||
-                room.seats.length < 2 ||
-                !room.seats.every((s) => s.ready || s.id === room.host)
+                !canStart
               }
               onClick={() => send("start")}
             >
-              <Dices size={19} /> Партияны бастау <ArrowRight size={17} />
+              <Gamepad2 size={19} /> Партияны бастау <ArrowRight size={17} />
             </button>
           </>
         ) : (
-          <button
-            className="dala-primary dala-full"
+          <><p className="dala-ready-status" role="status">{ready ? "Сен дайынсың. Ойынды бөлме иесі бастайды." : "Қосылдың! Дайын болсаң, төмендегі батырманы бас."}</p><button
+            className={`${ready ? "dala-secondary" : "dala-primary"} dala-full`}
             disabled={busy}
             onClick={() => send("ready")}
           >
             <Check size={18} />
-            {room.seats.find((s) => s.id === view?.me)?.ready
-              ? "Дайын емеспін"
+            {ready
+              ? "Дайындықты қайтару"
               : "Мен дайынмын"}
-          </button>
+          </button></>
         )}
         <button className="dala-text-button" onClick={onLeave}>
           <DoorOpen size={15} /> Бөлмеден шығу
@@ -168,7 +183,7 @@ export default function LobbyScreen({
         <dl>
           <div>
             <dt>Партия</dt>
-            <dd>{scenario?.round_limit} айналым</dd>
+            <dd>{scenario ? roundLimitLabel(scenario.round_limit) : "—"}</dd>
           </div>
           <div>
             <dt>Бастапқы капитал</dt>

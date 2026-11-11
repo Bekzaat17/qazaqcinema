@@ -24,6 +24,7 @@ from app.domain.analytics.source import SEO, movie_start_url
 from app.domain.catalog.categories import Category, get_category
 from app.domain.catalog.daily import TZ
 from app.domain.entities.movie import Movie
+from app.domain.seo.games import GAMES_DESCRIPTION, GAMES_PATH
 from app.domain.seo.hubs import Hub
 from app.domain.seo.keywords import (
     BRAND,
@@ -36,12 +37,21 @@ from app.domain.seo.keywords import (
 from app.domain.seo.landing import FaqItem, faq_for
 from app.domain.seo.slug import movie_slug
 
+
+@dataclass(frozen=True, slots=True)
+class GamesSeo:
+    canonical: str
+    telegram_url: str
+    jsonld: str
+
+
 # Предел meta description (Google показывает ~155–160 символов — длиннее просто обрежется).
 _DESC_MAX = 160
 # Потолок числа ключевых фраз (дедуп + обрезка) — чтобы meta keywords не раздувалась бесконечно.
 _KEYWORDS_MAX = 90
 # Предел <title> — длиннее Google обрезает сниппет сам.
 _TITLE_MAX = 65
+
 
 def _escape_for_script(raw: str) -> str:
     """Нейтрализовать `< > &` для встраивания JSON в `<script>`.
@@ -85,19 +95,19 @@ class MovieSeo:
     """Готовые строки для HTML-шаблона страницы фильма (всё уже абсолютное/экранируемое)."""
 
     slug: str
-    path: str                 # /m/<slug>
-    canonical_url: str        # абсолютный URL страницы
-    title_tag: str            # содержимое <title>
-    description: str          # meta description
-    keywords: str             # meta keywords (полный CSV всех сгенерированных запросов)
-    og_image: str             # абсолютный URL картинки (hero → постер)
-    telegram_url: str         # в чат бота на фильм: t.me/<bot>?start=seo-m_<id>
-    heading: str              # H1: узнаваемое название + «қазақша»
-    names: list[str]          # варианты названия (kk/ru/original) для показа
+    path: str  # /m/<slug>
+    canonical_url: str  # абсолютный URL страницы
+    title_tag: str  # содержимое <title>
+    description: str  # meta description
+    keywords: str  # meta keywords (полный CSV всех сгенерированных запросов)
+    og_image: str  # абсолютный URL картинки (hero → постер)
+    telegram_url: str  # в чат бота на фильм: t.me/<bot>?start=seo-m_<id>
+    heading: str  # H1: узнаваемое название + «қазақша»
+    names: list[str]  # варианты названия (kk/ru/original) для показа
     categories: list[Category] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)  # видимый блок «похожих запросов» (курированный)
-    jsonld: str = "{}"        # JSON-LD schema.org/Movie (готовая строка)
-    crumbs: list[Crumb] = field(default_factory=list)      # видимая навигация
+    jsonld: str = "{}"  # JSON-LD schema.org/Movie (готовая строка)
+    crumbs: list[Crumb] = field(default_factory=list)  # видимая навигация
     crumbs_jsonld: str = "{}"  # BreadcrumbList отдельным <script> (Google читает оба блока)
 
 
@@ -106,17 +116,17 @@ class HubSeo:
     """Готовые строки для страницы-хаба `/catalog/<slug>` (раздел, подборка или год)."""
 
     slug: str
-    path: str                 # /catalog/<slug>
+    path: str  # /catalog/<slug>
     canonical_url: str
     title_tag: str
     description: str
     keywords: str
-    heading: str              # H1 (казахский)
-    heading_ru: str           # та же тема по-русски — видимый подзаголовок
-    intro: str                # лид-абзац (kk + ru)
+    heading: str  # H1 (казахский)
+    heading_ru: str  # та же тема по-русски — видимый подзаголовок
+    intro: str  # лид-абзац (kk + ru)
     tags: list[str] = field(default_factory=list)
-    faq: list[FaqItem] = field(default_factory=list)   # видимый блок «вопрос — ответ»
-    faq_jsonld: str = "{}"    # FAQPage тем же содержимым (см. `landing.FAQ_TEMPLATES`)
+    faq: list[FaqItem] = field(default_factory=list)  # видимый блок «вопрос — ответ»
+    faq_jsonld: str = "{}"  # FAQPage тем же содержимым (см. `landing.FAQ_TEMPLATES`)
     jsonld: str = "{}"
     crumbs: list[Crumb] = field(default_factory=list)
     crumbs_jsonld: str = "{}"
@@ -133,6 +143,29 @@ class SeoBuilder:
         if path_or_url.startswith(("http://", "https://")):
             return path_or_url
         return f"{self._site}/{path_or_url.lstrip('/')}"
+
+    def games_seo(self) -> GamesSeo:
+        canonical = self._abs(GAMES_PATH)
+        telegram = f"https://t.me/{self._bot}?startapp=quest"
+        data = {
+            "@context": "https://schema.org",
+            "@type": "VideoGame",
+            "@id": canonical + "#game",
+            "name": "QazaqPlay — Дала дәулеті",
+            "url": canonical,
+            "description": GAMES_DESCRIPTION,
+            "inLanguage": "kk",
+            "gamePlatform": "Web browser, Telegram Mini App",
+            "genre": ["Strategy", "Board game"],
+            "playMode": ["https://schema.org/SinglePlayer", "https://schema.org/MultiPlayer"],
+            "numberOfPlayers": {"@type": "QuantitativeValue", "minValue": 2, "maxValue": 4},
+            "image": self._abs("/boardgame/art/almaty-map-v2.webp"),
+            "publisher": {"@type": "Organization", "name": BRAND, "url": self._site},
+            "potentialAction": {"@type": "PlayAction", "target": telegram},
+        }
+        return GamesSeo(
+            canonical, telegram, _escape_for_script(json.dumps(data, ensure_ascii=False))
+        )
 
     def _categories(self, movie: Movie) -> list[Category]:
         return [c for slug in movie.categories if (c := get_category(slug)) is not None]

@@ -80,6 +80,10 @@
 	handle /sitemap.xml {
 		reverse_proxy api:8000
 	}
+	@games path /games /games/
+	handle @games {
+		reverse_proxy api:8000
+	}
 	handle /robots.txt {
 		reverse_proxy api:8000
 	}
