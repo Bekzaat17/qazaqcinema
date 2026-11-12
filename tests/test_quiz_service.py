@@ -186,6 +186,22 @@ async def test_due_results_remove_buttons_and_reply_to_the_post() -> None:
     result = publisher.posts[0]
     assert result.reply_to_message_id == 10
     assert "3 адам жауап берді, 2 дұрыс тапты" in result.text
-    assert "🥇 Айгүл · 🥈 Дана" in result.text
+    assert "🥇 Айгүл\n🥈 Дана" in result.text
     assert log.result_posted == [1]
     assert await service.publish_due_results(CLOSES) == 0   # второй раз — уже отмечен
+
+
+async def test_results_show_first_fifteen_correct_answers_in_order() -> None:
+    log, answers, publisher = FakeLog(_entry(OPEN, 10)), FakeAnswers(), FakePublisher()
+    for number in range(20):
+        await answers.add_first(
+            OPEN.id or 0, 1000 + number, f"Player{number:02d}", "жауап", True,
+            NOW + timedelta(seconds=number),
+        )
+    service = _service(log, answers, publisher)
+    assert await service.publish_due_results(CLOSES) == 1
+    text = publisher.posts[0].text
+    assert "ТОП 15" in text
+    assert "🥇 Player00\n🥈 Player01\n🥉 Player02\n04. Player03" in text
+    assert "15. Player14" in text
+    assert "Player15" not in text

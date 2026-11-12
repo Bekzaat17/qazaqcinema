@@ -113,7 +113,11 @@ async def main() -> None:
     await _setup_commands(bot)
     await _setup_menu_button(bot, config)
     dispatcher = build_dispatcher(container)
-    scheduler = build_scheduler(container, quest_post_minute=config.quest.post_minute)
+    scheduler = build_scheduler(
+        container, quest_post_minute=config.quest.post_minute,
+        content_reminder_hour=config.bot.content_reminder_hour,
+        content_reminder_minute=config.bot.content_reminder_minute,
+    )
     scheduler.start()
     try:
         if config.bot.webhook_url:

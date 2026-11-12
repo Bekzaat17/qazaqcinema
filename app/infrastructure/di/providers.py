@@ -65,6 +65,7 @@ from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
 from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
+from app.application.services.content_reminder_service import ContentReminderService
 from app.application.services.content_seed_service import ContentSeedService
 from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
@@ -343,6 +344,15 @@ class RequestProvider(Provider):
     content_repo = provide(PgContentRepository, provides=ContentRepository)
     post_log_repo = provide(PgPostLogRepository, provides=PostLogRepository)
     quiz_answers_repo = provide(PgQuizAnswerRepository, provides=QuizAnswerRepository)
+
+    @provide
+    def content_reminder(
+        self, notifier: TelegramNotifier, lock: Lock, config: AppConfig
+    ) -> ContentReminderService:
+        recipient = config.bot.content_reminder_user_id
+        if recipient and recipient not in config.bot.admin_user_ids:
+            raise ValueError("Получатель напоминания должен быть администратором")
+        return ContentReminderService(notifier, lock, recipient)
 
     @provide
     def events(self, session: AsyncSession, config: AppConfig) -> UserEventRepository:

@@ -120,7 +120,7 @@ def test_result_names_answer_counts_and_podium() -> None:
     text = render_result(_choice_item(), QuizStats(47, 31, ("Айгүл", "Ерлан", "Дана")))
     assert "А) тояды қарның тіленбей" in text
     assert "47 адам жауап берді, 31 дұрыс тапты" in text
-    assert "🥇 Айгүл · 🥈 Ерлан · 🥉 Дана" in text
+    assert "🥇 Айгүл\n🥈 Ерлан\n🥉 Дана" in text
     assert text.endswith("#МақалМәтел #ҚазақшаҮйренеміз")
 
 
@@ -128,3 +128,12 @@ def test_result_with_no_answers_is_friendly() -> None:
     text = render_result(_open_item(), QuizStats(0, 0, ()))
     assert "Жауабы: <b>жел</b>" in text
     assert "жауап берген болмады" in text
+
+
+def test_leaderboard_escapes_names_and_keeps_fifteen_rows() -> None:
+    names = ("<Ali>\nTest", *("<&" * 50 for _ in range(14)))
+    text = render_result(_open_item(), QuizStats(20, 20, names))
+    assert "🥇 &lt;Ali&gt; Test" in text
+    assert "15. " in text
+    assert "16. " not in text
+    assert len(text) <= 4096

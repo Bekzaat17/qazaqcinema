@@ -2,7 +2,7 @@
 
 Разбор — НЕ элемент контента: он собирается из квиза и журнала ответов и
 уходит ответом на сам пост. Считаем честно: «сколько ответили» и «сколько верно» — по
-первому ответу каждого; «алғашқы үшеу» — первые правильные по времени.
+первому ответу каждого; топ — первые правильные по времени.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ from app.domain.channel.content.item import (
     QuizOpen,
 )
 from app.domain.channel.content.render.base import frame
+
+LEADERBOARD_SIZE = 15
 
 _MEDALS = ("🥇", "🥈", "🥉")
 
@@ -51,7 +53,7 @@ def question_text(item: ContentItem) -> str:
 
 
 def render_result(item: ContentItem, stats: QuizStats) -> str:
-    """Текст разбора: вопрос, ответ, сколько людей, первые трое."""
+    """Текст разбора: вопрос, ответ, сколько людей, до 15 первых правильных ответов."""
     lines = [f"<i>{escape(question_text(item))}</i>", ""]
     answer = escape(correct_answer_text(item))
     if isinstance(item.payload, QuizChoice):
@@ -65,9 +67,14 @@ def render_result(item: ContentItem, stats: QuizStats) -> str:
     else:
         lines.append(f"👥 {stats.total} адам жауап берді, {stats.correct} дұрыс тапты.")
         if stats.first_correct:
-            podium = " · ".join(
-                f"{medal} {escape(name)}"
-                for medal, name in zip(_MEDALS, stats.first_correct, strict=False)
-            )
-            lines.append(f"{podium} — алғашқылар! 👏")
+            leaders = stats.first_correct[:LEADERBOARD_SIZE]
+            lines.extend(("", f"🏆 <b>Алғашқы дұрыс жауаптар · ТОП {len(leaders)}</b>", ""))
+            for rank, name in enumerate(leaders, start=1):
+                marker = _MEDALS[rank - 1] if rank <= len(_MEDALS) else f"{rank:02d}."
+                # Имя — одна строка; ограничение оставляет место всем 15 участникам.
+                label = " ".join(name.split())[:64]
+                while len(escape(label)) > 100:
+                    label = label[:-1]
+                lines.append(f"{marker} {escape(label)}")
+            lines.extend(("", "Бәрекелді! 👏"))
     return frame(item, "\n".join(lines), MESSAGE_LIMIT)

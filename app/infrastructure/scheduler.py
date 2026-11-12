@@ -73,7 +73,6 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 from html import escape
-from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -85,6 +84,7 @@ from app.application.services.analytics_service import AnalyticsService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
+from app.application.services.content_reminder_service import ContentReminderService
 from app.application.services.quest_channel_service import QuestChannelService
 from app.application.services.quiz_service import QuizService
 from app.application.services.subscription_service import SubscriptionService
@@ -92,6 +92,7 @@ from app.application.services.video_retention_service import VideoRetentionServi
 from app.domain.analytics.report import render_report
 from app.domain.analytics.search import MISSING_TOP
 from app.domain.analytics.weekly_report import render_weekly_report
+from app.domain.catalog.daily import TZ
 from app.domain.channel.holidays import POST_TIMES as HOLIDAY_POST_TIMES
 from app.domain.channel.holidays import review_notes
 
@@ -103,7 +104,7 @@ EXPIRE_INTERVAL_MINUTES = 15
 PURGE_VIDEOS_INTERVAL_MINUTES = 60
 # Отчёт — данные: когда и по какому времени. Часовой пояс задан ЯВНО (не «время сервера»):
 # контейнеры живут в UTC, и без него «22:00» пришло бы в 3 утра по Казахстану.
-REPORT_TZ = ZoneInfo("Asia/Almaty")
+REPORT_TZ = TZ
 REPORT_HOUR = 22
 REPORT_MINUTE = 0
 # Сверка календаря праздников — 1 декабря: год ещё не кончился, ДУМК к этому времени
@@ -296,7 +297,17 @@ async def _weekly_pick_closing_job(container: AsyncContainer) -> None:
             logger.info("Письмо о закрытии недельного выбора: %d адресатов", count)
 
 
-def build_scheduler(container: AsyncContainer, *, quest_post_minute: int = 15) -> AsyncIOScheduler:
+async def _content_reminder_job(container: AsyncContainer) -> None:
+    async with container() as request_container:
+        service = await request_container.get(ContentReminderService)
+        if await service.remind(datetime.now(UTC)):
+            logger.info("Напоминание о пополнении каталога доставлено")
+
+
+def build_scheduler(
+    container: AsyncContainer, *, quest_post_minute: int = 15,
+    content_reminder_hour: int = 12, content_reminder_minute: int = 45,
+) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         _expire_due_job,
@@ -431,6 +442,17 @@ def build_scheduler(container: AsyncContainer, *, quest_post_minute: int = 15) -
         args=[container],
         id="quest_ranking",
         misfire_grace_time=3000,
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        _content_reminder_job,
+        CronTrigger(
+            hour=content_reminder_hour, minute=content_reminder_minute, timezone=REPORT_TZ
+        ),
+        args=[container],
+        id="content_reminder",
+        misfire_grace_time=1800,
         coalesce=True,
         max_instances=1,
     )

@@ -35,6 +35,9 @@ class BotConfig(BaseSettings):
     admin_chat_id: int = 0          # чат модерации (куда падают чеки)
     # NoDecode: не даём pydantic-settings JSON-декодить env-строку — её разберёт валидатор
     admin_user_ids: Annotated[list[int], NoDecode] = Field(default_factory=list)
+    content_reminder_user_id: int = Field(default=0, ge=0)
+    content_reminder_hour: int = Field(default=12, ge=0, le=23)
+    content_reminder_minute: int = Field(default=45, ge=0, le=59)
     archive_channel_id: int = 0     # секретный канал-архив с видео
     # ПУБЛИЧНЫЙ канал-витрина: туда бот сам постит фильм дня (раз в сутки) и новинки.
     # Не путать с `archive_channel_id`: там лежит видео и он приватный, здесь — афиши.

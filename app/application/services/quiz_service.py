@@ -34,6 +34,7 @@ from app.domain.channel.content.answers.checkers import (
     OpenChecker,
 )
 from app.domain.channel.content.answers.result import (
+    LEADERBOARD_SIZE,
     QuizStats,
     correct_answer_text,
     render_result,
@@ -42,8 +43,6 @@ from app.domain.channel.content.item import ContentItem, QuizChoice, QuizOpen
 from app.domain.channel.content.kinds import ContentKind
 
 logger = logging.getLogger(__name__)
-
-PODIUM_SIZE = 3
 
 
 class Verdict(StrEnum):
@@ -142,7 +141,7 @@ class QuizService:
             item = await self._items.get(post.item_id)
             if item is None or post.id is None:
                 continue
-            row = await self._answers.stats(post.id, PODIUM_SIZE)
+            row = await self._answers.stats(post.id, LEADERBOARD_SIZE)
             stats = QuizStats(row.total, row.correct, row.first_correct)
             await self._publisher.remove_buttons(post.channel_message_id)
             sent = await self._publisher.publish(
