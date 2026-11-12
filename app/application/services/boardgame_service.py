@@ -19,6 +19,8 @@ from app.application.ports.boardgame import (
     RoomRepository,
 )
 from app.application.ports.channel import ChannelMembership
+from app.application.ports.repositories import UserEventRepository
+from app.domain.analytics.events import EventKind
 from app.domain.boardgame.game import (
     Action,
     Catalog,
@@ -55,6 +57,7 @@ class BoardGameService:
         events: RoomEvents,
         membership: ChannelMembership | None = None,
         channel_username: str = "",
+        analytics: UserEventRepository | None = None,
     ) -> None:
         self._repository = repository
         self._catalog = catalog
@@ -62,6 +65,7 @@ class BoardGameService:
         self._events = events
         self._membership = membership
         self._channel_username = channel_username.lstrip("@")
+        self._analytics = analytics
 
     async def access(self, user_id: int) -> GameAccess:
         if self._membership is None or not self._channel_username:
@@ -92,6 +96,8 @@ class BoardGameService:
             is_public=is_public,
         )
         await self._repository.create(record)
+        if self._analytics is not None:
+            await self._analytics.add(user_id, EventKind.BOARD_CREATE, code)
         return record
 
     async def public_rooms(self, now: datetime) -> list[PublicRoom]:
@@ -195,6 +201,8 @@ class BoardGameService:
                 appearances={**record.appearances, seat.id: appearance or PlayerAppearance()},
             )
             await self._repository.save(updated, None, 0, week_start(now))
+        if self._analytics is not None:
+            await self._analytics.add(user_id, EventKind.BOARD_JOIN, code)
         await self._events.publish(code, updated.room.revision)
         return RoomResult(updated, Outcome.APPLIED)
 
@@ -322,6 +330,14 @@ class BoardGameService:
                     )
                 )
         await self._events.publish(code, updated.room.revision)
+        # Журнал пишет своей транзакцией ПОСЛЕ commit игры. Таймеры и ходы ботов
+        # не превращаются в человеческую активность.
+        if self._analytics is not None and command.kind != Action.TIMEOUT:
+            if prior is None and current is not None:
+                for uid in updated.members:
+                    await self._analytics.add(int(uid), EventKind.BOARD_START, code)
+            else:
+                await self._analytics.add(user_id, EventKind.BOARD_ACTION, code)
         return RoomResult(updated, outcome)
 
     async def leave(self, user_id: int, code: str, now: datetime) -> RoomResult:

@@ -29,6 +29,7 @@ from app.application.ports.content import (
 )
 from app.application.ports.daily_pin import DailyPin
 from app.application.ports.discussion import DiscussionGroup
+from app.application.ports.game_analytics import GameAnalyticsRepository
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
@@ -69,6 +70,7 @@ from app.application.services.content_reminder_service import ContentReminderSer
 from app.application.services.content_seed_service import ContentSeedService
 from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
+from app.application.services.game_analytics_service import GameAnalyticsService
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.milestone_service import MilestoneService
 from app.application.services.moderation_service import PaymentModerationService
@@ -127,6 +129,7 @@ from app.infrastructure.db.repositories import (
     PgVideoDeliveryRepository,
 )
 from app.infrastructure.db.repositories.boardgame import PgRoomRepository
+from app.infrastructure.db.repositories.game_analytics import PgGameAnalyticsRepository
 from app.infrastructure.db.repositories.quest import PgQuestChannelStore, PgQuestRepository
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from app.infrastructure.images.pillow import PillowImageProcessor
@@ -309,10 +312,28 @@ class RequestProvider(Provider):
         events: RoomEvents,
         membership: ChannelMembership,
         config: AppConfig,
+        analytics: UserEventRepository,
     ) -> BoardGameService:
         return BoardGameService(
-            repository, catalog, random, events, membership, config.bot.public_channel_username
+            repository, catalog, random, events, membership, config.bot.public_channel_username,
+            analytics,
         )
+
+    @provide
+    def game_analytics_repository(
+        self, session: AsyncSession, config: AppConfig,
+    ) -> GameAnalyticsRepository:
+        return PgGameAnalyticsRepository(session, tuple(config.bot.admin_user_ids))
+
+    @provide
+    def game_analytics_service(
+        self, repository: GameAnalyticsRepository, notifier: TelegramNotifier,
+        lock: Lock, config: AppConfig,
+    ) -> GameAnalyticsService:
+        recipient = config.bot.game_report_user_id
+        if recipient and recipient not in config.bot.admin_user_ids:
+            raise ValueError("Получатель игрового отчёта должен быть администратором")
+        return GameAnalyticsService(repository, notifier, lock, recipient)
 
     quest_repo = provide(PgQuestRepository, provides=QuestRepository)
     quest_posts = provide(PgQuestChannelStore, provides=QuestChannelStore)

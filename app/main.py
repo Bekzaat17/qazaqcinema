@@ -117,6 +117,8 @@ async def main() -> None:
         container, quest_post_minute=config.quest.post_minute,
         content_reminder_hour=config.bot.content_reminder_hour,
         content_reminder_minute=config.bot.content_reminder_minute,
+        game_report_hour=config.bot.game_report_hour,
+        game_report_minute=config.bot.game_report_minute,
     )
     scheduler.start()
     try:

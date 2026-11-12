@@ -38,6 +38,9 @@ class BotConfig(BaseSettings):
     content_reminder_user_id: int = Field(default=0, ge=0)
     content_reminder_hour: int = Field(default=12, ge=0, le=23)
     content_reminder_minute: int = Field(default=45, ge=0, le=59)
+    game_report_user_id: int = Field(default=0, ge=0)
+    game_report_hour: int = Field(default=22, ge=0, le=23)
+    game_report_minute: int = Field(default=5, ge=0, le=59)
     archive_channel_id: int = 0     # секретный канал-архив с видео
     # ПУБЛИЧНЫЙ канал-витрина: туда бот сам постит фильм дня (раз в сутки) и новинки.
     # Не путать с `archive_channel_id`: там лежит видео и он приватный, здесь — афиши.

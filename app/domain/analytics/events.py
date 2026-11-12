@@ -15,6 +15,10 @@ from enum import StrEnum
 
 
 class EventKind(StrEnum):
+    BOARD_CREATE = "board_create"
+    BOARD_JOIN = "board_join"
+    BOARD_START = "board_start"
+    BOARD_ACTION = "board_action"
     START = "start"          # нажал /start в боте (первый контакт или возврат)
     OPEN = "open"            # открыл Mini App (bootstrap-сессия по initData)
     PLAY = "play"            # получил видео в личку (meta = id фильма)
