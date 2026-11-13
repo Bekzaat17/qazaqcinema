@@ -42,8 +42,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.publish:
         raise SystemExit(asyncio.run(_run()))
-    else:
-        parser.print_help()
+    parser.print_help()
 
 
 if __name__ == "__main__":

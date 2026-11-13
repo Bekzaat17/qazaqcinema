@@ -458,6 +458,6 @@ class QuizAnswerModel(Base):
     is_correct: Mapped[bool] = mapped_column(Boolean)
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     # Обычный квиз хранит первый ответ, жұмбақ дня допускает до трёх попыток.
-    attempt_count: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, server_default="1", nullable=False)
 
     __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_quiz_answers_post_user"),)

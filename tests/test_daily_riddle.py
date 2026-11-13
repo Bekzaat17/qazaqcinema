@@ -11,7 +11,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import yaml
-
 from app.application.ports.channel import ChannelPost
 from app.application.ports.content import PostLogEntry, QuizStatsRow
 from app.application.ports.riddles import RiddleAttempt, RiddleRank

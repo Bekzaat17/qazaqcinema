@@ -6,8 +6,6 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-
 from app.application.ports.content import PostLogEntry
 from app.domain.channel.content.item import ContentItem, QuizOpen
 from app.domain.channel.content.kinds import ContentKind
@@ -17,6 +15,7 @@ from app.infrastructure.db.content_repositories import (
     PgQuizAnswerRepository,
 )
 from app.infrastructure.db.riddle_repositories import PgPublicationGate, PgRiddleAnswerRepository
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 _NOW = datetime(2026, 11, 13, 8, tzinfo=UTC)
 _CLOSES = datetime(2026, 11, 13, 16, tzinfo=UTC)

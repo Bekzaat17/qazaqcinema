@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from hashlib import blake2b
 
-from sqlalchemy import func, select, text as sql_text
+from sqlalchemy import func, select
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -42,7 +43,7 @@ class PgRiddleAnswerRepository:
             post_id=post_id, user_id=user_id, first_name=name[:128], text=text[:255],
             is_correct=correct, answered_at=at, attempt_count=1,
         )
-        stmt = stmt.on_conflict_do_update(
+        returning = stmt.on_conflict_do_update(
             constraint="uq_quiz_answers_post_user",
             set_={
                 "first_name": stmt.excluded.first_name, "text": stmt.excluded.text,
@@ -54,7 +55,7 @@ class PgRiddleAnswerRepository:
                 & (QuizAnswerModel.attempt_count < MAX_ATTEMPTS)
             ),
         ).returning(QuizAnswerModel.attempt_count, QuizAnswerModel.is_correct)
-        row = (await self._session.execute(stmt)).one_or_none()
+        row = (await self._session.execute(returning)).one_or_none()
         if row is not None:
             await self._session.commit()
             return RiddleAttempt(int(row[0]), bool(row[1]), True)

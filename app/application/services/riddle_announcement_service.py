@@ -53,12 +53,13 @@ class RiddleAnnouncementService:
                 if item is None or item.id is None:
                     return AnnouncementOutcome("Текст анонса не загружен: сначала выполните seed.")
                 post = self._renderers[item.kind].render(item)
-                sent = await self._publisher.publish(ChannelPost(
+                published = await self._publisher.publish(ChannelPost(
                     text=post.head,
                     choices=(CallbackButton("🧩 Күннің жұмбағы", DAILY_RIDDLE_CALLBACK),),
                 ))
-                if sent is None:
+                if published is None:
                     return AnnouncementOutcome("Анонс не опубликован. Повторите запуск.")
+                sent = published
                 await self._log.add(PostLogEntry(
                     slot_key=_KEY, item_id=item.id, kind=item.kind,
                     channel_message_id=sent, posted_at=now,
