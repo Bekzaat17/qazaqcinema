@@ -1,0 +1,3905 @@
+# Авторлық жұмбақтар: QazaqCinema үшін жаңадан жазылған, фольклор ретінде берілмейді.
+# Сұрақтар: табиғат, жануарлар, тұрмыс, тіл, техника, дәстүр, ғарыш және логика.
+
+- slug: zhumbaq-original-001
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аспан мен жерді тігіп қойғандай бір сызық бар. Оған қарай қанша жүрсең де, тігісіне
+      жете алмайсың. Ол не?
+    accept:
+    - Көкжиек
+    - горизонт
+- slug: zhumbaq-original-002
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жаңбыр жаумаған түні шөптің ұшына ұсақ моншақтар тізіледі. Күн көтерілсе, жіпсіз моншақтар
+      жоғалады. Бұл не?
+    accept:
+    - Шық
+    - роса
+- slug: zhumbaq-original-003
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнгі суық бұтақтарға ақ кесте тоқып кетіпті. Қар жауған жоқ, бірақ ағаштар аппақ. Кестенің
+      аты не?
+    accept:
+    - Қырау
+    - иней
+- slug: zhumbaq-original-004
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жерге түскен бұлт жолдың арғы басын жасырады. Қолыңмен ысыра алмайсың, күн шықса өзі
+      сейіледі. Бұл не?
+    accept:
+    - Тұман
+    - туман
+- slug: zhumbaq-original-005
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жаңбырдан кейін аспанда түрлі түсті көпір көрінді. Үстіне ешкім шыға алмайды. Бұл не?
+    accept:
+    - Кемпірқосақ
+    - радуга
+- slug: zhumbaq-original-006
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аспанды бір сәтке жарып өткен жарықтың суретін көресің, ал дауысын кейін естисің. Бұл
+      не?
+    accept:
+    - Найзағай
+    - молния
+- slug: zhumbaq-original-007
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аспандағы жарқылдан кейін естілетін зор дауыс. Дабылшы көрінбейді, дабылы алысқа жетеді.
+      Бұл не?
+    accept:
+    - Күн күркіреуі
+    - күннің күркіреуі
+    - гром
+- slug: zhumbaq-original-008
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кеше кесеге құйылатын едім, бүгін қолмен ұстайтын болдым. Жылытсаң, бұрынғы қалпыма
+      қайта ораламын. Мен немін?
+    accept:
+    - Мұз
+    - лед
+    - лёд
+- slug: zhumbaq-original-009
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Шатырдың шетінде төңкеріліп өскен мөлдір сәбіз. Күн жылынса, ұшы тамшылайды. Бұл не?
+    accept:
+    - Сүңгі
+    - мұз сүңгісі
+    - сосулька
+- slug: zhumbaq-original-010
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жазғы бұлт мұздан жасалған ұсақ тастар шашты. Жерге түскен соң олар суға айналды. Не
+      жауды?
+    accept:
+    - Бұршақ
+    - град
+- slug: zhumbaq-original-011
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Судың бетімен жүгіріп келеді, жағаға жеткенде ақ көбікке бөлінеді. Аяғы жоқ жүйрік не?
+    accept:
+    - Толқын
+    - волна
+- slug: zhumbaq-original-012
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Өзен жардан секіріп, төменде қайта жолын жалғайды. Дауысы бар, бірақ сөйлей алмайды.
+      Бұл не?
+    accept:
+    - Сарқырама
+    - водопад
+- slug: zhumbaq-original-013
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жердің кішкентай көзінен мөлдір су шығып, үлкен өзеннің сапарын бастайды. Бұл не?
+    accept:
+    - Бұлақ
+    - родник
+- slug: zhumbaq-original-014
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қай жағына қарасаң да су қоршаған бір бөлік құрлық. Көпірі болмаса, оған жаяу жете алмайсың.
+      Бұл не?
+    accept:
+    - Арал
+    - остров
+- slug: zhumbaq-original-015
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үш жағым суға қарап тұр, бір жағым құрлыққа жалғасқан. Аралға ұқсаймын, бірақ арал емеспін.
+      Мен немін?
+    accept:
+    - Түбек
+    - полуостров
+- slug: zhumbaq-original-016
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Таудың ішіндегі табиғи бөлмемін. Есігім бардай көрінеді, тереземді ешкім салмаған. Мен
+      немін?
+    accept:
+    - Үңгір
+    - пещера
+- slug: zhumbaq-original-017
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тауда дауыстап ат қойсаң, сол атты өзіңе қайтарады. Сөзіңді қайталайды, жаңасын ойлап
+      таппайды. Бұл не?
+    accept:
+    - Жаңғырық
+    - эхо
+- slug: zhumbaq-original-018
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Уысыңа сыйсам да, саусақтарыңның арасынан қашамын. Жел мені төбеге үйеді, су мені жағалауға
+      жаяды. Мен немін?
+    accept:
+    - Құм
+    - песок
+- slug: zhumbaq-original-019
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: 'Суым көп болса да, шөліңді қандыра алмаймын: дәмім тұзды. Жағама келгендер толқынымды
+      тыңдайды. Мен немін?'
+    accept:
+    - Теңіз
+    - море
+- slug: zhumbaq-original-020
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Таудың басынан түтін көрінді, артынан оттай ыстық тас ақты. Бұл қандай тау?
+    accept:
+    - Жанартау
+    - вулкан
+- slug: zhumbaq-original-021
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Отынның оты сөнген соң қалған сұр ұнтақпын. Бір кезде ағаш едім, енді үрлесең ұшамын.
+      Мен немін?
+    accept:
+    - Күл
+    - зола
+- slug: zhumbaq-original-022
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қап-қара тас секілдімін. Пешке түскенде үйге жылу беремін, ал соңымда күл қалады. Мен
+      немін?
+    accept:
+    - Көмір
+    - уголь
+- slug: zhumbaq-original-023
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Таудың биігінде жыл бойы жата беремін. Өте баяу жылжимын, еріген суым өзенге қосылады.
+      Мен немін?
+    accept:
+    - Мұздық
+    - ледник
+- slug: zhumbaq-original-024
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бұлттан түскен кішкентай ақ өрнекпін. Алақаныңа қонсам, суретімнің орнында тамшы қалады.
+      Мен немін?
+    accept:
+    - Қар ұшқыны
+    - снежинка
+- slug: zhumbaq-original-025
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Көктемде бұтақтың жасыл алақанымын, күзде сарғайып жерге түсемін. Мен немін?
+    accept:
+    - Жапырақ
+    - лист
+    - жапырақтар
+- slug: zhumbaq-original-026
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бұтақтың ұшында жабық хаттай тұрамын. Көктем жылынса, ішімнен жапырақ ашылады. Мен немін?
+    accept:
+    - Бүршік
+    - почка
+    - ағаш бүршігі
+- slug: zhumbaq-original-027
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сары күлтелерім қара дөңгелекті қоршайды. Дөңгелектің іші жеуге болатын дәнге толы.
+      Мен немін?
+    accept:
+    - Күнбағыс
+    - подсолнух
+- slug: zhumbaq-original-028
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Алдымен сары түймедеймін, кейін ақ үлпілдек шарға айналамын. Үрлесең, дәндерім ұшып
+      кетеді. Мен немін?
+    accept:
+    - Бақбақ
+    - одуванчик
+- slug: zhumbaq-original-029
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жапырағым жасыл, гүлім көзге түсе бермейді. Жалаң қолмен ұстасаң, теріңді ашытып жіберемін.
+      Мен немін?
+    accept:
+    - Қалақай
+    - крапива
+- slug: zhumbaq-original-030
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жапырақ орнына тікенім бар. Суды бойыма жинап, құрғақ жерде ұзақ шыдаймын. Мен немін?
+    accept:
+    - Кактус
+    - кактус гүлі
+- slug: zhumbaq-original-031
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тас пен ағашқа төселген жұмсақ жасыл кілеммін. Тоқымашым жоқ, ылғалды жерде өзім өсемін.
+      Мен немін?
+    accept:
+    - Мүк
+    - мох
+- slug: zhumbaq-original-032
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Табиғат
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Су жағасында саптай тізіліп тұрамын. Сабағым қуыс, төбемде қоңыр шашақ бар. Мен немін?
+    accept:
+    - Қамыс
+    - камыш
+- slug: zhumbaq-original-033
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үстімде тігілмеген тікенді тон бар. Қауіп төнсе, басымды жасырып домалақ доп боламын.
+      Мен немін?
+    accept:
+    - Кірпі
+    - еж
+    - ёж
+- slug: zhumbaq-original-034
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үйімді арқалап жүремін, қауіп төнсе ішіне кіремін. Үйімді шешіп, басқа біреуге бере
+      алмаймын. Мен немін?
+    accept:
+    - Тасбақа
+    - черепаха
+- slug: zhumbaq-original-035
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнде ұшып жем іздеймін, күндіз басымды төмен қаратып ілініп тұрамын. Қауырсыным жоқ.
+      Мен немін?
+    accept:
+    - Жарқанат
+    - летучая мышь
+- slug: zhumbaq-original-036
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Өзенге ағаштан бөгет жасаймын. Құйрығым жалпақ, тістерім ағаш кеміруге жарайды. Мен
+      немін?
+    accept:
+    - Құндыз
+    - бобр
+- slug: zhumbaq-original-037
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ағаштан ағашқа секіремін, құйрығым үлпілдеген. Қысқа арнап жаңғақ жасырамын. Мен немін?
+    accept:
+    - Тиін
+    - белка
+- slug: zhumbaq-original-038
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Орман ішінде жүретін жануармын. Еркегімнің басында жыл сайын жаңаратын бұтақты мүйіз
+      өседі. Мен немін?
+    accept:
+    - Бұғы
+    - олень
+- slug: zhumbaq-original-039
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ағаштың жоғары жапырағына баспалдақсыз жетемін. Мойным ұзын, тоным теңбіл. Мен немін?
+    accept:
+    - Жираф
+    - керік
+- slug: zhumbaq-original-040
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жылқыға ұқсаймын, бірақ үстімде ақ пен қара жолақтар бар. Киімімді ешкім бояған жоқ.
+      Мен немін?
+    accept:
+    - Зебра
+    - зебра жануары
+- slug: zhumbaq-original-041
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Мұрныммен су ішіп, бұтақ ұстаймын. Құлағым үлкен, тұмсығым қолдың да қызметін атқарады.
+      Мен немін?
+    accept:
+    - Піл
+    - слон
+- slug: zhumbaq-original-042
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Денем ірі, терім қалың. Мүйізім маңдайымда емес, мұрнымның үстінде өседі. Мен немін?
+    accept:
+    - Мүйізтұмсық
+    - носорог
+- slug: zhumbaq-original-043
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзын артқы аяқтарыммен секіремін. Баламды анасының құрсағындағы қалтадан көресің. Мен
+      немін?
+    accept:
+    - Кенгуру
+    - кенгуру жануары
+- slug: zhumbaq-original-044
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Эвкалипт жапырағын жеймін, ағашты құшақтап ұйықтаймын. Аюға ұқсағанмен, қалталы жануармын.
+      Мен немін?
+    accept:
+    - Коала
+    - коала жануары
+- slug: zhumbaq-original-045
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Көзімнің айналасы қара, денем ақ пен қара. Аю болсам да, көбіне бамбук жеймін. Мен немін?
+    accept:
+    - Панда
+    - үлкен панда
+- slug: zhumbaq-original-046
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Мұзды теңіз жағасында тіршілік ететін ірі жыртқышпын. Ақ тоным қарға араласып көрінбей
+      қалады. Мен немін?
+    accept:
+    - Ақ аю
+    - белый медведь
+- slug: zhumbaq-original-047
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Құйрығым үлпілдеген, құлағым тік. Ертегілерде айлакер атанып, бауырымды жерге төсеп
+      жүремін. Мен немін?
+    accept:
+    - Түлкі
+    - лиса
+- slug: zhumbaq-original-048
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Топ болып аңға шығатын жыртқышпын. Даусым далада ұлып естіледі, иттің жабайы туысымын.
+      Мен немін?
+    accept:
+    - Қасқыр
+    - волк
+- slug: zhumbaq-original-049
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Құлағымның ұшында қара шашақ бар. Үлкен мысыққа ұқсаймын, құйрығым қысқа. Мен немін?
+    accept:
+    - Сілеусін
+    - рысь
+- slug: zhumbaq-original-050
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Биік таудың қарлы жартастарында жүремін. Теңбіл тоным мен ұзын жуан құйрығым суықта
+      көмектеседі. Мен немін?
+    accept:
+    - Ілбіс
+    - қар барысы
+    - снежный барс
+- slug: zhumbaq-original-051
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Теңіздің түбінде сегіз қолыммен жүремін. Қауіп төнгенде суға қара сия жіберемін. Мен
+      немін?
+    accept:
+    - Сегізаяқ
+    - осьминог
+- slug: zhumbaq-original-052
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аспанда жарқырамаймын, теңіз түбінде жатамын. Денем көбіне бес сәулелі жұлдызға ұқсайды.
+      Мен немін?
+    accept:
+    - Теңіз жұлдызы
+    - морская звезда
+- slug: zhumbaq-original-053
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Теңізде қалқып жүрген мөлдір қолшатырмын. Шеттерімнен салбыраған қармалауыштарым бар.
+      Мен немін?
+    accept:
+    - Медуза
+    - медуза жануары
+- slug: zhumbaq-original-054
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Суда жүзетін балықпын, басым кішкентай жылқыға ұқсайды. Иірілген құйрығыммен балдырға
+      жармасамын. Мен немін?
+    accept:
+    - Теңіз аты
+    - морской конек
+    - морской конёк
+- slug: zhumbaq-original-055
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Суда тіршілік етемін, бірақ дем алу үшін бетіне шығамын. Тобыммен жүзіп, судан секіріп
+      ойнаймын. Мен немін?
+    accept:
+    - Дельфин
+    - дельфин жануары
+- slug: zhumbaq-original-056
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Теңіздегі алып сүтқоректімін. Су бетіне шыққанда төбемдегі тесіктен дем шығарамын. Мен
+      немін?
+    accept:
+    - Кит
+    - кит жануары
+- slug: zhumbaq-original-057
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Өзім кішкентаймын, илеуімде мыңдаған көршім бар. Азықты жалғыз да, топ болып та тасимын.
+      Мен немін?
+    accept:
+    - Құмырсқа
+    - муравей
+- slug: zhumbaq-original-058
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Гүлден гүлге ұшып, ұяға тәтті қор жинаймын. Арқам жолақты, қорғанатын бізім бар. Мен
+      немін?
+    accept:
+    - Ара
+    - бал арасы
+    - пчела
+- slug: zhumbaq-original-059
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кеше жапырақ жеген жұлдызқұрт едім, бүгін түрлі түсті қанатпен гүлге қондым. Мен немін?
+    accept:
+    - Көбелек
+    - бабочка
+- slug: zhumbaq-original-060
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Мөлдір төрт қанатым бар, су үстінде ұшамын. Көзім үлкен, шыбын-шіркейді ауада ұстаймын.
+      Мен немін?
+    accept:
+    - Инелік
+    - стрекоза
+- slug: zhumbaq-original-061
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Артымда жылтыраған із қалады, арқамда шиыршық үйім бар. Аяқ баспай, бауырыммен жылжимын.
+      Мен немін?
+    accept:
+    - Ұлу
+    - улитка
+- slug: zhumbaq-original-062
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аяғым жоқ, топырақтың ішінде жол саламын. Жаңбырдан кейін жер бетіне шығып қаламын.
+      Мен немін?
+    accept:
+    - Жауынқұрт
+    - дождевой червь
+- slug: zhumbaq-original-063
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сегіз аяғым бар, ауымды өзім тоқимын. Ауым балыққа емес, шыбынға арналған. Мен немін?
+    accept:
+    - Өрмекші
+    - паук
+- slug: zhumbaq-original-064
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Жануарлар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Артқы аяқтарым ұзын, шөптің арасынан алысқа секіремін. Жазғы далада шырылдаған үнім
+      естіледі. Мен немін?
+    accept:
+    - Шегіртке
+    - кузнечик
+- slug: zhumbaq-original-065
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Орманның діңін тұмсығыммен тоқылдатамын. Ағаштың ішіндегі жәндікті тауып жеймін. Мен
+      немін?
+    accept:
+    - Тоқылдақ
+    - дятел
+- slug: zhumbaq-original-066
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнде аңға шығамын, басымда құлаққа ұқсас қауырсын шоқтары бар. Үлкен көздерім алға
+      қарайды. Мен немін?
+    accept:
+    - Үкі
+    - филин
+- slug: zhumbaq-original-067
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Құйрығым айыр, қанатым сүйір. Үйдің ернеуіне балшықтан ұя жапсырамын. Мен немін?
+    accept:
+    - Қарлығаш
+    - ласточка
+- slug: zhumbaq-original-068
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзын мойнымды иіп, көл бетінде баяу жүземін. Ересек кезімде қауырсыным көбіне аппақ
+      болады. Мен немін?
+    accept:
+    - Аққу
+    - лебедь
+- slug: zhumbaq-original-069
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тұмсығымның астында үлкен қалтам бар. Судағы балықты сол қалтаммен сүзіп ұстаймын. Мен
+      немін?
+    accept:
+    - Бірқазан
+    - пеликан
+- slug: zhumbaq-original-070
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзын сирағыммен тайыз суда тұрамын. Қызғылт қауырсынды денем кейде бір аяққа ғана сүйенеді.
+      Мен немін?
+    accept:
+    - Қоқиқаз
+    - фламинго
+- slug: zhumbaq-original-071
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Құйрығымды жайсам, ондаған көз ашылғандай болады. Бірақ ол көздер көрмейді, қауырсындағы
+      өрнек қана. Мен немін?
+    accept:
+    - Тауыс
+    - павлин
+- slug: zhumbaq-original-072
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қанатым бар, бірақ аспанға ұшпаймын. Суда епті жүземін, құрлықта тік тұрып жүремін.
+      Мен немін?
+    accept:
+    - Пингвин
+    - пингвин құсы
+- slug: zhumbaq-original-073
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Құс болсам да ұшпаймын, есесіне ұзын аяқтарыммен тез жүгіремін. Жұмыртқам да өте ірі.
+      Мен немін?
+    accept:
+    - Түйеқұс
+    - страус
+- slug: zhumbaq-original-074
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кіп-кішкентай құспын, гүлдің алдында ауада тұрып қалғандай боламын. Ұзын тұмсығыммен
+      гүл шырынын ішемін. Мен немін?
+    accept:
+    - Колибри
+    - колибри құсы
+- slug: zhumbaq-original-075
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үнім өз атымды қайталайды. Жұмыртқамды көбіне басқа құстың ұясына қалдырамын. Мен немін?
+    accept:
+    - Көкек
+    - кукушка
+- slug: zhumbaq-original-076
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Су бетінде жүземін, жерде маңғаз басамын. Үйірімді күзетіп, бөтенге мойнымды созып қаңқылдаймын.
+      Мен немін?
+    accept:
+    - Қаз
+    - гусь
+- slug: zhumbaq-original-077
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тұмсығым имек, қауырсыным түрлі түсті болуы мүмкін. Кейбір туыстарым адамның сөзін қайталайды.
+      Мен немін?
+    accept:
+    - Тотықұс
+    - попугай
+- slug: zhumbaq-original-078
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Пальманың шоғырында өсетін тәтті жеміспін. Кептіріп жейді, ішімде ұзынша бір сүйек бар.
+      Мен немін?
+    accept:
+    - Құрма
+    - финик
+- slug: zhumbaq-original-079
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қызыл қабығымды ашсаң, ішімнен мөлдір қызыл дәндер табылады. Әр дәнімнің өз шырын қабы
+      бар. Мен немін?
+    accept:
+    - Анар
+    - гранат
+- slug: zhumbaq-original-080
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Төбемде жасыл тәж, сыртымда кедір-бұдыр сауыт бар. Ішім сары әрі тәтті, пальмада өспеймін.
+      Мен немін?
+    accept:
+    - Ананас
+    - ананас жемісі
+- slug: zhumbaq-original-081
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сыртым қоңыр әрі түкті, ішім жасыл. Кесіндімнің ортасын айнала ұсақ қара дәндер орналасқан.
+      Мен немін?
+    accept:
+    - Киви
+    - киви жемісі
+- slug: zhumbaq-original-082
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сары қабығымды шайға салады. Бір тілімімді жесең, қышқылдығымнан жүзің тыжырынады. Мен
+      немін?
+    accept:
+    - Лимон
+    - лимон жемісі
+- slug: zhumbaq-original-083
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қызғылт сары қабығым оңай аршылады. Ішімдегі тілімдерді пышақсыз бөліп жейсің. Мен немін?
+    accept:
+    - Мандарин
+    - мандарин жемісі
+- slug: zhumbaq-original-084
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бұтақта пісетін домалақ жеміспін. Дәндерім ортасындағы шағын ұяларға жасырынған, түсім
+      қызыл да, жасыл да болады. Мен немін?
+    accept:
+    - Алма
+    - яблоко
+- slug: zhumbaq-original-085
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сары шапанымды аршысаң, жұмсақ ақшыл ішім ашылады. Иілген пішінім жаңа туған айға ұқсайды.
+      Мен немін?
+    accept:
+    - Банан
+    - банан жемісі
+- slug: zhumbaq-original-086
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір сабаққа ондаған шырынды моншақ тізілген. Кептірсең, мейізге айналамыз. Біз неміз?
+    accept:
+    - Жүзім
+    - виноград
+- slug: zhumbaq-original-087
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бетім барқыттай түкті, ішім шырынды. Ортама үлкен бұдыр сүйек жасырдым. Мен немін?
+    accept:
+    - Шабдалы
+    - персик
+- slug: zhumbaq-original-088
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қызыл домалақ жеміспін, жіңішке сағағым бар. Ішімде бір сүйек, ал ағашта кейде екеуден
+      қатар тұрамын. Мен немін?
+    accept:
+    - Шие
+    - вишня
+- slug: zhumbaq-original-089
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қызыл жемісімнің бетінде ұсақ дәндер көрінеді. Төбеме кішкентай жасыл жапырақ қалпақ
+      кигізілген. Мен немін?
+    accept:
+    - Құлпынай
+    - клубника
+- slug: zhumbaq-original-090
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір жемісім көп ұсақ домалақтан құралған. Бұтақтан үзгенде ортасында қуыс қалады. Мен
+      немін?
+    accept:
+    - Таңқурай
+    - малина
+- slug: zhumbaq-original-091
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір басым бірнеше бөлікке бөлінеді. Қабығымды аршысаң, өткір иісім бірден сезіледі.
+      Мен немін?
+    accept:
+    - Сарымсақ
+    - чеснок
+- slug: zhumbaq-original-092
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қабат-қабат киімімді аршыған сайын өзің жылайсың. Менің көзім жоқ, жылағаныңды көрмеймін.
+      Мен немін?
+    accept:
+    - Пияз
+    - лук
+- slug: zhumbaq-original-093
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қызғылт сары денем жердің астында, жасыл шашым үстінде. Қоян жақсы көретін көкөніспін.
+      Мен немін?
+    accept:
+    - Сәбіз
+    - морковь
+- slug: zhumbaq-original-094
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жер астында өскен қошқыл қызыл тамырмын. Мені турасаң, қолың мен сорпаң қызыл түске
+      боялады. Мен немін?
+    accept:
+    - Қызылша
+    - свекла
+    - свёкла
+- slug: zhumbaq-original-095
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тамырымның жанында жер астына түйнек жинаймын. Сол түйнектің көздерінен көктемде өскін
+      шығады. Мен немін?
+    accept:
+    - Картоп
+    - картофель
+    - картошка
+- slug: zhumbaq-original-096
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Құстар мен өсімдіктер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жасыл қабықтың ішінде сары дәндерім қатар-қатар тізілген. Төбемнен жібектей шаш салбырайды.
+      Мен немін?
+    accept:
+    - Жүгері
+    - кукуруза
+- slug: zhumbaq-original-097
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Есігін ашсаң, ішінен салқын леп соғады. Үйде тұрып, тағамдарға қыстың ауасын сақтаймын.
+      Мен немін?
+    accept:
+    - Тоңазытқыш
+    - холодильник
+- slug: zhumbaq-original-098
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ішімде су бар, барабаным айналады. Лас киім кіріп, таза киім шығады. Мен немін?
+    accept:
+    - Кір жуғыш машина
+    - кіржуғыш
+    - стиральная машина
+- slug: zhumbaq-original-099
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Едендегі шаңды желіммен ішіме жинаймын. Үйді аралаған сайын қапшығым толады. Мен немін?
+    accept:
+    - Шаңсорғыш
+    - пылесос
+- slug: zhumbaq-original-100
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ыстық табаныммен киімнің қыртысын жазамын. Жүремін, бірақ өз аяғым жоқ, мені қолың жүргізеді.
+      Мен немін?
+    accept:
+    - Үтік
+    - утюг
+- slug: zhumbaq-original-101
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қолға ұсталатын кішкентай жылы желмін. Жуынғаннан кейін шаштың суын кептіремін. Мен
+      немін?
+    accept:
+    - Шаш кептіргіш
+    - фен
+- slug: zhumbaq-original-102
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қанаттарым орнымнан кетпей айналады. Ұшпаймын, бірақ алдыңа жел жіберемін. Мен немін?
+    accept:
+    - Желдеткіш
+    - вентилятор
+- slug: zhumbaq-original-103
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қабырғада тұрып, жазда бөлменің ауасын салқындатамын. Терезені ашпай-ақ ыстықты жеңілдетемін.
+      Мен немін?
+    accept:
+    - Кондиционер
+    - ауа баптағыш
+- slug: zhumbaq-original-104
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Терезенің астында тізілген жылы қабырғалармын. Ішімдегі ыстық су бөлмені жылытады. Мен
+      немін?
+    accept:
+    - Радиатор
+    - жылу батареясы
+    - батарея отопления
+- slug: zhumbaq-original-105
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Терезенің алдына ілінген жұмсақ қабырғамын. Жапсаң, бөлме ішін сырт көзден жасырамын.
+      Мен немін?
+    accept:
+    - Перде
+    - штора
+- slug: zhumbaq-original-106
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Терезеде қатар-қатар жіңішке тақтайшалар тұр. Бірін қозғасаң, бәрі бұрылып жарықты реттейді.
+      Бұл не?
+    accept:
+    - Жалюзи
+    - жалюздер
+- slug: zhumbaq-original-107
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Еденге төселген өрнекті жұмсақ даламын. Үстіммен жүргенге жол берсем де, өзім орнымнан
+      қозғалмаймын. Мен немін?
+    accept:
+    - Кілем
+    - ковер
+    - ковёр
+- slug: zhumbaq-original-108
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнде басыңды көтеріп ұстаймын, қолым жоқ. Ішім жұмсақ, ұйқыңның жанында жатамын. Мен
+      немін?
+    accept:
+    - Жастық
+    - подушка
+- slug: zhumbaq-original-109
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнде денеңді жабамын, суықтан қорғаймын. Таңертең бүктеліп, төсектің үстінде қаламын.
+      Мен немін?
+    accept:
+    - Көрпе
+    - одеяло
+- slug: zhumbaq-original-110
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Төсектің үстіне салынған қалың жұмсақ қабатпын. Ұйықтағанда бүкіл денеңді көтеріп тұрамын.
+      Мен немін?
+    accept:
+    - Матрас
+    - матрац
+- slug: zhumbaq-original-111
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Иығым бар, басым жоқ. Шкафта көйлегіңді иығымнан түсірмей ұстаймын. Мен немін?
+    accept:
+    - Ілгіш
+    - киім ілгіш
+    - вешалка
+- slug: zhumbaq-original-112
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Есіктің күзетшісімін. Өзіме сай кілт келмесе, жолды ашпаймын. Мен немін?
+    accept:
+    - Құлып
+    - замок
+- slug: zhumbaq-original-113
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кішкентай темір денемде тістер бар. Құлыптың ішіне кіріп бұрылсам, есік ашылады. Мен
+      немін?
+    accept:
+    - Кілт
+    - ключ
+- slug: zhumbaq-original-114
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Есіктің екі жағында қол созып тұрамын. Мені басып не бұрап, ішке кіресің. Мен немін?
+    accept:
+    - Тұтқа
+    - есік тұтқасы
+    - дверная ручка
+- slug: zhumbaq-original-115
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аяғым жоқ, бірақ сені жоғары шығарамын. Арқамда бірінен бірі биік сатыларым бар. Мен
+      немін?
+    accept:
+    - Баспалдақ
+    - лестница
+- slug: zhumbaq-original-116
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қабырғада ілініп, кітаптарды қатар тұрғызамын. Үстел емеспін, аяғым да жоқ. Мен немін?
+    accept:
+    - Сөре
+    - полка
+- slug: zhumbaq-original-117
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ішімде киімдер ілінеді, есігім жабылса бәрі жасырынады. Бөлменің ішіндегі ағаш бөлмемін.
+      Мен немін?
+    accept:
+    - Шкаф
+    - киім шкафы
+- slug: zhumbaq-original-118
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Күндіз бірнеше адамды қатар отырғызамын. Кейбір түрім ашылса, түнге төсек боламын. Мен
+      немін?
+    accept:
+    - Диван
+    - диван жиһазы
+- slug: zhumbaq-original-119
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Отырғызатын орным бар, сүйенетін арқам жоқ. Орындықтың шағын туысымын. Мен немін?
+    accept:
+    - Табурет
+    - табуретка
+- slug: zhumbaq-original-120
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тұтқамнан ұстап, су тасисың. Ішім қуыс, аузым ашық, бірақ өзім ішпеймін. Мен немін?
+    accept:
+    - Шелек
+    - ведро
+- slug: zhumbaq-original-121
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір уыс жіңішке бұтақ белінен байланған. Еденді сипаған сайын қоқысты бір жерге жинайды.
+      Бұл не?
+    accept:
+    - Сыпырғыш
+    - веник
+    - сыпыртқы
+- slug: zhumbaq-original-122
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзын саптың ұшына шүберек ілінген. Еңкеймей-ақ еденді жуып шығуға көмектеседі. Бұл не?
+    accept:
+    - Еден сүрткіш
+    - швабра
+- slug: zhumbaq-original-123
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қолыңмен бірге суға түссем, көпіршіктенемін. Кірді кетірген сайын өзім кішірейемін.
+      Мен немін?
+    accept:
+    - Сабын
+    - мыло
+- slug: zhumbaq-original-124
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Суды ішемін, бірақ ауызым жоқ. Қолыңды құрғатқан сайын өзім суланамын. Мен немін?
+    accept:
+    - Сүлгі
+    - полотенце
+- slug: zhumbaq-original-125
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кішкентай басымда қылдар өседі. Таңертең және кешке ауыздағы ақ қатарларды тазалаймын.
+      Мен немін?
+    accept:
+    - Тіс щеткасы
+    - тіс тазалағыш щетка
+    - зубная щетка
+    - зубная щётка
+- slug: zhumbaq-original-126
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тісім көп, бірақ ас жемеймін. Шаштың арасымен жүргенде түйіндерін жазамын. Мен немін?
+    accept:
+    - Тарақ
+    - расческа
+    - расчёска
+- slug: zhumbaq-original-127
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Саусақтың ұшына өскен қатты шетін қысқартып отырамын. Кішкентай екі жүзім бір-біріне
+      қысылады. Мен немін?
+    accept:
+    - Тырнақ алғыш
+    - ногтерезка
+    - кусачки для ногтей
+- slug: zhumbaq-original-128
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Үйдегі заттар
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Алдымда күлсең, мен де күлемін. Оң қолыңды көтерсең, қарсыңдағы бейнең де қол көтереді.
+      Мен немін?
+    accept:
+    - Айна
+    - зеркало
+- slug: zhumbaq-original-129
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қарындаштың ізін жеген сайын өзім үгітілемін. Қатең жоғалады, ал қағазда ұсақ қиқымдарым
+      қалады. Мен немін?
+    accept:
+    - Өшіргіш
+    - резеңке
+    - ластик
+- slug: zhumbaq-original-130
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жиегім түзу, бетімде сандар мен бөліктер бар. Ұзындық өлшеп, түзу сызық салуға көмектесемін.
+      Мен немін?
+    accept:
+    - Сызғыш
+    - линейка
+- slug: zhumbaq-original-131
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі аяғымның бірі орнында тұрады, екіншісі оны айналып жүреді. Қағазда дөңгелек із қалдырамын.
+      Мен немін?
+    accept:
+    - Циркуль
+    - циркуль құралы
+- slug: zhumbaq-original-132
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жарты шеңберге ұқсаймын, жиегімде 0-ден 180-ге дейін сандар бар. Бұрыштың мөлшерін көрсетемін.
+      Мен немін?
+    accept:
+    - Транспортир
+    - бұрыш өлшегіш
+- slug: zhumbaq-original-133
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қағаздың үстімен жүргенде сиядан із қалдырамын. Сөздерді білемін демеймін, оларды қолың
+      жаздырады. Мен немін?
+    accept:
+    - Қалам
+    - ручка
+- slug: zhumbaq-original-134
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қара тақтаға ақ жол саламын. Жазған сайын қысқарамын, сүрткенде ізім шаңға айналады.
+      Мен немін?
+    accept:
+    - Бор
+    - мел
+- slug: zhumbaq-original-135
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ішімде жолдар не торлар бар. Сабақ сайын жаңа ойлар мен есептерге толамын. Мен немін?
+    accept:
+    - Дәптер
+    - тетрадь
+- slug: zhumbaq-original-136
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір бетімде сабақ кестесі, бір бетімде үй тапсырмасы тұрады. Бағаларың да маған жазылады.
+      Мен немін?
+    accept:
+    - Күнделік
+    - күнделік дәптер
+    - дневник
+- slug: zhumbaq-original-137
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Таңертең кітап пен дәптерді арқама жинаймын. Өзің арқаңа асып, мектепке алып барасың.
+      Мен немін?
+    accept:
+    - Сөмке
+    - мектеп сөмкесі
+    - портфель
+    - рюкзак
+- slug: zhumbaq-original-138
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сыныпта алдына отырып, дәптер ашасың. Үстімде есеп шығарып, астымда сөмкеңді сақтай
+      аласың. Мен немін?
+    accept:
+    - Парта
+    - мектеп партасы
+- slug: zhumbaq-original-139
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жерді кішірейтіп, айналатын шарға сыйғызған. Қалаларды іздесең, оны саусағыңмен айналдырасың.
+      Бұл не?
+    accept:
+    - Глобус
+    - жер шарының моделі
+- slug: zhumbaq-original-140
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үлкен елдер мен өзендер бір параққа сыйған. Олардың үстімен саусағың ғана саяхат жасайды.
+      Бұл не?
+    accept:
+    - Карта
+    - географиялық карта
+    - географическая карта
+- slug: zhumbaq-original-141
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сөздерімді әріп ретімен тізіп қойдым. Мағынасын білмеген сөзіңе менің ішімнен жол табасың.
+      Мен немін?
+    accept:
+    - Сөздік
+    - словарь
+- slug: zhumbaq-original-142
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тілдегі әріптерді ретімен тұрғызған саппын. Сөздер мыңдаған болса да, соларды жазатын
+      таңбаларымды жинадым. Мен немін?
+    accept:
+    - Әліпби
+    - алфавит
+- slug: zhumbaq-original-143
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Мені айтқанда ауа ауыздан кедергісіз шығады. Әнде созып айтуға ыңғайлы дыбыспын. Мен
+      қандай дыбыспын?
+    accept:
+    - Дауысты дыбыс
+    - дауысты
+    - гласный звук
+    - гласная
+- slug: zhumbaq-original-144
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сөзді айту кезінде бөлінетін бөлшекпін. Қазақша әрқайсымның ішінде бір дауысты дыбыс
+      болады. Мен немін?
+    accept:
+    - Буын
+    - слог
+- slug: zhumbaq-original-145
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сөз бір жолға сыймағанда, оның бір бөлігін келесі жолға өткіземін. Шекарамда кішкентай
+      сызықша қалады. Мен немін?
+    accept:
+    - Тасымал
+    - перенос слова
+    - перенос
+- slug: zhumbaq-original-146
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сөйлемнің соңында иіліп тұрамын, астымда бір нүктем бар. Мен тұрсам, жауап күтесің.
+      Мен немін?
+    accept:
+    - Сұрақ белгісі
+    - вопросительный знак
+- slug: zhumbaq-original-147
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тік сызықтың астында жалғыз нүкте бар. Қуаныш, бұйрық не таңдануды сөйлем соңында білдіремін.
+      Мен немін?
+    accept:
+    - Леп белгісі
+    - восклицательный знак
+- slug: zhumbaq-original-148
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кішкентай ғана таңбамын. Хабарлы сөйлем аяқталғанда, соңына жайғасамын. Мен немін?
+    accept:
+    - Нүкте
+    - точка
+- slug: zhumbaq-original-149
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бірінің үстіне бірі қойылған екі нүктеміз. Тізім басталар алдында жиі тұрамыз. Біз қандай
+      белгіміз?
+    accept:
+    - Қос нүкте
+    - двоеточие
+- slug: zhumbaq-original-150
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қатар тұрған үш ұсақ ізбіз. Айтылмай қалған ойдың барын білдіреміз. Біз қандай белгіміз?
+    accept:
+    - Көп нүкте
+    - многоточие
+- slug: zhumbaq-original-151
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі жақтан сөзді қоршаймын. Біреудің дәл айтқанын немесе шығарманың атын бөліп көрсетемін.
+      Мен немін?
+    accept:
+    - Тырнақша
+    - кавычки
+- slug: zhumbaq-original-152
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қосымша түсінікті екі жақтан құшақтаймыз. Сөйлемнің ортасында да шағын бөлме жасаймыз.
+      Біз неміз?
+    accept:
+    - Жақша
+    - скобка
+    - скобки
+- slug: zhumbaq-original-153
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аппақ қағаздағы қысқа көпірмін. Ата-ана деген сөзде екі бөлікті жалғап тұрмын. Мен немін?
+    accept:
+    - Дефис
+    - дефис белгісі
+- slug: zhumbaq-original-154
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: 'Жазылуымыз бөлек, мағынамыз жақын: әдемі, сұлу, көркем. Біз қалай аталамыз?'
+    accept:
+    - Синоним
+    - синонимдер
+- slug: zhumbaq-original-155
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ыстық пен суық, үлкен мен кіші — мағыналары қарама-қарсы жұптар. Бұлардың ортақ тілдік
+      атауы не?
+    accept:
+    - Антоним
+    - антонимдер
+- slug: zhumbaq-original-156
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Атымыз бірдей естіледі, мағынамыз бөлек. Бір «жаз» — жыл мезгілі, екіншісі — қаламға
+      берілген бұйрық. Біз неміз?
+    accept:
+    - Омоним
+    - омонимдер
+- slug: zhumbaq-original-157
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кітаптың бөлімдерін бет нөмірлерімен бірге тізіп көрсетемін. Қажетті тарауға тез апаратын
+      жолбасшымын. Мен немін?
+    accept:
+    - Мазмұн
+    - кітап мазмұны
+    - оглавление
+- slug: zhumbaq-original-158
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кітаптың қай жеріне келгеніңді үнсіз сақтаймын. Келесі ашқанда, сол бетті іздетпеймін.
+      Мен немін?
+    accept:
+    - Бетбелгі
+    - закладка
+- slug: zhumbaq-original-159
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сөрелерімде мыңдаған кітап тұрады. Ұнағанын уақытша алып оқып, кейін қайта әкелесің.
+      Бұл қандай орын?
+    accept:
+    - Кітапхана
+    - библиотека
+- slug: zhumbaq-original-160
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Мектеп пен тіл
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір картамен шектелмеймін, тұтас кітапқа жиналған карталармын. Әр бетім жаңа елге не
+      құрлыққа апарады. Мен немін?
+    accept:
+    - Атлас
+    - географиялық атлас
+- slug: zhumbaq-original-161
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үш түсті көзім кезек жанады. Қызылым тоқтатады, жасылым жол береді. Мен немін?
+    accept:
+    - Бағдаршам
+    - светофор
+- slug: zhumbaq-original-162
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі доңғалағым бар, қозғалтқышым — өзіңнің аяғың. Педальді айналдырсаң, алға жүремін.
+      Мен немін?
+    accept:
+    - Велосипед
+    - велосипед көлігі
+- slug: zhumbaq-original-163
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі доңғалақпен жүремін, бірақ педаль басудың керегі жоқ. Қозғалтқышымның даусы алыстан
+      естіледі. Мен немін?
+    accept:
+    - Мотоцикл
+    - мотоцикл көлігі
+- slug: zhumbaq-original-164
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қала көшесінде рельспен жүремін. Төбемдегі құрылғым жоғарыдағы сымнан қуат алады. Мен
+      немін?
+    accept:
+    - Трамвай
+    - трамвай көлігі
+- slug: zhumbaq-original-165
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Доңғалағым жолда жүреді, рельсім жоқ. Екі ұзын мүйізім үстімдегі сымдарға тіреліп, қуат
+      алады. Мен немін?
+    accept:
+    - Троллейбус
+    - троллейбус көлігі
+- slug: zhumbaq-original-166
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қаланың астымен пойыздарым зырлайды. Маған міну үшін алдымен жер астына түсесің. Мен
+      немін?
+    accept:
+    - Метро
+    - метрополитен
+- slug: zhumbaq-original-167
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қалада белгіленген бағытпен жүріп, аялдамаларда тоқтаймын. Жолаушыларымның әрқайсысында
+      бөлек орын болуы мүмкін. Мен немін?
+    accept:
+    - Автобус
+    - автобус көлігі
+- slug: zhumbaq-original-168
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Төбемдегі үлкен қалақтар айналғанда, тік жоғары көтерілемін. Ұшып келіп, бір орында
+      қалықтай аламын. Мен немін?
+    accept:
+    - Тікұшақ
+    - вертолет
+    - вертолёт
+- slug: zhumbaq-original-169
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қанатым қозғалмайды, бірақ аспанда ұшамын. Ұзақ жолды бұлттардың үстімен қысқартамын.
+      Мен немін?
+    accept:
+    - Ұшақ
+    - самолет
+    - самолёт
+- slug: zhumbaq-original-170
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кемемін, бірақ сапарымның көбін су астында өткіземін. Тереңге түссем де, ішімдегі адамдар
+      құрғақ отырады. Мен немін?
+    accept:
+    - Сүңгуір қайық
+    - подводная лодка
+- slug: zhumbaq-original-171
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қайықтың үстінде керілген матамын. Жел мені итерсе, қайықты алға жетелеймін. Мен немін?
+    accept:
+    - Желкен
+    - парус
+- slug: zhumbaq-original-172
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кеменің темір тоқтауышымын. Теңіз түбіне түскенде, кемені бір жерде ұстап қалуға көмектесемін.
+      Мен немін?
+    accept:
+    - Зәкір
+    - якорь
+- slug: zhumbaq-original-173
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қайықтың жанында суға кіріп-шығамын. Қолың мені қозғағанда, қайық алға жылжиды. Мен
+      немін?
+    accept:
+    - Ескек
+    - весло
+- slug: zhumbaq-original-174
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үйдің ішіндегі кішкентай бөлмемін. Есігім жабылса, жолаушыларды басқа қабатқа апарамын.
+      Мен немін?
+    accept:
+    - Лифт
+    - жеделсаты
+- slug: zhumbaq-original-175
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сатыларым өздері қозғалады. Үстімде жай тұрсаң да, сені жоғары не төмен жеткіземін.
+      Мен немін?
+    accept:
+    - Эскалатор
+    - жылжымалы баспалдақ
+- slug: zhumbaq-original-176
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Құрылыс басындағы ұзын мойынды темір алыппын. Ауыр жүкті ілмегіммен биікке көтеремін.
+      Мен немін?
+    accept:
+    - Кран
+    - көтергіш кран
+    - подъемный кран
+    - подъёмный кран
+- slug: zhumbaq-original-177
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Алдымдағы үлкен темір күрекпен топырақты итеремін. Жол дайындап, жерді тегістеймін.
+      Мен немін?
+    accept:
+    - Бульдозер
+    - бульдозер көлігі
+- slug: zhumbaq-original-178
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзын темір қолымның ұшында шөміш бар. Жерді қазып, топырақты бір шетке жинаймын. Мен
+      немін?
+    accept:
+    - Экскаватор
+    - экскаватор көлігі
+- slug: zhumbaq-original-179
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Егістікте жүріп, астықты орамын әрі дәнін сабағынан ажыратамын. Бір өзім бірнеше жұмысты
+      атқарамын. Мен немін?
+    accept:
+    - Комбайн
+    - астық комбайны
+- slug: zhumbaq-original-180
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Доңғалақтарым ірі, күшім көп. Соқа тіркеп, егін егілетін жерді жыртамын. Мен немін?
+    accept:
+    - Трактор
+    - трактор көлігі
+- slug: zhumbaq-original-181
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аспандағы алысты көруге көмектесетін ұзын көзбін. Айдың бетін жақындатып көрсетемін.
+      Мен немін?
+    accept:
+    - Телескоп
+    - телескоп құралы
+- slug: zhumbaq-original-182
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Көзге әрең көрінетін ұсақ дүниені үлкейтемін. Бір тамшы судан тұтас бір әлем ашып бере
+      аламын. Мен немін?
+    accept:
+    - Микроскоп
+    - микроскоп құралы
+- slug: zhumbaq-original-183
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі көзге екі түтік жалғанған. Алыстағы құсты өзіне жақындамай-ақ анық көресің. Бұл
+      не?
+    accept:
+    - Дүрбі
+    - бинокль
+- slug: zhumbaq-original-184
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қайда бұрылсаң да, тілім солтүстік бағытты іздейді. Орманда жол тапқанда серігің боламын.
+      Мен немін?
+    accept:
+    - Компас
+    - құбылнама
+- slug: zhumbaq-original-185
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жылу мен суықты санмен көрсетемін. Денеге де, далаға да арналған түрлерім бар. Мен немін?
+    accept:
+    - Термометр
+    - градусник
+- slug: zhumbaq-original-186
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Өзіңді не жүгіңді үстіме қойсаң, массасын көрсетемін. Дүкенде жемістің бағасын есептеуге
+      көмектесемін. Мен немін?
+    accept:
+    - Таразы
+    - весы
+- slug: zhumbaq-original-187
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Уақытты өзің бастағанда санаймын, өзің тоқтатқанда тоқтаймын. Жүгірудегі нәтижеңді өлшеймін.
+      Мен немін?
+    accept:
+    - Секундомер
+    - секундомер құралы
+- slug: zhumbaq-original-188
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түн бойы тыныш тұра аламын. Белгілеген уақытың келгенде, даусыммен ұйқыңды бөлемін.
+      Мен немін?
+    accept:
+    - Оятқыш
+    - будильник
+- slug: zhumbaq-original-189
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі шыны ыдыстың арасындағы жіңішке мойыннан ұсақ дәндер төгіледі. Төңкерсең, уақытты
+      қайта санаймын. Мен немін?
+    accept:
+    - Құмсағат
+    - құм сағат
+    - песочные часы
+- slug: zhumbaq-original-190
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тілімнің орнына көлеңке жүреді. Күн сәулесі түспесе, уақытты көрсете алмаймын. Мен немін?
+    accept:
+    - Күн сағаты
+    - күнсағат
+    - солнечные часы
+- slug: zhumbaq-original-191
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сыммен келген қуатты жарыққа айналдырамын. Төбеде тұрып бөлменің қараңғысын сейілтемін.
+      Мен немін?
+    accept:
+    - Шам
+    - электр шамы
+    - лампа
+- slug: zhumbaq-original-192
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Техника мен көлік
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Теңіз жағасындағы биік мұнарамын. Түнгі жарығым кемелерге жағалауды табуға көмектеседі.
+      Мен немін?
+    accept:
+    - Шамшырақ
+    - маяк
+- slug: zhumbaq-original-193
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үстімде әріптер мен сандар қатар отыр. Саусағың басқанда, экранда сөздер пайда болады.
+      Мен немін?
+    accept:
+    - Пернетақта
+    - клавиатура
+- slug: zhumbaq-original-194
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үстелдің үстінде қозғалсам, экранда кішкентай көрсеткі жүреді. Жануар емеспін, бірақ
+      атым жануарға ұқсайды. Мен немін?
+    accept:
+    - Компьютер тінтуірі
+    - тінтуір
+    - мышка
+    - компьютерная мышь
+- slug: zhumbaq-original-195
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Компьютердің ойындағы суреттерді көрсетемін. Терезеге ұқсаймын, бірақ оның ар жағында
+      бөлме жоқ. Мен немін?
+    accept:
+    - Монитор
+    - компьютер экраны
+- slug: zhumbaq-original-196
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Экрандағы мәтінді қағаз бетіне түсіремін. Парақ ішіме ақ кіріп, сыртқа жазумен шығады.
+      Мен немін?
+    accept:
+    - Принтер
+    - басып шығарғыш
+- slug: zhumbaq-original-197
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қағаздағы суретті компьютерге көшіремін. Парақты боямаймын, тек оның сандық бейнесін
+      жасаймын. Мен немін?
+    accept:
+    - Сканер
+    - сканер құрылғысы
+- slug: zhumbaq-original-198
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Әуенді құлағыңа жақын әкелемін. Жаныңдағы адам сен тыңдаған әнді анық естімеуі мүмкін.
+      Мен немін?
+    accept:
+    - Құлаққап
+    - наушники
+- slug: zhumbaq-original-199
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Даусыңды ұстап, сымға не толқынға айналдырамын. Сахнада әнші мені аузына жақын ұстайды.
+      Мен немін?
+    accept:
+    - Микрофон
+    - микрофон құрылғысы
+- slug: zhumbaq-original-200
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ішімдегі мембрана тербелгенде, бөлме дыбысқа толады. Музыканы өзім жазбаймын, сыртқа
+      шығарамын. Мен немін?
+    accept:
+    - Динамик
+    - дыбыс зорайтқыш
+    - колонка
+- slug: zhumbaq-original-201
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Алдымдағы көріністі суретке не бейнеге сақтаймын. Көзім линзадан жасалған. Мен немін?
+    accept:
+    - Камера
+    - бейнекамера
+    - фотоаппарат
+- slug: zhumbaq-original-202
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үш аяқпен қозғалмай тұрамын. Үстімдегі камераны дірілдетпей, бір орынға бекітемін. Мен
+      немін?
+    accept:
+    - Штатив
+    - тіреуіш штатив
+- slug: zhumbaq-original-203
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Диванда отырып батырмамды бассаң, теледидар арнасын ауыстырады. Сымсыз бұйрық жеткіземін.
+      Мен немін?
+    accept:
+    - Пульт
+    - қашықтан басқару пульті
+- slug: zhumbaq-original-204
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Розетка мен телефонның арасында тұрамын. Телефонның таусылған қуатын қайта толтыруға
+      көмектесемін. Мен немін?
+    accept:
+    - Қуаттағыш
+    - зарядтағыш
+    - зарядное устройство
+- slug: zhumbaq-original-205
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қуатты алдын ала жинап аламын. Розетка жоқ жерде телефонға сол қорымды беремін. Мен
+      немін?
+    accept:
+    - Пауэрбанк
+    - сыртқы аккумулятор
+    - powerbank
+    - power bank
+- slug: zhumbaq-original-206
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кішкентай денемде қуат сақтаймын. Бір ұшымда плюс, екінші ұшымда минус таңбасы бар.
+      Мен немін?
+    accept:
+    - Батарейка
+    - қорек элементі
+- slug: zhumbaq-original-207
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қабырғадағы екі тесікке құрылғының ашасы кіреді. Үйдегі электр желісіне жол ашамын.
+      Мен немін?
+    accept:
+    - Розетка
+    - электр розеткасы
+- slug: zhumbaq-original-208
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Розетка алыс болса, сымыммен жақындатамын. Бір ұшым қабырғада, екінші ұшым құрылғыларыңның
+      жанында. Мен немін?
+    accept:
+    - Ұзартқыш
+    - удлинитель
+- slug: zhumbaq-original-209
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үйдегі интернет жолдарын бөліп беремін. Көбіне антенналарым бар, Wi-Fi желісін таратамын.
+      Мен немін?
+    accept:
+    - Маршрутизатор
+    - роутер
+- slug: zhumbaq-original-210
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Телефон мен құлаққапты сымсыз жұптастырамын. Алыс құрлықтарға емес, жақындағы құрылғыларға
+      байланыс беремін. Мен немін?
+    accept:
+    - Bluetooth
+    - блютуз
+- slug: zhumbaq-original-211
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ақ алаңға ұсақ қара шаршылар жиналған. Камераға көрсетсең, сілтеме не мәтін ашылады.
+      Бұл не?
+    accept:
+    - QR код
+    - QR-код
+    - куар код
+- slug: zhumbaq-original-212
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Есептік жазбаңның көрінбейтін кілтімін. Мені дұрыс терсең, ішке кіресің, өзгеге айтуға
+      болмайды. Мен немін?
+    accept:
+    - Құпиясөз
+    - пароль
+- slug: zhumbaq-original-213
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір кішкентай суретпен күлкіңді, таңданысыңды не көңіл күйіңді жеткіземін. Хабарламаның
+      ішіне сыйып кетемін. Мен немін?
+    accept:
+    - Эмодзи
+    - эмоджи
+    - emoji
+- slug: zhumbaq-original-214
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Чатта сөздің орнына жіберілетін үлкенірек суретпін. Кейде кейіпкерім қозғалып, көңіл
+      күйді көрсетеді. Мен немін?
+    accept:
+    - Стикер
+    - стикер суреті
+- slug: zhumbaq-original-215
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Камерасыз жасалған экранның фотосымын. Сол сәтте дисплейде не тұрса, соны сақтаймын.
+      Мен немін?
+    accept:
+    - Скриншот
+    - экран суреті
+- slug: zhumbaq-original-216
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Мені басқанда, басқа бет не пост ашылады. Интернеттегі екі мекенді жалғайтын көрінбейтін
+      жолмын. Мен немін?
+    accept:
+    - Сілтеме
+    - гиперсілтеме
+    - ссылка
+- slug: zhumbaq-original-217
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сайттардың есігін ашатын бағдарламамын. Мекенжай жазсаң, интернеттегі бетті көрсетемін.
+      Мен немін?
+    accept:
+    - Браузер
+    - веб браузер
+- slug: zhumbaq-original-218
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сұрағыңды жазсаң, интернеттен соған ұқсас беттерді тауып тіземін. Бүкіл желінің жол
+      көрсеткішімін. Мен немін?
+    accept:
+    - Іздеу жүйесі
+    - поисковик
+    - поисковая система
+- slug: zhumbaq-original-219
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Хатымды қағазға баспай, мекенжайында @ таңбасы бар жәшікке жібересің. Бұл қандай байланыс?
+    accept:
+    - Электрондық пошта
+    - электронды пошта
+    - email
+    - электронная почта
+- slug: zhumbaq-original-220
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Компьютерде өшірген файлдарың алдымен маған түседі. Босатып үлгермесең, кейбірін қайтарып
+      алуға болады. Мен немін?
+    accept:
+    - Себет
+    - компьютер себеті
+    - корзина
+- slug: zhumbaq-original-221
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кішкентай қалтаға көп файл сыйғызамын. Компьютердің USB ұясына қосылсам, ішімдегі деректер
+      ашылады. Мен немін?
+    accept:
+    - Флешка
+    - USB жинақтауыш
+    - флеш жинақтауыш
+- slug: zhumbaq-original-222
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Өзім тырнақтай жұқамын, ішіме мыңдаған сурет сыяды. Камера не телефонның арнайы ұясына
+      кіремін. Мен немін?
+    accept:
+    - Жад картасы
+    - карта памяти
+- slug: zhumbaq-original-223
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Шатырда жатып күн сәулесін ұстаймын. Сол жарықтан электр қуатын өндіремін. Мен немін?
+    accept:
+    - Күн панелі
+    - күн батареясы
+    - солнечная панель
+- slug: zhumbaq-original-224
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Сандық әлем
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тауардың сыртындағы әртүрлі қалыңдықтағы қара жолақтармын. Касса мені оқығанда, тауарды
+      таниды. Мен немін?
+    accept:
+    - Штрихкод
+    - штрих код
+    - штрих-код
+- slug: zhumbaq-original-225
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аралар гүл шырынынан жинаған тәтті қорымын. Ұядағы кәрездің ішінде сақталамын. Мен немін?
+    accept:
+    - Бал
+    - мед
+    - мёд
+- slug: zhumbaq-original-226
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қаймақты шайқап алады, нанға жағып жейді. Салқында қатаямын, жылы табада еримін. Мен
+      немін?
+    accept:
+    - Сары май
+    - сарымаи
+    - сливочное масло
+- slug: zhumbaq-original-227
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сүттен жасалатын қою тағаммын. Ақ не сары болып келемін, кейбір түрімде ұсақ тесіктер
+      болады. Мен немін?
+    accept:
+    - Ірімшік
+    - сыр
+    - иримшик
+- slug: zhumbaq-original-228
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сүзілген сүт тағамын тұздап, кептіріп жасайды. Кішкентай қатты түйіршікпін, жолға алып
+      жүруге ыңғайлымын. Мен немін?
+    accept:
+    - Құрт
+    - құрт тағамы
+    - курт
+- slug: zhumbaq-original-229
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бие сүтін ашытып дайындайтын сусынмын. Саба мен торсықта сақталған кезім көп. Мен немін?
+    accept:
+    - Қымыз
+    - кумыс
+- slug: zhumbaq-original-230
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түйенің сүтінен ашытылатын қою сусынмын. Дастарқанда қымыздың қасында тұруым мүмкін.
+      Мен немін?
+    accept:
+    - Шұбат
+    - шубат
+- slug: zhumbaq-original-231
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұйытылған сүттен дайындалатын қышқылтым сусынмын. Ыстық күні салқын ішсең, шөліңді басамын.
+      Мен немін?
+    accept:
+    - Айран
+    - айран сусыны
+- slug: zhumbaq-original-232
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сүттің бетіне жиналған майлы қабатпын. Шайға да қосады, нанға да жағады. Мен немін?
+    accept:
+    - Қаймақ
+    - сметана
+    - сливки
+- slug: zhumbaq-original-233
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қамырдан жасалып, майға түссем томпайып пісемін. Шай дастарқанында үйіліп жатамын. Мен
+      немін?
+    accept:
+    - Бауырсақ
+    - баурсаки
+    - бауырсақтар
+- slug: zhumbaq-original-234
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Домалақ жайылған жұқа қамырмын. Пешке емес, табадағы майға пісемін. Мен немін?
+    accept:
+    - Шелпек
+    - шелпек наны
+- slug: zhumbaq-original-235
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Көктемгі мерекеде жеті түрлі дәм қосып әзірлейді. Көрші-қолаңға ұсынылатын ерекше көжемін.
+      Мен немін?
+    accept:
+    - Наурыз көже
+    - наурызкөже
+    - наурыз коже
+- slug: zhumbaq-original-236
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Талқанға май мен тәтті қосып біріктіреді. Піскен нан емеспін, кесіп не үзіп жейтін ұлттық
+      тәттімін. Мен немін?
+    accept:
+    - Жент
+    - жент тағамы
+- slug: zhumbaq-original-237
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қуырылған дәнді ұнтақтап алады. Құрғақ та жейді, майға не сүтке де араластырады. Мен
+      немін?
+    accept:
+    - Талқан
+    - талкан
+- slug: zhumbaq-original-238
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сыртым қатты жұқа қабық, ішімде ақ пен сары бар. Қуырып та, суға пісіріп те жейді. Мен
+      немін?
+    accept:
+    - Жұмыртқа
+    - яйцо
+- slug: zhumbaq-original-239
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тәтті әрі суықпын. Жазда қуантамын, бірақ қолыңда ұзақ тұрсам тамшылап жоғаламын. Мен
+      немін?
+    accept:
+    - Балмұздақ
+    - мороженое
+- slug: zhumbaq-original-240
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Какаодан жасалған тәттімін. Тақтаға ұқсап бөліктерге бөлінемін, жылыда жұмсарып еримін.
+      Мен немін?
+    accept:
+    - Шоколад
+    - шоколад тәттісі
+- slug: zhumbaq-original-241
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кішкентай тәттімін, көбіне жеке-жеке жылтыр қағазға оранамын. Шайға қанттың орнына да
+      ұсыныламын. Мен немін?
+    accept:
+    - Кәмпит
+    - конфета
+- slug: zhumbaq-original-242
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жемісті қантпен қайнатып, банкаға жабады. Қыста жаздың тәтті дәмін дастарқанға әкелемін.
+      Мен немін?
+    accept:
+    - Тосап
+    - варенье
+- slug: zhumbaq-original-243
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бұрын жүзімнің шырынды дәні едім. Кепкеннен кейін әжімденіп, кішкентай тәттіге айналдым.
+      Мен немін?
+    accept:
+    - Мейіз
+    - изюм
+- slug: zhumbaq-original-244
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жүгері дәнімін, қызғанда тарс етіп ашыламын. Кино көргенде ақ үлпілдек күйімде жейді.
+      Мен немін?
+    accept:
+    - Попкорн
+    - поп корн
+    - поп-корн
+- slug: zhumbaq-original-245
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қамырдың ішіне қосыламын. Газ бөліп, оны көтеріп, нанның жұмсақ шығуына көмектесемін.
+      Мен немін?
+    accept:
+    - Ашытқы
+    - дрожжи
+- slug: zhumbaq-original-246
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұн мен су араласқанда пайда боламын. Әлі піскен жоқпын, бірақ менен нан да, кеспе де
+      жасауға болады. Мен немін?
+    accept:
+    - Қамыр
+    - тесто
+- slug: zhumbaq-original-247
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Дәнді диірменде тартқаннан шығатын ақ ұнтақпын. Нанның сапары көбіне менен басталады.
+      Мен немін?
+    accept:
+    - Ұн
+    - мука
+- slug: zhumbaq-original-248
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аппақ ұсақ түйірмін, тәтті емеспін. Аздап қоссаң дәм беремін, тым көп қоссақ асты бұзамын.
+      Мен немін?
+    accept:
+    - Тұз
+    - соль
+- slug: zhumbaq-original-249
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Шайға түскенде еріп жоғаламын, бірақ тәтті дәмім қалады. Ақ түйіршік не шақпақ болып
+      келемін. Мен немін?
+    accept:
+    - Қант
+    - сахар
+- slug: zhumbaq-original-250
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түбім толған ұсақ тесік. Ұнды өткізгенде, ірі түйірлерін ұстап қаламын. Мен немін?
+    accept:
+    - Елек
+    - сито
+- slug: zhumbaq-original-251
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қасыққа ұқсаймын, бірақ басым тесіктерге толы. Майдағы бауырсақты алып, майын қайта
+      ағызамын. Мен немін?
+    accept:
+    - Кепсер
+    - шумовка
+- slug: zhumbaq-original-252
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі алақанның астында домалап жүремін. Қалың қамырды жұқартып, жайып беремін. Мен немін?
+    accept:
+    - Оқтау
+    - скалка
+- slug: zhumbaq-original-253
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бетім ұсақ өткір тесіктерге толы. Сәбізді не ірімшікті үстімнен жүргізсең, жіңішке үгінділерге
+      бөлемін. Мен немін?
+    accept:
+    - Үккіш
+    - терка
+    - тёрка
+- slug: zhumbaq-original-254
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Шырынды жеміс едім, сүйегімді алып, күнге кептірді. Қыста да сақталатын қызғылт сары
+      тәттіге айналдым. Мен немін?
+    accept:
+    - Кептірілген өрік
+    - курага
+    - қақ өрік
+- slug: zhumbaq-original-255
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Күріш, сәбіз және ет бір қазанда тоғысады. Дәнім ботқадай езіліп кетпей, жеке-жеке тұрғаны
+      жақсы. Мен қандай тағаммын?
+    accept:
+    - Палау
+    - плов
+- slug: zhumbaq-original-256
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Ас пен дастарқан
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ішіме салма салынып, қамырым түйіледі. Суға батып қайнамаймын, буда пісемін. Мен немін?
+    accept:
+    - Манты
+    - манты тағамы
+- slug: zhumbaq-original-257
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі ішегім бар, ұзын мойныма пернелер тағылған. Саусақ тиіп қағылғанда, күй болып сөйлеймін.
+      Мен немін?
+    accept:
+    - Домбыра
+    - домбра
+- slug: zhumbaq-original-258
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үнімді ысқышпен шығарады. Дәстүрлі түрімнің ішегі қылдан, шанағым терімен қапталған.
+      Мен қандай аспаппын?
+    accept:
+    - Қобыз
+    - кобыз
+- slug: zhumbaq-original-259
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзын түтігіме үрлеп, тесіктерімді саусақпен жабады. Даланың қоңыр әуенін жеткізетін
+      аспаппын. Мен немін?
+    accept:
+    - Сыбызғы
+    - сыбызгы
+- slug: zhumbaq-original-260
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үстіме қатар-қатар ішектер керілген. Жерге не үстелге қойып, ішектерімді шертіп ойнайды.
+      Мен қандай аспаппын?
+    accept:
+    - Жетіген
+    - жетиген
+- slug: zhumbaq-original-261
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Денем ағаштан, бетім теріден. Ұрған сайын зор дауысым естіліп, жұртқа белгі бере аламын.
+      Мен немін?
+    accept:
+    - Дауылпаз
+    - дауылпаз аспабы
+- slug: zhumbaq-original-262
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Саздан жасалып, отқа күйдірілген кішкентай үрмелі аспаппын. Тесіктерімді бассаң, үнім
+      өзгереді. Мен немін?
+    accept:
+    - Сазсырнай
+    - саз сырнай
+- slug: zhumbaq-original-263
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кішкентай темір аспаппын, ауызға тақап ойнайды. Тілімді тербеткенде, ауыз қуысы дыбысымды
+      өзгертеді. Мен немін?
+    accept:
+    - Шаңқобыз
+    - шан кобыз
+    - шаң қобыз
+- slug: zhumbaq-original-264
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Киіз үйдің төбесіндегі дөңгелек көзбін. Уықтар маған тіреледі, ішке жарық мен арқылы
+      түседі. Мен немін?
+    accept:
+    - Шаңырақ
+    - шанырак
+- slug: zhumbaq-original-265
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Айқасқан ағаштардан жиналған торлы қабырғамын. Жайсаң үлкейемін, бүктесең көшке дайын
+      боламын. Мен немін?
+    accept:
+    - Кереге
+    - кереге торы
+- slug: zhumbaq-original-266
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір ұшым керегеге, екінші ұшым шаңыраққа тіреледі. Киіз үйдің иілген төбесін ұстаймын.
+      Мен немін?
+    accept:
+    - Уық
+    - уык
+- slug: zhumbaq-original-267
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Киіз үйдің төбесіндегі дөңгелек тесікті жабамын. Ашылсам жарық түседі, жабылсам жаңбырдан
+      қорғаймын. Мен немін?
+    accept:
+    - Түндік
+    - тундик
+- slug: zhumbaq-original-268
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Киіз үйдің ішкі қабырғасына ілінетін өрнекті бұйыммын. Жерге төселмеймін, төрді сәндеймін.
+      Мен немін?
+    accept:
+    - Тұскиіз
+    - тускииз
+- slug: zhumbaq-original-269
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түрлі түсті киізді қиып, сырып тіккен төсенішпін. Өрнегім едендегі ертегіге ұқсайды.
+      Мен немін?
+    accept:
+    - Сырмақ
+    - сырмак
+- slug: zhumbaq-original-270
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Киім мен бағалы бұйымдарды ішіме жинайды. Қақпағым жоғары ашылады, кейде сыртым оюмен
+      әшекейленеді. Мен немін?
+    accept:
+    - Сандық
+    - сундук
+- slug: zhumbaq-original-271
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сәби жататын ағаш төсегімін. Ақырын тербетсе, бөбек ұйқыға кетеді. Мен немін?
+    accept:
+    - Бесік
+    - колыбель
+- slug: zhumbaq-original-272
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Теріден тігілген сусын ыдысымын. Жолға шыққанда ерге байлап, қымыз алып жүруге болады.
+      Мен немін?
+    accept:
+    - Торсық
+    - торсык
+- slug: zhumbaq-original-273
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тұтқасы жоқ шағын ыдыспын. Шай құйылғанда екі алақанға сыйып кетемін. Мен немін?
+    accept:
+    - Кесе
+    - пиала
+- slug: zhumbaq-original-274
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сабым ұзын, басым терең. Қазандағы көжені кесеге бір-бірлеп тасимын. Мен немін?
+    accept:
+    - Ожау
+    - половник
+- slug: zhumbaq-original-275
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзатылатын қыз киетін биік, әшекейлі баскиіммін. Той үстінде алыстан көзге түсемін.
+      Мен немін?
+    accept:
+    - Сәукеле
+    - саукеле
+- slug: zhumbaq-original-276
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Басқа киетін жеңіл, шағын баскиіммін. Үстіме ою не үкі тағылуы мүмкін. Мен немін?
+    accept:
+    - Тақия
+    - тюбетейка
+- slug: zhumbaq-original-277
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қыстың суығына арналған жылы баскиіммін. Құлақты жабатын ұзын бөліктерім бар. Мен немін?
+    accept:
+    - Тымақ
+    - тымак
+- slug: zhumbaq-original-278
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Көйлектің сыртынан киілетін жеңсіз киіммін. Алдыңғы бетімді оюмен, түймемен сәндейді.
+      Мен немін?
+    accept:
+    - Камзол
+    - қамзол
+- slug: zhumbaq-original-279
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Иыққа жабылатын кең әрі ұзын сырт киіммін. Құрметті қонаққа сый ретінде де берілемін.
+      Мен немін?
+    accept:
+    - Шапан
+    - чапан
+- slug: zhumbaq-original-280
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жұмсақ былғарыдан тігілетін аяқкиіммін. Сыртымнан кебіс киіп, ішке кіргенде кебісті
+      шешуге болады. Мен немін?
+    accept:
+    - Мәсі
+    - масі
+    - маси
+- slug: zhumbaq-original-281
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қойдың тілерсек сүйегінен алынатын ойын бұйымымын. Алшы түссем, ойыншы қуанады. Мен
+      немін?
+    accept:
+    - Асық
+    - асык
+- slug: zhumbaq-original-282
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тақтамда екі жаққа тоғыз-тоғыз отау бар. Құмалақтарды санап, есеппен жүріс жасайсың.
+      Мен қандай ойынмын?
+    accept:
+    - Тоғызқұмалақ
+    - тогызкумалак
+- slug: zhumbaq-original-283
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі топ бір жіптің екі ұшынан ұстайды. Кім қарсыласын белгіленген сызықтан өткізсе,
+      сол жеңеді. Бұл қандай ойын?
+    accept:
+    - Арқан тартыс
+    - арқантартыс
+- slug: zhumbaq-original-284
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Алты сырықтан жасалған тіреуге арқан байланады. Жастар кешкі әнмен тербеліп көңіл көтереді.
+      Бұл не?
+    accept:
+    - Алтыбақан
+    - алтыбакан
+- slug: zhumbaq-original-285
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Алғаш қадам басқан баланың аяғындағы ала жіпті кеседі. Жолы ашық болсын деген тілек
+      айтылады. Бұл қандай дәстүр?
+    accept:
+    - Тұсаукесер
+    - тұсау кесу
+- slug: zhumbaq-original-286
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қуанышты сәтте тәттілерді жұртқа шашады. Балалар жерден жинап, жақсылыққа бірге қуанады.
+      Бұл не?
+    accept:
+    - Шашу
+    - шашу дәстүрі
+- slug: zhumbaq-original-287
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сөзсіз айтылған әңгімемін. Домбыраның үнімен қуаныш та, мұң да жеткізе аламын. Мен немін?
+    accept:
+    - Күй
+    - кюй
+- slug: zhumbaq-original-288
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Дәстүр мен өнер
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі ақын кезектесіп өлеңмен жауаптасады. Дайын мәтіннен гөрі тапқырлық пен суырыпсалмалық
+      сыналады. Бұл не?
+    accept:
+    - Айтыс
+    - айтыс өнері
+- slug: zhumbaq-original-289
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнгі аспанда кейде орақ, кейде толық дөңгелек болып көрінемін. Өз жарығым жоқ, Күннің
+      сәулесін қайтарамын. Мен немін?
+    accept:
+    - Ай
+    - луна
+- slug: zhumbaq-original-290
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жерге ең жақын жұлдызбын. Күндізгі жарық пен жылудың негізгі көзі менмін. Мен немін?
+    accept:
+    - Күн
+    - солнце
+- slug: zhumbaq-original-291
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Кейде таң алдында, кейде кешке жарық болып көрінемін. Жұлдыз деп атағанмен, Күнді айналатын
+      ғаламшармын. Мен немін?
+    accept:
+    - Шолпан
+    - Венера
+- slug: zhumbaq-original-292
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Солтүстік бағытты табуға көмектесетін жұлдызбын. Түнгі аспанда орнымды көп өзгертпегендей
+      көрінемін. Мен немін?
+    accept:
+    - Темірқазық
+    - Полярная звезда
+    - полярная
+- slug: zhumbaq-original-293
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнгі аспанда жеті жарық жұлдыз шөмішке ұқсап орналасқан. Қазақша атында ұрылардың аты
+      бар. Бұл не?
+    accept:
+    - Жетіқарақшы
+    - жеті қарақшы
+    - Большая Медведица
+- slug: zhumbaq-original-294
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Адамдар аспандағы жұлдыздарды ойша сызықтармен қосып, бейне мен ат береді. Осындай аспан
+      аймағы қалай аталады?
+    accept:
+    - Шоқжұлдыз
+    - созвездие
+- slug: zhumbaq-original-295
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Зымыран мені аспанға жеткізді. Енді Жерді айналып, байланыс не бақылау жұмысын атқарамын.
+      Мен немін?
+    accept:
+    - Жер серігі
+    - жасанды жер серігі
+    - спутник
+- slug: zhumbaq-original-296
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Артымнан от пен газ атқылап, жоғары көтерілемін. Жер серігін ғарышқа жеткізе аламын.
+      Мен немін?
+    accept:
+    - Зымыран
+    - ракета
+- slug: zhumbaq-original-297
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жерден зымыранмен аттанып, ғарышта жұмыс істейтін адаммын. Сыртқа шыққанда арнайы киім
+      киемін. Мен кіммін?
+    accept:
+    - Ғарышкер
+    - космонавт
+- slug: zhumbaq-original-298
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ғарышта адамның денесін қоршап тұратын арнайы киіммін. Тыныс алуға ауа беріп, сыртқы
+      ортадан қорғаймын. Мен немін?
+    accept:
+    - Скафандр
+    - ғарыш скафандры
+- slug: zhumbaq-original-299
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жер серігі планетаны айналғанда жүретін жолмын. Асфальтым жоқ, ғарышта орналасамын.
+      Мен немін?
+    accept:
+    - Орбита
+    - орбита жолы
+- slug: zhumbaq-original-300
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Түнде аспанды сызып өткен жарық ізбін. Жұлдыз құлаған жоқ, ауаға кірген кішкентай дене
+      жарқырады. Бұл қандай құбылыс?
+    accept:
+    - Метеор
+    - аққан жұлдыз
+- slug: zhumbaq-original-301
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ғарыштан келіп, атмосферада толық жанып үлгермей жерге жеткен таспын. Мен немін?
+    accept:
+    - Метеорит
+    - метеорит тасы
+- slug: zhumbaq-original-302
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Күнге жақындағанда газ бен шаңнан құйрық шығарамын. Жұлдыз емеспін, Күнді айналып жүретін
+      мұзды денемін. Мен немін?
+    accept:
+    - Комета
+    - құйрықты жұлдыз
+- slug: zhumbaq-original-303
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ай Күн мен Жердің арасына түсіп, күндізгі жарықты уақытша көлегейледі. Бұл қандай құбылыс?
+    accept:
+    - Күн тұтылуы
+    - солнечное затмение
+- slug: zhumbaq-original-304
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Толған Ай Жердің көлеңкесіне кіріп, қарауытып көрінді. Күнді Жердің өзі жауып тұр. Бұл
+      қандай құбылыс?
+    accept:
+    - Ай тұтылуы
+    - лунное затмение
+- slug: zhumbaq-original-305
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қараңғы ашық түнде аспанды кесіп өткен бозғылт жолақ болып көрінемін. Бұл — өзіміз өмір
+      сүретін галактиканың көрінісі. Мен немін?
+    accept:
+    - Құс жолы
+    - Млечный Путь
+- slug: zhumbaq-original-306
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Өзеннің екі жағасын жалғаймын. Үстіммен өткен адам суға түспей-ақ арғы бетке жетеді.
+      Мен немін?
+    accept:
+    - Көпір
+    - мост
+- slug: zhumbaq-original-307
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Таудың не жердің ішін тесіп жасалған жолмын. Маған кірген көлік біршама уақыт күн сәулесін
+      көрмейді. Мен немін?
+    accept:
+    - Туннель
+    - тоннель
+- slug: zhumbaq-original-308
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Асфальтқа салынған ақ жолақтарым бар. Жануар емеспін, адамдар көшені менің үстіммен
+      кесіп өтеді. Мен немін?
+    accept:
+    - Жаяу жүргінші өткелі
+    - зебра өткелі
+    - пешеходный переход
+- slug: zhumbaq-original-309
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қағаз не экрандағы белгі бола аламын. Көлікке мінуге немесе залға кіруге ақы төлегеніңді
+      растаймын. Мен немін?
+    accept:
+    - Жолақы билеті
+    - билет
+    - жол билеті
+- slug: zhumbaq-original-310
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Суда қалқитын дөңгелекпін. Қиындыққа түскен адам маған жармасып, су бетінде тұра алады.
+      Мен немін?
+    accept:
+    - Құтқару шеңбері
+    - спасательный круг
+- slug: zhumbaq-original-311
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үстіңе киіп, бекітіп аласың. Суға түсіп кетсең, денеңді су бетінде ұстауға көмектесемін.
+      Мен немін?
+    accept:
+    - Құтқару кеудешесі
+    - спасательный жилет
+- slug: zhumbaq-original-312
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аспанда ашылған үлкен маталы қолшатырмын. Құлаған адамның түсуін баяулатамын. Мен немін?
+    accept:
+    - Парашют
+    - парашют құралы
+- slug: zhumbaq-original-313
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі ұзын тақтайды аяққа бекітесің. Қар үстінде батпай сырғанап жүруге көмектесеміз.
+      Біз неміз?
+    accept:
+    - Шаңғы
+    - лыжи
+- slug: zhumbaq-original-314
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Аяқкиімнің астына жіңішке темір жүз бекітілген. Мұз бетінде сонымен сырғанайсың. Бұл
+      не?
+    accept:
+    - Коньки
+    - мұз конькиі
+- slug: zhumbaq-original-315
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қар үстінде доңғалақсыз сырғанаймын. Балалар төбеден маған отырып түседі. Мен немін?
+    accept:
+    - Шана
+    - санки
+- slug: zhumbaq-original-316
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Сапты жақтаудың ішіне тор керілген. Кішкентай допты тордың арғы жағына соғуға көмектесемін.
+      Мен немін?
+    accept:
+    - Ракетка
+    - теннис ракеткасы
+- slug: zhumbaq-original-317
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Алаңда екі топ допты аяқпен ойнайды. Мақсат — қарсыластың қақпасына гол соғу. Бұл қандай
+      ойын?
+    accept:
+    - Футбол
+    - футбол ойыны
+- slug: zhumbaq-original-318
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Допты қолмен жүргізіп, биіктегі сақинаға түсіреміз. Қақпа емес, торлы себет ұпай әкеледі.
+      Бұл қандай ойын?
+    accept:
+    - Баскетбол
+    - баскетбол ойыны
+- slug: zhumbaq-original-319
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі топ тордың екі жағында тұрады. Допты қолмен ұрып өткізіп, өз алаңына түсірмеуге
+      тырысады. Бұл қандай ойын?
+    accept:
+    - Волейбол
+    - волейбол ойыны
+- slug: zhumbaq-original-320
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Аспан, жол және спорт
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ақ пен қара әскер шаршы тақтада кездеседі. Қарсы патшаға мат қою — жеңіске апаратын
+      жол. Бұл қандай ойын?
+    accept:
+    - Шахмат
+    - шахмат ойыны
+- slug: zhumbaq-original-321
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Менен топырақты неғұрлым көп алсаң, өзім соғұрлым үлкейемін. Мен немін?
+    accept:
+    - Шұңқыр
+    - ор
+    - яма
+- slug: zhumbaq-original-322
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Саған тиесілімін, бірақ сенімен сөйлескен адамдар мені өзіңнен жиі айтады. Мен немін?
+    accept:
+    - Есім
+    - аты
+    - адамның аты
+    - имя
+- slug: zhumbaq-original-323
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Туған күнің сайын бір қадам алға жүремін. Өткен жылдарым ешқашан кері қайтпайды. Мен
+      немін?
+    accept:
+    - Жас
+    - жасы
+    - возраст
+- slug: zhumbaq-original-324
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Киімде мен пайда болсам, матасы кемиді. Өзім жоқ жерден пайда болған бос орынмын. Мен
+      немін?
+    accept:
+    - Тесік
+    - отверстие
+- slug: zhumbaq-original-325
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір көзім бар, бірақ көрмеймін. Сол көзімнен жіп өткізіп, маталарды жалғайсың. Мен немін?
+    accept:
+    - Ине
+    - иголка
+    - игла
+- slug: zhumbaq-original-326
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұшым өткір, бірақ жабылғанда сол ұшымды өз басыма жасырамын. Екі матаны уақытша ұстап
+      тұрамын. Мен немін?
+    accept:
+    - Түйреуіш
+    - булавка
+- slug: zhumbaq-original-327
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Киімнің үстінде тұрамын, өзім кішкентай дөңгелекпін. Ілгекке кірсем, екі өңірді жақындастырамын.
+      Мен немін?
+    accept:
+    - Түйме
+    - пуговица
+- slug: zhumbaq-original-328
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Киімнің екі жағындағы тістерді бір-біріне қосамын. Кішкентай жүгіртпем кері жүрсе, жолым
+      қайта ашылады. Мен немін?
+    accept:
+    - Сыдырма
+    - молния застежка
+    - застежка молния
+- slug: zhumbaq-original-329
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ине көзінен өтетін жіңішке жолмын. Үзілген жерді жалғап, түйме мен матаны байланыстырамын.
+      Мен немін?
+    accept:
+    - Жіп
+    - нить
+    - нитка
+- slug: zhumbaq-original-330
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жіп өзіне не басқа жіпке оралып, тартылғанда бекіп қалды. Оны шешпей екі ұшын ажырату
+      қиын. Бұл не?
+    accept:
+    - Түйін
+    - узел
+- slug: zhumbaq-original-331
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі жүзім бір нүктеде кездеседі. Екі сақинама саусақ салып қозғасаң, қағазды кесемін.
+      Мен немін?
+    accept:
+    - Қайшы
+    - ножницы
+- slug: zhumbaq-original-332
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Екі бөлек қағаздың арасына жағылсам, оларды бірге ұстаймын. Тікпеймін, бірақ жапсырамын.
+      Мен немін?
+    accept:
+    - Желім
+    - клей
+- slug: zhumbaq-original-333
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Мөлдір не түрлі түсті таспамын, бір бетім жабысқақ. Қиып алып, жыртылған қағазды бекітесің.
+      Мен немін?
+    accept:
+    - Скотч
+    - жабысқақ таспа
+- slug: zhumbaq-original-334
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Денемнің сыртын шиыршық жол ораған. Мені түзу соқпай, бұрап кіргізеді. Мен немін?
+    accept:
+    - Бұранда
+    - шуруп
+    - винт
+- slug: zhumbaq-original-335
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Басым жалпақ, ұшым өткір. Балға басымнан соққанда, ағашқа кіріп, бөлшектерді ұстаймын.
+      Мен немін?
+    accept:
+    - Шеге
+    - гвоздь
+- slug: zhumbaq-original-336
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ағаш саптың басында ауыр темір тұр. Шегенің басын ұрып, оны ағашқа кіргіземін. Мен немін?
+    accept:
+    - Балға
+    - молоток
+- slug: zhumbaq-original-337
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұшым бұранданың басындағы ойыққа кіреді. Қолың бұрылғанда, бұранданы кіргіземін не шығарамын.
+      Мен немін?
+    accept:
+    - Бұрауыш
+    - отвертка
+    - отвёртка
+- slug: zhumbaq-original-338
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ұзын қатар тістерім бар, бірақ тамақ жемеймін. Ағаштың үстімен алға-артқа жүргенде оны
+      кесемін. Мен немін?
+    accept:
+    - Ара
+    - темір ара
+    - ағаш арасы
+    - пила
+- slug: zhumbaq-original-339
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бетім кедір-бұдыр ұсақ тістерге толы. Темірдің қырын біртіндеп қажап, тегістеймін. Мен
+      немін?
+    accept:
+    - Егеу
+    - напильник
+- slug: zhumbaq-original-340
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қағазға ұсақ қатты түйірлер жапсырылған. Ағашты үстіммен ысқыласаң, беті тегістеледі.
+      Мен немін?
+    accept:
+    - Зімпара
+    - зімпара қағазы
+    - наждачная бумага
+- slug: zhumbaq-original-341
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Қолым жоқ, бірақ темірді өзіме тарта аламын. Ағаш пен қағазға сондай күшім жүрмейді.
+      Мен немін?
+    accept:
+    - Магнит
+    - магнит тасы
+- slug: zhumbaq-original-342
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Шиыршықталған темірмін. Қыссаң кішірейіп, жіберсең қайта жазылуға тырысамын. Мен немін?
+    accept:
+    - Серіппе
+    - пружина
+- slug: zhumbaq-original-343
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жүздеген бөлшекке бөлінген суретпін. Әр бөліктің көршісін тапсаң, бүтін бейнем қайта
+      ашылады. Мен немін?
+    accept:
+    - Пазл
+    - құрастырма сурет
+- slug: zhumbaq-original-344
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Ішімде бұрылыстар мен тұйықтар көп. Кіретін жерім оңай көрінеді, шығатын жолымды табу
+      үшін ойланасың. Мен немін?
+    accept:
+    - Лабиринт
+    - шытырман жол
+- slug: zhumbaq-original-345
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Атын бірден айтпай, белгілерін суреттеймін. Сен сол белгілерден жасырылған затты табасың.
+      Мен қандай тапсырмамын?
+    accept:
+    - Жұмбақ
+    - загадка
+- slug: zhumbaq-original-346
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Мені беске қоссаң, бес өзгермейді. Ал бестің оң жағына жазсаң, елу болады. Мен қай санмын?
+    accept:
+    - Нөл
+    - '0'
+    - ноль
+- slug: zhumbaq-original-347
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Тік тұрсам — санмын. Қырымнан жатқызсаң, шексіздік белгісіне ұқсап қаламын. Мен қай
+      санмын?
+    accept:
+    - Сегіз
+    - '8'
+    - восемь
+- slug: zhumbaq-original-348
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір айда 28 күн бар дейді. Ал кемінде 28 күні бар айлар бір жылда нешеу?
+    accept:
+    - Барлық ай
+    - барлық айда
+    - '12'
+    - он екі
+    - 12 ай
+    - барлығында
+    - все месяцы
+- slug: zhumbaq-original-349
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Жүгіруде екінші болып келе жатқан адамды басып оздың. Енді сен нешінші орындасың?
+    accept:
+    - Екінші орын
+    - екінші
+    - '2'
+    - 2 орын
+    - второе место
+- slug: zhumbaq-original-350
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Үстелде үш алма тұрды. Сен екеуін қолыңа алдың. Сенің қолыңда неше алма бар?
+    accept:
+    - Екі
+    - '2'
+    - екеуі
+    - два
+    - две
+- slug: zhumbaq-original-351
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Бір килограмм мақта мен бір килограмм темірдің қайсысы ауыр, әлде салмақтары қандай?
+    accept:
+    - Бірдей
+    - Тең
+    - Салмақтары тең
+    - Одинаково
+    - Одинаковый вес
+- slug: zhumbaq-original-352
+  kind: quiz_open
+  topic: zhumbaq
+  title: Жұмбақ · Логика мен тапқырлық
+  source: QazaqCinema · авторлық жұмбақ
+  payload:
+    question: Дәрігер үш дәріні жарты сағат сайын біреуден іш деді. Біріншісін қазір ішсең, соңғысын
+      неше минуттан кейін ішесің?
+    accept:
+    - '60'
+    - 60 минут
+    - Бір сағат
+    - 1 сағат
+    - Час
+    - Один час
+    - Через час

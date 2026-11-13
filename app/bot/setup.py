@@ -17,6 +17,7 @@ from app.bot.handlers import (
     moderation,
     quest,
     quiz,
+    riddles,
     stars,
     start,
     support,
@@ -36,6 +37,7 @@ def build_dispatcher(container: AsyncContainer) -> Dispatcher:
         inline_query.router,
         moderation.router,
         support.router,
+        riddles.router,
         quiz.router,
         stars.router,
         # ПОСЛЕДНИМ: ловит то, что не разобрал никто выше (чек в личку вместо Mini App).

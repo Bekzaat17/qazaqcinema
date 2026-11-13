@@ -67,22 +67,16 @@ class Slot:
 
 
 SLOTS: tuple[Slot, ...] = (
-    # Дс — квиз с кнопками (мақал/атау-сұрақ), фолбэк — открытый.
+    # Дс — квиз с кнопками (мақал/атау-сұрақ). Жұмбақ — только по запросу.
     Slot(
         "quiz-mon", 0, 12,
-        (Source(ContentKind.QUIZ_CHOICE), Source(ContentKind.QUIZ_OPEN)),
+        (Source(ContentKind.QUIZ_CHOICE),),
         closes_hour=21,
     ),
     # Сс — нақыл сөз, разнообразие по АВТОРУ: рубрика одна, а имён в пуле тринадцать.
     Slot("saying", 1, 19, (Source(ContentKind.SAYING, vary=Vary.SOURCE),)),
     # Ср — атаулары.
     Slot("terms", 2, 19, (Source(ContentKind.TERM_LIST),)),
-    # Бс — квиз открытый (жұмбақ), фолбэк — с кнопками.
-    Slot(
-        "quiz-thu", 3, 12,
-        (Source(ContentKind.QUIZ_OPEN), Source(ContentKind.QUIZ_CHOICE)),
-        closes_hour=21,
-    ),
     # Жс — Абайдың қара сөзі, без повторов и ПО ПОРЯДКУ (1-ші, 2-ші, 3-ші…): у қара сөз
     # есть номера, и перемешанная нумерация читается как сбой. Закончатся → нақыл сөз.
     Slot(

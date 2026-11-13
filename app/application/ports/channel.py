@@ -38,9 +38,8 @@ class ChannelPost:
     трафик с его диапазонов к нам режет хостер (тот же повод, что у
     `BOT_FORCE_POLLING`) — постер молча не доезжал, и пост уходил текстом.
 
-    `button_url` — только обычная ссылка (`t.me/...`), см. предупреждение в докстринге
-    модуля: `web_app`-кнопку канал не примет. `choices` — callback-кнопки одним рядом
-    (варианты квиза); с `button_url` не сочетаются — у поста либо ссылка, либо варианты.
+    `button_url` — обычная ссылка. `choices` — callback-кнопки одним рядом;
+    если есть ссылка, ряд callbacks идёт под ней.
     """
 
     text: str
@@ -52,6 +51,10 @@ class ChannelPost:
 
 
 class ChannelPublisher(Protocol):
+    async def pin(self, message_id: int) -> bool:
+        """Закрепить опубликованный пост. False — нет канала, прав или связи."""
+        ...
+
     async def publish(self, post: ChannelPost) -> int | None:
         """Опубликовать пост. `message_id` — ушёл; `None` — канал не настроен или сбой.
 

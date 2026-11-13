@@ -26,6 +26,7 @@ from dishka import FromDishka
 from dishka.integrations.aiogram import inject
 
 from app.application.ports.discussion import DiscussionGroup
+from app.application.services.daily_riddle_service import DailyRiddleService
 from app.application.services.quiz_service import Answerer, Outcome, QuizService, Verdict
 from app.config.settings import AppConfig
 from app.domain.channel.content.render.quiz import CALLBACK_PREFIX, parse_callback
@@ -114,12 +115,22 @@ async def comment(
     message: Message,
     config: FromDishka[AppConfig],
     quiz: FromDishka[QuizService],
+    riddles: FromDishka[DailyRiddleService],
     group: FromDishka[DiscussionGroup],
 ) -> None:
     if not _in_discussion_group(message, config) or message.from_user is None:
         return
     assert message.message_thread_id is not None and message.text is not None
     who = Answerer(message.from_user.id, message.from_user.first_name)
+    daily = await riddles.answer(
+        who, message.text, datetime.now(UTC), thread_id=message.message_thread_id,
+        comments_only=True,
+    )
+    if daily is not None:
+        await group.delete_message(message.message_id)
+        name = escape(message.from_user.first_name)
+        await group.reply_in_thread(message.message_thread_id, f"{name}: {escape(daily.text)}")
+        return
     outcome = await quiz.answer_comment(
         message.message_thread_id, who, message.text, datetime.now(UTC)
     )

@@ -240,6 +240,12 @@ class PgPostLogRepository:
         stmt = select(ChannelPostLogModel.id).where(ChannelPostLogModel.slot_key == slot_key)
         return await self._session.scalar(stmt) is not None
 
+    async def by_slot_key(self, slot_key: str) -> PostLogEntry | None:
+        model = await self._session.scalar(
+            select(ChannelPostLogModel).where(ChannelPostLogModel.slot_key == slot_key)
+        )
+        return _log_to_domain(model) if model else None
+
     async def get_by_channel_message(self, channel_message_id: int) -> PostLogEntry | None:
         stmt = select(ChannelPostLogModel).where(
             ChannelPostLogModel.channel_message_id == channel_message_id
@@ -271,6 +277,8 @@ class PgPostLogRepository:
                 ChannelPostLogModel.quiz_closes_at.is_not(None),
                 ChannelPostLogModel.quiz_closes_at <= now,
                 ChannelPostLogModel.result_posted_at.is_(None),
+                # Жұмбақ дня раскрывается только по запросу, даже после рестарта бота.
+                ~ChannelPostLogModel.slot_key.endswith(":jumbak"),
             )
             .order_by(ChannelPostLogModel.quiz_closes_at)
         )

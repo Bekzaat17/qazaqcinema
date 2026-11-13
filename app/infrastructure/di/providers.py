@@ -54,6 +54,7 @@ from app.application.ports.repositories import (
     UserRepository,
     VideoDeliveryRepository,
 )
+from app.application.ports.riddles import PublicationGate, RiddleAnswerRepository
 from app.application.ports.security import InitDataVerifier
 from app.application.ports.session import SessionStore
 from app.application.ports.storage import PosterStorage
@@ -68,6 +69,7 @@ from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
 from app.application.services.content_reminder_service import ContentReminderService
 from app.application.services.content_seed_service import ContentSeedService
+from app.application.services.daily_riddle_service import DailyRiddleService
 from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
 from app.application.services.game_analytics_service import GameAnalyticsService
@@ -81,6 +83,7 @@ from app.application.services.quest_channel_service import QuestChannelService
 from app.application.services.quest_ranking_service import QuestRankingService
 from app.application.services.quest_service import QuestService
 from app.application.services.quiz_service import QuizService
+from app.application.services.riddle_announcement_service import RiddleAnnouncementService
 from app.application.services.seo_service import SeoBuilder
 from app.application.services.series_service import SeriesService
 from app.application.services.stars_service import StarsPaymentService
@@ -131,6 +134,7 @@ from app.infrastructure.db.repositories import (
 from app.infrastructure.db.repositories.boardgame import PgRoomRepository
 from app.infrastructure.db.repositories.game_analytics import PgGameAnalyticsRepository
 from app.infrastructure.db.repositories.quest import PgQuestChannelStore, PgQuestRepository
+from app.infrastructure.db.riddle_repositories import PgPublicationGate, PgRiddleAnswerRepository
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from app.infrastructure.images.pillow import PillowImageProcessor
 from app.infrastructure.payments.kaspi import KaspiManualProvider
@@ -148,6 +152,7 @@ from app.infrastructure.telegram.quest import AiogramQuestChannelPublisher
 
 class AppProvider(Provider):
     scope = Scope.APP
+    publication_gate = provide(PgPublicationGate, provides=PublicationGate)
 
     @provide
     def board_catalog(self, config: AppConfig) -> Catalog:
@@ -365,6 +370,7 @@ class RequestProvider(Provider):
     content_repo = provide(PgContentRepository, provides=ContentRepository)
     post_log_repo = provide(PgPostLogRepository, provides=PostLogRepository)
     quiz_answers_repo = provide(PgQuizAnswerRepository, provides=QuizAnswerRepository)
+    riddle_answers_repo = provide(PgRiddleAnswerRepository, provides=RiddleAnswerRepository)
 
     @provide
     def content_reminder(
@@ -426,6 +432,17 @@ class RequestProvider(Provider):
     milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
     content_posting = provide(ContentPostingService)  # контент-план канала: ежечасный джоб
     content_seed = provide(ContentSeedService)  # заливка пула из YAML (tools/seed_content)
+    riddle_announcement = provide(RiddleAnnouncementService)
+
+    @provide
+    def daily_riddle(
+        self, items: ContentRepository, log: PostLogRepository, answers: RiddleAnswerRepository,
+        stats: QuizAnswerRepository, publisher: ChannelPublisher, gate: PublicationGate,
+        config: AppConfig,
+    ) -> DailyRiddleService:
+        return DailyRiddleService(
+            items, log, answers, stats, publisher, gate, config.bot.admin_user_ids,
+        )
 
     @provide
     def quiz(

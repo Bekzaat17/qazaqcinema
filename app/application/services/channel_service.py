@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import datetime
 
 from app.application.ports.channel import ChannelPost, ChannelPublisher
@@ -18,6 +19,8 @@ from app.application.ports.storage import PosterStorage
 from app.application.services.daily_service import DailyMovieService
 from app.domain.analytics.source import CHANNEL, movie_start_url
 from app.domain.catalog.daily import TZ
+from app.domain.channel.content.daily_riddle import DAILY_RIDDLE_CALLBACK
+from app.domain.channel.content.render.base import CallbackButton
 from app.domain.channel.post import render_daily_movie, render_new_movie
 from app.domain.entities.movie import Movie
 from app.domain.subscription.weekly import week_start
@@ -94,6 +97,11 @@ class ChannelService:
         # об открытии не в тот день, когда приложение реально его открыло.
         renewed = now.astimezone(TZ).date() == week_start(now)
         sent = await self._publisher.publish(
-            self._post(movie, render_daily_movie(movie, weekly_pick_renewed=renewed), _DAILY_BUTTON)
+            replace(
+                self._post(
+                    movie, render_daily_movie(movie, weekly_pick_renewed=renewed), _DAILY_BUTTON,
+                ),
+                choices=(CallbackButton("🧩 Күннің жұмбағы", DAILY_RIDDLE_CALLBACK),),
+            )
         )
         return sent is not None

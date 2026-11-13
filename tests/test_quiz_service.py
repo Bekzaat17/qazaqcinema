@@ -166,6 +166,14 @@ async def test_comment_under_non_quiz_post_is_left_alone() -> None:
     assert (await service.answer_comment(999, USER, "сәлем", NOW)).verdict is Verdict.NOT_A_QUIZ
 
 
+async def test_result_log_entry_without_deadline_cannot_accept_quiz_answers() -> None:
+    entry = replace(_entry(OPEN, 20, group_id=300), quiz_closes_at=None)
+    answers = FakeAnswers()
+    service = _service(FakeLog(entry), answers, FakePublisher())
+    assert (await service.answer_comment(300, USER, "құлын", NOW)).verdict is Verdict.NOT_A_QUIZ
+    assert answers.rows == []
+
+
 async def test_forward_binding_enables_comments() -> None:
     log = FakeLog(_entry(OPEN, 20))
     service = _service(log, FakeAnswers(), FakePublisher())

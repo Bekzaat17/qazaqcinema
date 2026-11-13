@@ -39,6 +39,7 @@ from app.domain.channel.content.answers.result import (
     correct_answer_text,
     render_result,
 )
+from app.domain.channel.content.daily_riddle import is_daily_riddle
 from app.domain.channel.content.item import ContentItem, QuizChoice, QuizOpen
 from app.domain.channel.content.kinds import ContentKind
 
@@ -104,7 +105,8 @@ class QuizService:
     ) -> Outcome:
         """Сообщение в ветке комментариев. `NOT_A_QUIZ` — обычный комментарий, трогать нельзя."""
         post = await self._log.get_by_group_message(thread_message_id)
-        if post is None or post.kind is not ContentKind.QUIZ_OPEN:
+        if (post is None or post.kind is not ContentKind.QUIZ_OPEN
+                or post.quiz_closes_at is None):
             return Outcome(Verdict.NOT_A_QUIZ)
         return await self._record(post, who, text, now)
 
@@ -138,6 +140,8 @@ class QuizService:
         """Опубликовать разборы всех закрывшихся квизов. Вернуть сколько ушло."""
         published = 0
         for post in await self._log.list_due_results(now):
+            if is_daily_riddle(post.slot_key):
+                continue
             item = await self._items.get(post.item_id)
             if item is None or post.id is None:
                 continue

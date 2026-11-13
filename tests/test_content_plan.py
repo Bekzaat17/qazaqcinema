@@ -60,6 +60,13 @@ def test_no_slot_collides_with_daily_movie_post() -> None:
     assert len({slot.name for slot in SLOTS}) == len(SLOTS)  # имена — часть slot_key
 
 
+def test_riddles_are_never_published_by_the_automatic_schedule() -> None:
+    assert all(
+        source.kind is not ContentKind.QUIZ_OPEN for slot in SLOTS for source in slot.sources
+    )
+    assert slot_for(_almaty(2026, 11, 12, 12)) is None  # четверг: жұмбақ только по запросу
+
+
 def test_quiz_slot_closes_same_day_and_key_is_local_date() -> None:
     now = _almaty(2026, 9, 14, 12)  # понедельник
     slot = slot_for(now)

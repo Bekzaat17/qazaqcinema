@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 from app.application.ports.channel import ChannelPost
 from app.application.services.channel_service import ChannelService
+from app.domain.channel.content.daily_riddle import DAILY_RIDDLE_CALLBACK
 from app.domain.channel.post import (
     CAPTION_LIMIT,
     MAX_HASHTAGS,
@@ -196,6 +197,8 @@ async def test_daily_post_takes_the_same_movie_as_playback() -> None:
     assert await _service(publisher, movie).publish_daily_movie(_NOW) is True
     assert "Шрек 4" in publisher.posts[0].text
     assert publisher.posts[0].button_url == "https://t.me/qazaqcinema_bot?start=ch-m_7"
+    assert publisher.posts[0].choices[0].data == DAILY_RIDDLE_CALLBACK
+    assert "Күннің жұмбағы" in publisher.posts[0].choices[0].text
 
 
 async def test_daily_post_is_skipped_on_empty_catalog() -> None:

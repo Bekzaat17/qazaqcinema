@@ -440,9 +440,10 @@ class ChannelPostLogModel(Base):
 
 
 class QuizAnswerModel(Base):
-    """Ответы на квиз: первый ответ каждого человека на каждый пост.
+    """Одна строка на участника и пост: первый ответ квиза или до трёх попыток жұмбақ дня.
 
-    UNIQUE(post_id, user_id) — «А Б В Г Д» пятью сообщениями не работает: засчитан первый.
+    UNIQUE(post_id, user_id) — обычный квиз принимает первый ответ; жұмбақ дня обновляет
+    строку условным upsert, пока нет верного ответа и не исчерпаны три попытки.
     `user_id` БЕЗ FK на `users`: отвечающий из канала/группы мог никогда не жать /start.
     `first_name` — для «алғашқы үшеу» в разборе (username есть не у всех).
     """
@@ -456,5 +457,7 @@ class QuizAnswerModel(Base):
     text: Mapped[str] = mapped_column(String(255))
     is_correct: Mapped[bool] = mapped_column(Boolean)
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Обычный квиз хранит первый ответ, жұмбақ дня допускает до трёх попыток.
+    attempt_count: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False)
 
     __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_quiz_answers_post_user"),)

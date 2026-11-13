@@ -27,20 +27,13 @@ logger = logging.getLogger(__name__)
 
 
 def _keyboard(post: ChannelPost) -> InlineKeyboardMarkup | None:
-    """Кнопка-ССЫЛКА (не `web_app`: канал не примет, см. порт) либо ряд callback-вариантов."""
+    """Ссылка на фильм и отдельный ряд callbacks могут жить в одном посте."""
+    rows: list[list[InlineKeyboardButton]] = []
+    if post.button_text and post.button_url:
+        rows.append([InlineKeyboardButton(text=post.button_text, url=post.button_url)])
     if post.choices:
-        return InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=c.text, callback_data=c.data) for c in post.choices]
-            ]
-        )
-    if not (post.button_text and post.button_url):
-        return None
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=post.button_text, url=post.button_url)]
-        ]
-    )
+        rows.append([InlineKeyboardButton(text=c.text, callback_data=c.data) for c in post.choices])
+    return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
 
 class AiogramChannelPublisher:
@@ -48,6 +41,17 @@ class AiogramChannelPublisher:
         self._bot = bot
         self._channel_id = channel_id
         self._media_root = Path(media_root)
+
+    async def pin(self, message_id: int) -> bool:
+        if not self._channel_id:
+            return False
+        try:
+            return bool(await self._bot.pin_chat_message(
+                self._channel_id, message_id, disable_notification=True,
+            ))
+        except TelegramAPIError:
+            logger.warning("Пост %s не закреплён", message_id, exc_info=True)
+            return False
 
     async def publish(self, post: ChannelPost) -> int | None:
         if not self._channel_id:
