@@ -190,13 +190,17 @@ function StatusCard({ auth, onSubscribe }: { auth: Auth | null; onSubscribe: () 
           <BadgeCheck size={20} />
           <span className="font-semibold">Жазылым белсенді</span>
         </div>
-        <p className="mt-3 text-3xl font-extrabold text-text tabular">
-          {left} <span className="text-lg font-semibold text-muted">күн қалды</span>
-        </p>
-        <div className="mt-2 flex items-center gap-1.5 text-sm text-faint">
-          <CalendarClock size={15} />
-          <span>{formatDate(auth.expires_at)} дейін</span>
-        </div>
+        {auth.expires_at && (
+          <>
+            <p className="mt-3 text-3xl font-extrabold text-text tabular">
+              {left} <span className="text-lg font-semibold text-muted">күн қалды</span>
+            </p>
+            <div className="mt-2 flex items-center gap-1.5 text-sm text-faint">
+              <CalendarClock size={15} />
+              <span>{formatDate(auth.expires_at)} дейін</span>
+            </div>
+          </>
+        )}
       </div>
     );
   }

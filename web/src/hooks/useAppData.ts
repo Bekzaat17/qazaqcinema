@@ -18,6 +18,7 @@ import {
   type UserStatus,
 } from "../lib/api";
 import { loadLastPage } from "../lib/lastPage";
+import { clearPaymentReturn, loadPaymentReturn } from "../lib/paymentReturn";
 import { getInitData, getStartMovieId, haptic } from "../lib/telegram";
 
 // Как часто переспрашивать статус, пока чек «на проверке». Решение админа (✅/❌) приходит
@@ -56,8 +57,10 @@ async function retryAuth(): Promise<Auth | null> {
 }
 
 export interface AppDataHandlers {
-  /** Открыть карточку фильма (deep-link или восстановленный экран). */
+  /** Открыть карточку фильма при входе. */
   onOpenMovie: (movie: Movie) => void;
+  /** Вернуться в профиль после оплаты без выбранного фильма. */
+  onOpenProfile: () => void;
   /** Вернуть вкладку, на которой человека прервали. */
   onRestoreTab: (tab: LastTab) => void;
   /** Сказать человеку то, о чём он иначе не узнает (решение по чеку, битая ссылка). */
@@ -88,7 +91,12 @@ export interface AppData {
  * висит эффект первой загрузки, и новая функция на каждый рендер перезагружала бы
  * приложение по кругу.
  */
-export function useAppData({ onOpenMovie, onRestoreTab, onToast }: AppDataHandlers): AppData {
+export function useAppData({
+  onOpenMovie,
+  onOpenProfile,
+  onRestoreTab,
+  onToast,
+}: AppDataHandlers): AppData {
   const [phase, setPhase] = useState<Phase>("loading");
   const [auth, setAuth] = useState<Auth | null>(null);
   const [shelves, setShelves] = useState<ShelfData[]>([]);
@@ -135,35 +143,47 @@ export function useAppData({ onOpenMovie, onRestoreTab, onToast }: AppDataHandle
       // молча оказаться на главной для него выглядит как «ссылка не работает». 404 —
       // фильма больше нет; всё остальное — сеть, и стоит попробовать снова.
       const startId = getStartMovieId();
-      if (startId !== null) {
+      const paymentReturn = authRes ? loadPaymentReturn(authRes.telegram_id) : null;
+      const reviewing = authRes?.status === "pending_review";
+      if (authRes && paymentReturn && !reviewing && (startId !== null || !authRes.has_access)) {
+        clearPaymentReturn(authRes.telegram_id);
+      }
+      const paymentTarget = startId === null && (reviewing || authRes?.has_access)
+        ? paymentReturn
+        : null;
+      const last = startId === null ? loadLastPage() : null;
+      if (last) onRestoreTab(last.tab);
+      if (paymentTarget?.movieId === null) {
+        if (authRes?.has_access) clearPaymentReturn(authRes.telegram_id);
+        onOpenProfile();
+        return;
+      }
+
+      const movieId = startId ?? paymentTarget?.movieId ?? last?.movieId;
+      if (movieId != null) {
         api
-          .getMovie(startId)
-          .then((movie) => onOpenMovie(movie))
+          .getMovie(movieId)
+          .then((movie) => {
+            if (paymentTarget && authRes?.has_access) clearPaymentReturn(authRes.telegram_id);
+            onOpenMovie(movie);
+          })
           .catch((e) => {
+            if (startId === null && !paymentTarget) return; // обычная память о прошлой вкладке
+            const missing = e instanceof ApiError && e.status === 404;
+            if (missing && paymentTarget && authRes) clearPaymentReturn(authRes.telegram_id);
             onToast(
-              e instanceof ApiError && e.status === 404
+              missing
                 ? "Бұл фильм қазір қолжетімсіз. Каталогтан іздеп көріңіз."
                 : "Фильмді ашу мүмкін болмады. Байланысты тексеріңіз.",
             );
           });
-        return;
-      }
-      // Иначе продолжаем с того места, где юзера прервали (если это было недавно).
-      const last = loadLastPage();
-      if (!last) return;
-      onRestoreTab(last.tab);
-      if (last.movieId !== null) {
-        api
-          .getMovie(last.movieId)
-          .then((movie) => onOpenMovie(movie))
-          .catch(() => {}); // фильм удалили — просто открываем вкладку
       }
     } catch (e) {
       // Сессия и initData просрочены вместе — «Қайталау» тут не поможет, поможет только
       // переоткрыть Mini App. Своя фаза и свой экран.
       setPhase(e instanceof SessionExpiredError ? "session_expired" : "error");
     }
-  }, [onOpenMovie, onRestoreTab, onToast]);
+  }, [onOpenMovie, onOpenProfile, onRestoreTab, onToast]);
 
   useEffect(() => {
     void load();
@@ -188,6 +208,7 @@ export function useAppData({ onOpenMovie, onRestoreTab, onToast }: AppDataHandle
     }
     setAuth(fresh);
     if (before !== "pending_review" || fresh.status === before) return;
+    clearPaymentReturn(fresh.telegram_id);
     // Модератор только что вынес решение — сообщаем прямо сейчас, не молча.
     if (fresh.has_access) {
       haptic.success();

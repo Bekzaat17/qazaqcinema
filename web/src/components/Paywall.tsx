@@ -19,9 +19,9 @@ interface PaywallProps {
   tariffs: Tariff[];
   onClose: () => void;
   /** Kaspi: чек принят. Статус приходит с сервера — обычно доступ открыт сразу. */
-  onPending: (status: UserStatus) => void;
+  onPending: (status: UserStatus) => Promise<void>;
   /** Stars: оплата прошла → обновляем доступ. */
-  onPaid: () => void;
+  onPaid: () => Promise<void>;
   onError: (msg: string) => void;
 }
 
@@ -73,8 +73,8 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
       const status = await openInvoice(init.invoice_url);
       if (status === "paid") {
         haptic.success();
+        await onPaid();
         reset();
-        onPaid();
       } else if (status === "failed") {
         onError("Төлем өтпеді");
       }
@@ -91,12 +91,12 @@ export default function Paywall({ open, movie, tariffs, onClose, onPending, onPa
     try {
       const accepted = await api.submitProof(slug, file);
       haptic.success();
+      await onPending(accepted.status);
       reset();
-      onPending(accepted.status);
     } catch (e) {
       if (e instanceof ApiError && e.code === "subscription_active") {
+        await onPending("active");
         reset();
-        onPending("active");
         return;
       }
       let msg = "Чекті жіберу мүмкін болмады";

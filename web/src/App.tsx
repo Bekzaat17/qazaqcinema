@@ -40,9 +40,10 @@ import { useOnResume } from "./hooks/useOnResume";
 import { useSearch } from "./hooks/useSearch";
 import { useTelegramBackButton } from "./hooks/useTelegramBackButton";
 import { useWriteAccessPrompt } from "./hooks/useWriteAccessPrompt";
-import { ApiError, NetworkError, api, type Movie, type UserStatus } from "./lib/api";
+import { ApiError, NetworkError, api, type Auth, type Movie, type UserStatus } from "./lib/api";
 import { saveLastPage } from "./lib/lastPage";
-import { haptic } from "./lib/telegram";
+import { clearPaymentReturn, savePaymentReturn } from "./lib/paymentReturn";
+import { getTelegramUser, haptic } from "./lib/telegram";
 import Skeleton from "./ui/Skeleton";
 
 /**
@@ -78,6 +79,7 @@ export default function App() {
   const [pickMovie, setPickMovie] = useState<Movie | null>(null);
   const [watching, setWatching] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const openProfile = useCallback(() => setProfileOpen(true), []);
 
   // Сеттеры состояния (стабильные) — то, чем хук данных открывает карточку по deep-link,
   // возвращает прошлую вкладку и сообщает о решении по чеку.
@@ -93,7 +95,12 @@ export default function App() {
     reload,
     refreshAuth,
     refreshContent,
-  } = useAppData({ onOpenMovie: setSelected, onRestoreTab: setTab, onToast: setToast });
+  } = useAppData({
+    onOpenMovie: setSelected,
+    onOpenProfile: openProfile,
+    onRestoreTab: setTab,
+    onToast: setToast,
+  });
   const search = useSearch();
 
   // Объявлены здесь, а не рядом с местом использования: на них завязан эффект «возврат в
@@ -338,33 +345,58 @@ export default function App() {
       .catch(() => setToast("Фильмді ашу мүмкін болмады. Байланысты тексеріңіз."));
   }, [weeklyMovieId]);
 
-  const handleProof = useCallback(async (status: UserStatus) => {
+  const showPaymentDestination = useCallback(() => {
     setPaywallOpen(false);
-    setSelected(null);
-    // Чек обычно открывает доступ сразу, поэтому статус берём из ответа, а не ставим
-    // «на проверке» вслепую: на модерацию заявка уходит лишь у тех, кому уже отказывали.
-    if (status !== "active") {
-      setAuth((prev) => (prev ? { ...prev, status } : prev));
-      setToast("Чек қабылданды — тексерудеміз");
-      return;
-    }
-    setToast("Қолжетімділік ашылды! Көруге болады");
+    setSelected(paywallMovie);
+    setProfileOpen(paywallMovie === null);
+  }, [paywallMovie]);
+
+  const handleProof = useCallback(async (proofStatus: UserStatus) => {
+    const telegramId = auth?.telegram_id ?? getTelegramUser()?.id;
+    const target = { movieId: paywallMovie?.id ?? null };
+    if (telegramId != null) savePaymentReturn(telegramId, target);
+    let fresh: Auth | null = null;
     try {
-      setAuth(await api.me());
+      fresh = await api.me();
     } catch {
-      /* срок подтянется на следующем заходе — доступ уже открыт на сервере */
+      // Успешная загрузка чека уже вернула статус. Срок подтянется при возврате в Mini App.
     }
-  }, []);
+    const owner = fresh?.telegram_id ?? telegramId;
+    const reviewing = (fresh?.status ?? proofStatus) === "pending_review";
+    if (owner != null) {
+      if (reviewing && owner !== telegramId) savePaymentReturn(owner, target);
+      else if (!reviewing) clearPaymentReturn(owner);
+    }
+    if (fresh) {
+      setAuth(fresh);
+    } else {
+      setAuth((prev) => prev && {
+        ...prev,
+        status: proofStatus,
+        has_access: proofStatus === "active",
+        expires_at: null,
+      });
+    }
+    showPaymentDestination();
+    if (reviewing) setToast("Чек қабылданды — тексерудеміз");
+    else if (fresh?.has_access ?? (proofStatus === "active")) {
+      setToast("Қолжетімділік ашылды! Көруге болады");
+    } else {
+      setToast("Чек расталмады. Қолдауға жазыңыз");
+    }
+  }, [auth?.telegram_id, paywallMovie, setAuth, showPaymentDestination]);
 
   const handlePaid = useCallback(async () => {
-    setPaywallOpen(false);
-    setToast("Төлем сәтті өтті!");
     try {
-      setAuth(await api.auth());
+      const fresh = await api.auth();
+      setAuth(fresh);
+      if (fresh.has_access) clearPaymentReturn(fresh.telegram_id);
     } catch {
       /* обновим статус при следующем заходе */
     }
-  }, []);
+    showPaymentDestination();
+    setToast("Төлем сәтті өтті!");
+  }, [setAuth, showPaymentDestination]);
 
   return (
     // Провайдер избранного включаем только когда приложение готово: до авторизации
@@ -378,7 +410,7 @@ export default function App() {
         ширину разбирают брейкпоинты внутри (сетки дают больше колонок, hero — крупнее
         постер и заголовок). */}
     <div className="mx-auto min-h-screen w-full max-w-[1024px] bg-bg pb-[calc(72px+var(--safe-bottom))]">
-      <TopBar status={status} onProfile={() => setProfileOpen(true)} />
+      <TopBar status={status} onProfile={openProfile} />
 
       {phase === "ready" && tab === "home" && (
         <SearchBar value={search.query} onChange={search.setQuery} />
