@@ -7,10 +7,12 @@ from datetime import date
 from app.domain.music.chart import ChartEntry, WeeklyChart, has_content, render_chart
 from app.domain.music.links import MusicLink, parse_music_link
 from app.domain.music.playlist import DEFAULT_TITLE, TITLE_MAX, new_share_code, playlist_title
+from app.domain.music.search import fold, words
 from app.domain.music.track import (
     UNKNOWN_PERFORMER,
     AudioUpload,
     is_music,
+    parse_name,
     search_key,
     track_name,
 )
@@ -47,6 +49,33 @@ def test_short_audio_is_not_music() -> None:
 
 def test_search_key_ignores_case_and_punctuation() -> None:
     assert search_key("  Қайрат  Нұртас — АУРУ!! ") == search_key("қайрат нұртас ауру")
+
+
+def test_fold_unifies_kazakh_russian_and_latin_spellings() -> None:
+    same = ("Қайрат Нұртас", "Кайрат Нуртас", "Kairat Nurtas", "Qairat Nurtas", "KAIRATT nurtas")
+    assert {fold(text) for text in same} == {"kairat nurtas"}
+    assert fold("Мақпал Жүнісова") == fold("Makpal Zhunisova")
+    assert fold("Скриптонит") in fold("Scriptonite")
+    assert fold("Ninety One — Қара-Торғай!") == "nineti one kara torgai"
+
+
+def test_query_words_drop_single_letters() -> None:
+    assert words("a kairat b nurtas") == ["kairat", "nurtas"]
+
+
+def test_mojibake_tags_come_back_as_cyrillic() -> None:
+    cp1251 = "Кайрат".encode("cp1251").decode("latin-1")
+    utf8 = "Сен".encode().decode("latin-1")
+    name = track_name(_upload(title=utf8, performer=cp1251))
+    assert (name.performer, name.title) == ("Кайрат", "Сен")
+    assert track_name(_upload(title="Déjà vu", performer="Beyoncé")).performer == "Beyoncé"
+
+
+def test_rename_text_needs_performer_dash_title() -> None:
+    parsed = parse_name("Ninety One - Қара-Торғай")
+    assert parsed is not None and (parsed.performer, parsed.title) == ("Ninety One", "Қара-Торғай")
+    assert parse_name("Қара-Торғай") is None
+    assert parse_name(" — Ауру") is None
 
 
 def test_music_links_cover_section_track_and_playlist_with_source_tag() -> None:

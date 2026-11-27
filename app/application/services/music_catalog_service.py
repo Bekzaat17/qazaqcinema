@@ -23,7 +23,16 @@ from app.application.ports.music import (
 from app.application.ports.repositories import UserEventRepository
 from app.domain.analytics.events import EventKind
 from app.domain.music.collections import COLLECTIONS, Collection, CollectionKind
-from app.domain.music.track import AudioUpload, Track, is_music, search_key, track_name
+from app.domain.music.search import fold
+from app.domain.music.track import (
+    AudioUpload,
+    Track,
+    is_music,
+    parse_name,
+    search_key,
+    track_key,
+    track_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +48,13 @@ class IngestOutcome(StrEnum):
     EXISTING = "existing"    # такой файл уже есть — просто лёг в коллекцию приславшего
     HIDDEN = "hidden"        # файл убран админом — обратно не принимаем
     NOT_MUSIC = "not_music"  # слишком короткий: звонок, звук, обрывок
+
+
+class RenameOutcome(StrEnum):
+    RENAMED = "renamed"
+    NOT_FOUND = "not_found"
+    FORBIDDEN = "forbidden"    # не загружал этот трек и не админ
+    BAD_FORMAT = "bad_format"  # нет «Орындаушы — Атауы»
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +106,14 @@ class MusicCatalogService:
             return IngestResult(IngestOutcome.EXISTING, existing)
 
         name = track_name(upload)
+        # Та же песня другим файлом (другой канал, другой битрейт) — не плодим дубль в
+        # поиске: человек получает уже существующий трек к себе.
+        duplicate = await self._tracks.find_duplicate(
+            track_key(name.performer, name.title), upload.duration_sec
+        )
+        if duplicate is not None and duplicate.id is not None:
+            await self._library.add(uploader_id, duplicate.id, now)
+            return IngestResult(IngestOutcome.EXISTING, duplicate)
         archive_id = await self._archive.store(
             upload.file_id, f"{name.performer} — {name.title}\n#u{uploader_id}"
         )
@@ -152,10 +176,26 @@ class MusicCatalogService:
         return await self._tracks.list_recent(limit, offset)
 
     async def search(self, query: str, limit: int, offset: int) -> list[Track]:
-        text = " ".join(query.split())[:REQUEST_MAX_LEN]
-        if not text:
+        """«каират нуртас», «Qairat», «ауру кайрат» — всё сводится к одному ключу."""
+        key = fold(query[:REQUEST_MAX_LEN])
+        if not key:
             return []
-        return await self._tracks.search(text, min(max(limit, 1), PAGE_MAX), max(offset, 0))
+        return await self._tracks.search(key, min(max(limit, 1), PAGE_MAX), max(offset, 0))
+
+    async def rename(
+        self, track_id: int, user_id: int, is_admin: bool, raw: str
+    ) -> RenameOutcome:
+        """Исправить «Орындаушы — Атауы»: может тот, кто прислал трек, и админ."""
+        track = await self._tracks.get(track_id)
+        if track is None or track.id is None:
+            return RenameOutcome.NOT_FOUND
+        if track.uploader_id != user_id and not is_admin:
+            return RenameOutcome.FORBIDDEN
+        name = parse_name(raw)
+        if name is None:
+            return RenameOutcome.BAD_FORMAT
+        await self._tracks.rename(track.id, name.title, name.performer)
+        return RenameOutcome.RENAMED
 
     async def request(self, user_id: int, query: str, now: datetime) -> int | None:
         """Попросить песню, которой нет. None — запрос пустой или слишком длинный."""

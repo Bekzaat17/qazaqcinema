@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date, datetime
 
-from sqlalchemy import ColumnElement, Integer, delete, false, func, or_, select, update
+from sqlalchemy import ColumnElement, Integer, and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +13,8 @@ from app.application.ports.music import MusicRequest, PlaylistAddOutcome
 from app.domain.analytics.events import EventKind
 from app.domain.music.chart import ChartEntry
 from app.domain.music.playlist import Playlist
-from app.domain.music.track import Track
+from app.domain.music.search import words
+from app.domain.music.track import DUPLICATE_SECONDS, Track, track_key
 from app.infrastructure.db.models import UserEventModel
 from app.infrastructure.db.music_models import (
     MusicChartPostModel,
@@ -50,10 +51,6 @@ _visible = TrackModel.is_hidden.is_(False)
 
 
 class PgTrackRepository:
-    # Нечёткий поиск по началу строки включается с этой длины: на 1–2 буквах любая
-    # опечатка — уже другое слово.
-    _FUZZY_MIN_LEN = 4
-
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -73,6 +70,7 @@ class PgTrackRepository:
         values = {
             "title": track.title,
             "performer": track.performer,
+            "search_key": track_key(track.performer, track.title),
             "duration_sec": track.duration_sec,
             "telegram_file_id": track.telegram_file_id,
             "file_unique_id": track.file_unique_id,
@@ -123,46 +121,52 @@ class PgTrackRepository:
         )
         return [_track_to_domain(model) for model in await self._session.scalars(stmt)]
 
-    async def search(self, query: str, limit: int, offset: int = 0) -> list[Track]:
-        """Подстрока → триграммы → опечатка в начале: тот же каскад, что у фильмов.
+    # Порог нечёткого совпадения: ниже — уже другие песни, а не опечатка.
+    _FUZZY_THRESHOLD = 0.45
 
-        Ищем и по склейке «исполнитель название»: люди набирают «кайрат нуртас ауру»,
-        а это не подстрока ни одного поля по отдельности.
+    async def search(self, key: str, limit: int, offset: int = 0) -> list[Track]:
+        """Все слова запроса в ключе (любой порядок) → выше; иначе нечёткое сходство.
+
+        `word_similarity` сравнивает запрос с самым похожим куском ключа, поэтому
+        «каират нуртас» находит «Қайрат Нұртас — Ауру» даже с опечаткой и без названия.
         """
-        normalized = func.f_unaccent(query)
-        pattern = func.concat("%", normalized, "%")
-        joined = func.concat(TrackModel.performer, " ", TrackModel.title)
-        columns = (TrackModel.title, TrackModel.performer, joined)
-        substring = or_(*(func.f_unaccent(col).ilike(pattern) for col in columns))
-        relevance = func.greatest(
-            *(func.similarity(func.f_unaccent(col), normalized) for col in columns)
-        )
-        conditions = [substring, relevance > 0.3]
-        if len(query) >= self._FUZZY_MIN_LEN:
-            folded = func.lower(normalized)
-            head = func.least(
-                *(
-                    func.levenshtein(
-                        func.left(func.lower(func.f_unaccent(col)), func.char_length(folded)),
-                        folded,
-                    )
-                    for col in (TrackModel.title, TrackModel.performer)
-                )
-            )
-            conditions.append(head <= 1)
+        terms = words(key) or [key]
+        all_words = and_(*(TrackModel.search_key.contains(term) for term in terms))
+        fuzzy = func.word_similarity(key, TrackModel.search_key)
         stmt = (
             select(TrackModel)
-            .where(_visible, or_(*conditions))
+            .where(_visible, or_(all_words, fuzzy > self._FUZZY_THRESHOLD))
             .order_by(
-                func.coalesce(substring, false()).desc(),
-                func.coalesce(relevance, 0.0).desc(),
-                TrackModel.play_count.desc(),
+                all_words.desc(),
+                fuzzy.desc(),
+                (TrackModel.play_count + TrackModel.saves_count * 3).desc(),
                 TrackModel.id.desc(),
             )
             .limit(limit)
             .offset(offset)
         )
         return [_track_to_domain(model) for model in await self._session.scalars(stmt)]
+
+    async def find_duplicate(self, key: str, duration_sec: int) -> Track | None:
+        model = await self._session.scalar(
+            select(TrackModel)
+            .where(
+                _visible,
+                TrackModel.search_key == key,
+                func.abs(TrackModel.duration_sec - duration_sec) <= DUPLICATE_SECONDS,
+            )
+            .order_by(TrackModel.id)
+            .limit(1)
+        )
+        return _track_to_domain(model) if model else None
+
+    async def rename(self, track_id: int, title: str, performer: str) -> None:
+        await self._session.execute(
+            update(TrackModel)
+            .where(TrackModel.id == track_id)
+            .values(title=title, performer=performer, search_key=track_key(performer, title))
+        )
+        await self._session.commit()
 
     async def increment_play_count(self, track_id: int) -> None:
         await self._session.execute(

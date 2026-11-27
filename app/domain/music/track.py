@@ -15,10 +15,15 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.domain.music.search import fold
+
 TITLE_MAX = 128
 PERFORMER_MAX = 128
 # Короче — это звонок, звук уведомления или обрывок голосового, а не песня.
 MIN_DURATION_SEC = 10
+# Та же песня другим файлом (другой битрейт, другой канал): ключ «исполнитель название»
+# совпал, длительность отличается не больше чем на столько секунд.
+DUPLICATE_SECONDS = 3
 UNKNOWN_PERFORMER = "Белгісіз орындаушы"
 UNTITLED = "Атаусыз трек"
 
@@ -75,10 +80,27 @@ class Track:
     created_at: datetime | None = None
 
 
+def _repair_mojibake(text: str) -> str:
+    """Теги в старой кодировке: «Êàéðàò» (cp1251, прочитанный как latin-1) или «Ð¡ÐµÐ½»
+    (utf-8, прочитанный как latin-1) — возвращаем кириллицу, если она там и пряталась."""
+    if not re.search(r"[\u00c0-\u00ff]", text) or re.search(r"[\u0400-\u04ff]", text):
+        return text
+    for encoding in ("utf-8", "cp1251"):
+        try:
+            repaired = text.encode("latin-1").decode(encoding)
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+        letters = [ch for ch in repaired if ch.isalpha()]
+        cyrillic = sum("\u0400" <= ch <= "\u04ff" for ch in letters)
+        if letters and cyrillic / len(letters) > 0.6:
+            return repaired
+    return text
+
+
 def _clean(raw: str | None, limit: int) -> str:
     if not raw:
         return ""
-    text = raw.replace("_", " ")
+    text = _repair_mojibake(raw).replace("_", " ")
     for pattern in _JUNK:
         text = pattern.sub(" ", text)
     text = " ".join(text.split()).strip(" -–—.,|")
@@ -114,6 +136,24 @@ def is_music(upload: AudioUpload) -> bool:
 
 
 def search_key(text: str) -> str:
-    """Ключ сравнения запросов: регистр, пунктуация и лишние пробелы не важны."""
-    folded = re.sub(r"[^\w\s]", " ", text.casefold())
-    return " ".join(folded.split())
+    """Ключ сравнения: регистр, алфавит (қ/к/q) и пунктуация не важны (`search.fold`)."""
+    return fold(text)
+
+
+def track_key(performer: str, title: str) -> str:
+    """Поисковый ключ трека — исполнитель и название одной строкой."""
+    return fold(f"{performer} {title}")
+
+
+_NAME_SEPARATOR = re.compile(r"\s*[-–—]\s+|\s+[-–—]\s*")
+
+
+def parse_name(raw: str) -> TrackName | None:
+    """«Орындаушы — Атауы» от человека (исправление названия). None — без разделителя."""
+    parts = _NAME_SEPARATOR.split(" ".join(raw.split()), maxsplit=1)
+    if len(parts) != 2:
+        return None
+    performer, title = _clean(parts[0], PERFORMER_MAX), _clean(parts[1], TITLE_MAX)
+    if not performer or not title:
+        return None
+    return TrackName(title, performer)

@@ -38,6 +38,14 @@ class TrackRepository(Protocol):
         """
         ...
 
+    async def find_duplicate(self, key: str, duration_sec: int) -> Track | None:
+        """Та же песня другим файлом: тот же ключ и длительность ±`DUPLICATE_SECONDS`."""
+        ...
+
+    async def rename(self, track_id: int, title: str, performer: str) -> None:
+        """Исправить название; поисковый ключ пересчитывается вместе с ним."""
+        ...
+
     async def list_by_ids(self, track_ids: Sequence[int]) -> list[Track]:
         """Треки в порядке переданных id (скрытые и удалённые пропускаются)."""
         ...
@@ -45,8 +53,9 @@ class TrackRepository(Protocol):
     async def list_recent(self, limit: int, offset: int = 0) -> list[Track]: ...
     async def list_popular(self, limit: int, offset: int = 0) -> list[Track]: ...
 
-    async def search(self, query: str, limit: int, offset: int = 0) -> list[Track]:
-        """Поиск по названию и исполнителю с допуском опечаток."""
+    async def search(self, key: str, limit: int, offset: int = 0) -> list[Track]:
+        """Поиск по уже сведённому ключу запроса (`search.fold`): все слова в любом
+        порядке выше, опечатки — нечётким сравнением ниже."""
         ...
 
     async def increment_play_count(self, track_id: int) -> None: ...

@@ -19,6 +19,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("title", sa.String(128), nullable=False),
         sa.Column("performer", sa.String(128), nullable=False),
+        sa.Column("search_key", sa.String(300), server_default="", nullable=False),
         sa.Column("duration_sec", sa.Integer(), nullable=False),
         sa.Column("telegram_file_id", sa.String(255), nullable=False),
         sa.Column("file_unique_id", sa.String(64), nullable=False, unique=True),
@@ -32,12 +33,10 @@ def upgrade() -> None:
         sa.Column("created_at", _TS, server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_tracks_uploader_id", "tracks", ["uploader_id"])
-    # Поиск по названию и исполнителю — тот же приём, что у фильмов (f_unaccent + trgm).
-    for column in ("title", "performer"):
-        op.execute(
-            f"CREATE INDEX ix_tracks_{column}_trgm ON tracks "
-            f"USING gin (f_unaccent({column}) gin_trgm_ops)"
-        )
+    op.create_index("ix_tracks_search_key", "tracks", ["search_key"])
+    # Нечёткий поиск по ключу (`domain/music/search.fold`): триграммы по уже сведённой
+    # строке — f_unaccent тут не нужен, ключ и так латиница без диакритики.
+    op.execute("CREATE INDEX ix_tracks_search_key_trgm ON tracks USING gin (search_key gin_trgm_ops)")
     op.create_table(
         "user_tracks",
         sa.Column("user_id", sa.BigInteger(), primary_key=True, autoincrement=False),
@@ -109,6 +108,5 @@ def downgrade() -> None:
         "playlist_tracks", "playlists", "user_tracks",
     ):
         op.drop_table(table)
-    for column in ("title", "performer"):
-        op.execute(f"DROP INDEX IF EXISTS ix_tracks_{column}_trgm")
+    op.execute("DROP INDEX IF EXISTS ix_tracks_search_key_trgm")
     op.drop_table("tracks")

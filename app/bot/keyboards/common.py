@@ -16,18 +16,32 @@ def music_url(url: str, track_id: int | None = None, playlist_code: str | None =
     return target
 
 
+MUSIC_RENAME_PREFIX = "mrename:"
+
+
 def music_keyboard(
-    url: str, track_id: int | None = None, playlist_code: str | None = None
+    url: str,
+    track_id: int | None = None,
+    playlist_code: str | None = None,
+    *,
+    rename: bool = False,
 ) -> InlineKeyboardMarkup:
-    """Кнопка «🎧 Музыканы ашу» — Mini App сразу в музыкальном разделе."""
-    return InlineKeyboardMarkup(
-        inline_keyboard=[[
-            InlineKeyboardButton(
-                text="🎧 Музыканы ашу",
-                web_app=WebAppInfo(url=music_url(url, track_id, playlist_code)),
-            )
-        ]]
-    )
+    """Кнопка «🎧 Музыканы ашу» — Mini App сразу в музыкальном разделе.
+
+    `rename` — под ответом о новом треке: приславший может сразу поправить название,
+    если теги файла были пустыми или кривыми.
+    """
+    rows = [[
+        InlineKeyboardButton(
+            text="🎧 Музыканы ашу",
+            web_app=WebAppInfo(url=music_url(url, track_id, playlist_code)),
+        )
+    ]]
+    if rename and track_id is not None:
+        rows.append([InlineKeyboardButton(
+            text="✏️ Атын түзету", callback_data=f"{MUSIC_RENAME_PREFIX}{track_id}"
+        )])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def webapp_keyboard(url: str) -> InlineKeyboardMarkup:

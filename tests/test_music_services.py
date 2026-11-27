@@ -11,7 +11,11 @@ from app.application.ports.telegram import (
     RecipientUnreachableError,
     TelegramTemporarilyUnavailableError,
 )
-from app.application.services.music_catalog_service import IngestOutcome, MusicCatalogService
+from app.application.services.music_catalog_service import (
+    IngestOutcome,
+    MusicCatalogService,
+    RenameOutcome,
+)
 from app.application.services.music_chart_service import MusicChartService
 from app.application.services.music_delivery_service import (
     ALBUM_SIZE,
@@ -24,7 +28,7 @@ from app.domain.analytics.events import EventKind
 from app.domain.entities.user import User
 from app.domain.music.chart import ChartEntry
 from app.domain.music.playlist import MAX_PLAYLISTS_PER_USER, Playlist
-from app.domain.music.track import AudioUpload, Track
+from app.domain.music.track import AudioUpload, Track, track_key
 
 from tests.fakes import FakeEvents
 
@@ -51,13 +55,25 @@ class FakeTracks:
     async def list_by_ids(self, track_ids: Sequence[int]) -> list[Track]:
         return [self.rows[i] for i in track_ids if i in self.rows and not self.rows[i].is_hidden]
 
+    async def find_duplicate(self, key: str, duration_sec: int) -> Track | None:
+        return next(
+            (t for t in self.rows.values()
+             if not t.is_hidden and track_key(t.performer, t.title) == key
+             and abs(t.duration_sec - duration_sec) <= 3),
+            None,
+        )
+
+    async def rename(self, track_id: int, title: str, performer: str) -> None:
+        self.rows[track_id].title = title
+        self.rows[track_id].performer = performer
+
     async def list_recent(self, limit: int, offset: int = 0) -> list[Track]:
         return list(self.rows.values())[offset:offset + limit]
 
     list_popular = list_recent
 
-    async def search(self, query: str, limit: int, offset: int = 0) -> list[Track]:
-        return [t for t in self.rows.values() if query.lower() in t.title.lower()]
+    async def search(self, key: str, limit: int, offset: int = 0) -> list[Track]:
+        return [t for t in self.rows.values() if key in track_key(t.performer, t.title)]
 
     async def increment_play_count(self, track_id: int) -> None:
         self.rows[track_id].play_count += 1
@@ -144,7 +160,7 @@ async def test_first_upload_lands_in_catalog_archive_and_uploader_library() -> N
     assert (42, result.track.id) in library.saved
     assert (42, EventKind.TRACK_UPLOAD, str(result.track.id)) in events.added
     # Песню, которую просили «исполнитель название», закрываем.
-    assert "қайрат нұртас ауру" in requests.fulfilled
+    assert "kairat nurtas auru" in requests.fulfilled
 
 
 async def test_same_file_from_another_listener_is_not_duplicated() -> None:
@@ -491,3 +507,37 @@ async def test_empty_collections_are_hidden() -> None:
     keys = [view.collection.kind.value for view in await service.collections(_NOW)]
     # Хитов недели ещё нет (никто не слушал), новые и лучшие уже есть.
     assert keys == ["new", "best"]
+
+
+async def test_same_song_from_another_file_is_not_a_second_track() -> None:
+    service, tracks, library, _, _ = _catalog()
+    first = await service.ingest(_upload("u1", 200), 42, _NOW)
+    # Другой файл (другой канал, битрейт), те же теги, длительность на секунду иная.
+    again = await service.ingest(_upload("u2", 201), 7, _NOW)
+    assert again.outcome is IngestOutcome.EXISTING
+    assert len(tracks.rows) == 1
+    assert first.track is not None and (7, first.track.id) in library.saved
+    # Другая длительность — уже другая запись (ремикс, live).
+    other = await service.ingest(_upload("u3", 260), 7, _NOW)
+    assert other.outcome is IngestOutcome.ADDED
+
+
+async def test_search_ignores_kazakh_letters_latin_and_word_order() -> None:
+    service, *_ = _catalog()
+    await service.ingest(_upload(), 42, _NOW)
+    for query in ("Кайрат Нуртас", "kairat", "Qairat Nurtas", "ауру"):
+        assert [t.title for t in await service.search(query, 10, 0)] == ["Ауру"], query
+    assert await service.search("  !! ", 10, 0) == []
+
+
+async def test_only_uploader_or_admin_renames_and_format_is_checked() -> None:
+    service, tracks, *_ = _catalog()
+    added = await service.ingest(_upload(), 42, _NOW)
+    assert added.track is not None and added.track.id is not None
+    track_id = added.track.id
+    assert await service.rename(track_id, 7, False, "А — Б") is RenameOutcome.FORBIDDEN
+    assert await service.rename(track_id, 42, False, "Ауру") is RenameOutcome.BAD_FORMAT
+    assert await service.rename(404, 42, False, "А — Б") is RenameOutcome.NOT_FOUND
+    assert await service.rename(track_id, 42, False, "Ninety One — Сен") is RenameOutcome.RENAMED
+    assert (tracks.rows[track_id].performer, tracks.rows[track_id].title) == ("Ninety One", "Сен")
+    assert await service.rename(track_id, 1, True, "Dimash — Sinful") is RenameOutcome.RENAMED

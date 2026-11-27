@@ -8,7 +8,8 @@ from app.application.ports.music import PlaylistAddOutcome
 from app.domain.analytics.events import EventKind
 from app.domain.entities.user import User
 from app.domain.music.playlist import Playlist
-from app.domain.music.track import Track
+from app.domain.music.search import fold
+from app.domain.music.track import Track, track_key
 from app.infrastructure.db.repositories import PgUserEventRepository, PgUserRepository
 from app.infrastructure.db.repositories.music import (
     PgLibraryRepository,
@@ -36,13 +37,31 @@ async def test_same_file_twice_is_one_row(session: AsyncSession) -> None:
     assert first.id == second.id and second.title == "Ауру"
 
 
-async def test_search_finds_performer_and_title_together_and_typos(session: AsyncSession) -> None:
+async def test_search_by_folded_key_any_order_and_typos(session: AsyncSession) -> None:
     tracks = PgTrackRepository(session)
     await tracks.add(_track("u1"))
     await tracks.add(_track("u2", title="Сен", performer="Ninety One"))
-    assert [t.title for t in await tracks.search("Нұртас ауру", 10)] == ["Ауру"]
-    assert [t.title for t in await tracks.search("ninety", 10)] == ["Сен"]
-    assert [t.title for t in await tracks.search("Кайрат", 10)] == ["Ауру"]
+
+    async def titles(query: str) -> list[str]:
+        return [t.title for t in await tracks.search(fold(query), 10)]
+
+    assert await titles("Нұртас ауру") == ["Ауру"]
+    assert await titles("ауру кайрат") == ["Ауру"]          # другой порядок слов
+    assert await titles("Qairat Nurtas") == ["Ауру"]        # латиница
+    assert await titles("каират нуртсас") == ["Ауру"]       # опечатки
+    assert await titles("ninety") == ["Сен"]
+
+
+async def test_duplicate_is_found_by_key_and_close_duration(session: AsyncSession) -> None:
+    tracks = PgTrackRepository(session)
+    track = await tracks.add(_track("u1"))
+    assert track.id is not None
+    key = track_key("Кайрат Нуртас", "АУРУ")
+    assert (await tracks.find_duplicate(key, 202)) is not None
+    assert await tracks.find_duplicate(key, 230) is None
+    await tracks.rename(track.id, "Сен", "Ninety One")
+    assert await tracks.find_duplicate(key, 200) is None
+    assert [t.id for t in await tracks.search(fold("ninety sen"), 10)] == [track.id]
 
 
 async def test_hidden_track_leaves_every_listing(session: AsyncSession) -> None:

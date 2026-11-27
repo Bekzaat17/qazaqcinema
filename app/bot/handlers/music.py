@@ -17,7 +17,9 @@ from html import escape
 from aiogram import F, Router
 from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandObject, StateFilter
-from aiogram.types import Message
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import CallbackQuery, Message
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
 
@@ -27,8 +29,9 @@ from app.application.services.music_catalog_service import (
     IngestOutcome,
     IngestResult,
     MusicCatalogService,
+    RenameOutcome,
 )
-from app.bot.keyboards.common import music_keyboard
+from app.bot.keyboards.common import MUSIC_RENAME_PREFIX, music_keyboard
 from app.bot.security import is_admin
 from app.config.settings import AppConfig
 from app.domain.music.track import AudioUpload
@@ -48,6 +51,25 @@ MUSIC_GREETING = (
     "• Каталогта жоқ ән сізде бар ма? Оны осы чатқа жіберіңіз немесе кез келген "
     "каналдан қайта жіберіңіз (forward) — ол бірден бәріне ашылады."
 )
+
+class MusicRename(StatesGroup):
+    """Ждём «Орындаушы — Атауы» после кнопки «✏️ Атын түзету»."""
+
+    waiting = State()
+
+
+RENAME_PROMPT = (
+    "✏️ Әннің дұрыс атын осылай жазыңыз:\n"
+    "<b>Орындаушы — Атауы</b>\n\n"
+    "Мысалы: Қайрат Нұртас — Ауру"
+)
+
+_RENAME_REPLIES = {
+    RenameOutcome.RENAMED: "✅ Аты түзетілді. Енді іздеуде жаңа атымен шығады.",
+    RenameOutcome.NOT_FOUND: "Бұл ән табылмады.",
+    RenameOutcome.FORBIDDEN: "Атын тек әнді қосқан адам түзете алады.",
+    RenameOutcome.BAD_FORMAT: "Орындаушы мен атауын сызықшамен бөліп жазыңыз: Қайрат Нұртас — Ауру",
+}
 
 _REPLIES = {
     IngestOutcome.EXISTING: "👌 Бұл ән каталогта бар — «Менің музыкам» бөліміне қостым.",
@@ -115,8 +137,69 @@ async def receive_audio(
     await message.answer(
         _reply_text(result, album),
         parse_mode="HTML",
-        reply_markup=music_keyboard(config.bot.webapp_url, track_id),
+        reply_markup=music_keyboard(
+            config.bot.webapp_url, track_id, rename=result.outcome is IngestOutcome.ADDED
+        ),
     )
+
+
+@router.callback_query(F.data.startswith(MUSIC_RENAME_PREFIX))
+async def rename_start(callback: CallbackQuery, state: FSMContext) -> None:
+    raw = (callback.data or "").removeprefix(MUSIC_RENAME_PREFIX)
+    if not raw.isdigit() or not isinstance(callback.message, Message):
+        await callback.answer()
+        return
+    await state.set_state(MusicRename.waiting)
+    await state.update_data(track_id=int(raw))
+    await callback.answer()
+    await callback.message.answer(RENAME_PROMPT, parse_mode="HTML")
+
+
+@router.message(MusicRename.waiting, F.text)
+@inject
+async def rename_finish(
+    message: Message,
+    state: FSMContext,
+    config: FromDishka[AppConfig],
+    music: FromDishka[MusicCatalogService],
+) -> None:
+    if message.from_user is None or message.text is None:
+        return
+    if message.text.startswith("/"):
+        # Команда посреди ввода — человек передумал; не выдаём «/start» за название.
+        await state.clear()
+        return
+    data = await state.get_data()
+    outcome = await music.rename(
+        int(data.get("track_id", 0)),
+        message.from_user.id,
+        is_admin(message.from_user.id, config.bot.admin_user_ids),
+        message.text,
+    )
+    # Одна попытка: иначе человек, нажавший кнопку и забывший о ней, получал бы ответ
+    # про формат названия на любой следующий вопрос боту.
+    await state.clear()
+    await message.answer(_RENAME_REPLIES[outcome])
+
+
+@router.message(Command("trackname"))
+@inject
+async def admin_rename(
+    message: Message,
+    command: CommandObject,
+    config: FromDishka[AppConfig],
+    music: FromDishka[MusicCatalogService],
+) -> None:
+    """Админ правит любой трек: `/trackname <id> Орындаушы — Атауы`."""
+    if message.from_user is None or not is_admin(message.from_user.id, config.bot.admin_user_ids):
+        return
+    raw_id, _, name = (command.args or "").strip().partition(" ")
+    raw_id = raw_id.removeprefix("t_")
+    if not raw_id.isdigit():
+        await message.answer("Қолдану: /trackname <id> Орындаушы — Атауы")
+        return
+    outcome = await music.rename(int(raw_id), message.from_user.id, True, name)
+    await message.answer(_RENAME_REPLIES[outcome])
 
 
 @router.message(

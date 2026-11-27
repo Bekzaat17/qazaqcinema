@@ -38,6 +38,8 @@ class TrackModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(128))
     performer: Mapped[str] = mapped_column(String(128))
+    # `domain/music/search.fold(исполнитель + название)` — по нему ищут и склеивают дубли.
+    search_key: Mapped[str] = mapped_column(String(300), index=True, server_default="")
     duration_sec: Mapped[int] = mapped_column(Integer)
     telegram_file_id: Mapped[str] = mapped_column(String(255))
     file_unique_id: Mapped[str] = mapped_column(String(64), unique=True)
