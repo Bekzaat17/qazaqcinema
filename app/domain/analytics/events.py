@@ -56,6 +56,11 @@ class EventKind(StrEnum):
     # не видно никак. Единственный способ узнать — считать попытки и те случаи, когда через
     # секунду мы всё ещё на экране. meta = "<исход>:<платформа>" (см. `HandoffOutcome`).
     HANDOFF = "handoff"
+    # Музыка. `track_play` — началось прослушивание (в Mini App или трек ушёл в чат):
+    # по нему считается хит-парад недели по РАЗНЫМ людям, а не по счётчику за всё время.
+    # `track_upload` — слушатель добавил в каталог новый трек (каталог растёт сам).
+    TRACK_PLAY = "track_play"      # meta = id трека
+    TRACK_UPLOAD = "track_upload"  # meta = id трека
 
 
 class ChannelMemberChange(StrEnum):

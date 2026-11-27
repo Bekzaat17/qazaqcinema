@@ -1,4 +1,4 @@
-"""Фоновый планировщик (apscheduler). Десять задач — все через REQUEST-scope dishka.
+"""Фоновый планировщик (apscheduler). Все задачи — через REQUEST-scope dishka.
 
 1. `expire_due` (15 мин) — гасит просроченные подписки: ACTIVE → EXPIRED + уведомление +
    чистка выданных видео. Доступ к контенту от этого джоба НЕ зависит (`has_active_access`
@@ -62,6 +62,12 @@
    попал в окно ОДНОГО прогона (12–13 ч), а не «все старше 12 ч»: без верхней границы
    одна забытая заявка капала бы в чат каждый час до скончания века.
 
+11. `music_chart` (пятница 19:00) — хит-парад недели в канал: топ по РАЗНЫМ слушателям
+   и песни, которые ищут, но их нет (призыв прислать их боту). Идемпотентен по неделе.
+
+12. `music_cache_prune` (ежечасно) — чистка дискового кэша треков для плеера Mini App
+   сверх `MEDIA_AUDIO_CACHE_MB`: стираются давно не слушанные, Telegram остаётся источником.
+
 Джобы дёргают сервисы через REQUEST-scope контейнер (сессия БД + репозитории живут именно
 там). Запуск/остановка — в `main.py`. Планировщик поднимает ТОЛЬКО процесс бота (api и
 worker его не заводят) — поэтому отчёт уходит один раз, сколько бы реплик API ни было.
@@ -70,6 +76,7 @@ worker его не заводят) — поэтому отчёт уходит о
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from html import escape
@@ -85,6 +92,8 @@ from app.application.services.broadcast_service import BroadcastService
 from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
 from app.application.services.content_reminder_service import ContentReminderService
+from app.application.services.music_chart_service import MusicChartService
+from app.application.services.music_media_service import MusicMediaService
 from app.application.services.quiz_service import QuizService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
@@ -137,6 +146,11 @@ PENDING_REMINDER_HOURS = 12
 # Минута часа для этого напоминания. Не :00 — там уже `content_post` и `quiz_results`,
 # а очередь из трёх задач в одну секунду ничем не лучше разнесённой.
 PENDING_REMINDER_MINUTE = 5
+# Хит-парад музыки — пятница 19:00: в сетке канала вечер пятницы свободен, а к выходным
+# люди как раз собирают, что послушать.
+MUSIC_CHART_DAY = "fri"
+MUSIC_CHART_HOUR = 19
+MUSIC_CACHE_PRUNE_MINUTES = 60
 
 
 async def _expire_due_job(container: AsyncContainer) -> None:
@@ -289,6 +303,25 @@ async def _weekly_pick_closing_job(container: AsyncContainer) -> None:
             logger.info("Письмо о закрытии недельного выбора: %d адресатов", count)
 
 
+async def _music_chart_job(container: AsyncContainer) -> None:
+    # Канал — витрина: сбой поста не должен ронять планировщик и прочие джобы.
+    try:
+        async with container() as request_container:
+            service = await request_container.get(MusicChartService)
+            if await service.publish_weekly(datetime.now(UTC)):
+                logger.info("Хит-парад недели опубликован в канале")
+    except Exception:
+        logger.exception("Не удалось опубликовать хит-парад недели")
+
+
+async def _music_cache_prune_job(container: AsyncContainer, max_bytes: int) -> None:
+    async with container() as request_container:
+        media = await request_container.get(MusicMediaService)
+        removed = await asyncio.to_thread(media.prune, max_bytes)
+    if removed:
+        logger.info("Кэш музыки: удалено %d давно не слушанных файлов", removed)
+
+
 async def _content_reminder_job(container: AsyncContainer) -> None:
     async with container() as request_container:
         service = await request_container.get(ContentReminderService)
@@ -299,6 +332,7 @@ async def _content_reminder_job(container: AsyncContainer) -> None:
 def build_scheduler(
     container: AsyncContainer, *,
     content_reminder_hour: int = 12, content_reminder_minute: int = 45,
+    audio_cache_bytes: int = 2048 * 1024 * 1024,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
@@ -436,6 +470,25 @@ def build_scheduler(
         args=[container],
         id="content_reminder",
         misfire_grace_time=1800,
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        _music_chart_job,
+        CronTrigger(day_of_week=MUSIC_CHART_DAY, hour=MUSIC_CHART_HOUR, timezone=REPORT_TZ),
+        args=[container],
+        id="music_chart",
+        # Идемпотентен по неделе (`music_chart_posts`) — догонять можно весь вечер.
+        misfire_grace_time=4 * 3600,
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        _music_cache_prune_job,
+        "interval",
+        minutes=MUSIC_CACHE_PRUNE_MINUTES,
+        args=[container, audio_cache_bytes],
+        id="music_cache_prune",
         coalesce=True,
         max_instances=1,
     )

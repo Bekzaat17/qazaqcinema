@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 
@@ -30,6 +31,17 @@ from app.application.ports.daily_pin import DailyPin
 from app.application.ports.discussion import DiscussionGroup
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
+from app.application.ports.music import (
+    AudioFiles,
+    AudioSender,
+    LibraryRepository,
+    MusicArchive,
+    MusicChartLog,
+    MusicRequestRepository,
+    PlaylistRepository,
+    StreamKey,
+    TrackRepository,
+)
 from app.application.ports.payments import PaymentProvider
 from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
@@ -66,8 +78,14 @@ from app.application.services.favorite_service import FavoriteService
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.milestone_service import MilestoneService
 from app.application.services.moderation_service import PaymentModerationService
+from app.application.services.music_catalog_service import MusicCatalogService
+from app.application.services.music_chart_service import MusicChartService
+from app.application.services.music_delivery_service import MusicDeliveryService
+from app.application.services.music_library_service import MusicLibraryService
+from app.application.services.music_media_service import MusicMediaService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
+from app.application.services.playlist_service import PlaylistService
 from app.application.services.poster_service import PosterService
 from app.application.services.quiz_service import QuizService
 from app.application.services.riddle_announcement_service import RiddleAnnouncementService
@@ -114,6 +132,13 @@ from app.infrastructure.db.repositories import (
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
+from app.infrastructure.db.repositories.music import (
+    PgLibraryRepository,
+    PgMusicChartLog,
+    PgMusicRequestRepository,
+    PgPlaylistRepository,
+    PgTrackRepository,
+)
 from app.infrastructure.db.riddle_repositories import PgPublicationGate, PgRiddleAnswerRepository
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from app.infrastructure.images.pillow import PillowImageProcessor
@@ -126,6 +151,11 @@ from app.infrastructure.telegram.channel import (
 )
 from app.infrastructure.telegram.discussion import AiogramDiscussionGroup
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
+from app.infrastructure.telegram.music import (
+    AiogramAudioSender,
+    AiogramMusicArchive,
+    TelegramAudioFiles,
+)
 from app.infrastructure.telegram.notifier import AiogramNotifier
 
 
@@ -221,6 +251,25 @@ class AppProvider(Provider):
         return CachedChannelMembership(
             AiogramChannelMembership(bot, config.bot.public_channel_id), redis
         )
+
+    @provide
+    def audio_sender(self, bot: Bot) -> AudioSender:
+        return AiogramAudioSender(bot)
+
+    @provide
+    def music_archive(self, bot: Bot, config: AppConfig) -> MusicArchive:
+        return AiogramMusicArchive(bot, config.bot.music_channel_id)
+
+    @provide
+    def audio_files(self, bot: Bot, config: AppConfig) -> AudioFiles:
+        return TelegramAudioFiles(bot, config.media.root)
+
+    @provide
+    def stream_key(self, config: AppConfig) -> StreamKey:
+        # Ключ подписи ссылок на прослушивание выводится из токена бота: он уже секрет,
+        # есть у api и бота одинаковым, и второй секрет в env разъехался бы с ним.
+        token = config.bot.token.get_secret_value().encode()
+        return StreamKey(hashlib.sha256(b"music-stream:" + token).digest())
 
     @provide
     def discussion_group(self, bot: Bot, config: AppConfig) -> DiscussionGroup:
@@ -356,6 +405,30 @@ class RequestProvider(Provider):
         return ChannelService(publisher, daily, posters, config.bot.username)
 
     milestones = provide(MilestoneService)  # лента вех роста — команда /milestone
+
+    tracks_repo = provide(PgTrackRepository, provides=TrackRepository)
+    music_library_repo = provide(PgLibraryRepository, provides=LibraryRepository)
+    playlists_repo = provide(PgPlaylistRepository, provides=PlaylistRepository)
+    music_requests_repo = provide(PgMusicRequestRepository, provides=MusicRequestRepository)
+    music_chart_log = provide(PgMusicChartLog, provides=MusicChartLog)
+    music_catalog = provide(MusicCatalogService)
+    music_library = provide(MusicLibraryService)
+    playlists = provide(PlaylistService)
+    music_media = provide(MusicMediaService)
+
+    @provide
+    def music_delivery(
+        self, tracks: TrackRepository, sender: AudioSender, users: UserRepository,
+        events: UserEventRepository, lock: Lock, config: AppConfig,
+    ) -> MusicDeliveryService:
+        return MusicDeliveryService(tracks, sender, users, events, lock, config.bot.username)
+
+    @provide
+    def music_chart(
+        self, tracks: TrackRepository, requests: MusicRequestRepository, log: MusicChartLog,
+        publisher: ChannelPublisher, config: AppConfig,
+    ) -> MusicChartService:
+        return MusicChartService(tracks, requests, log, publisher, config.bot.username)
     content_posting = provide(ContentPostingService)  # контент-план канала: ежечасный джоб
     content_seed = provide(ContentSeedService)  # заливка пула из YAML (tools/seed_content)
     riddle_announcement = provide(RiddleAnnouncementService)

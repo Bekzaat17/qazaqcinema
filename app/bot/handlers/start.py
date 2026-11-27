@@ -14,9 +14,11 @@ from dishka.integrations.aiogram import inject
 
 from app.application.services.activity_service import UserActivityService
 from app.application.services.catalog_service import CatalogService
-from app.bot.keyboards.common import movie_keyboard, webapp_keyboard
+from app.bot.handlers.music import MUSIC_GREETING
+from app.bot.keyboards.common import movie_keyboard, music_keyboard, webapp_keyboard
 from app.config.settings import AppConfig
 from app.domain.analytics.source import link_movie_id
+from app.domain.music.links import parse_music_link
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,14 @@ async def handle_start(
     # на сам фильм. Mini App откроется ИЗ ЧАТА — только так «Чатқа өту» после выдачи видео
     # возвращает человека сюда, к видео (см. `movie_start_url`).
     url = config.bot.webapp_url
+    music = parse_music_link(command.args)
+    if music is not None:
+        await message.answer(
+            MUSIC_GREETING,
+            parse_mode="HTML",
+            reply_markup=music_keyboard(url, music.track_id, music.playlist_code),
+        )
+        return
     movie_id = link_movie_id(command.args)
     movie = await catalog.get_movie(movie_id) if movie_id is not None and url else None
     if movie is not None and movie.id is not None:

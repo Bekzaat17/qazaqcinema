@@ -21,6 +21,7 @@ from app.api.routers import (
     favorites,
     health,
     me,
+    music,
     payments,
     public_seo,
     support,
@@ -66,6 +67,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(events.router)
     app.include_router(support.router)
     app.include_router(health.router)
+    app.include_router(music.router)
     # Публичные SSR-страницы для SEO (/m/<slug>, /catalog, /sitemap.xml, /robots.txt).
     # Без /api-префикса и без авторизации — их отдаёт поисковикам сам бэкенд (Caddy
     # проксирует эти пути на api ДО SPA-фолбэка).

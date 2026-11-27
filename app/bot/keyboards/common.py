@@ -5,6 +5,31 @@ from __future__ import annotations
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 
+def music_url(url: str, track_id: int | None = None, playlist_code: str | None = None) -> str:
+    """URL Mini App сразу на музыке (и на треке/плейлисте) — в query, как у фильма."""
+    sep = "&" if "?" in url else "?"
+    target = f"{url}{sep}app=music"
+    if track_id is not None:
+        target += f"&t={track_id}"
+    if playlist_code is not None:
+        target += f"&pl={playlist_code}"
+    return target
+
+
+def music_keyboard(
+    url: str, track_id: int | None = None, playlist_code: str | None = None
+) -> InlineKeyboardMarkup:
+    """Кнопка «🎧 Музыканы ашу» — Mini App сразу в музыкальном разделе."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(
+                text="🎧 Музыканы ашу",
+                web_app=WebAppInfo(url=music_url(url, track_id, playlist_code)),
+            )
+        ]]
+    )
+
+
 def webapp_keyboard(url: str) -> InlineKeyboardMarkup:
     """Кнопка открытия Web App (🍿 Кинотеатрды ашу)."""
     return InlineKeyboardMarkup(

@@ -52,6 +52,7 @@ async def _setup_commands(bot: Bot) -> None:
         await bot.set_my_commands(
             [
                 BotCommand(command="start", description="🎬 Кинотеатрды ашу"),
+                BotCommand(command="music", description="🎧 Музыка — тыңдау және ән қосу"),
             ]
         )
         _log.info("Команды бота зарегистрированы")
@@ -116,6 +117,7 @@ async def main() -> None:
         container,
         content_reminder_hour=config.bot.content_reminder_hour,
         content_reminder_minute=config.bot.content_reminder_minute,
+        audio_cache_bytes=config.media.audio_cache_mb * 1024 * 1024,
     )
     scheduler.start()
     try:

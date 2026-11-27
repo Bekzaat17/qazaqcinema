@@ -39,6 +39,9 @@ class BotConfig(BaseSettings):
     content_reminder_hour: int = Field(default=12, ge=0, le=23)
     content_reminder_minute: int = Field(default=45, ge=0, le=59)
     archive_channel_id: int = 0     # секретный канал-архив с видео
+    # Приватный канал-архив МУЗЫКИ: копия каждого трека, присланного слушателями.
+    # 0 → копий нет, треки всё равно попадают в каталог (file_id у бота рабочий).
+    music_channel_id: int = 0
     # ПУБЛИЧНЫЙ канал-витрина: туда бот сам постит фильм дня (раз в сутки) и новинки.
     # Не путать с `archive_channel_id`: там лежит видео и он приватный, здесь — афиши.
     # 0 = канал не настроен → публикация тихий no-op (тот же приём «по заполненности
@@ -136,6 +139,9 @@ class MediaConfig(BaseSettings):
     # Каталог с контентом канала: `*.yaml`, `images/`, `fonts/` (в образе — /app/content).
     # Читают сидер и предпросмотр; шрифты отсюда же берёт генератор карточек.
     content_root: str = "content"
+    # Потолок дискового кэша треков для плеера Mini App (`<root>/audio`). Кэш —
+    # копии из Telegram: ежечасный джоб стирает давно не слушанное сверх предела.
+    audio_cache_mb: int = Field(default=2048, ge=64)
 
 
 class AppConfig(BaseSettings):
