@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 
 from app.domain.music.chart import ChartEntry, WeeklyChart, has_content, render_chart
 from app.domain.music.links import MusicLink, parse_music_link
 from app.domain.music.playlist import DEFAULT_TITLE, TITLE_MAX, new_share_code, playlist_title
-from app.domain.music.stream import stream_expiry, stream_signature, verify_stream
 from app.domain.music.track import (
     UNKNOWN_PERFORMER,
     AudioUpload,
@@ -15,9 +14,6 @@ from app.domain.music.track import (
     search_key,
     track_name,
 )
-
-_NOW = datetime(2026, 11, 27, 15, 42, tzinfo=UTC)
-_KEY = b"secret"
 
 
 def _upload(**kwargs: object) -> AudioUpload:
@@ -59,20 +55,6 @@ def test_music_links_cover_section_track_and_playlist_with_source_tag() -> None:
     assert parse_music_link("pl_AbC-12_x") == MusicLink(playlist_code="AbC-12_x")
     assert parse_music_link("m_42") is None
     assert parse_music_link(None) is None
-
-
-def test_stream_link_is_valid_until_expiry_and_bound_to_track() -> None:
-    expires = stream_expiry(_NOW)
-    signature = stream_signature(_KEY, 7, expires)
-    assert verify_stream(_KEY, 7, expires, signature, _NOW)
-    assert not verify_stream(_KEY, 8, expires, signature, _NOW)
-    assert not verify_stream(b"other", 7, expires, signature, _NOW)
-    later = datetime.fromtimestamp(expires, UTC) + timedelta(seconds=1)
-    assert not verify_stream(_KEY, 7, expires, signature, later)
-
-
-def test_stream_link_is_stable_within_an_hour_for_browser_cache() -> None:
-    assert stream_expiry(_NOW) == stream_expiry(_NOW.replace(minute=5))
 
 
 def test_playlist_title_is_trimmed_and_never_empty() -> None:

@@ -2,16 +2,31 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { Loader2, Music2, Plus, Search, SearchX, Sparkles, TrendingUp, X, type LucideIcon } from "../ui-kit/adapters/icons";
+import { Flame, Loader2, Music2, Plus, Search, SearchX, Sparkles, Trophy, TrendingUp, Users, X, type LucideIcon } from "../ui-kit/adapters/icons";
 
-import { musicApi, type MusicHome, type Track } from "./api";
+import { musicApi, type Collection, type MusicHome, type Playlist, type Track } from "./api";
+import PlaylistCover from "./components/PlaylistCover";
 import TrackList from "./components/TrackList";
+import { tracksLabel } from "./format";
+
+/** Значок готовой подборки по её ключу (подпись приходит с бэка). */
+export const COLLECTION_ICONS: Record<string, LucideIcon> = {
+  week_hits: Flame,
+  new: Sparkles,
+  best: Trophy,
+};
 
 interface HomeViewProps {
   home: MusicHome | null;
+  collections: Collection[];
+  publicPlaylists: Playlist[];
   failed: boolean;
+  busy: boolean;
   onRetry: () => void;
+  onSend: (tracks: Track[]) => void;
   onMore: (track: Track) => void;
+  onOpenCollection: (collection: Collection) => void;
+  onOpenPlaylist: (playlist: Playlist) => void;
   onRequest: (query: string) => void;
   onAdd: () => void;
 }
@@ -55,7 +70,24 @@ function Section({ Icon, title, children }: { Icon: LucideIcon; title: string; c
   );
 }
 
-export default function HomeView({ home, failed, onRetry, onMore, onRequest, onAdd }: HomeViewProps) {
+function Rail({ children }: { children: ReactNode }) {
+  return <div className="no-scrollbar -mx-2 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1">{children}</div>;
+}
+
+function Tile({ seed, Icon, title, caption, onClick }: { seed: string; Icon?: LucideIcon; title: string; caption: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="w-36 shrink-0 snap-start text-left active:scale-[0.98]">
+      <div className="aspect-square overflow-hidden rounded-3xl shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+        <PlaylistCover seed={seed} Icon={Icon} />
+      </div>
+      <p className="mt-2 truncate text-[14px] font-semibold text-text">{title}</p>
+      <p className="line-clamp-2 text-[12px] leading-snug text-faint">{caption}</p>
+    </button>
+  );
+}
+
+export default function HomeView(props: HomeViewProps) {
+  const { home, collections, publicPlaylists, failed, busy, onRetry, onSend, onMore, onOpenCollection, onOpenPlaylist, onRequest, onAdd } = props;
   const [query, setQuery] = useState("");
   const [showAllNew, setShowAllNew] = useState(false);
   const results = useTrackSearch(query);
@@ -86,7 +118,7 @@ export default function HomeView({ home, failed, onRetry, onMore, onRequest, onA
           {results === null ? (
             <div className="flex justify-center py-10 text-muted"><Loader2 className="ui-spinner" /></div>
           ) : results.length ? (
-            <TrackList tracks={results} onMore={onMore} />
+            <TrackList tracks={results} busy={busy} onSend={onSend} onMore={onMore} />
           ) : (
             <div className="px-4 py-10 text-center">
               <SearchX size={36} className="mx-auto text-faint" />
@@ -113,7 +145,7 @@ export default function HomeView({ home, failed, onRetry, onMore, onRequest, onA
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">QazaqMusic</p>
                 <h1 className="mt-1 text-[22px] font-extrabold leading-tight tracking-tight">Бәріміз бірге толтыратын музыка</h1>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-white/80">
-                  Тыңда, плейлист жина, досыңа бөліс. Жоқ әнді ботқа жібер — бірден бәріне ашылады.
+                  Әнді бас — ол чатқа келеді, экран сөнсе де ойнайды. Плейлист жина, досыңа бөліс, жоқ әнді ботқа жібер.
                 </p>
               </div>
               <Music2 size={40} className="shrink-0 text-white/80" />
@@ -138,15 +170,48 @@ export default function HomeView({ home, failed, onRetry, onMore, onRequest, onA
             </div>
           )}
 
+          {collections.length > 0 && (
+            <Section Icon={Music2} title="Дайын плейлистер">
+              <Rail>
+                {collections.map((collection) => (
+                  <Tile
+                    key={collection.key}
+                    seed={collection.title}
+                    Icon={COLLECTION_ICONS[collection.key]}
+                    title={collection.title}
+                    caption={collection.performers.length ? `${collection.performers.join(", ")} және т.б.` : collection.subtitle}
+                    onClick={() => onOpenCollection(collection)}
+                  />
+                ))}
+              </Rail>
+            </Section>
+          )}
+
+          {publicPlaylists.length > 0 && (
+            <Section Icon={Users} title="Тыңдаушылардың плейлистері">
+              <Rail>
+                {publicPlaylists.map((playlist) => (
+                  <Tile
+                    key={playlist.id}
+                    seed={playlist.title}
+                    title={playlist.title}
+                    caption={`${tracksLabel(playlist.track_count)}${playlist.saves_count ? ` · ${playlist.saves_count} адам сақтады` : ""}`}
+                    onClick={() => onOpenPlaylist(playlist)}
+                  />
+                ))}
+              </Rail>
+            </Section>
+          )}
+
           {home && home.popular.length > 0 && (
             <Section Icon={TrendingUp} title="Танымал">
-              <TrackList tracks={home.popular.slice(0, 10)} numbered onMore={onMore} />
+              <TrackList tracks={home.popular.slice(0, 10)} numbered busy={busy} onSend={onSend} onMore={onMore} />
             </Section>
           )}
 
           {home && home.recent.length > 0 && (
             <Section Icon={Sparkles} title="Жаңа қосылған">
-              <TrackList tracks={showAllNew ? home.recent : home.recent.slice(0, SHELF_SHOWN)} onMore={onMore} />
+              <TrackList tracks={showAllNew ? home.recent : home.recent.slice(0, SHELF_SHOWN)} busy={busy} onSend={onSend} onMore={onMore} />
               {!showAllNew && home.recent.length > SHELF_SHOWN && (
                 <button onClick={() => setShowAllNew(true)} className="mx-2 mt-1 w-[calc(100%-16px)] rounded-2xl bg-surface py-2.5 text-[14px] font-semibold text-muted active:bg-elevated">
                   Тағы көрсету

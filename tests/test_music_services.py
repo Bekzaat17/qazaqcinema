@@ -69,6 +69,9 @@ class FakeTracks:
     async def top_played(self, since: datetime, until: datetime, limit: int) -> list[ChartEntry]:
         return self.top[:limit]
 
+    async def top_tracks(self, since: datetime, until: datetime, limit: int) -> list[Track]:
+        return []
+
     async def count_added(self, since: datetime, until: datetime) -> int:
         return len(self.rows)
 
@@ -301,6 +304,15 @@ class FakePlaylists:
     async def rename(self, playlist_id: int, title: str, at: datetime) -> None:
         self.rows[playlist_id].title = title
 
+    async def set_public(self, playlist_id: int, is_public: bool, at: datetime) -> None:
+        self.rows[playlist_id].is_public = is_public
+
+    async def list_public(self, limit: int) -> list[Playlist]:
+        return [p for p in self.rows.values() if p.is_public][:limit]
+
+    async def increment_saves(self, playlist_id: int) -> None:
+        self.rows[playlist_id].saves_count += 1
+
     async def delete(self, playlist_id: int) -> None:
         del self.rows[playlist_id]
 
@@ -324,6 +336,12 @@ class FakePlaylists:
 
     async def track_ids(self, playlist_id: int) -> list[int]:
         return list(self.items[playlist_id])
+
+    async def reorder(self, playlist_id: int, track_ids: Sequence[int], at: datetime) -> bool:
+        if sorted(track_ids) != sorted(self.items[playlist_id]):
+            return False
+        self.items[playlist_id] = list(track_ids)
+        return True
 
 
 async def _playlists() -> tuple[PlaylistService, FakePlaylists, FakeTracks]:
@@ -423,3 +441,53 @@ async def test_week_without_listens_posts_nothing() -> None:
     )
     assert not await service.publish_weekly(_NOW)
     assert not publisher.posts
+
+
+async def test_only_owner_reorders_and_order_is_kept() -> None:
+    service, _, tracks = await _playlists()
+    await tracks.add(Track(
+        title="t2", performer="p", duration_sec=100, telegram_file_id="f2",
+        file_unique_id="u2", uploader_id=1,
+    ))
+    mine = await service.create(1, "Ретпен", _NOW)
+    assert mine is not None and mine.id is not None
+    await service.add_track(1, mine.id, 1, _NOW)
+    await service.add_track(1, mine.id, 2, _NOW)
+    assert not await service.reorder(2, mine.id, [2, 1], _NOW)
+    assert await service.reorder(1, mine.id, [2, 1], _NOW)
+    view = await service.open(1, mine.id)
+    assert view is not None and [t.id for t in view.tracks] == [2, 1]
+
+
+async def test_send_keeps_the_order_it_was_given() -> None:
+    sender = FakeSender()
+    service, _, _, _ = await _delivery(sender, count=3)
+    assert await service.send_tracks(User(telegram_id=5), [3, 1, 2], _NOW) is SendOutcome.SENT
+    assert sender.albums == [["f2", "f0", "f1"]]
+
+
+async def test_shared_copy_counts_a_save_and_public_switch_is_owner_only() -> None:
+    service, playlists, _ = await _playlists()
+    source = await service.create(1, "Той", _NOW)
+    assert source is not None and source.id is not None
+    assert not await service.set_public(2, source.id, True, _NOW)
+    assert await service.set_public(1, source.id, True, _NOW)
+    assert [p.id for p in await service.list_public(10)] == [source.id]
+    await service.save_shared(2, source.share_code, _NOW)
+    assert playlists.rows[source.id].saves_count == 1
+
+
+async def test_playlist_created_with_tracks_keeps_only_known_ones() -> None:
+    service, playlists, _ = await _playlists()
+    created = await service.create(1, "Үздіктер", _NOW, [1, 404])
+    assert created is not None and created.id is not None
+    assert playlists.items[created.id] == [1]
+
+
+async def test_empty_collections_are_hidden() -> None:
+    service, *_ = _catalog()
+    assert await service.collections(_NOW) == []
+    await service.ingest(_upload(), 42, _NOW)
+    keys = [view.collection.kind.value for view in await service.collections(_NOW)]
+    # Хитов недели ещё нет (никто не слушал), новые и лучшие уже есть.
+    assert keys == ["new", "best"]

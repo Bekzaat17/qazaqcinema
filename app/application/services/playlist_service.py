@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -39,16 +40,27 @@ class PlaylistService:
         ids = await self._playlists.track_ids(playlist.id)
         return PlaylistView(playlist, await self._tracks.list_by_ids(ids))
 
-    async def create(self, owner_id: int, title: str | None, now: datetime) -> Playlist | None:
-        """Новый пустой плейлист. None — достигнут предел плейлистов у человека."""
+    async def create(
+        self, owner_id: int, title: str | None, now: datetime, track_ids: Sequence[int] = ()
+    ) -> Playlist | None:
+        """Новый плейлист, сразу с треками или пустой. None — достигнут предел плейлистов.
+
+        Треки при создании — это «Өзіме сақтау» у готовой подборки: она собрана из
+        каталога на лету и своей строки в БД не имеет, копировать её можно только списком.
+        """
         if await self._playlists.count_for_owner(owner_id) >= MAX_PLAYLISTS_PER_USER:
             return None
-        return await self._playlists.create(Playlist(
+        playlist = await self._playlists.create(Playlist(
             owner_id=owner_id,
             title=playlist_title(title),
             share_code=new_share_code(),
             created_at=now,
         ))
+        if track_ids and playlist.id is not None:
+            known = [t.id for t in await self._tracks.list_by_ids(track_ids) if t.id is not None]
+            await self._playlists.add_tracks(playlist.id, known, now, MAX_TRACKS_PER_PLAYLIST)
+            return await self._playlists.get(playlist.id) or playlist
+        return playlist
 
     async def list_mine(self, owner_id: int) -> list[Playlist]:
         return await self._playlists.list_for_owner(owner_id)
@@ -66,6 +78,18 @@ class PlaylistService:
             return False
         await self._playlists.rename(playlist_id, playlist_title(title), now)
         return True
+
+    async def set_public(
+        self, owner_id: int, playlist_id: int, is_public: bool, now: datetime
+    ) -> bool:
+        """«Бәріне көрсету»: плейлист появляется у всех на главной."""
+        if await self._owned(owner_id, playlist_id) is None:
+            return False
+        await self._playlists.set_public(playlist_id, is_public, now)
+        return True
+
+    async def list_public(self, limit: int) -> list[Playlist]:
+        return await self._playlists.list_public(limit)
 
     async def delete(self, owner_id: int, playlist_id: int) -> bool:
         if await self._owned(owner_id, playlist_id) is None:
@@ -93,6 +117,14 @@ class PlaylistService:
         await self._playlists.remove_track(playlist_id, track_id, now)
         return True
 
+    async def reorder(
+        self, owner_id: int, playlist_id: int, track_ids: list[int], now: datetime
+    ) -> bool:
+        """Новый порядок треков (режим «Реттеу»). Telegram играет плейлист ровно так."""
+        if await self._owned(owner_id, playlist_id) is None:
+            return False
+        return await self._playlists.reorder(playlist_id, track_ids, now)
+
     async def save_shared(self, owner_id: int, share_code: str, now: datetime) -> Playlist | None:
         """Сохранить чужой плейлист себе копией.
 
@@ -109,4 +141,5 @@ class PlaylistService:
             return None
         ids = await self._playlists.track_ids(source.id)
         await self._playlists.add_tracks(copy.id, ids, now, MAX_TRACKS_PER_PLAYLIST)
+        await self._playlists.increment_saves(source.id)
         return await self._playlists.get(copy.id)

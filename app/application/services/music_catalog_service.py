@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 from app.application.ports.music import (
@@ -22,6 +22,7 @@ from app.application.ports.music import (
 )
 from app.application.ports.repositories import UserEventRepository
 from app.domain.analytics.events import EventKind
+from app.domain.music.collections import COLLECTIONS, Collection, CollectionKind
 from app.domain.music.track import AudioUpload, Track, is_music, search_key, track_name
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,16 @@ class IngestOutcome(StrEnum):
 class IngestResult:
     outcome: IngestOutcome
     track: Track | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CollectionView:
+    collection: Collection
+    tracks: list[Track]
+
+
+# Окно «хитов недели» — скользящие 7 суток: подборка не пустеет в понедельник утром.
+_HITS_WINDOW = timedelta(days=7)
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +102,6 @@ class MusicCatalogService:
             uploader_id=uploader_id,
             file_size=upload.file_size,
             mime_type=upload.mime_type,
-            cover_file_id=upload.cover_file_id,
             archive_message_id=archive_id,
         ))
         if track.id is None:
@@ -116,6 +126,20 @@ class MusicCatalogService:
             popular=await self._tracks.list_popular(SHELF_SIZE),
             requests=await self._requests.list_open(REQUESTS_SHOWN),
         )
+
+    async def collection(self, collection: Collection, now: datetime) -> CollectionView:
+        if collection.kind is CollectionKind.WEEK_HITS:
+            tracks = await self._tracks.top_tracks(now - _HITS_WINDOW, now, collection.size)
+        elif collection.kind is CollectionKind.NEW:
+            tracks = await self._tracks.list_recent(collection.size)
+        else:
+            tracks = await self._tracks.list_popular(collection.size)
+        return CollectionView(collection, tracks)
+
+    async def collections(self, now: datetime) -> list[CollectionView]:
+        """Все готовые подборки; пустые не показываем — «плейлист из нуля песен» как поломка."""
+        views = [await self.collection(c, now) for c in COLLECTIONS]
+        return [view for view in views if view.tracks]
 
     async def get(self, track_id: int) -> Track | None:
         return await self._tracks.get(track_id)

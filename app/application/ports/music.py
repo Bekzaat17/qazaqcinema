@@ -10,19 +10,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
-from pathlib import Path
 from typing import Protocol
 
 from app.domain.music.chart import ChartEntry
 from app.domain.music.playlist import Playlist
 from app.domain.music.track import Track
-
-
-@dataclass(frozen=True, slots=True)
-class StreamKey:
-    """Секрет подписи ссылок на прослушивание (см. `domain/music/stream`)."""
-
-    value: bytes
 
 
 class TrackRepository(Protocol):
@@ -63,6 +55,10 @@ class TrackRepository(Protocol):
         """Убрать трек из каталога (жалоба, правообладатель). True — был виден."""
         ...
 
+    async def top_tracks(self, since: datetime, until: datetime, limit: int) -> list[Track]:
+        """Треки с наибольшим числом РАЗНЫХ слушателей за окно (подборка «хиты недели»)."""
+        ...
+
     async def top_played(self, since: datetime, until: datetime, limit: int) -> list[ChartEntry]:
         """Самые прослушиваемые за окно — по журналу прослушиваний, а не по счётчику."""
         ...
@@ -96,6 +92,13 @@ class PlaylistRepository(Protocol):
     async def list_for_owner(self, owner_id: int) -> list[Playlist]: ...
     async def count_for_owner(self, owner_id: int) -> int: ...
     async def rename(self, playlist_id: int, title: str, at: datetime) -> None: ...
+    async def set_public(self, playlist_id: int, is_public: bool, at: datetime) -> None: ...
+
+    async def list_public(self, limit: int) -> list[Playlist]:
+        """Открытые всем и непустые: сначала самые сохраняемые."""
+        ...
+
+    async def increment_saves(self, playlist_id: int) -> None: ...
     async def delete(self, playlist_id: int) -> None: ...
 
     async def add_track(
@@ -111,6 +114,10 @@ class PlaylistRepository(Protocol):
         ...
 
     async def remove_track(self, playlist_id: int, track_id: int, at: datetime) -> bool: ...
+
+    async def reorder(self, playlist_id: int, track_ids: Sequence[int], at: datetime) -> bool:
+        """Задать порядок целиком. False — набор id не совпал с плейлистом (устарел экран)."""
+        ...
 
     async def track_ids(self, playlist_id: int) -> list[int]:
         """id треков в порядке плейлиста."""
@@ -146,11 +153,12 @@ class MusicChartLog(Protocol):
 
 
 class AudioSender(Protocol):
-    """Аудио в личку слушателю — для прослушивания с выключенным экраном.
+    """Аудио в личку слушателю — единственный способ слушать, как «Көру» у фильмов.
 
-    Плеер Telegram играет присланные треки в фоне и подряд, чего Mini App в WebView
-    гарантировать не может. Ошибки — как у видео: `RecipientUnreachableError` (чат
-    закрыт) и `TelegramTemporarilyUnavailableError` (флуд-лимит, сеть).
+    Сервер файл не хранит и не стримит: плеер Telegram играет присланные треки в фоне и
+    подряд, в том числе с выключенным экраном. Ошибки — как у видео:
+    `RecipientUnreachableError` (чат закрыт) и `TelegramTemporarilyUnavailableError`
+    (флуд-лимит, сеть).
     """
 
     async def send_audio(self, chat_id: int, file_id: str, caption: str) -> int: ...
@@ -168,19 +176,3 @@ class MusicArchive(Protocol):
     """
 
     async def store(self, file_id: str, caption: str) -> int | None: ...
-
-
-class AudioFiles(Protocol):
-    """Локальные копии файлов из Telegram для прослушивания прямо в Mini App.
-
-    ⚠️ Bot API отдаёт боту файлы не больше 20 МБ. Больше → `None`, и такой трек слушают
-    только через чат с ботом. Копии — кэш: при нехватке места их можно стереть целиком.
-    """
-
-    async def audio(self, file_id: str, file_unique_id: str) -> Path | None: ...
-    async def cover(self, file_id: str, file_unique_id: str) -> Path | None: ...
-
-    def prune(self, max_bytes: int) -> int:
-        """Сносить давно не открывавшиеся файлы, пока кэш больше предела. Вернуть сколько."""
-        ...
-

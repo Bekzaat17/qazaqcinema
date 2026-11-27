@@ -31,38 +31,19 @@ export function initials(text: string): string {
   return letters.join("") || "♪";
 }
 
-/** Следующий индекс очереди с учётом повтора; null — очередь кончилась. */
-export function nextIndex(index: number, length: number, repeat: "off" | "all" | "one"): number | null {
-  if (length === 0) return null;
-  if (repeat === "one") return index;
-  if (index + 1 < length) return index + 1;
-  return repeat === "all" ? 0 : null;
-}
-
 /**
- * Следующий трек при АВТОпереходе: тяжёлые треки (только в Telegram) пропускаются —
- * иначе музыка молча вставала бы посреди плейлиста. Ручное «Келесі» их не пропускает.
+ * «Играть отсюда»: трек и всё, что после него, — так список уходит в чат, и Telegram
+ * играет его дальше по порядку. Не больше `limit` за раз.
  */
-export function nextPlayable(
-  queue: readonly { stream_url: string | null }[],
-  index: number,
-  repeat: "off" | "all" | "one",
-): number | null {
-  let candidate = nextIndex(index, queue.length, repeat);
-  for (let tries = 0; candidate !== null && tries < queue.length; tries++) {
-    if (queue[candidate].stream_url) return candidate;
-    candidate = nextIndex(candidate, queue.length, repeat === "one" ? "off" : repeat);
-  }
-  return null;
+export function fromHere<T>(items: readonly T[], index: number, limit: number): T[] {
+  return items.slice(Math.max(0, index), Math.max(0, index) + limit);
 }
 
-/** Перемешать очередь, оставив текущий трек первым (Фишер — Йейтс). */
-export function shuffled<T>(items: readonly T[], current: number, random: () => number = Math.random): T[] {
-  if (items.length === 0) return [];
-  const rest = items.filter((_, index) => index !== current);
-  for (let i = rest.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [rest[i], rest[j]] = [rest[j], rest[i]];
-  }
-  return [items[current], ...rest];
+/** Сдвинуть элемент на соседнюю позицию (режим «Реттеу»); за краями — без изменений. */
+export function moved<T>(items: readonly T[], index: number, step: -1 | 1): T[] {
+  const target = index + step;
+  if (index < 0 || index >= items.length || target < 0 || target >= items.length) return [...items];
+  const next = [...items];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
 }

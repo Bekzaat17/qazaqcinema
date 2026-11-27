@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date, datetime
 
-from sqlalchemy import Integer, delete, false, func, or_, select, update
+from sqlalchemy import ColumnElement, Integer, delete, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,9 +26,6 @@ from app.infrastructure.db.music_models import (
 )
 from app.infrastructure.db.sql import rowcount
 
-# Сколько обложек треков собирать в обложку плейлиста (мозаика 2×2).
-_COVER_TRACKS = 4
-
 
 def _track_to_domain(model: TrackModel) -> Track:
     return Track(
@@ -41,7 +38,6 @@ def _track_to_domain(model: TrackModel) -> Track:
         uploader_id=model.uploader_id,
         file_size=model.file_size,
         mime_type=model.mime_type,
-        cover_file_id=model.cover_file_id,
         archive_message_id=model.archive_message_id,
         play_count=model.play_count,
         saves_count=model.saves_count,
@@ -82,7 +78,6 @@ class PgTrackRepository:
             "file_unique_id": track.file_unique_id,
             "file_size": track.file_size,
             "mime_type": track.mime_type,
-            "cover_file_id": track.cover_file_id,
             "archive_message_id": track.archive_message_id,
             "uploader_id": track.uploader_id,
         }
@@ -185,21 +180,36 @@ class PgTrackRepository:
         await self._session.commit()
         return changed == 1
 
+    @staticmethod
+    def _played_in(since: datetime, until: datetime) -> tuple[ColumnElement[bool], ...]:
+        return (
+            UserEventModel.kind == EventKind.TRACK_PLAY.value,
+            UserEventModel.created_at >= since,
+            UserEventModel.created_at < until,
+            _visible,
+        )
+
+    async def top_tracks(self, since: datetime, until: datetime, limit: int) -> list[Track]:
+        listeners = func.count(func.distinct(UserEventModel.user_id))
+        stmt = (
+            select(TrackModel)
+            .join(UserEventModel, TrackModel.id == UserEventModel.meta.cast(Integer))
+            .where(*self._played_in(since, until))
+            .group_by(TrackModel.id)
+            .order_by(listeners.desc(), TrackModel.id.desc())
+            .limit(limit)
+        )
+        return [_track_to_domain(model) for model in await self._session.scalars(stmt)]
+
     async def top_played(self, since: datetime, until: datetime, limit: int) -> list[ChartEntry]:
         # Журнал прослушиваний, а не `play_count`: счётчик копится за всё время, и хит
         # прошлого года стоял бы первым вечно. Считаем РАЗНЫХ людей — один человек,
         # гоняющий трек по кругу, не делает его хитом.
         listeners = func.count(func.distinct(UserEventModel.user_id))
-        track_id = UserEventModel.meta.cast(Integer)
         stmt = (
             select(TrackModel.title, TrackModel.performer, listeners)
-            .join(TrackModel, TrackModel.id == track_id)
-            .where(
-                UserEventModel.kind == EventKind.TRACK_PLAY.value,
-                UserEventModel.created_at >= since,
-                UserEventModel.created_at < until,
-                _visible,
-            )
+            .join(TrackModel, TrackModel.id == UserEventModel.meta.cast(Integer))
+            .where(*self._played_in(since, until))
             .group_by(TrackModel.id, TrackModel.title, TrackModel.performer)
             .order_by(listeners.desc(), TrackModel.id.desc())
             .limit(limit)
@@ -274,49 +284,21 @@ class PgPlaylistRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def _covers(self, playlist_ids: Sequence[int]) -> dict[int, tuple[int, ...]]:
-        if not playlist_ids:
-            return {}
-        rank = func.row_number().over(
-            partition_by=PlaylistTrackModel.playlist_id, order_by=PlaylistTrackModel.position
-        ).label("rank")
-        inner = (
-            select(PlaylistTrackModel.playlist_id, PlaylistTrackModel.track_id, rank)
-            .join(TrackModel, TrackModel.id == PlaylistTrackModel.track_id)
-            .where(
-                PlaylistTrackModel.playlist_id.in_(playlist_ids),
-                _visible,
-                TrackModel.cover_file_id.is_not(None),
-            )
-            .subquery()
-        )
-        rows = await self._session.execute(
-            select(inner.c.playlist_id, inner.c.track_id)
-            .where(inner.c.rank <= _COVER_TRACKS)
-            .order_by(inner.c.playlist_id, inner.c.rank)
-        )
-        covers: dict[int, list[int]] = {}
-        for playlist_id, track_id in rows:
-            covers.setdefault(playlist_id, []).append(track_id)
-        return {key: tuple(value) for key, value in covers.items()}
-
-    def _to_domain(self, model: PlaylistModel, cover: tuple[int, ...] = ()) -> Playlist:
+    def _to_domain(self, model: PlaylistModel) -> Playlist:
         return Playlist(
             id=model.id,
             owner_id=model.owner_id,
             title=model.title,
             share_code=model.share_code,
             track_count=model.track_count,
+            is_public=model.is_public,
+            saves_count=model.saves_count,
             created_at=model.created_at,
             updated_at=model.updated_at,
-            cover_track_ids=cover,
         )
 
     async def _one(self, model: PlaylistModel | None) -> Playlist | None:
-        if model is None:
-            return None
-        covers = await self._covers([model.id])
-        return self._to_domain(model, covers.get(model.id, ()))
+        return self._to_domain(model) if model is not None else None
 
     async def create(self, playlist: Playlist) -> Playlist:
         assert playlist.created_at is not None
@@ -347,8 +329,7 @@ class PgPlaylistRepository:
             .where(PlaylistModel.owner_id == owner_id)
             .order_by(PlaylistModel.updated_at.desc(), PlaylistModel.id.desc())
         ))
-        covers = await self._covers([model.id for model in models])
-        return [self._to_domain(model, covers.get(model.id, ())) for model in models]
+        return [self._to_domain(model) for model in models]
 
     async def count_for_owner(self, owner_id: int) -> int:
         total = await self._session.scalar(
@@ -363,6 +344,35 @@ class PgPlaylistRepository:
             update(PlaylistModel)
             .where(PlaylistModel.id == playlist_id)
             .values(title=title, updated_at=at)
+        )
+        await self._session.commit()
+
+    async def set_public(self, playlist_id: int, is_public: bool, at: datetime) -> None:
+        await self._session.execute(
+            update(PlaylistModel)
+            .where(PlaylistModel.id == playlist_id)
+            .values(is_public=is_public, updated_at=at)
+        )
+        await self._session.commit()
+
+    async def list_public(self, limit: int) -> list[Playlist]:
+        models = await self._session.scalars(
+            select(PlaylistModel)
+            .where(PlaylistModel.is_public.is_(True), PlaylistModel.track_count > 0)
+            .order_by(
+                PlaylistModel.saves_count.desc(),
+                PlaylistModel.updated_at.desc(),
+                PlaylistModel.id.desc(),
+            )
+            .limit(limit)
+        )
+        return [self._to_domain(model) for model in models]
+
+    async def increment_saves(self, playlist_id: int) -> None:
+        await self._session.execute(
+            update(PlaylistModel)
+            .where(PlaylistModel.id == playlist_id)
+            .values(saves_count=PlaylistModel.saves_count + 1)
         )
         await self._session.commit()
 
@@ -443,6 +453,30 @@ class PgPlaylistRepository:
             playlist.updated_at = at
         await self._session.commit()
         return removed
+
+    async def reorder(self, playlist_id: int, track_ids: Sequence[int], at: datetime) -> bool:
+        playlist = await self._lock(playlist_id)
+        if playlist is None:
+            await self._session.rollback()
+            return False
+        current = await self.track_ids(playlist_id)
+        # Порядок принимается только целиком и только для того же набора: экран, открытый
+        # до чужого удаления или добавления, не должен молча терять или дублировать треки.
+        if sorted(current) != sorted(track_ids) or len(set(track_ids)) != len(track_ids):
+            await self._session.rollback()
+            return False
+        for position, track_id in enumerate(track_ids, start=1):
+            await self._session.execute(
+                update(PlaylistTrackModel)
+                .where(
+                    PlaylistTrackModel.playlist_id == playlist_id,
+                    PlaylistTrackModel.track_id == track_id,
+                )
+                .values(position=position)
+            )
+        playlist.updated_at = at
+        await self._session.commit()
+        return True
 
     async def track_ids(self, playlist_id: int) -> list[int]:
         stmt = (

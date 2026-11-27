@@ -1,8 +1,8 @@
-"""Трек или плейлист — в чат с ботом, чтобы слушать с выключенным экраном.
+"""Трек или плейлист — в чат с ботом: единственный способ слушать, как «Көру» у фильмов.
 
-Плеер Telegram играет аудио из чата в фоне и подряд; Mini App в WebView этого
-гарантировать не может (iOS останавливает звук, когда приложение свёрнуто). Поэтому
-главная кнопка «слушать в фоне» отправляет файлы в личку, а не играет их на странице.
+Сервер музыку не хранит и не стримит (маленький VPS, лишний трафик): файл лежит в
+Telegram, бот отправляет его по `file_id`, а плеер Telegram играет в фоне и подряд — в
+том числе с выключенным экраном, чего WebView Mini App на iOS не умеет.
 Музыка бесплатна и пересылаемая: `protect_content` здесь нет намеренно — каждая
 пересылка друзьям несёт подпись со ссылкой на бота.
 """
@@ -110,10 +110,3 @@ class MusicDeliveryService:
             return
         await self._tracks.increment_play_count(track.id)
         await self._events.add(user_id, EventKind.TRACK_PLAY, str(track.id))
-
-    async def played_in_app(self, user_id: int, track_id: int) -> bool:
-        track = await self._tracks.get(track_id)
-        if track is None:
-            return False
-        await self.record_play(user_id, track)
-        return True

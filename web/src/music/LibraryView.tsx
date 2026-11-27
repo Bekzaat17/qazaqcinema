@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Heart, Loader2, Play, Plus, Send, Shuffle } from "../ui-kit/adapters/icons";
+import { Heart, Loader2, Play, Plus } from "../ui-kit/adapters/icons";
 
-import { musicApi, type Playlist, type Track } from "./api";
+import { musicApi, SEND_MAX, type Playlist, type Track } from "./api";
 import PlaylistCover from "./components/PlaylistCover";
 import TrackList from "./components/TrackList";
-import { shuffled, tracksLabel } from "./format";
+import { tracksLabel } from "./format";
 import { useLibrary } from "./useLibrary";
-import { usePlayer } from "./usePlayer";
 
 type Segment = "tracks" | "playlists";
 
@@ -17,18 +16,17 @@ interface LibraryViewProps {
   onMore: (track: Track) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
   onCreatePlaylist: () => void;
-  onSendAll: () => void;
-  sending: boolean;
+  onSend: (tracks: Track[]) => void;
+  busy: boolean;
   playlistsVersion: number;
   onBrowse: () => void;
 }
 
-export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, onSendAll, sending, playlistsVersion, onBrowse }: LibraryViewProps) {
+export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, onSend, busy, playlistsVersion, onBrowse }: LibraryViewProps) {
   const [segment, setSegment] = useState<Segment>("tracks");
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[] | null>(null);
   const library = useLibrary();
-  const player = usePlayer();
 
   const loadTracks = useCallback(() => {
     musicApi.library().then(setTracks, () => setTracks((prev) => prev ?? []));
@@ -70,28 +68,20 @@ export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, 
           </div>
         ) : (
           <>
-            <div className="flex gap-2 px-4 pb-2 pt-4">
-              <button onClick={() => player.play(tracks, 0)} className="qm-gradient flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 text-[15px] font-bold text-white active:scale-[0.98]">
-                <Play size={18} fill="currentColor" /> Ойнату
-              </button>
+            <div className="px-4 pb-2 pt-4">
               <button
-                onClick={() => player.play(shuffled(tracks, Math.floor(Math.random() * tracks.length)), 0)}
-                aria-label="Араластырып ойнату"
-                className="flex items-center justify-center rounded-2xl bg-elevated px-4 text-text active:scale-[0.98]"
+                onClick={() => onSend(tracks.slice(0, SEND_MAX))}
+                disabled={busy}
+                className="qm-gradient flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-[15px] font-bold text-white active:scale-[0.98] disabled:opacity-60"
               >
-                <Shuffle size={18} />
+                {busy ? <Loader2 size={18} className="ui-spinner" /> : <Play size={18} fill="currentColor" />} Бәрін ойнату
               </button>
-              <button
-                onClick={onSendAll}
-                disabled={sending}
-                aria-label="Бәрін Telegram-ға жіберу"
-                className="flex items-center justify-center rounded-2xl bg-elevated px-4 text-music active:scale-[0.98] disabled:opacity-60"
-              >
-                {sending ? <Loader2 size={18} className="ui-spinner" /> : <Send size={18} />}
-              </button>
+              <p className="mt-2 text-center text-[12px] text-faint">
+                Әндер чатқа ретімен келеді — Telegram оларды бірінен соң бірін ойнатады.
+              </p>
             </div>
             <p className="px-4 pb-1 text-[12px] text-faint">{tracksLabel(tracks.length)}</p>
-            <div className="px-2"><TrackList tracks={tracks} onMore={onMore} /></div>
+            <div className="px-2"><TrackList tracks={tracks} queue busy={busy} onSend={onSend} onMore={onMore} /></div>
           </>
         )
       ) : playlists === null ? (
@@ -105,10 +95,13 @@ export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, 
           {playlists.map((playlist) => (
             <button key={playlist.id} onClick={() => onOpenPlaylist(playlist)} className="text-left active:scale-[0.98]">
               <div className="aspect-square overflow-hidden rounded-3xl shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
-                <PlaylistCover covers={playlist.covers} seed={playlist.title} />
+                <PlaylistCover seed={playlist.title} />
               </div>
               <p className="mt-2 truncate text-[14px] font-semibold text-text">{playlist.title}</p>
-              <p className="text-[12px] text-faint">{tracksLabel(playlist.track_count)}</p>
+              <p className="text-[12px] text-faint">
+                {tracksLabel(playlist.track_count)}
+                {playlist.is_public && " · бәріне ашық"}
+              </p>
             </button>
           ))}
         </div>

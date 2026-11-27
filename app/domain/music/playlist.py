@@ -22,11 +22,13 @@ class Playlist:
     title: str
     share_code: str
     track_count: int = 0
+    # Виден всем в «Тыңдаушылардың плейлистері»; по умолчанию — только по ссылке.
+    is_public: bool = False
+    # Сколько людей сохранили себе копию — порядок публичных плейлистов.
+    saves_count: int = 0
     id: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    # Обложка плейлиста — первые треки С обложкой; сами треки ради картинки не грузим.
-    cover_track_ids: tuple[int, ...] = ()
 
 
 def playlist_title(raw: str | None) -> str:

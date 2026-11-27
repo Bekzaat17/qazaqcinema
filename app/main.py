@@ -117,7 +117,6 @@ async def main() -> None:
         container,
         content_reminder_hour=config.bot.content_reminder_hour,
         content_reminder_minute=config.bot.content_reminder_minute,
-        audio_cache_bytes=config.media.audio_cache_mb * 1024 * 1024,
     )
     scheduler.start()
     try:

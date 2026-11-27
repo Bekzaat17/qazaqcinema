@@ -1,11 +1,11 @@
 // QazaqMusic — музыкальный раздел Mini App.
 //
-// Отдельная оболочка со своей навигацией (Басты · Менің музыкам · Қосу), но та же
-// сессия, тот же бот и те же примитивы (Sheet, Toast, BotStartSheet). Раздел бесплатный:
-// здесь нет ни пэйволла, ни подарков — только авторизация, чтобы знать, чья коллекция.
+// Устроен как кинотеатр: сервер музыку не хранит и не стримит, «тыңдау» — это треки в чате
+// с ботом, где их по порядку играет плеер Telegram (в том числе с выключенным экраном).
+// Поэтому «Ойнату» у плейлиста отправляет весь список, а тап по треку внутри списка — он
+// и всё, что после него. Раздел бесплатный: ни пэйволла, ни подарков.
 //
-// Оверлеи живут стеком, и нативная кнопка «назад» Telegram закрывает верхний из них:
-// шторку → полный плеер → экран плейлиста.
+// Оверлеи живут стеком, и нативная кнопка «назад» Telegram закрывает верхний из них.
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -19,18 +19,16 @@ import { ApiError, api, SessionExpiredError } from "../lib/api";
 import { BOT_USERNAME, getInitData, haptic, openTelegramLink } from "../lib/telegram";
 import { Brand } from "../ui-kit";
 import AddView from "./AddView";
-import { musicApi, type MusicHome, type Playlist, type PlaylistDetail, type Track } from "./api";
-import FullPlayer from "./components/FullPlayer";
-import MiniPlayer from "./components/MiniPlayer";
+import { musicApi, type Collection, type MusicHome, type Playlist, type PlaylistDetail, type Track } from "./api";
 import PlaylistPicker from "./components/PlaylistPicker";
+import SentBar from "./components/SentBar";
 import TextPrompt from "./components/TextPrompt";
 import TrackSheet from "./components/TrackSheet";
-import HomeView from "./HomeView";
+import HomeView, { COLLECTION_ICONS } from "./HomeView";
 import { musicTarget, navigateApp, shareLink, trackShareUrl } from "./launch";
 import LibraryView from "./LibraryView";
-import PlaylistScreen from "./PlaylistScreen";
+import ListScreen, { type ListData } from "./ListScreen";
 import { LibraryProvider } from "./useLibrary";
-import { PlayerProvider, usePlayer } from "./usePlayer";
 
 type Tab = "home" | "library" | "add";
 type Phase = "loading" | "ready" | "error" | "no_telegram" | "session_expired";
@@ -40,7 +38,8 @@ type Prompt =
   | { kind: "rename"; playlist: PlaylistDetail }
   | { kind: "request"; initial: string };
 
-type OpenPlaylist = { id: number } | { code: string };
+/** Что открыто поверх вкладок: свой плейлист, чужой по коду или готовая подборка. */
+type OpenList = { kind: "own"; id: number } | { kind: "shared"; code: string } | { kind: "collection"; key: string };
 
 const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
   { id: "home", label: "Басты", Icon: Home },
@@ -70,118 +69,120 @@ export default function MusicApp() {
   }, [bootstrap]);
 
   return (
-    <PlayerProvider>
-      <LibraryProvider enabled={phase === "ready"}>
-        <div className="mx-auto min-h-screen w-full max-w-[1024px] bg-bg pb-[calc(140px+var(--safe-bottom))]">
-          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-bg/80 px-4 py-3 backdrop-blur-xl">
-            <Brand product="music" compact />
-            <button
-              onClick={() => {
-                haptic.light();
-                navigateApp("cinema");
-              }}
-              aria-label="Кинотеатрға өту"
-              className="ui-switch-entry"
-            >
-              <Clapperboard size={17} />
-              <span>Кино</span>
-            </button>
-          </header>
-          {phase === "loading" && <div className="py-24 text-center text-muted">Жүктелуде…</div>}
-          {phase === "error" && <LoadError onRetry={() => void bootstrap()} />}
-          {phase === "no_telegram" && <NotInTelegram />}
-          {phase === "session_expired" && <SessionExpired />}
-          {phase === "ready" && <MusicScreens />}
-        </div>
-      </LibraryProvider>
-    </PlayerProvider>
+    <LibraryProvider enabled={phase === "ready"}>
+      <div className="mx-auto min-h-screen w-full max-w-[1024px] bg-bg pb-[calc(90px+var(--safe-bottom))]">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-bg/80 px-4 py-3 backdrop-blur-xl">
+          <Brand product="music" compact />
+          <button
+            onClick={() => {
+              haptic.light();
+              navigateApp("cinema");
+            }}
+            aria-label="Кинотеатрға өту"
+            className="ui-switch-entry"
+          >
+            <Clapperboard size={17} />
+            <span>Кино</span>
+          </button>
+        </header>
+        {phase === "loading" && <div className="py-24 text-center text-muted">Жүктелуде…</div>}
+        {phase === "error" && <LoadError onRetry={() => void bootstrap()} />}
+        {phase === "no_telegram" && <NotInTelegram />}
+        {phase === "session_expired" && <SessionExpired />}
+        {phase === "ready" && <MusicScreens />}
+      </div>
+    </LibraryProvider>
   );
 }
 
 function MusicScreens() {
-  const player = usePlayer();
   const [tab, setTab] = useState<Tab>("home");
   const [home, setHome] = useState<MusicHome | null>(null);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [publicPlaylists, setPublicPlaylists] = useState<Playlist[]>([]);
   const [homeFailed, setHomeFailed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [playerOpen, setPlayerOpen] = useState(false);
+  const [sentCount, setSentCount] = useState<number | null>(null);
   const [sheetTrack, setSheetTrack] = useState<Track | null>(null);
   const [pickerTrack, setPickerTrack] = useState<Track | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [botSheet, setBotSheet] = useState(false);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [openPlaylist, setOpenPlaylist] = useState<OpenPlaylist | null>(null);
+  const [openList, setOpenList] = useState<OpenList | null>(null);
+  const [list, setList] = useState<ListData | null>(null);
   const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
-  const [playlistFailed, setPlaylistFailed] = useState(false);
+  const [listFailed, setListFailed] = useState(false);
   const [playlistsVersion, setPlaylistsVersion] = useState(0);
-  // Стабильный колбэк: Toast перезапускает таймер на каждый новый onDone, а экран
-  // перерисовывается четыре раза в секунду, пока играет музыка.
   const clearToast = useCallback(() => setToast(null), []);
+  const clearSent = useCallback(() => setSentCount(null), []);
 
   const loadHome = useCallback(() => {
     setHomeFailed(false);
     musicApi.home().then(setHome, () => setHomeFailed(true));
+    musicApi.collections().then(setCollections, () => {});
+    musicApi.publicPlaylists().then(setPublicPlaylists, () => {});
   }, []);
   useEffect(loadHome, [loadHome]);
 
-  // Ссылка извне: трек (`t_42`) — ставим в плеер и открываем его; плейлист (`pl_код`) —
-  // открываем экран чужого плейлиста.
+  // Ссылка извне: трек (`t_42`) — сразу в чат не шлём (человек ещё не нажимал), а
+  // открываем его действия; плейлист (`pl_код`) — экран чужого плейлиста.
   useEffect(() => {
     const target = musicTarget();
-    if (target?.playlistCode) setOpenPlaylist({ code: target.playlistCode });
+    if (target?.playlistCode) setOpenList({ kind: "shared", code: target.playlistCode });
     if (target?.trackId) {
-      musicApi.track(target.trackId).then(
-        (track) => {
-          player.play([track], 0);
-          setPlayerOpen(true);
-        },
-        () => setToast("Бұл ән табылмады"),
-      );
+      musicApi.track(target.trackId).then(setSheetTrack, () => setToast("Бұл ән табылмады"));
     }
-    // Один раз на вход: ссылка — это то, с чем пришли, а не состояние экрана.
   }, []);
 
-  const reloadPlaylist = useCallback(async (target: OpenPlaylist) => {
-    setPlaylistFailed(false);
+  const loadList = useCallback(async (target: OpenList) => {
+    setListFailed(false);
     try {
-      setPlaylist("id" in target ? await musicApi.playlist(target.id) : await musicApi.shared(target.code));
+      if (target.kind === "collection") {
+        const found = await musicApi.collection(target.key);
+        setPlaylist(null);
+        setList({ kind: "collection", title: found.title, subtitle: found.subtitle, tracks: found.tracks, Icon: COLLECTION_ICONS[found.key] });
+        return;
+      }
+      const found = target.kind === "own" ? await musicApi.playlist(target.id) : await musicApi.shared(target.code);
+      setPlaylist(found);
+      setList({
+        kind: found.is_own ? "own" : "shared",
+        title: found.title,
+        subtitle: found.is_own ? "" : "тыңдаушы плейлисі",
+        tracks: found.tracks,
+        isPublic: found.is_public,
+      });
     } catch {
-      setPlaylistFailed(true);
+      setListFailed(true);
     }
   }, []);
 
   useEffect(() => {
+    setList(null);
     setPlaylist(null);
-    if (openPlaylist) void reloadPlaylist(openPlaylist);
-  }, [openPlaylist, reloadPlaylist]);
+    if (openList) void loadList(openList);
+  }, [openList, loadList]);
 
-  // Ответ отправки в чат: 409 — чат с ботом не открыт, 503 — Telegram занят.
-  const handleSendError = useCallback((error: unknown) => {
-    haptic.error();
-    if (error instanceof ApiError && error.status === 409) setBotSheet(true);
-    else if (error instanceof ApiError && error.status === 503) setToast("Telegram бос емес, сәлден кейін қайталаңыз");
-    else setToast("Жіберу мүмкін болмады");
-  }, []);
-
-  const sendWith = useCallback(
-    async (send: () => Promise<{ count: number }>) => {
-      if (sending) return;
+  const send = useCallback(
+    async (tracks: Track[]) => {
+      if (sending || tracks.length === 0) return;
       setSending(true);
       try {
-        const res = await send();
+        const res = await musicApi.send(tracks.map((t) => t.id));
         haptic.success();
-        setToast(res.count > 1 ? `${res.count} ән чатқа жіберілді 🎧` : "Ән чатқа жіберілді 🎧");
+        setSentCount(res.count);
       } catch (error) {
-        handleSendError(error);
+        haptic.error();
+        if (error instanceof ApiError && error.status === 409) setBotSheet(true);
+        else if (error instanceof ApiError && error.status === 503) setToast("Telegram бос емес, сәлден кейін қайталаңыз");
+        else setToast("Жіберу мүмкін болмады");
       } finally {
         setSending(false);
       }
     },
-    [sending, handleSendError],
+    [sending],
   );
-
-  const sendTrack = useCallback((track: Track) => void sendWith(() => musicApi.sendTrack(track.id)), [sendWith]);
 
   const shareTrack = useCallback((track: Track) => {
     openTelegramLink(shareLink(trackShareUrl(BOT_USERNAME, track.id), `🎧 ${track.performer} — ${track.title}`));
@@ -210,10 +211,11 @@ function MusicScreens() {
           const created = await musicApi.createPlaylist(value);
           setPlaylistsVersion((v) => v + 1);
           if (prompt.track) await addToPlaylist(created, prompt.track);
-          else setOpenPlaylist({ id: created.id });
+          else setOpenList({ kind: "own", id: created.id });
         } else if (prompt.kind === "rename") {
-          await musicApi.renamePlaylist(prompt.playlist.id, value);
+          await musicApi.updatePlaylist(prompt.playlist.id, { title: value });
           setPlaylist({ ...prompt.playlist, title: value });
+          setList((prev) => (prev ? { ...prev, title: value } : prev));
           setPlaylistsVersion((v) => v + 1);
         } else {
           const { votes } = await musicApi.requestTrack(value);
@@ -233,10 +235,49 @@ function MusicScreens() {
       if (!playlist?.is_own) return;
       try {
         await musicApi.removeFromPlaylist(playlist.id, track.id);
-        setPlaylist({ ...playlist, tracks: playlist.tracks.filter((t) => t.id !== track.id), track_count: playlist.track_count - 1 });
+        const tracks = playlist.tracks.filter((t) => t.id !== track.id);
+        setPlaylist({ ...playlist, tracks, track_count: tracks.length });
+        setList((prev) => (prev ? { ...prev, tracks } : prev));
         setPlaylistsVersion((v) => v + 1);
       } catch {
         setToast("Алып тастау мүмкін болмады");
+      }
+    },
+    [playlist],
+  );
+
+  const reorder = useCallback(
+    async (tracks: Track[]) => {
+      if (!playlist?.is_own) return false;
+      try {
+        await musicApi.reorderPlaylist(playlist.id, tracks.map((t) => t.id));
+        setPlaylist({ ...playlist, tracks });
+        setList((prev) => (prev ? { ...prev, tracks } : prev));
+        haptic.success();
+        setToast("Реті сақталды");
+        return true;
+      } catch {
+        // Плейлист изменился в другом месте — перечитываем, чтобы не потерять треки.
+        setToast("Плейлист өзгерген, қайта ашылды");
+        if (openList) void loadList(openList);
+        return true;
+      }
+    },
+    [playlist, openList, loadList],
+  );
+
+  const togglePublic = useCallback(
+    async (value: boolean) => {
+      if (!playlist?.is_own) return;
+      setList((prev) => (prev ? { ...prev, isPublic: value } : prev));
+      try {
+        await musicApi.updatePlaylist(playlist.id, { is_public: value });
+        setPlaylist({ ...playlist, is_public: value });
+        setToast(value ? "Енді плейлистті бәрі көреді 🌍" : "Плейлист тек сілтеме арқылы ашылады");
+        musicApi.publicPlaylists().then(setPublicPlaylists, () => {});
+      } catch {
+        setList((prev) => (prev ? { ...prev, isPublic: !value } : prev));
+        setToast("Сақтау мүмкін болмады");
       }
     },
     [playlist],
@@ -247,7 +288,7 @@ function MusicScreens() {
     if (!window.confirm(`«${playlist.title}» плейлисін жою керек пе?`)) return;
     try {
       await musicApi.deletePlaylist(playlist.id);
-      setOpenPlaylist(null);
+      setOpenList(null);
       setPlaylistsVersion((v) => v + 1);
       setToast("Плейлист жойылды");
     } catch {
@@ -255,37 +296,39 @@ function MusicScreens() {
     }
   }, [playlist]);
 
-  const saveShared = useCallback(async () => {
-    if (!openPlaylist || !("code" in openPlaylist)) return;
+  // «Өзіме сақтау»: чужой плейлист копируется на сервере, подборка — списком треков.
+  const saveList = useCallback(async () => {
+    if (!openList || !list) return;
     setSaving(true);
     try {
-      const saved = await musicApi.saveShared(openPlaylist.code);
+      const saved =
+        openList.kind === "shared"
+          ? await musicApi.saveShared(openList.code)
+          : await musicApi.createPlaylist(list.title, list.tracks.map((t) => t.id));
       haptic.success();
       setToast("Плейлист сізде сақталды");
       setPlaylistsVersion((v) => v + 1);
-      setOpenPlaylist({ id: saved.id });
-    } catch {
-      setToast("Сақтау мүмкін болмады");
+      setOpenList({ kind: "own", id: saved.id });
+    } catch (error) {
+      setToast(error instanceof ApiError && error.code === "playlist_limit" ? "Плейлистер саны шегіне жетті" : "Сақтау мүмкін болмады");
     } finally {
       setSaving(false);
     }
-  }, [openPlaylist]);
+  }, [openList, list]);
 
-  const sendPlaylist = useCallback(() => {
-    if (!playlist || !openPlaylist) return;
-    void sendWith(() => ("code" in openPlaylist ? musicApi.sendShared(openPlaylist.code) : musicApi.sendPlaylist(playlist.id)));
-  }, [playlist, openPlaylist, sendWith]);
+  const sharePlaylist = useCallback(() => {
+    if (playlist) openTelegramLink(shareLink(playlist.share_url, `🎧 «${playlist.title}» плейлисі`));
+  }, [playlist]);
 
   // «Назад» Telegram закрывает верхний оверлей.
-  const overlayOpen = Boolean(sheetTrack || pickerTrack || prompt || botSheet || playerOpen || openPlaylist);
+  const overlayOpen = Boolean(sheetTrack || pickerTrack || prompt || botSheet || openList);
   const closeTop = useCallback(() => {
     if (botSheet) setBotSheet(false);
     else if (prompt) setPrompt(null);
     else if (pickerTrack) setPickerTrack(null);
     else if (sheetTrack) setSheetTrack(null);
-    else if (playerOpen) setPlayerOpen(false);
-    else if (openPlaylist) setOpenPlaylist(null);
-  }, [botSheet, prompt, pickerTrack, sheetTrack, playerOpen, openPlaylist]);
+    else if (openList) setOpenList(null);
+  }, [botSheet, prompt, pickerTrack, sheetTrack, openList]);
   useTelegramBackButton(overlayOpen, closeTop);
 
   return (
@@ -293,9 +336,15 @@ function MusicScreens() {
       {tab === "home" && (
         <HomeView
           home={home}
+          collections={collections}
+          publicPlaylists={publicPlaylists}
           failed={homeFailed}
+          busy={sending}
           onRetry={loadHome}
+          onSend={(tracks) => void send(tracks)}
           onMore={setSheetTrack}
+          onOpenCollection={(c) => setOpenList({ kind: "collection", key: c.key })}
+          onOpenPlaylist={(p) => setOpenList(p.is_own ? { kind: "own", id: p.id } : { kind: "shared", code: p.share_code })}
           onRequest={(query) => setPrompt({ kind: "request", initial: query })}
           onAdd={() => setTab("add")}
         />
@@ -303,43 +352,43 @@ function MusicScreens() {
       {tab === "library" && (
         <LibraryView
           onMore={setSheetTrack}
-          onOpenPlaylist={(p) => setOpenPlaylist({ id: p.id })}
+          onOpenPlaylist={(p) => setOpenList({ kind: "own", id: p.id })}
           onCreatePlaylist={() => setPrompt({ kind: "create", track: null })}
-          onSendAll={() => void sendWith(() => musicApi.sendLibrary())}
-          sending={sending}
+          onSend={(tracks) => void send(tracks)}
+          busy={sending}
           playlistsVersion={playlistsVersion}
           onBrowse={() => setTab("home")}
         />
       )}
       {tab === "add" && <AddView requests={home?.requests ?? []} onRequest={() => setPrompt({ kind: "request", initial: "" })} />}
 
-      {openPlaylist && (
-        <PlaylistScreen
-          playlist={playlist}
-          failed={playlistFailed}
-          sending={sending}
+      {openList && (
+        <ListScreen
+          data={list}
+          failed={listFailed}
+          busy={sending}
           saving={saving}
-          onBack={() => setOpenPlaylist(null)}
+          onBack={() => setOpenList(null)}
+          onSend={(tracks) => void send(tracks)}
           onMore={setSheetTrack}
-          onSend={sendPlaylist}
-          onShare={() => playlist && openTelegramLink(shareLink(playlist.share_url, `🎧 «${playlist.title}» плейлисі`))}
-          onRename={() => playlist && setPrompt({ kind: "rename", playlist })}
-          onDelete={() => void deletePlaylist()}
-          onSave={() => void saveShared()}
+          onShare={playlist ? sharePlaylist : undefined}
+          onRename={playlist?.is_own ? () => setPrompt({ kind: "rename", playlist }) : undefined}
+          onDelete={playlist?.is_own ? () => void deletePlaylist() : undefined}
+          onSave={list && list.kind !== "own" ? () => void saveList() : undefined}
+          onTogglePublic={playlist?.is_own ? (value) => void togglePublic(value) : undefined}
+          onReorder={playlist?.is_own ? reorder : undefined}
         />
       )}
 
-      {!playerOpen && <MiniPlayer onOpen={() => setPlayerOpen(true)} />}
-
       <nav className="fixed inset-x-0 bottom-0 z-[36] mx-auto flex max-w-[1024px] border-t border-white/5 bg-bg/90 pb-[var(--safe-bottom)] backdrop-blur-xl">
         {TABS.map(({ id, label, Icon }) => {
-          const active = tab === id && !openPlaylist;
+          const active = tab === id && !openList;
           return (
             <button
               key={id}
               onClick={() => {
                 haptic.light();
-                setOpenPlaylist(null);
+                setOpenList(null);
                 setTab(id);
                 window.scrollTo({ top: 0 });
               }}
@@ -353,17 +402,15 @@ function MusicScreens() {
         })}
       </nav>
 
-      {playerOpen && (
-        <FullPlayer onClose={() => setPlayerOpen(false)} onSend={sendTrack} onMore={setSheetTrack} sending={sending} />
-      )}
+      {sentCount !== null && <SentBar count={sentCount} onClose={clearSent} />}
 
       <TrackSheet
         track={sheetTrack}
         onClose={() => setSheetTrack(null)}
-        onSend={sendTrack}
+        onSend={(track) => void send([track])}
         onAddToPlaylist={setPickerTrack}
         onShare={shareTrack}
-        onRemove={openPlaylist && playlist?.is_own && !playerOpen ? (track) => void removeFromPlaylist(track) : undefined}
+        onRemove={openList?.kind === "own" && playlist?.is_own ? (track) => void removeFromPlaylist(track) : undefined}
       />
       <PlaylistPicker
         track={pickerTrack}

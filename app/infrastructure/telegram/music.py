@@ -1,11 +1,10 @@
-"""aiogram-адаптеры музыки: отправка аудио в личку, архивный канал, файлы для Mini App."""
+"""aiogram-адаптеры музыки: отправка аудио в личку и копия в канал-архив."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
-from pathlib import Path
 from typing import TypeVar
 
 from aiogram import Bot
@@ -28,8 +27,6 @@ logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T")
 
-# ⚠️ Bot API не отдаёт боту файлы тяжелее 20 МБ (getFile отвечает «file is too big»).
-_DOWNLOAD_LIMIT = 20 * 1024 * 1024
 
 
 class AiogramAudioSender:
@@ -113,79 +110,3 @@ class AiogramMusicArchive:
             logger.exception("Трек не скопирован в музыкальный архив")
             return None
         return message.message_id
-
-
-class TelegramAudioFiles:
-    """Кэш файлов из Telegram на диске (`<media_root>/audio/`) для плеера Mini App.
-
-    Файл качается один раз при первом прослушивании и дальше отдаётся с диска; имя —
-    `file_unique_id` (у бота он постоянный, в отличие от `file_id`). Загрузка идёт во
-    временный файл с переименованием в конце: оборванная закачка не оставит
-    полупустой трек, который потом отдавался бы как целый.
-    """
-
-    def __init__(self, bot: Bot, media_root: str) -> None:
-        self._bot = bot
-        self._root = Path(media_root) / "audio"
-        self._locks: dict[str, asyncio.Lock] = {}
-
-    @staticmethod
-    def _cached(target: Path) -> bool:
-        if not target.exists():
-            return False
-        target.touch()  # отметка «недавно слушали» для `prune`
-        return True
-
-    async def _fetch(self, file_id: str, target: Path) -> Path | None:
-        if await asyncio.to_thread(self._cached, target):
-            return target
-        lock = self._locks.setdefault(target.name, asyncio.Lock())
-        async with lock:
-            if await asyncio.to_thread(self._cached, target):
-                return target
-            try:
-                info = await self._bot.get_file(file_id)
-                if info.file_size and info.file_size > _DOWNLOAD_LIMIT:
-                    return None
-                if info.file_path is None:
-                    return None
-                partial = target.with_suffix(".part")
-                await asyncio.to_thread(target.parent.mkdir, parents=True, exist_ok=True)
-                await self._bot.download_file(info.file_path, partial)
-                await asyncio.to_thread(partial.replace, target)
-            except TelegramBadRequest as exc:
-                # «file is too big» и битый file_id — постоянный отказ: трек только в чат.
-                logger.info("Файл %s не скачан: %s", target.name, exc)
-                return None
-            except (TelegramAPIError, OSError):
-                logger.exception("Не удалось скачать файл %s", target.name)
-                return None
-            finally:
-                self._locks.pop(target.name, None)
-        return target
-
-    async def audio(self, file_id: str, file_unique_id: str) -> Path | None:
-        return await self._fetch(file_id, self._root / f"{file_unique_id}.audio")
-
-    async def cover(self, file_id: str, file_unique_id: str) -> Path | None:
-        return await self._fetch(file_id, self._root / "covers" / f"{file_unique_id}.jpg")
-
-    def prune(self, max_bytes: int) -> int:
-        if not self._root.exists():
-            return 0
-        files = [path for path in self._root.rglob("*") if path.is_file()]
-        stats = [(path, path.stat()) for path in files]
-        total = sum(stat.st_size for _, stat in stats)
-        removed = 0
-        # Сначала то, что дольше всех не слушали (mtime обновляется при каждом прослушивании).
-        for path, stat in sorted(stats, key=lambda item: item[1].st_mtime):
-            if total <= max_bytes:
-                break
-            try:
-                path.unlink()
-            except OSError:
-                logger.warning("Не удалось удалить %s из кэша музыки", path)
-                continue
-            total -= stat.st_size
-            removed += 1
-        return removed

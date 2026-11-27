@@ -9,7 +9,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 
@@ -32,14 +31,12 @@ from app.application.ports.discussion import DiscussionGroup
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
 from app.application.ports.music import (
-    AudioFiles,
     AudioSender,
     LibraryRepository,
     MusicArchive,
     MusicChartLog,
     MusicRequestRepository,
     PlaylistRepository,
-    StreamKey,
     TrackRepository,
 )
 from app.application.ports.payments import PaymentProvider
@@ -82,7 +79,6 @@ from app.application.services.music_catalog_service import MusicCatalogService
 from app.application.services.music_chart_service import MusicChartService
 from app.application.services.music_delivery_service import MusicDeliveryService
 from app.application.services.music_library_service import MusicLibraryService
-from app.application.services.music_media_service import MusicMediaService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
 from app.application.services.playlist_service import PlaylistService
@@ -154,7 +150,6 @@ from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.music import (
     AiogramAudioSender,
     AiogramMusicArchive,
-    TelegramAudioFiles,
 )
 from app.infrastructure.telegram.notifier import AiogramNotifier
 
@@ -259,17 +254,6 @@ class AppProvider(Provider):
     @provide
     def music_archive(self, bot: Bot, config: AppConfig) -> MusicArchive:
         return AiogramMusicArchive(bot, config.bot.music_channel_id)
-
-    @provide
-    def audio_files(self, bot: Bot, config: AppConfig) -> AudioFiles:
-        return TelegramAudioFiles(bot, config.media.root)
-
-    @provide
-    def stream_key(self, config: AppConfig) -> StreamKey:
-        # Ключ подписи ссылок на прослушивание выводится из токена бота: он уже секрет,
-        # есть у api и бота одинаковым, и второй секрет в env разъехался бы с ним.
-        token = config.bot.token.get_secret_value().encode()
-        return StreamKey(hashlib.sha256(b"music-stream:" + token).digest())
 
     @provide
     def discussion_group(self, bot: Bot, config: AppConfig) -> DiscussionGroup:
@@ -414,7 +398,6 @@ class RequestProvider(Provider):
     music_catalog = provide(MusicCatalogService)
     music_library = provide(MusicLibraryService)
     playlists = provide(PlaylistService)
-    music_media = provide(MusicMediaService)
 
     @provide
     def music_delivery(

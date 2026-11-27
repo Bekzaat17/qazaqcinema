@@ -24,7 +24,6 @@ def upgrade() -> None:
         sa.Column("file_unique_id", sa.String(64), nullable=False, unique=True),
         sa.Column("file_size", sa.BigInteger(), nullable=True),
         sa.Column("mime_type", sa.String(64), nullable=True),
-        sa.Column("cover_file_id", sa.String(255), nullable=True),
         sa.Column("archive_message_id", sa.BigInteger(), nullable=True),
         sa.Column("uploader_id", sa.BigInteger(), nullable=False),
         sa.Column("play_count", sa.Integer(), server_default="0", nullable=False),
@@ -56,10 +55,13 @@ def upgrade() -> None:
         sa.Column("title", sa.String(64), nullable=False),
         sa.Column("share_code", sa.String(16), nullable=False, unique=True),
         sa.Column("track_count", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("is_public", sa.Boolean(), server_default="false", nullable=False),
+        sa.Column("saves_count", sa.Integer(), server_default="0", nullable=False),
         sa.Column("created_at", _TS, nullable=False),
         sa.Column("updated_at", _TS, nullable=False),
     )
     op.create_index("ix_playlists_owner_id", "playlists", ["owner_id"])
+    op.create_index("ix_playlists_public", "playlists", ["is_public", "saves_count"])
     op.create_table(
         "playlist_tracks",
         sa.Column(

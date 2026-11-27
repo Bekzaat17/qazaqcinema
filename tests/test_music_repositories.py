@@ -26,7 +26,6 @@ def _track(unique: str, title: str = "Ауру", performer: str = "Қайрат 
     return Track(
         title=title, performer=performer, duration_sec=200,
         telegram_file_id=f"file-{unique}", file_unique_id=unique, uploader_id=1,
-        cover_file_id=f"cover-{unique}",
     )
 
 
@@ -88,7 +87,6 @@ async def test_playlist_keeps_order_rejects_duplicates_and_respects_limit(
     assert await playlists.track_ids(playlist.id) == ids[:2]
     stored = await playlists.by_share_code("abc12345")
     assert stored is not None and stored.track_count == 2
-    assert len(stored.cover_track_ids) == 2
     assert await playlists.remove_track(playlist.id, ids[0], _NOW)
     refreshed = await playlists.get(playlist.id)
     assert refreshed is not None and refreshed.track_count == 1
@@ -127,3 +125,58 @@ async def test_chart_log_is_once_per_week(session: AsyncSession) -> None:
     await log.record(week, 10, _NOW)
     await log.record(week, 11, _NOW)
     assert await log.posted(week)
+
+
+async def test_reorder_sets_play_order_and_rejects_stale_set(session: AsyncSession) -> None:
+    tracks, playlists = PgTrackRepository(session), PgPlaylistRepository(session)
+    ids = [(await tracks.add(_track(f"r{i}"))).id for i in range(3)]
+    assert all(track_id is not None for track_id in ids)
+    track_ids = [track_id for track_id in ids if track_id is not None]
+    playlist = await playlists.create(
+        Playlist(owner_id=5, title="Ретпен", share_code="ord12345", created_at=_NOW)
+    )
+    assert playlist.id is not None
+    await playlists.add_tracks(playlist.id, track_ids, _NOW, 10)
+    reversed_ids = list(reversed(track_ids))
+    assert await playlists.reorder(playlist.id, reversed_ids, _NOW)
+    assert await playlists.track_ids(playlist.id) == reversed_ids
+    # Экран устарел (трек удалили) — порядок не принимается, ничего не теряется.
+    assert not await playlists.reorder(playlist.id, reversed_ids[:2], _NOW)
+    assert not await playlists.reorder(playlist.id, [*reversed_ids[:2], reversed_ids[0]], _NOW)
+    assert await playlists.track_ids(playlist.id) == reversed_ids
+
+
+async def test_public_playlists_are_non_empty_and_most_saved_first(session: AsyncSession) -> None:
+    tracks, playlists = PgTrackRepository(session), PgPlaylistRepository(session)
+    track = await tracks.add(_track("p1"))
+    assert track.id is not None
+    made = []
+    for index, code in enumerate(("pub11111", "pub22222", "pub33333")):
+        playlist = await playlists.create(
+            Playlist(owner_id=index, title=code, share_code=code, created_at=_NOW)
+        )
+        assert playlist.id is not None
+        made.append(playlist.id)
+    first, second, empty = made
+    for playlist_id in made:
+        await playlists.set_public(playlist_id, True, _NOW)
+    await playlists.add_tracks(first, [track.id], _NOW, 10)
+    await playlists.add_tracks(second, [track.id], _NOW, 10)
+    await playlists.increment_saves(second)
+    assert [p.id for p in await playlists.list_public(10)] == [second, first]
+    await playlists.set_public(second, False, _NOW)
+    assert [p.id for p in await playlists.list_public(10)] == [first]
+    assert empty not in [p.id for p in await playlists.list_public(10)]
+
+
+async def test_week_hits_are_tracks_with_most_distinct_listeners(session: AsyncSession) -> None:
+    tracks = PgTrackRepository(session)
+    users, events = PgUserRepository(session), PgUserEventRepository(session)
+    hit = await tracks.add(_track("h1", title="Хит"))
+    other = await tracks.add(_track("h2", title="Басқа"))
+    for user_id in (1, 2):
+        await users.upsert(User(telegram_id=user_id))
+        await events.add(user_id, EventKind.TRACK_PLAY, str(hit.id))
+    await events.add(1, EventKind.TRACK_PLAY, str(other.id))
+    since, until = _NOW - timedelta(days=3650), _NOW + timedelta(days=3650)
+    assert [t.title for t in await tracks.top_tracks(since, until, 10)] == ["Хит", "Басқа"]

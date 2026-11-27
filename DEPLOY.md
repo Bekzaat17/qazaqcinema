@@ -36,8 +36,8 @@ cp .env.prod.example .env.prod
 - `ACME_EMAIL` — контакт для Let's Encrypt (непустой; пустая строка ломает парсинг Caddyfile).
 - `BOT_TOKEN`, `BOT_ADMIN_CHAT_ID`, `BOT_ADMIN_USER_IDS`, `BOT_ARCHIVE_CHANNEL_ID`.
 - `BOT_MUSIC_CHANNEL_ID` — приватный канал-архив музыки (бот — админ с правом публикации);
-  `0` оставляет треки без резервной копии. `MEDIA_AUDIO_CACHE_MB` — потолок дискового кэша
-  треков для плеера Mini App (по умолчанию 2048).
+  `0` оставляет треки без резервной копии. Самих файлов сервер не хранит — только сведения
+  и `file_id` Telegram.
 - `BOT_PUBLIC_CHANNEL_ID`, `BOT_PUBLIC_CHANNEL_USERNAME`, `BOT_DISCUSSION_GROUP_ID`
   (бот — админ канала с правом публикации и админ группы с правом удаления сообщений).
 - `BOT_WEBHOOK_SECRET` и `DB_PASSWORD` — сгенерировать: `openssl rand -hex 32` / `-hex 24`.

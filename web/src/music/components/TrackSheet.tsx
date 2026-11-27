@@ -44,13 +44,13 @@ export default function TrackSheet({ track, onClose, onSend, onAddToPlaylist, on
     <Sheet open onClose={onClose} labelledBy="track-sheet-title">
       <div className="px-4 pb-2">
         <div className="mb-3 flex items-center gap-3 px-1">
-          <Cover title={track.title} performer={track.performer} url={track.cover_url} className="h-14 w-14" />
+          <Cover title={track.title} performer={track.performer} className="h-14 w-14" />
           <div className="min-w-0">
             <h2 id="track-sheet-title" className="truncate text-[16px] font-bold text-text">{track.title}</h2>
             <p className="truncate text-[13px] text-muted">{track.performer} · {duration(track.duration_sec)}</p>
           </div>
         </div>
-        <Action Icon={Send} label="Telegram-да тыңдау" hint="Чатқа келеді — экран сөнсе де ойнайды" onClick={run(onSend)} tone="text-music" />
+        <Action Icon={Send} label="Telegram-да тыңдау" hint="Ән чатқа келеді — экран сөнсе де ойнайды" onClick={run(onSend)} tone="text-music" />
         <Action
           Icon={Heart}
           label={saved ? "Менің музыкамнан алып тастау" : "Менің музыкама қосу"}

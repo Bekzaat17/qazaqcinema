@@ -69,7 +69,6 @@ def _upload(message: Message) -> AudioUpload | None:
         file_name=audio.file_name,
         file_size=audio.file_size,
         mime_type=audio.mime_type,
-        cover_file_id=audio.thumbnail.file_id if audio.thumbnail else None,
     )
 
 

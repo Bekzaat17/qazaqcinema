@@ -139,9 +139,6 @@ class MediaConfig(BaseSettings):
     # Каталог с контентом канала: `*.yaml`, `images/`, `fonts/` (в образе — /app/content).
     # Читают сидер и предпросмотр; шрифты отсюда же берёт генератор карточек.
     content_root: str = "content"
-    # Потолок дискового кэша треков для плеера Mini App (`<root>/audio`). Кэш —
-    # копии из Telegram: ежечасный джоб стирает давно не слушанное сверх предела.
-    audio_cache_mb: int = Field(default=2048, ge=64)
 
 
 class AppConfig(BaseSettings):

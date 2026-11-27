@@ -46,7 +46,7 @@ export default function PlaylistPicker({ track, onClose, onPick, onCreate }: Pla
               className="flex w-full items-center gap-3 rounded-2xl px-1 py-2 text-left active:bg-white/5"
             >
               <span className="h-12 w-12 overflow-hidden rounded-xl">
-                <PlaylistCover covers={playlist.covers} seed={playlist.title} />
+                <PlaylistCover seed={playlist.title} />
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-[15px] font-semibold text-text">{playlist.title}</span>

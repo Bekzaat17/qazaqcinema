@@ -1,5 +1,8 @@
 """Трек общего каталога и правила разбора того, что прислали в бота.
 
+⚠️ Сервер хранит о треке только сведения и `file_id` Telegram — как у фильмов. Самого
+файла (и обложки) на диске нет: аудио живёт в Telegram и уходит слушателю в чат.
+
 Каталог наполняют сами слушатели: аудио, присланное или пересланное боту, сразу
 попадает в общий список. Поэтому названия здесь приходят «как есть» — из ID3-тегов,
 а чаще из имени файла вида `Artist - Title (www.site.kz).mp3`. Чистка этих хвостов —
@@ -45,7 +48,6 @@ class AudioUpload:
     file_name: str | None = None
     file_size: int | None = None
     mime_type: str | None = None
-    cover_file_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +66,6 @@ class Track:
     uploader_id: int
     file_size: int | None = None
     mime_type: str | None = None
-    cover_file_id: str | None = None
     archive_message_id: int | None = None
     play_count: int = 0
     saves_count: int = 0
