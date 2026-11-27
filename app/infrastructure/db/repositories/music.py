@@ -230,6 +230,13 @@ class PgTrackRepository:
         return int(total or 0)
 
 
+    async def count_uploaded(self, uploader_id: int) -> int:
+        total = await self._session.scalar(
+            select(func.count()).select_from(TrackModel)
+            .where(TrackModel.uploader_id == uploader_id, _visible)
+        )
+        return int(total or 0)
+
     async def stats(self, track_id: int) -> TrackStats:
         listeners = await self._session.scalar(
             select(func.count(func.distinct(UserEventModel.user_id))).where(
@@ -615,20 +622,27 @@ class PgMusicRequestRepository:
             for model in await self._session.scalars(stmt)
         ]
 
-    async def fulfil(self, keys: Sequence[str], at: datetime) -> int:
+    async def fulfil(self, keys: Sequence[str], at: datetime) -> list[int]:
         if not keys:
-            return 0
-        closed = await rowcount(
-            self._session,
+            return []
+        closed = list(await self._session.scalars(
             update(MusicRequestModel)
             .where(
                 MusicRequestModel.query_key.in_(list(keys)),
                 MusicRequestModel.fulfilled_at.is_(None),
             )
-            .values(fulfilled_at=at),
-        )
+            .values(fulfilled_at=at)
+            .returning(MusicRequestModel.id)
+        ))
+        voters: list[int] = []
+        if closed:
+            voters = list(await self._session.scalars(
+                select(MusicRequestVoteModel.user_id)
+                .where(MusicRequestVoteModel.request_id.in_(closed))
+                .distinct()
+            ))
         await self._session.commit()
-        return closed
+        return voters
 
 
 class PgMusicChartLog:

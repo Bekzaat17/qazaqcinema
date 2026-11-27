@@ -183,6 +183,12 @@ class TrackIdsIn(BaseModel):
     track_ids: list[int] = Field(min_length=1, max_length=500)
 
 
+class MusicMeOut(BaseModel):
+    """Личные цифры раздела: сколько песен человек добавил в общий каталог."""
+
+    uploaded: int
+
+
 class IdsOut(BaseModel):
     ids: list[int]
 

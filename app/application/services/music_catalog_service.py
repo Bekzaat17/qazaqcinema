@@ -19,6 +19,7 @@ from app.application.ports.music import (
     MusicRequest,
     MusicRequestRepository,
     PlaylistRepository,
+    RequestNotifier,
     TrackRepository,
     TrackStats,
 )
@@ -43,6 +44,9 @@ SHELF_SIZE = 20
 REQUESTS_SHOWN = 20
 PAGE_MAX = 50
 REQUEST_MIN_LEN = 2
+# Потолок писем «сіз сұраған ән қосылды» на один трек: приём идёт в обработчике
+# сообщения, и сотня отправок подряд задержала бы ответ загрузившему.
+NOTIFY_MAX = 50
 REQUEST_MAX_LEN = 128
 
 
@@ -112,8 +116,10 @@ class MusicCatalogService:
         archive: MusicArchive,
         events: UserEventRepository,
         playlists: PlaylistRepository,
+        notifier: RequestNotifier,
     ) -> None:
         self._playlists = playlists
+        self._notifier = notifier
         self._tracks = tracks
         self._library = library
         self._requests = requests
@@ -159,7 +165,7 @@ class MusicCatalogService:
         await self._events.add(uploader_id, EventKind.TRACK_UPLOAD, str(track.id))
         # Песню, которую просили, закрываем — запрос сравнивается целиком в любом порядке
         # «исполнитель название», как его обычно и набирают.
-        await self._requests.fulfil(
+        voters = await self._requests.fulfil(
             sorted({
                 search_key(track.title),
                 search_key(f"{track.performer} {track.title}"),
@@ -167,7 +173,14 @@ class MusicCatalogService:
             }),
             now,
         )
+        # Ждавшим песню — личное письмо: человек возвращается сам, а загрузивший помог
+        # кому-то конкретному. Себе не пишем: он и так знает, что прислал.
+        for voter in [v for v in voters if v != uploader_id][:NOTIFY_MAX]:
+            await self._notifier.request_fulfilled(voter, track)
         return IngestResult(IngestOutcome.ADDED, track)
+
+    async def uploaded_by(self, user_id: int) -> int:
+        return await self._tracks.count_uploaded(user_id)
 
     async def home(self) -> MusicHome:
         return MusicHome(

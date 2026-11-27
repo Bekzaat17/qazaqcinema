@@ -378,6 +378,7 @@ function MusicScreens() {
           busy={sending}
           playlistsVersion={playlistsVersion}
           onBrowse={() => setTab("home")}
+          onAdd={() => setTab("add")}
         />
       )}
       {tab === "add" && <AddView requests={home?.requests ?? []} onRequest={() => setPrompt({ kind: "request", initial: "" })} />}

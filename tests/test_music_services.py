@@ -91,6 +91,10 @@ class FakeTracks:
     async def count_added(self, since: datetime, until: datetime) -> int:
         return len(self.rows)
 
+    async def count_uploaded(self, uploader_id: int) -> int:
+        rows = self.rows.values()
+        return sum(1 for t in rows if t.uploader_id == uploader_id and not t.is_hidden)
+
 
 class FakeLibrary:
     def __init__(self) -> None:
@@ -116,6 +120,7 @@ class FakeLibrary:
 class FakeRequests:
     def __init__(self) -> None:
         self.fulfilled: list[str] = []
+        self.voters: list[int] = []
         self.open: list[MusicRequest] = []
 
     async def vote(self, user_id: int, key: str, query: str, at: datetime) -> int:
@@ -124,9 +129,9 @@ class FakeRequests:
     async def list_open(self, limit: int) -> list[MusicRequest]:
         return self.open[:limit]
 
-    async def fulfil(self, keys: Sequence[str], at: datetime) -> int:
+    async def fulfil(self, keys: Sequence[str], at: datetime) -> list[int]:
         self.fulfilled.extend(keys)
-        return len(keys)
+        return list(self.voters)
 
 
 class FakeArchive:
@@ -139,9 +144,24 @@ class FakeArchive:
         return self.message_id
 
 
+class FakeNotifier:
+    def __init__(self) -> None:
+        self.sent: list[tuple[int, str]] = []
+
+    async def request_fulfilled(self, user_id: int, track: Track) -> bool:
+        self.sent.append((user_id, track.title))
+        return True
+
+
+_NOTIFIER = FakeNotifier()
+
+
 def _catalog() -> tuple[MusicCatalogService, FakeTracks, FakeLibrary, FakeRequests, FakeEvents]:
     tracks, library, requests, events = FakeTracks(), FakeLibrary(), FakeRequests(), FakeEvents()
-    service = MusicCatalogService(tracks, library, requests, FakeArchive(), events, FakePlaylists())
+    _NOTIFIER.sent.clear()
+    service = MusicCatalogService(
+        tracks, library, requests, FakeArchive(), events, FakePlaylists(), _NOTIFIER
+    )
     return service, tracks, library, requests, events
 
 
@@ -541,3 +561,27 @@ async def test_only_uploader_or_admin_renames_and_format_is_checked() -> None:
     assert await service.rename(track_id, 42, False, "Ninety One — Сен") is RenameOutcome.RENAMED
     assert (tracks.rows[track_id].performer, tracks.rows[track_id].title) == ("Ninety One", "Сен")
     assert await service.rename(track_id, 1, True, "Dimash — Sinful") is RenameOutcome.RENAMED
+
+
+async def test_people_who_asked_get_a_message_but_not_the_uploader() -> None:
+    service, _, _, requests, _ = _catalog()
+    requests.voters = [7, 42, 9]
+    await service.ingest(_upload(), 42, _NOW)
+    assert _NOTIFIER.sent == [(7, "Ауру"), (9, "Ауру")]
+
+
+async def test_existing_track_does_not_notify_again() -> None:
+    service, _, _, requests, _ = _catalog()
+    await service.ingest(_upload(), 42, _NOW)
+    requests.voters = [7]
+    _NOTIFIER.sent.clear()
+    await service.ingest(_upload(), 8, _NOW)
+    assert _NOTIFIER.sent == []
+
+
+async def test_uploaded_counter() -> None:
+    service, *_ = _catalog()
+    assert await service.uploaded_by(42) == 0
+    await service.ingest(_upload("u1"), 42, _NOW)
+    await service.ingest(_upload("u9", 300), 42, _NOW)
+    assert await service.uploaded_by(42) == 2

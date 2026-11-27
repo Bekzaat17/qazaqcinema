@@ -20,6 +20,7 @@ from app.api.schemas.music import (
     CollectionOut,
     IdsOut,
     MusicHomeOut,
+    MusicMeOut,
     MusicRequestIn,
     MusicRequestOut,
     PlaylistAddOut,
@@ -191,6 +192,14 @@ async def request_track(
     if votes is None:
         raise HTTPException(status_code=422, detail="bad_request_query")
     return MusicRequestOut(votes=votes)
+
+
+@router.get("/me", response_model=MusicMeOut, dependencies=[_read])
+async def music_me(
+    music: FromDishka[MusicCatalogService],
+    user: User = Depends(get_current_user),
+) -> MusicMeOut:
+    return MusicMeOut(uploaded=await music.uploaded_by(user.telegram_id))
 
 
 # ── Менің музыкам ──────────────────────────────────────────────────────────────

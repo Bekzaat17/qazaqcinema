@@ -83,6 +83,10 @@ class TrackRepository(Protocol):
 
     async def count_added(self, since: datetime, until: datetime) -> int: ...
 
+    async def count_uploaded(self, uploader_id: int) -> int:
+        """Сколько видимых треков человек добавил в каталог («Сіз N ән қостыңыз»)."""
+        ...
+
     async def stats(self, track_id: int) -> TrackStats: ...
 
     async def by_performer(self, performer_key: str, limit: int) -> list[Track]:
@@ -185,8 +189,9 @@ class MusicRequestRepository(Protocol):
 
     async def list_open(self, limit: int) -> list[MusicRequest]: ...
 
-    async def fulfil(self, keys: Sequence[str], at: datetime) -> int:
-        """Закрыть запросы, которые совпали с добавленным треком."""
+    async def fulfil(self, keys: Sequence[str], at: datetime) -> list[int]:
+        """Закрыть запросы, совпавшие с добавленным треком; вернуть РАЗНЫХ людей, которые
+        их оставляли, — им бот напишет, что песня появилась."""
         ...
 
 
@@ -211,6 +216,16 @@ class AudioSender(Protocol):
     async def send_audio_album(self, chat_id: int, file_ids: Sequence[str], caption: str) -> int:
         """Пачка до 10 треков одним сообщением-альбомом; вернуть сколько ушло."""
         ...
+
+
+class RequestNotifier(Protocol):
+    """Личное письмо «сіз сұраған ән қосылды» тем, кто оставлял запрос на песню.
+
+    Fail-open: недоставка (чат закрыт, флуд-лимит) не роняет приём трека — адаптер
+    возвращает False и пишет в лог.
+    """
+
+    async def request_fulfilled(self, user_id: int, track: Track) -> bool: ...
 
 
 class MusicArchive(Protocol):

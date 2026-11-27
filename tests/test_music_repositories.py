@@ -117,7 +117,8 @@ async def test_request_counts_distinct_people_and_closes_on_upload(session: Asyn
     assert await requests.vote(1, "ауру", "АУРУ", _NOW) == 1
     assert await requests.vote(2, "ауру", "ауру", _NOW) == 2
     assert [r.votes for r in await requests.list_open(10)] == [2]
-    assert await requests.fulfil(["ауру"], _NOW) == 1
+    assert sorted(await requests.fulfil(["ауру"], _NOW)) == [1, 2]
+    assert await requests.fulfil(["ауру"], _NOW) == []  # уже закрыт — второй раз не пишем
     assert await requests.list_open(10) == []
 
 
@@ -236,3 +237,16 @@ async def test_track_page_data_stats_artist_similar_and_public_playlists(
     assert [p.share_code for p in await playlists.public_with_track(hit_id, 10)] == ["sim11111"]
     names = dict(await tracks.performers(10))
     assert names["Ninety One"] == 1
+
+
+async def test_uploaded_counter_counts_only_visible_own_tracks(session: AsyncSession) -> None:
+    tracks = PgTrackRepository(session)
+    first = await tracks.add(_track("c1"))
+    await tracks.add(_track("c2", title="Сен"))
+    other = _track("c3", title="Басқа")
+    other.uploader_id = 2
+    await tracks.add(other)
+    assert first.id is not None
+    assert await tracks.count_uploaded(1) == 2
+    await tracks.hide(first.id)
+    assert await tracks.count_uploaded(1) == 1

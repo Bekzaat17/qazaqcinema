@@ -102,6 +102,7 @@ export const musicApi = {
   collections: () => request<Collection[]>(`${BASE}/collections`),
   collection: (key: string) => request<CollectionDetail>(`${BASE}/collections/${encodeURIComponent(key)}`),
 
+  me: () => request<{ uploaded: number }>(`${BASE}/me`),
   library: () => request<Track[]>(`${BASE}/library?limit=200`),
   libraryIds: () => request<{ ids: number[] }>(`${BASE}/library/ids`),
   save: (id: number) => request<void>(`${BASE}/library/${id}`, { method: "PUT" }),

@@ -37,6 +37,7 @@ from app.application.ports.music import (
     MusicChartLog,
     MusicRequestRepository,
     PlaylistRepository,
+    RequestNotifier,
     TrackRepository,
 )
 from app.application.ports.payments import PaymentProvider
@@ -150,6 +151,7 @@ from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.music import (
     AiogramAudioSender,
     AiogramMusicArchive,
+    AiogramRequestNotifier,
 )
 from app.infrastructure.telegram.notifier import AiogramNotifier
 
@@ -250,6 +252,10 @@ class AppProvider(Provider):
     @provide
     def audio_sender(self, bot: Bot) -> AudioSender:
         return AiogramAudioSender(bot)
+
+    @provide
+    def request_notifier(self, bot: Bot, config: AppConfig) -> RequestNotifier:
+        return AiogramRequestNotifier(bot, config.bot.webapp_url)
 
     @provide
     def music_archive(self, bot: Bot, config: AppConfig) -> MusicArchive:

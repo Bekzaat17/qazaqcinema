@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
+from html import escape
 from typing import TypeVar
 
 from aiogram import Bot
@@ -16,12 +17,14 @@ from aiogram.exceptions import (
     TelegramRetryAfter,
     TelegramServerError,
 )
-from aiogram.types import InputMediaAudio
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAudio, WebAppInfo
 
 from app.application.ports.telegram import (
     RecipientUnreachableError,
     TelegramTemporarilyUnavailableError,
 )
+from app.bot.keyboards.common import music_url
+from app.domain.music.track import Track
 
 logger = logging.getLogger(__name__)
 
@@ -110,3 +113,33 @@ class AiogramMusicArchive:
             logger.exception("Трек не скопирован в музыкальный архив")
             return None
         return message.message_id
+
+
+class AiogramRequestNotifier:
+    """«Сіз сұраған ән қосылды» в личку с кнопкой прямо на трек в Mini App."""
+
+    def __init__(self, bot: Bot, webapp_url: str) -> None:
+        self._bot = bot
+        self._webapp_url = webapp_url
+
+    async def request_fulfilled(self, user_id: int, track: Track) -> bool:
+        text = (
+            "🎧 Сіз сұраған ән қосылды!\n"
+            f"<b>{escape(track.performer)} — {escape(track.title)}</b>\n\n"
+            "Тыңдаушылардың бірі оны ботқа жіберді. Рақмет айтуды ұмытпаңыз 🙌"
+        )
+        keyboard = None
+        if self._webapp_url and track.id is not None:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                text="▶️ Тыңдау",
+                web_app=WebAppInfo(url=music_url(self._webapp_url, track.id)),
+            )]])
+        try:
+            await self._bot.send_message(
+                user_id, text, parse_mode="HTML", reply_markup=keyboard
+            )
+        except TelegramAPIError:
+            # Чат закрыт или флуд-лимит — письмо второстепенно, приём трека важнее.
+            logger.info("Письмо о запрошенной песне не доставлено %s", user_id)
+            return False
+        return True

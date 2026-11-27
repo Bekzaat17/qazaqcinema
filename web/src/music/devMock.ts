@@ -97,6 +97,7 @@ export function mockMusic(path: string, url: URL, init?: RequestInit): { handled
     return found ? { handled: true, data: { ...found, tracks: byIds([1, 2, 3, 4, 5, 6, 7, 8].slice(0, found.track_count)) } } : { handled: true, status: 404 };
   }
   if (path === "/api/music/playlists/public") return { handled: true, data: PUBLIC };
+  if (path === "/api/music/me") return { handled: true, data: { uploaded: 3 } };
   if (path === "/api/music/library") return { handled: true, data: byIds([...LIBRARY].reverse()) };
   if (path === "/api/music/library/ids") return { handled: true, data: { ids: [...LIBRARY] } };
   m = /^\/api\/music\/library\/(\d+)$/.exec(path);

@@ -2,7 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { Flame, Loader2, Music2, Plus, Search, SearchX, Sparkles, Trophy, TrendingUp, Users, X, type LucideIcon } from "../ui-kit/adapters/icons";
+import { Flame, Loader2, Music2, Plus, Search, SearchX, Send, Sparkles, Trophy, TrendingUp, Users, X, type LucideIcon } from "../ui-kit/adapters/icons";
+
+import { openBotChat } from "../lib/telegram";
 
 import { musicApi, type Collection, type MusicHome, type Playlist, type Track } from "./api";
 import PlaylistCover from "./components/PlaylistCover";
@@ -123,17 +125,22 @@ export default function HomeView(props: HomeViewProps) {
             <div className="px-4 py-10 text-center">
               <SearchX size={36} className="mx-auto text-faint" />
               <p className="mt-3 text-[15px] font-semibold text-text">«{query.trim()}» әзірге жоқ</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-muted">
-                Сұраныс қалдырыңыз — әні бар адам оны ботқа жібереді. Немесе өзіңізде болса, өзіңіз қосыңыз.
-              </p>
+              {/* Короткая дорога «не нашёл → нашёл → добавил»: Mini App не видит чатов
+                  человека, поэтому песню он находит в Telegram сам и пересылает боту. */}
+              <ol className="mt-4 space-y-2 rounded-2xl border border-white/5 bg-surface p-3 text-left text-[13px] leading-relaxed text-muted">
+                <li><span className="mr-1.5 font-bold text-music">1.</span>Telegram-да іздеңіз: іздеу жолына ән атын жазып, <b className="text-text">«Музыка»</b> бөлімін ашыңыз.</li>
+                <li><span className="mr-1.5 font-bold text-music">2.</span>Тапқан әнді ботқа <b className="text-text">қайта жіберіңіз</b> (forward).</li>
+                <li><span className="mr-1.5 font-bold text-music">3.</span>Осында оралыңыз — ән іздеуде және «Менің музыкам» бөлімінде тұрады.</li>
+              </ol>
               <div className="mt-4 flex flex-col gap-2">
-                <button onClick={() => onRequest(query.trim())} className="qm-gradient rounded-2xl px-4 py-3 text-[15px] font-bold text-white active:scale-[0.98]">
-                  Сұраныс қалдыру
+                <button onClick={() => openBotChat()} className="qm-gradient flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[15px] font-bold text-white active:scale-[0.98]">
+                  <Send size={17} /> Ботты ашу
                 </button>
-                <button onClick={onAdd} className="rounded-2xl bg-elevated px-4 py-3 text-[15px] font-semibold text-text active:scale-[0.98]">
-                  Өзім қосамын
+                <button onClick={() => onRequest(query.trim())} className="rounded-2xl bg-elevated px-4 py-3 text-[15px] font-semibold text-text active:scale-[0.98]">
+                  Таппадым — сұраныс қалдыру
                 </button>
               </div>
+              <p className="mt-2 text-[12px] text-faint">Сұраныс қалдырсаңыз, ән қосылғанда бот сізге хабарлайды.</p>
             </div>
           )}
         </div>

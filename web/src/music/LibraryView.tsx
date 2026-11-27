@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Heart, Loader2, Play, Plus } from "../ui-kit/adapters/icons";
+import { Heart, Loader2, Play, Plus, Upload } from "../ui-kit/adapters/icons";
 
 import { musicApi, SEND_MAX, type Playlist, type Track } from "./api";
 import PlaylistCover from "./components/PlaylistCover";
@@ -20,12 +20,14 @@ interface LibraryViewProps {
   busy: boolean;
   playlistsVersion: number;
   onBrowse: () => void;
+  onAdd: () => void;
 }
 
-export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, onSend, busy, playlistsVersion, onBrowse }: LibraryViewProps) {
+export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, onSend, busy, playlistsVersion, onBrowse, onAdd }: LibraryViewProps) {
   const [segment, setSegment] = useState<Segment>("tracks");
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[] | null>(null);
+  const [uploaded, setUploaded] = useState<number | null>(null);
   const library = useLibrary();
 
   const loadTracks = useCallback(() => {
@@ -34,6 +36,9 @@ export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, 
 
   useEffect(loadTracks, [loadTracks, library.version]);
   useEffect(() => {
+    musicApi.me().then((me) => setUploaded(me.uploaded), () => {});
+  }, []);
+  useEffect(() => {
     musicApi.playlists().then(setPlaylists, () => setPlaylists((prev) => prev ?? []));
   }, [playlistsVersion]);
 
@@ -41,6 +46,22 @@ export default function LibraryView({ onMore, onOpenPlaylist, onCreatePlaylist, 
     <div className="pb-6">
       <div className="px-4 pt-4">
         <h1 className="text-[26px] font-extrabold tracking-tight text-text">Менің музыкам</h1>
+        {uploaded !== null && (
+          <button
+            onClick={onAdd}
+            className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-music/25 bg-music/10 px-4 py-3 text-left active:scale-[0.99]"
+          >
+            <span className="qm-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"><Upload size={17} /></span>
+            <span className="min-w-0">
+              <span className="block text-[14px] font-bold text-text">
+                {uploaded > 0 ? `Сіз каталогқа ${uploaded} ән қостыңыз 🙌` : "Сіз әлі ән қоспадыңыз"}
+              </span>
+              <span className="block text-[12px] text-muted">
+                {uploaded > 0 ? "Оларды бәрі тыңдай алады. Тағы қосасыз ба?" : "Ботқа бір ән жіберіңіз — ол бірден бәріне ашылады"}
+              </span>
+            </span>
+          </button>
+        )}
         <div className="mt-3 inline-flex rounded-full bg-surface p-1" role="tablist">
           {(["tracks", "playlists"] as const).map((key) => (
             <button
