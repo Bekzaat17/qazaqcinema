@@ -14,6 +14,11 @@ from dishka.integrations.aiogram import inject
 
 from app.application.services.activity_service import UserActivityService
 from app.application.services.catalog_service import CatalogService
+from app.application.services.music_delivery_service import (
+    LinkDelivery,
+    MusicDeliveryService,
+    SendOutcome,
+)
 from app.bot.handlers.music import MUSIC_GREETING
 from app.bot.keyboards.common import movie_keyboard, music_keyboard, webapp_keyboard
 from app.config.settings import AppConfig
@@ -32,6 +37,27 @@ GREETING = (
 
 MOVIE_INVITE = "🎬 <b>{title}</b>\n\nКөру үшін төмендегі батырманы басыңыз 👇"
 
+TRACK_SENT = (
+    "🎧 Ән жоғарыда — ойнатыңыз, экран сөніп тұрса да тыңдалады.\n\n"
+    "Ұқсас әндер, плейлист жинау және досқа бөлісу — төмендегі батырма 👇"
+)
+PLAYLIST_SENT = (
+    "🎧 «{title}» плейлисінің {count} әні жоғарыда. Telegram оларды ретімен ойнатады — "
+    "экран сөніп тұрса да.\n\nӨзіңізге сақтау және басқа плейлистер — төмендегі батырма 👇"
+)
+LINK_NOT_FOUND = "Бұл ән каталогтан табылмады 😕 Бірақ басқа әндер көп — қараңыз 👇"
+LINK_TRY_LATER = "Telegram қазір бос емес — сәлден кейін төмендегі батырмадан тыңдаңыз 👇"
+
+
+def _link_reply(delivery: LinkDelivery) -> str:
+    if delivery.outcome is SendOutcome.SENT:
+        if delivery.playlist_title is not None:
+            return PLAYLIST_SENT.format(title=escape(delivery.playlist_title), count=delivery.count)
+        return TRACK_SENT
+    if delivery.outcome is SendOutcome.NOT_FOUND:
+        return LINK_NOT_FOUND
+    return LINK_TRY_LATER
+
 
 
 @router.message(CommandStart())
@@ -42,6 +68,7 @@ async def handle_start(
     config: FromDishka[AppConfig],
     activity: FromDishka[UserActivityService],
     catalog: FromDishka[CatalogService],
+    music_delivery: FromDishka[MusicDeliveryService],
 ) -> None:
     # Фиксируем контакт: до этого юзер попадал в БД только открыв Mini App, и нажавшие
     # /start (в т.ч. пришедшие из поиска/SEO) в статистике не существовали.
@@ -61,6 +88,18 @@ async def handle_start(
     # возвращает человека сюда, к видео (см. `movie_start_url`).
     url = config.bot.webapp_url
     music = parse_music_link(command.args)
+    if music is not None and message.from_user is not None and (
+        music.track_id is not None or music.playlist_code is not None
+    ):
+        # Ссылка с сайта на песню или плейлист: человек уже нажал «Start», поэтому песня
+        # приходит сразу, а Mini App — кнопкой под ней для тех, кому нужно больше.
+        delivery = await music_delivery.send_link(message.from_user.id, music, datetime.now(UTC))
+        await message.answer(
+            _link_reply(delivery),
+            parse_mode="HTML",
+            reply_markup=music_keyboard(url, delivery.track_id, music.playlist_code),
+        )
+        return
     if music is not None:
         await message.answer(
             MUSIC_GREETING,

@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
 from app.application.ports.lock import Lock
-from app.application.ports.music import AudioSender, TrackRepository
+from app.application.ports.music import AudioSender, PlaylistRepository, TrackRepository
 from app.application.ports.repositories import UserEventRepository, UserRepository
 from app.application.ports.telegram import (
     RecipientUnreachableError,
@@ -23,6 +24,7 @@ from app.application.ports.telegram import (
 )
 from app.domain.analytics.events import EventKind
 from app.domain.entities.user import User
+from app.domain.music.links import MusicLink
 from app.domain.music.track import Track
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,16 @@ class SendOutcome(StrEnum):
     BUSY = "busy"                # такая же отправка уже идёт (двойной тап)
 
 
+@dataclass(frozen=True, slots=True)
+class LinkDelivery:
+    """Итог отправки по ссылке: что ушло и как это назвать человеку."""
+
+    outcome: SendOutcome
+    count: int = 0
+    track_id: int | None = None
+    playlist_title: str | None = None
+
+
 def _caption(bot_username: str, track_id: int | None) -> str:
     target = f"t_{track_id}" if track_id is not None else "music"
     return f'🎧 <a href="https://t.me/{bot_username}?startapp={target}">QazaqMusic</a>'
@@ -58,7 +70,9 @@ class MusicDeliveryService:
         events: UserEventRepository,
         lock: Lock,
         bot_username: str,
+        playlists: PlaylistRepository,
     ) -> None:
+        self._playlists = playlists
         self._tracks = tracks
         self._sender = sender
         self._users = users
@@ -68,6 +82,28 @@ class MusicDeliveryService:
 
     async def send_track(self, user: User, track_id: int, now: datetime) -> SendOutcome:
         return await self.send_tracks(user, [track_id], now)
+
+    async def send_link(self, telegram_id: int, link: MusicLink, now: datetime) -> LinkDelivery:
+        """Ссылка с сайта (`start=seo-t_42` / `seo-pl_код`) → песня сразу в чат.
+
+        Человек пришёл из поиска за конкретной песней и уже нажал «Start»: показывать ему
+        приветствие с кнопкой в Mini App, где надо нажать ещё раз, — терять людей на
+        лишнем шаге. Плейлист уходит целиком, по порядку, как у «Ойнату».
+        """
+        user = await self._users.get(telegram_id) or User(telegram_id=telegram_id)
+        if link.track_id is not None:
+            outcome = await self.send_track(user, link.track_id, now)
+            sent = 1 if outcome is SendOutcome.SENT else 0
+            return LinkDelivery(outcome, sent, track_id=link.track_id)
+        if link.playlist_code is not None:
+            playlist = await self._playlists.by_share_code(link.playlist_code)
+            if playlist is None or playlist.id is None:
+                return LinkDelivery(SendOutcome.NOT_FOUND)
+            ids = (await self._playlists.track_ids(playlist.id))[:SEND_MAX]
+            outcome = await self.send_tracks(user, ids, now)
+            sent = len(ids) if outcome is SendOutcome.SENT else 0
+            return LinkDelivery(outcome, sent, playlist_title=playlist.title)
+        return LinkDelivery(SendOutcome.NOT_FOUND)
 
     async def send_tracks(
         self, user: User, track_ids: Sequence[int], now: datetime

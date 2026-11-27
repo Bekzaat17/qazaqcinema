@@ -27,6 +27,7 @@ from app.application.services.playlist_service import PlaylistService
 from app.domain.analytics.events import EventKind
 from app.domain.entities.user import User
 from app.domain.music.chart import ChartEntry
+from app.domain.music.links import MusicLink
 from app.domain.music.playlist import MAX_PLAYLISTS_PER_USER, Playlist
 from app.domain.music.track import AudioUpload, Track, track_key
 
@@ -239,6 +240,9 @@ class FakeUsers:
     def __init__(self) -> None:
         self.bot_started: dict[int, datetime | None] = {}
 
+    async def get(self, telegram_id: int) -> User | None:
+        return None
+
     async def set_bot_started(self, telegram_id: int, at: datetime | None) -> None:
         self.bot_started[telegram_id] = at
 
@@ -261,7 +265,8 @@ async def _delivery(
             telegram_file_id=f"f{index}", file_unique_id=f"u{index}", uploader_id=1,
         ))
     service = MusicDeliveryService(
-        tracks, sender, users, events, lock or FakeLock(), "qazaqcinema_bot"  # type: ignore[arg-type]
+        tracks, sender, users, events, lock or FakeLock(), "qazaqcinema_bot",  # type: ignore[arg-type]
+        _DELIVERY_PLAYLISTS,
     )
     return service, tracks, users, events
 
@@ -585,3 +590,36 @@ async def test_uploaded_counter() -> None:
     await service.ingest(_upload("u1"), 42, _NOW)
     await service.ingest(_upload("u9", 300), 42, _NOW)
     assert await service.uploaded_by(42) == 2
+
+
+_DELIVERY_PLAYLISTS = FakePlaylists()
+
+
+async def test_link_from_site_sends_the_song_right_away() -> None:
+    sender = FakeSender()
+    service, _, _, events = await _delivery(sender, count=2)
+    result = await service.send_link(5, MusicLink(track_id=2), _NOW)
+    assert result.outcome is SendOutcome.SENT and result.count == 1 and result.track_id == 2
+    assert sender.singles == ["f1"]
+    assert (5, EventKind.TRACK_PLAY, "2") in events.added
+
+
+async def test_link_to_playlist_sends_it_in_order() -> None:
+    sender = FakeSender()
+    service, _, _, _ = await _delivery(sender, count=3)
+    playlist = await _DELIVERY_PLAYLISTS.create(
+        Playlist(owner_id=1, title="Той", share_code="toi12345", created_at=_NOW)
+    )
+    assert playlist.id is not None
+    _DELIVERY_PLAYLISTS.items[playlist.id] = [3, 1, 2]
+    result = await service.send_link(5, MusicLink(playlist_code="toi12345"), _NOW)
+    assert (result.outcome, result.count, result.playlist_title) == (SendOutcome.SENT, 3, "Той")
+    assert sender.albums == [["f2", "f0", "f1"]]
+
+
+async def test_link_to_missing_song_is_not_found() -> None:
+    service, _, _, _ = await _delivery(FakeSender())
+    missing_track = await service.send_link(5, MusicLink(track_id=404), _NOW)
+    missing_playlist = await service.send_link(5, MusicLink(playlist_code="nope1234"), _NOW)
+    assert missing_track.outcome is SendOutcome.NOT_FOUND
+    assert missing_playlist.outcome is SendOutcome.NOT_FOUND

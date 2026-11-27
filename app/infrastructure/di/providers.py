@@ -409,8 +409,11 @@ class RequestProvider(Provider):
     def music_delivery(
         self, tracks: TrackRepository, sender: AudioSender, users: UserRepository,
         events: UserEventRepository, lock: Lock, config: AppConfig,
+        playlists: PlaylistRepository,
     ) -> MusicDeliveryService:
-        return MusicDeliveryService(tracks, sender, users, events, lock, config.bot.username)
+        return MusicDeliveryService(
+            tracks, sender, users, events, lock, config.bot.username, playlists
+        )
 
     @provide
     def music_chart(
