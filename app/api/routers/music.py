@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.api.deps.auth import get_current_user
 from app.api.deps.rate_limit import rate_limit
 from app.api.schemas.music import (
+    ArtistOut,
     CollectionDetailOut,
     CollectionOut,
     IdsOut,
@@ -27,6 +28,7 @@ from app.api.schemas.music import (
     PlaylistOut,
     PlaylistPatch,
     SendOut,
+    TrackDetailOut,
     TrackIdsIn,
     TrackOut,
     collection_detail,
@@ -44,6 +46,7 @@ from app.application.services.playlist_service import PlaylistService, PlaylistV
 from app.config.settings import AppConfig
 from app.domain.entities.user import User
 from app.domain.music.collections import get_collection
+from app.domain.music.seo import artist_key_from_slug, artist_slug
 
 # Лимиты — данные. Чтение щедрое: за одной вышкой (CGNAT) сидят сотни людей.
 _read = Depends(rate_limit(limit=240, window_seconds=60, scope="music_read"))
@@ -133,6 +136,33 @@ async def collection(
     if found is None:
         raise HTTPException(status_code=404, detail="collection_not_found")
     return collection_detail(await music.collection(found, _now()))
+
+
+@router.get("/tracks/{track_id}/details", response_model=TrackDetailOut, dependencies=[_read])
+async def track_details(
+    track_id: int,
+    music: FromDishka[MusicCatalogService],
+    config: FromDishka[AppConfig],
+    user: User = Depends(get_current_user),
+) -> TrackDetailOut:
+    """Страница трека: сколько слушали, в скольких плейлистах, похожие и плейлисты с ним."""
+    details = await music.details(track_id)
+    if details is None:
+        raise HTTPException(status_code=404, detail="track_not_found")
+    return TrackDetailOut.from_domain(details, config.bot.username, user.telegram_id)
+
+
+@router.get("/artists/{slug}", response_model=ArtistOut, dependencies=[_read])
+async def artist(
+    slug: str,
+    music: FromDishka[MusicCatalogService],
+    _user: User = Depends(get_current_user),
+) -> ArtistOut:
+    """Все песни исполнителя (по ключу, как в поиске: «Қайрат» = «Кайрат»)."""
+    page = await music.artist(artist_key_from_slug(slug))
+    if page is None:
+        raise HTTPException(status_code=404, detail="artist_not_found")
+    return ArtistOut(name=page.name, slug=artist_slug(page.name), tracks=tracks_out(page.tracks))
 
 
 @router.post("/send", response_model=SendOut, dependencies=[_send])

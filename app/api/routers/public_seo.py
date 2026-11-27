@@ -47,10 +47,13 @@ from fastapi.templating import Jinja2Templates
 
 from app.application.ports.storage import thumb_url
 from app.application.services.catalog_service import SEO_PAGE_SIZE, CatalogService
+from app.application.services.music_catalog_service import MusicCatalogService
+from app.application.services.playlist_service import PlaylistService
 from app.application.services.seo_service import HubSeo, MovieSeo, SeoBuilder
 from app.config.settings import AppConfig
 from app.domain.catalog.categories import Category, get_category
 from app.domain.entities.movie import Movie
+from app.domain.music.seo import MUSIC_PATH, artist_path, playlist_path, track_path
 from app.domain.seo.hubs import (
     COLLECTIONS,
     Hub,
@@ -99,6 +102,10 @@ _SEARCH_LIMIT = SEO_PAGE_SIZE
 _SEARCH_MIN_LEN = 2
 
 _CATALOG_PATH = "/catalog"
+# Потолки музыки в sitemap: исполнителей и открытых плейлистов может стать много, а
+# карта на 50 000 URL — предел одного файла у Google.
+_SITEMAP_ARTISTS = 5000
+_SITEMAP_PLAYLISTS = 2000
 
 # Сколько популярных фильмов перечисляем в llms.txt. Файл — оглавление, а не каталог:
 # модели нужен образец того, что здесь есть, а полный список лежит в sitemap.
@@ -447,6 +454,8 @@ async def sitemap(
     catalog: FromDishka[CatalogService],
     seo: FromDishka[SeoBuilder],
     config: FromDishka[AppConfig],
+    music: FromDishka[MusicCatalogService],
+    playlists: FromDishka[PlaylistService],
 ) -> Response:
     """XML-карта: главная + хабы (со всеми страницами пагинации) + все фильмы.
 
@@ -525,6 +534,8 @@ async def sitemap(
                 image_title=meta.heading,
             )
         )
+
+    urls += await _music_entries(site, music, playlists)
 
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -629,6 +640,46 @@ async def llms_txt(
     # text/markdown — тип, который ждут от llms.txt; charset явно, иначе кириллица
     # у части клиентов читается как latin-1.
     return PlainTextResponse(content=body, media_type="text/markdown; charset=utf-8")
+
+
+async def _music_entries(
+    site: str, music: MusicCatalogService, playlists: PlaylistService
+) -> list[str]:
+    """Музыка в карте: общая страница, исполнители, открытые плейлисты и каждый трек.
+
+    Треки — 0.7, ниже фильмов: их сотни, и каждый по одиночке ловит узкий запрос «название
+    песни»; исполнители (0.8) собирают широкий «<имя> әндері». Плейлисты — только открытые
+    всем: ссылка «для друга» в индекс не уходит.
+    """
+    tracks = await music.all_tracks()
+    newest = max((t.created_at for t in tracks if t.created_at), default=None)
+    lastmod = newest.date().isoformat() if newest else None
+    entries = [
+        _url_entry(f"{site}{MUSIC_PATH}", priority="0.9", changefreq="daily", lastmod=lastmod)
+    ]
+    for name, _count in await music.performers(_SITEMAP_ARTISTS):
+        entries.append(
+            _url_entry(f"{site}{artist_path(name)}", priority="0.8", changefreq="weekly")
+        )
+    for playlist in await playlists.list_public(_SITEMAP_PLAYLISTS):
+        entries.append(
+            _url_entry(
+                f"{site}{playlist_path(playlist.share_code)}", priority="0.6", changefreq="weekly"
+            )
+        )
+    for track in tracks:
+        if track.id is None:
+            continue
+        added = track.created_at.date().isoformat() if track.created_at else None
+        entries.append(
+            _url_entry(
+                f"{site}{track_path(track.id, track.performer, track.title)}",
+                priority="0.7",
+                changefreq="monthly",
+                lastmod=added,
+            )
+        )
+    return entries
 
 
 def _pagination_entries(loc: str, total: int, lastmod: str | None) -> list[str]:

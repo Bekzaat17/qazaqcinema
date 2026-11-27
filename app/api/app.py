@@ -22,6 +22,7 @@ from app.api.routers import (
     health,
     me,
     music,
+    music_seo,
     payments,
     public_seo,
     support,
@@ -72,6 +73,7 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     # Без /api-префикса и без авторизации — их отдаёт поисковикам сам бэкенд (Caddy
     # проксирует эти пути на api ДО SPA-фолбэка).
     app.include_router(public_seo.router)
+    app.include_router(music_seo.router)
 
     # Постеры — статика на диске (см. LocalPosterStorage). Каталог создаём заранее,
     # иначе StaticFiles упадёт при старте, пока постеров ещё нет. В проде эту раздачу

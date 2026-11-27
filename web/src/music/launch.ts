@@ -21,7 +21,7 @@ function startParam(): string {
 export function musicTarget(): MusicTarget | null {
   const query = new URLSearchParams(window.location.search);
   if (query.get("view") === "cinema") return null;
-  if (query.get("app") === "music" || window.location.pathname.replace(/\/$/, "") === "/music") {
+  if (query.get("app") === "music") {
     const track = /^\d+$/.exec(query.get("t") ?? "");
     const playlist = /^[A-Za-z0-9_-]{4,16}$/.exec(query.get("pl") ?? "");
     return { trackId: track ? Number(track[0]) : null, playlistCode: playlist ? playlist[0] : null };
@@ -35,13 +35,21 @@ export function isMusicLaunch(): boolean {
   return musicTarget() !== null;
 }
 
-/** Переключить экран без перезагрузки, сохранив Telegram initData и сессию SDK. */
+/**
+ * Переключить экран без перезагрузки, сохранив Telegram initData и сессию SDK.
+ *
+ * ⚠️ Музыка — это `/?app=music`, а не путь `/music`: путь `/music` отдаёт SEO-страницу
+ * (Caddy ведёт его на api), и обновление WebView открыло бы её вместо приложения.
+ */
 export function navigateApp(target: "music" | "cinema"): void {
   const url = new URL(window.location.href);
-  url.pathname = target === "music" ? "/music" : "/";
+  url.pathname = "/";
   for (const key of ["app", "t", "pl"]) url.searchParams.delete(key);
   if (target === "cinema") url.searchParams.set("view", "cinema");
-  else url.searchParams.delete("view");
+  else {
+    url.searchParams.delete("view");
+    url.searchParams.set("app", "music");
+  }
   window.history.pushState(null, "", url);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }

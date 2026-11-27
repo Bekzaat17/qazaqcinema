@@ -7,9 +7,14 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.application.ports.music import PlaylistAddOutcome
-from app.application.services.music_catalog_service import CollectionView, MusicHome
+from app.application.services.music_catalog_service import (
+    CollectionView,
+    MusicHome,
+    TrackDetails,
+)
 from app.application.services.playlist_service import PlaylistView
 from app.domain.music.playlist import Playlist
+from app.domain.music.seo import artist_slug
 from app.domain.music.track import Track
 
 
@@ -91,6 +96,42 @@ class PlaylistDetailOut(PlaylistOut):
     def from_view(cls, view: PlaylistView, bot_username: str, viewer_id: int) -> PlaylistDetailOut:
         base = PlaylistOut.from_domain(view.playlist, bot_username, viewer_id)
         return cls(**base.model_dump(), tracks=tracks_out(view.tracks))
+
+
+class TrackDetailOut(BaseModel):
+    """Страница трека в Mini App: цифры и куда идти дальше."""
+
+    track: TrackOut
+    artist_slug: str
+    listeners: int
+    playlists_count: int
+    saves: int
+    by_artist: list[TrackOut]
+    similar: list[TrackOut]
+    playlists: list[PlaylistOut]
+
+    @classmethod
+    def from_domain(
+        cls, details: TrackDetails, bot_username: str, viewer_id: int
+    ) -> TrackDetailOut:
+        return cls(
+            track=TrackOut.from_domain(details.track),
+            artist_slug=artist_slug(details.track.performer),
+            listeners=details.stats.listeners,
+            playlists_count=details.stats.playlists,
+            saves=details.stats.saves,
+            by_artist=tracks_out(details.by_artist),
+            similar=tracks_out(details.similar),
+            playlists=[
+                PlaylistOut.from_domain(p, bot_username, viewer_id) for p in details.playlists
+            ],
+        )
+
+
+class ArtistOut(BaseModel):
+    name: str
+    slug: str
+    tracks: list[TrackOut]
 
 
 class PlaylistIn(BaseModel):

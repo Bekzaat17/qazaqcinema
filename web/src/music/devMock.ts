@@ -62,7 +62,32 @@ export function mockMusic(path: string, url: URL, init?: RequestInit): { handled
     const q = (url.searchParams.get("q") ?? "").toLowerCase();
     return { handled: true, data: TRACKS.filter((t) => `${t.performer} ${t.title}`.toLowerCase().includes(q)) };
   }
-  let m: RegExpExecArray | null = /^\/api\/music\/tracks\/(\d+)$/.exec(path);
+  let m: RegExpExecArray | null = /^\/api\/music\/tracks\/(\d+)\/details$/.exec(path);
+  if (m) {
+    const track = byIds([Number(m[1])])[0];
+    if (!track) return { handled: true, status: 404 };
+    const slug = track.performer.toLowerCase().replace(/\s+/g, "-");
+    return {
+      handled: true,
+      data: {
+        track,
+        artist_slug: slug,
+        listeners: 37,
+        playlists_count: 5,
+        saves: LIBRARY.has(track.id) ? 12 : 11,
+        by_artist: [],
+        similar: TRACKS.filter((t) => t.id !== track.id).slice(0, 4),
+        playlists: PUBLIC,
+      },
+    };
+  }
+  m = /^\/api\/music\/artists\/([^/]+)$/.exec(path);
+  if (m) {
+    const slug = decodeURIComponent(m[1]);
+    const tracks = TRACKS.filter((t) => t.performer.toLowerCase().replace(/\s+/g, "-") === slug);
+    return tracks.length ? { handled: true, data: { name: tracks[0].performer, slug, tracks } } : { handled: true, status: 404 };
+  }
+  m = /^\/api\/music\/tracks\/(\d+)$/.exec(path);
   if (m) return { handled: true, data: byIds([Number(m[1])])[0] };
   if (path === "/api/music/send") return { handled: true, data: { status: "sent", count: (body.track_ids as unknown as number[]).length } };
   if (path === "/api/music/collections") return { handled: true, data: COLLECTIONS };

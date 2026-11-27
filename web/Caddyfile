@@ -77,6 +77,15 @@
 	handle /catalog/* {
 		reverse_proxy api:8000
 	}
+	# Музыка: SSR-страницы трека, исполнителя и плейлиста (`routers/music_seo`). Mini App
+	# в музыкальный раздел ходит по `/?app=music`, а не по этому пути, — иначе обновление
+	# страницы в WebView открыло бы SEO-страницу вместо приложения.
+	handle /music {
+		reverse_proxy api:8000
+	}
+	handle /music/* {
+		reverse_proxy api:8000
+	}
 	handle /sitemap.xml {
 		reverse_proxy api:8000
 	}

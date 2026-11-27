@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_music.html" import music_style, track_row %}
+
+{# Одна страница для списков: главная музыки, исполнитель и публичный плейлист —
+   различаются только текстами и набором блоков, которые приходят из роутера. #}
+
+{% block title %}{{ meta.title }}{% endblock %}
+{% block description %}{{ meta.description }}{% endblock %}
+
+{% block head %}
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="{{ meta.canonical }}" />
+    <meta property="og:type" content="{{ meta.og_type }}" />
+    <meta property="og:url" content="{{ meta.canonical }}" />
+    <meta property="og:title" content="{{ meta.heading }}" />
+    <meta property="og:description" content="{{ meta.description }}" />
+    <script type="application/ld+json">{{ meta.jsonld | safe }}</script>
+    {{ music_style() }}
+{% endblock %}
+
+{% block body %}
+      <nav class="crumbs" aria-label="Навигация">
+        {% for c in meta.crumbs %}
+        <span>{% if c[1] %}<a href="{{ c[1] }}">{{ c[0] }}</a>{% else %}{{ c[0] }}{% endif %}</span>
+        {% endfor %}
+      </nav>
+
+      <header class="mhero">
+        <div class="mart" style="background: {{ meta.gradient }}">{{ meta.initials }}</div>
+        <div>
+          <h1>{{ meta.heading }}</h1>
+          <p class="sub">{{ meta.subtitle }}</p>
+          <a class="mcta" href="{{ meta.telegram_url }}" rel="nofollow">▶ Telegram-да тыңдау</a>
+          <p class="mnote">Әндер бот чатына келеді — экран сөніп тұрса да ойнайды. Тегін.</p>
+        </div>
+      </header>
+
+      {% for block in blocks %}
+      <section class="msec">
+        <h2 class="blockh">{{ block.title }}</h2>
+        {% if block.tracks %}
+        <div class="tracks">{% for t in block.tracks %}{{ track_row(t) }}{% endfor %}</div>
+        {% endif %}
+        {% if block.links %}
+        <div class="artists">
+          {% for l in block.links %}<a class="chip" href="{{ l[1] }}">{{ l[0] }}</a>{% endfor %}
+        </div>
+        {% endif %}
+      </section>
+      {% endfor %}
+
+      {% if not blocks %}<p class="empty">Әзірге бос. <a href="{{ meta.telegram_url }}">Telegram-да ашу</a></p>{% endif %}
+{% endblock %}

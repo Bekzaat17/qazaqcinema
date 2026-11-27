@@ -9,11 +9,11 @@ from sqlalchemy import ColumnElement, Integer, and_, delete, func, or_, select, 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.ports.music import MusicRequest, PlaylistAddOutcome
+from app.application.ports.music import MusicRequest, PlaylistAddOutcome, TrackStats
 from app.domain.analytics.events import EventKind
 from app.domain.music.chart import ChartEntry
 from app.domain.music.playlist import Playlist
-from app.domain.music.search import words
+from app.domain.music.search import fold, words
 from app.domain.music.track import DUPLICATE_SECONDS, Track, track_key
 from app.infrastructure.db.models import UserEventModel
 from app.infrastructure.db.music_models import (
@@ -230,6 +230,71 @@ class PgTrackRepository:
         return int(total or 0)
 
 
+    async def stats(self, track_id: int) -> TrackStats:
+        listeners = await self._session.scalar(
+            select(func.count(func.distinct(UserEventModel.user_id))).where(
+                UserEventModel.kind == EventKind.TRACK_PLAY.value,
+                UserEventModel.meta == str(track_id),
+            )
+        )
+        playlists = await self._session.scalar(
+            select(func.count()).select_from(PlaylistTrackModel)
+            .where(PlaylistTrackModel.track_id == track_id)
+        )
+        saves = await self._session.scalar(
+            select(TrackModel.saves_count).where(TrackModel.id == track_id)
+        )
+        return TrackStats(int(listeners or 0), int(playlists or 0), int(saves or 0))
+
+    async def by_performer(self, performer_key: str, limit: int) -> list[Track]:
+        if not performer_key:
+            return []
+        stmt = (
+            select(TrackModel)
+            .where(_visible, TrackModel.search_key.startswith(f"{performer_key} "))
+            .order_by((TrackModel.play_count + TrackModel.saves_count * 3).desc(), TrackModel.id)
+            .limit(limit * 3)
+        )
+        # Ключ «a b название» начинается и с «a » — точное имя исполнителя сверяем здесь.
+        found = [_track_to_domain(m) for m in await self._session.scalars(stmt)]
+        return [t for t in found if fold(t.performer) == performer_key][:limit]
+
+    async def co_listened(self, track_id: int, limit: int) -> list[Track]:
+        mine = PlaylistTrackModel.__table__.alias("mine")
+        other = PlaylistTrackModel.__table__.alias("other")
+        together = func.count().label("together")
+        pairs = (
+            select(other.c.track_id, together)
+            .select_from(mine.join(other, mine.c.playlist_id == other.c.playlist_id))
+            .where(mine.c.track_id == track_id, other.c.track_id != track_id)
+            .group_by(other.c.track_id)
+            .subquery()
+        )
+        stmt = (
+            select(TrackModel)
+            .join(pairs, pairs.c.track_id == TrackModel.id)
+            .where(_visible)
+            .order_by(pairs.c.together.desc(), TrackModel.play_count.desc(), TrackModel.id)
+            .limit(limit)
+        )
+        return [_track_to_domain(m) for m in await self._session.scalars(stmt)]
+
+    async def performers(self, limit: int) -> list[tuple[str, int]]:
+        count = func.count().label("tracks")
+        rows = await self._session.execute(
+            select(TrackModel.performer, count)
+            .where(_visible)
+            .group_by(TrackModel.performer)
+            .order_by(count.desc(), TrackModel.performer)
+            .limit(limit)
+        )
+        return [(str(name), int(total)) for name, total in rows]
+
+    async def list_all(self) -> list[Track]:
+        stmt = select(TrackModel).where(_visible).order_by(TrackModel.id)
+        return [_track_to_domain(m) for m in await self._session.scalars(stmt)]
+
+
 class PgLibraryRepository:
     """Коллекция + денормализованный `tracks.saves_count` (двигается только по факту)."""
 
@@ -368,6 +433,16 @@ class PgPlaylistRepository:
                 PlaylistModel.updated_at.desc(),
                 PlaylistModel.id.desc(),
             )
+            .limit(limit)
+        )
+        return [self._to_domain(model) for model in models]
+
+    async def public_with_track(self, track_id: int, limit: int) -> list[Playlist]:
+        models = await self._session.scalars(
+            select(PlaylistModel)
+            .join(PlaylistTrackModel, PlaylistTrackModel.playlist_id == PlaylistModel.id)
+            .where(PlaylistModel.is_public.is_(True), PlaylistTrackModel.track_id == track_id)
+            .order_by(PlaylistModel.saves_count.desc(), PlaylistModel.id.desc())
             .limit(limit)
         )
         return [self._to_domain(model) for model in models]

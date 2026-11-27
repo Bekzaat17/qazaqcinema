@@ -1,6 +1,6 @@
 // Действия с треком: в чат (фоновое прослушивание), к себе, в плейлист, поделиться.
 
-import { Heart, ListPlus, Send, Share2, Trash2, type LucideIcon } from "../../ui-kit/adapters/icons";
+import { Heart, Info, ListPlus, Send, Share2, Trash2, type LucideIcon } from "../../ui-kit/adapters/icons";
 
 import Sheet from "../../ui/Sheet";
 import type { Track } from "../api";
@@ -14,6 +14,8 @@ interface TrackSheetProps {
   onSend: (track: Track) => void;
   onAddToPlaylist: (track: Track) => void;
   onShare: (track: Track) => void;
+  /** Страница трека: сколько слушают, похожие, плейлисты с ним. */
+  onAbout: (track: Track) => void;
   /** Только в своём плейлисте: убрать трек из него. */
   onRemove?: (track: Track) => void;
 }
@@ -32,7 +34,7 @@ function Action({ Icon, label, hint, onClick, tone = "text-text" }: { Icon: Luci
   );
 }
 
-export default function TrackSheet({ track, onClose, onSend, onAddToPlaylist, onShare, onRemove }: TrackSheetProps) {
+export default function TrackSheet({ track, onClose, onSend, onAddToPlaylist, onShare, onAbout, onRemove }: TrackSheetProps) {
   const library = useLibrary();
   if (!track) return null;
   const saved = library.has(track.id);
@@ -57,6 +59,7 @@ export default function TrackSheet({ track, onClose, onSend, onAddToPlaylist, on
           onClick={() => { library.toggle(track.id); onClose(); }}
         />
         <Action Icon={ListPlus} label="Плейлистке қосу" onClick={run(onAddToPlaylist)} />
+        <Action Icon={Info} label="Ән туралы" hint="Кім тыңдайды, ұқсас әндер, плейлистер" onClick={run(onAbout)} />
         <Action Icon={Share2} label="Досқа бөлісу" onClick={run(onShare)} />
         {onRemove && <Action Icon={Trash2} label="Плейлисттен алып тастау" onClick={run(onRemove)} tone="text-[#ff7770]" />}
       </div>

@@ -52,6 +52,23 @@ export interface CollectionDetail extends Collection {
   tracks: Track[];
 }
 
+export interface TrackDetail {
+  track: Track;
+  artist_slug: string;
+  listeners: number;
+  playlists_count: number;
+  saves: number;
+  by_artist: Track[];
+  similar: Track[];
+  playlists: Playlist[];
+}
+
+export interface Artist {
+  name: string;
+  slug: string;
+  tracks: Track[];
+}
+
 export type PlaylistAddStatus = "added" | "duplicate" | "full";
 
 // Сколько треков уходит в чат одним нажатием (зеркало `SEND_MAX` бэкенда).
@@ -75,6 +92,8 @@ export const musicApi = {
     return request<Track[]>(`${BASE}/tracks?${query}`);
   },
   track: (id: number) => request<Track>(`${BASE}/tracks/${id}`),
+  trackDetails: (id: number) => request<TrackDetail>(`${BASE}/tracks/${id}/details`),
+  artist: (slug: string) => request<Artist>(`${BASE}/artists/${encodeURIComponent(slug)}`),
   /** Треки в чат В ЭТОМ ПОРЯДКЕ — так их и сыграет Telegram. */
   send: (trackIds: number[]) =>
     request<{ status: "sent"; count: number }>(`${BASE}/send`, body("POST", { track_ids: trackIds.slice(0, SEND_MAX) })),

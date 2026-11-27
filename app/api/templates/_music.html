@@ -1,0 +1,47 @@
+{# Общие куски музыкальных страниц: стиль строки трека и сама строка (макрос). #}
+{% macro music_style() %}
+    <style>
+      .mhero { display: flex; gap: 24px; align-items: center; padding: 18px 0 8px; }
+      .mart {
+        flex: 0 0 180px; aspect-ratio: 1; border-radius: 26px; display: flex;
+        align-items: center; justify-content: center; font-size: 3rem; font-weight: 800;
+        color: rgba(255,255,255,.92); box-shadow: var(--shadow);
+      }
+      .mhero h1 { font-size: clamp(1.45rem, 3.4vw, 2.1rem); line-height: 1.15; margin: 0 0 6px; }
+      .mhero .sub { color: var(--muted); margin: 0 0 14px; }
+      .mhero .sub a { color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+      .mstats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+      .mcta {
+        display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px; border-radius: 12px;
+        background: linear-gradient(135deg, #7c3aed, #f472b6); color: #fff; font-weight: 700;
+        box-shadow: 0 8px 22px rgba(124, 58, 237, .35);
+      }
+      .mnote { color: var(--muted); font-size: .83rem; margin: 12px 0 0; }
+      .msec { margin: 34px 0 0; }
+      .tracks { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 4px 18px; }
+      .trk { display: flex; align-items: center; gap: 12px; padding: 7px 8px; border-radius: 12px; }
+      .trk:hover { background: var(--card); }
+      .cv {
+        flex: 0 0 44px; height: 44px; border-radius: 11px; display: flex; align-items: center;
+        justify-content: center; font-size: .82rem; font-weight: 800; color: rgba(255,255,255,.9);
+      }
+      .trk b { display: block; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .trk small { color: var(--muted); font-size: .82rem; }
+      .trk span { min-width: 0; }
+      .artists { display: flex; flex-wrap: wrap; gap: 8px; }
+      @media (max-width: 620px) {
+        .mhero { flex-direction: column; text-align: center; }
+        .mart { flex-basis: auto; width: min(60%, 200px); }
+        .mstats { justify-content: center; }
+        .mcta { width: 100%; justify-content: center; }
+        .tracks { grid-template-columns: 1fr; }
+      }
+    </style>
+{% endmacro %}
+
+{% macro track_row(t) %}
+        <a class="trk" href="{{ t.path }}">
+          <i class="cv" style="background: {{ t.gradient }}">{{ t.initials }}</i>
+          <span><b>{{ t.title }}</b><small>{{ t.performer }} · {{ t.clock }}</small></span>
+        </a>
+{% endmacro %}

@@ -25,7 +25,7 @@ export default function TopBar({
       <Brand product="cinema" compact />
       <div className="flex items-center gap-2">
         <a
-          href="/music"
+          href="/?app=music"
           onClick={(event) => {
             event.preventDefault();
             haptic.light();

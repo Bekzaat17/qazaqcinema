@@ -106,3 +106,28 @@ def test_chart_escapes_names_and_calls_for_missing_songs() -> None:
 
 def test_empty_chart_is_not_posted() -> None:
     assert not has_content(WeeklyChart(date(2026, 11, 23), (), 3, ("x",)))
+
+
+def test_seo_paths_are_stable_and_reversible() -> None:
+    from app.domain.music.seo import (
+        artist_key_from_slug,
+        artist_path,
+        clock,
+        cover_gradient,
+        iso_duration,
+        track_id_from_slug,
+        track_path,
+    )
+
+    path = track_path(42, "Қайрат Нұртас", "Ауру")
+    assert path == "/music/42-qairat-nurtas-auru"
+    assert track_id_from_slug(path.removeprefix("/music/")) == 42
+    assert track_id_from_slug("abc") is None
+    # Ключ исполнителя — тот же, что в поиске: «Қайрат» и «Кайрат» ведут на одну страницу.
+    expected = "/music/artist/kairat-nurtas"
+    assert artist_path("Қайрат Нұртас") == artist_path("Кайрат Нуртас") == expected
+    assert artist_key_from_slug("kairat-nurtas") == fold("Кайрат Нуртас")
+    assert artist_key_from_slug("qairat-nurtas") == fold("Қайрат Нұртас")
+    assert iso_duration(214) == "PT3M34S" and clock(214) == "3:34"
+    # Цвет плитки совпадает с Mini App (тот же 32-битный хэш, что в format.ts).
+    assert cover_gradient("Ninety One") == cover_gradient("Ninety One")

@@ -17,6 +17,15 @@ from app.domain.music.playlist import Playlist
 from app.domain.music.track import Track
 
 
+@dataclass(frozen=True, slots=True)
+class TrackStats:
+    """Живые цифры трека для его страницы: социальное доказательство «это слушают»."""
+
+    listeners: int   # РАЗНЫХ людей, хоть раз отправивших трек себе
+    playlists: int   # в скольких плейлистах лежит
+    saves: int       # сколько забрали в «Менің музыкам»
+
+
 class TrackRepository(Protocol):
     async def get(self, track_id: int) -> Track | None:
         """Трек по id; скрытый админом — как отсутствующий."""
@@ -74,6 +83,29 @@ class TrackRepository(Protocol):
 
     async def count_added(self, since: datetime, until: datetime) -> int: ...
 
+    async def stats(self, track_id: int) -> TrackStats: ...
+
+    async def by_performer(self, performer_key: str, limit: int) -> list[Track]:
+        """Треки исполнителя по ключу `fold(исполнитель)`, сначала популярные."""
+        ...
+
+    async def co_listened(self, track_id: int, limit: int) -> list[Track]:
+        """«Ұқсас әндер»: что чаще всего лежит в тех же плейлистах, что и этот трек.
+
+        Совместное присутствие в плейлистах — самый честный сигнал похожести, который у
+        нас есть: жанров и тегов у присланных файлов нет, а люди складывают вместе то,
+        что слушают вместе.
+        """
+        ...
+
+    async def performers(self, limit: int) -> list[tuple[str, int]]:
+        """Исполнители каталога и число их треков — для SEO-страниц и sitemap."""
+        ...
+
+    async def list_all(self) -> list[Track]:
+        """Все видимые треки — только для sitemap (он обязан перечислить каждый URL)."""
+        ...
+
 
 class LibraryRepository(Protocol):
     """«Менің музыкам» — треки, которые слушатель забрал себе из общего каталога.
@@ -108,6 +140,10 @@ class PlaylistRepository(Protocol):
         ...
 
     async def increment_saves(self, playlist_id: int) -> None: ...
+
+    async def public_with_track(self, track_id: int, limit: int) -> list[Playlist]:
+        """Открытые всем плейлисты, где есть этот трек («Осы ән бар плейлистер»)."""
+        ...
     async def delete(self, playlist_id: int) -> None: ...
 
     async def add_track(

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_music.html" import music_style, track_row %}
+
+{% block title %}{{ meta.title }}{% endblock %}
+{% block description %}{{ meta.description }}{% endblock %}
+
+{% block head %}
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="{{ meta.canonical }}" />
+    <meta property="og:type" content="music.song" />
+    <meta property="og:url" content="{{ meta.canonical }}" />
+    <meta property="og:title" content="{{ track.performer }} — {{ track.title }}" />
+    <meta property="og:description" content="{{ meta.description }}" />
+    <script type="application/ld+json">{{ meta.jsonld | safe }}</script>
+    {{ music_style() }}
+{% endblock %}
+
+{% block body %}
+      <nav class="crumbs" aria-label="Навигация">
+        <span><a href="/music">Музыка</a></span>
+        <span><a href="{{ track.artist_path }}">{{ track.performer }}</a></span>
+        <span>{{ track.title }}</span>
+      </nav>
+
+      <article class="mhero">
+        <div class="mart" style="background: {{ track.gradient }}">{{ track.initials }}</div>
+        <div>
+          <h1>{{ track.title }}</h1>
+          <p class="sub"><a href="{{ track.artist_path }}">{{ track.performer }}</a> · {{ track.clock }}</p>
+          <div class="mstats">
+            {% if stats.listeners %}<span class="chip">🎧 {{ stats.listeners }} адам тыңдады</span>{% endif %}
+            {% if stats.playlists %}<span class="chip">📂 {{ stats.playlists }} плейлистте</span>{% endif %}
+            {% if stats.saves %}<span class="chip">❤️ {{ stats.saves }} сақтады</span>{% endif %}
+          </div>
+          <a class="mcta" href="{{ meta.telegram_url }}" rel="nofollow">▶ Telegram-да тыңдау</a>
+          <p class="mnote">Ән бот чатына келеді — экран сөніп тұрса да ойнайды. Тегін.</p>
+        </div>
+      </article>
+
+      {% if by_artist %}
+      <section class="msec">
+        <h2 class="blockh">{{ track.performer }} — басқа әндері</h2>
+        <div class="tracks">{% for t in by_artist %}{{ track_row(t) }}{% endfor %}</div>
+      </section>
+      {% endif %}
+
+      {% if similar %}
+      <section class="msec">
+        <h2 class="blockh">Ұқсас әндер</h2>
+        <div class="tracks">{% for t in similar %}{{ track_row(t) }}{% endfor %}</div>
+      </section>
+      {% endif %}
+
+      {% if playlists %}
+      <section class="msec">
+        <h2 class="blockh">Осы ән бар плейлистер</h2>
+        <div class="artists">
+          {% for p in playlists %}<a class="chip" href="{{ p.path }}">{{ p.title }} · {{ p.count }} ән</a>{% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <section class="msec faq">
+        <h2 class="blockh">Қалай тыңдаймын?</h2>
+        <details open>
+          <summary>{{ track.performer }} — {{ track.title }} әнін қалай тыңдауға болады?</summary>
+          <p>«Telegram-да тыңдау» батырмасын басыңыз: QazaqMusic боты әнді чатқа жібереді, ол Telegram ойнатқышында
+          тегін ойнайды — экран сөніп тұрса да. Плейлист жинап, досыңызбен бөлісе аласыз.</p>
+        </details>
+        <details>
+          <summary>Как слушать песню {{ track.performer }} — {{ track.title }}?</summary>
+          <p>Нажмите «Telegram-да тыңдау» — бот пришлёт песню в чат, и она играет в плеере Telegram бесплатно,
+          даже с выключенным экраном.</p>
+        </details>
+      </section>
+{% endblock %}

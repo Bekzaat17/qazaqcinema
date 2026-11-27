@@ -141,7 +141,7 @@ class FakeArchive:
 
 def _catalog() -> tuple[MusicCatalogService, FakeTracks, FakeLibrary, FakeRequests, FakeEvents]:
     tracks, library, requests, events = FakeTracks(), FakeLibrary(), FakeRequests(), FakeEvents()
-    service = MusicCatalogService(tracks, library, requests, FakeArchive(), events)
+    service = MusicCatalogService(tracks, library, requests, FakeArchive(), events, FakePlaylists())
     return service, tracks, library, requests, events
 
 

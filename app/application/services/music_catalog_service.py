@@ -18,11 +18,14 @@ from app.application.ports.music import (
     MusicArchive,
     MusicRequest,
     MusicRequestRepository,
+    PlaylistRepository,
     TrackRepository,
+    TrackStats,
 )
 from app.application.ports.repositories import UserEventRepository
 from app.domain.analytics.events import EventKind
 from app.domain.music.collections import COLLECTIONS, Collection, CollectionKind
+from app.domain.music.playlist import Playlist
 from app.domain.music.search import fold
 from app.domain.music.track import (
     AudioUpload,
@@ -74,6 +77,26 @@ _HITS_WINDOW = timedelta(days=7)
 
 
 @dataclass(frozen=True, slots=True)
+class TrackDetails:
+    track: Track
+    stats: TrackStats
+    by_artist: list[Track]
+    similar: list[Track]
+    playlists: list[Playlist]
+
+
+@dataclass(frozen=True, slots=True)
+class ArtistPage:
+    name: str
+    tracks: list[Track]
+
+
+# Сколько показывать на странице трека в каждом блоке.
+DETAIL_SHELF = 10
+ARTIST_PAGE_MAX = 200
+
+
+@dataclass(frozen=True, slots=True)
 class MusicHome:
     recent: list[Track]
     popular: list[Track]
@@ -88,7 +111,9 @@ class MusicCatalogService:
         requests: MusicRequestRepository,
         archive: MusicArchive,
         events: UserEventRepository,
+        playlists: PlaylistRepository,
     ) -> None:
+        self._playlists = playlists
         self._tracks = tracks
         self._library = library
         self._requests = requests
@@ -164,6 +189,48 @@ class MusicCatalogService:
         """Все готовые подборки; пустые не показываем — «плейлист из нуля песен» как поломка."""
         views = [await self.collection(c, now) for c in COLLECTIONS]
         return [view for view in views if view.tracks]
+
+    async def details(self, track_id: int) -> TrackDetails | None:
+        """Страница трека: цифры, другие песни исполнителя, похожие и плейлисты с ним.
+
+        «Ұқсас» добирается популярными, если совместных плейлистов ещё мало: пустой
+        блок на новом треке выглядел бы как поломка, а популярное — честная подсказка.
+        """
+        track = await self._tracks.get(track_id)
+        if track is None or track.id is None:
+            return None
+        artist = [
+            t for t in await self._tracks.by_performer(fold(track.performer), DETAIL_SHELF + 1)
+            if t.id != track.id
+        ][:DETAIL_SHELF]
+        seen = {track.id, *(t.id for t in artist)}
+        co_listened = await self._tracks.co_listened(track.id, DETAIL_SHELF)
+        similar = [t for t in co_listened if t.id not in seen]
+        if len(similar) < DETAIL_SHELF:
+            seen.update(t.id for t in similar)
+            similar += [
+                t for t in await self._tracks.list_popular(DETAIL_SHELF * 2) if t.id not in seen
+            ][: DETAIL_SHELF - len(similar)]
+        return TrackDetails(
+            track=track,
+            stats=await self._tracks.stats(track.id),
+            by_artist=artist,
+            similar=similar,
+            playlists=await self._playlists.public_with_track(track.id, DETAIL_SHELF),
+        )
+
+    async def artist(self, performer_key: str) -> ArtistPage | None:
+        tracks = await self._tracks.by_performer(performer_key, ARTIST_PAGE_MAX)
+        if not tracks:
+            return None
+        return ArtistPage(tracks[0].performer, tracks)
+
+    async def performers(self, limit: int) -> list[tuple[str, int]]:
+        return await self._tracks.performers(limit)
+
+    async def all_tracks(self) -> list[Track]:
+        """Весь видимый каталог — только для sitemap."""
+        return await self._tracks.list_all()
 
     async def get(self, track_id: int) -> Track | None:
         return await self._tracks.get(track_id)

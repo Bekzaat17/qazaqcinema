@@ -199,3 +199,40 @@ async def test_week_hits_are_tracks_with_most_distinct_listeners(session: AsyncS
     await events.add(1, EventKind.TRACK_PLAY, str(other.id))
     since, until = _NOW - timedelta(days=3650), _NOW + timedelta(days=3650)
     assert [t.title for t in await tracks.top_tracks(since, until, 10)] == ["Хит", "Басқа"]
+
+
+async def test_track_page_data_stats_artist_similar_and_public_playlists(
+    session: AsyncSession,
+) -> None:
+    tracks, playlists = PgTrackRepository(session), PgPlaylistRepository(session)
+    users, events = PgUserRepository(session), PgUserEventRepository(session)
+    hit = await tracks.add(_track("s1", title="Ауру", performer="Қайрат Нұртас"))
+    same_artist = await tracks.add(_track("s2", title="Сен", performer="Кайрат Нуртас"))
+    other_artist = await tracks.add(_track("s3", title="Ninety", performer="Ninety One"))
+    lonely = await tracks.add(_track("s4", title="Жалғыз", performer="Біреу"))
+    ids = [t.id for t in (hit, same_artist, other_artist, lonely)]
+    assert all(i is not None for i in ids)
+    hit_id, artist_id, other_id, lonely_id = (i for i in ids if i is not None)
+
+    for code, owner in (("sim11111", 1), ("sim22222", 2)):
+        playlist = await playlists.create(
+            Playlist(owner_id=owner, title=code, share_code=code, created_at=_NOW)
+        )
+        assert playlist.id is not None
+        await playlists.add_tracks(playlist.id, [hit_id, other_id], _NOW, 10)
+        if owner == 1:
+            await playlists.set_public(playlist.id, True, _NOW)
+    for user_id in (1, 2):
+        await users.upsert(User(telegram_id=user_id))
+        await events.add(user_id, EventKind.TRACK_PLAY, str(hit_id))
+
+    stats = await tracks.stats(hit_id)
+    assert (stats.listeners, stats.playlists) == (2, 2)
+    # «Қайрат» и «Кайрат» — один исполнитель (тот же ключ, что в поиске).
+    by_artist = await tracks.by_performer(fold("Қайрат Нұртас"), 10)
+    assert {t.id for t in by_artist} == {hit_id, artist_id}
+    assert [t.id for t in await tracks.co_listened(hit_id, 10)] == [other_id]
+    assert await tracks.co_listened(lonely_id, 10) == []
+    assert [p.share_code for p in await playlists.public_with_track(hit_id, 10)] == ["sim11111"]
+    names = dict(await tracks.performers(10))
+    assert names["Ninety One"] == 1

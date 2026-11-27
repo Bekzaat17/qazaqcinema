@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Clapperboard, Home, Library, PlusCircle, type LucideIcon } from "../ui-kit/adapters/icons";
+import { Clapperboard, Home, Library, PlusCircle, User, type LucideIcon } from "../ui-kit/adapters/icons";
 
 import BotStartSheet from "../components/BotStartSheet";
 import { LoadError, NotInTelegram, SessionExpired } from "../components/States";
@@ -19,7 +19,7 @@ import { ApiError, api, SessionExpiredError } from "../lib/api";
 import { BOT_USERNAME, getInitData, haptic, openTelegramLink } from "../lib/telegram";
 import { Brand } from "../ui-kit";
 import AddView from "./AddView";
-import { musicApi, type Collection, type MusicHome, type Playlist, type PlaylistDetail, type Track } from "./api";
+import { musicApi, type Collection, type MusicHome, type Playlist, type PlaylistDetail, type Track, type TrackDetail } from "./api";
 import PlaylistPicker from "./components/PlaylistPicker";
 import SentBar from "./components/SentBar";
 import TextPrompt from "./components/TextPrompt";
@@ -28,6 +28,7 @@ import HomeView, { COLLECTION_ICONS } from "./HomeView";
 import { musicTarget, navigateApp, shareLink, trackShareUrl } from "./launch";
 import LibraryView from "./LibraryView";
 import ListScreen, { type ListData } from "./ListScreen";
+import TrackScreen from "./TrackScreen";
 import { LibraryProvider } from "./useLibrary";
 
 type Tab = "home" | "library" | "add";
@@ -39,7 +40,11 @@ type Prompt =
   | { kind: "request"; initial: string };
 
 /** Что открыто поверх вкладок: свой плейлист, чужой по коду или готовая подборка. */
-type OpenList = { kind: "own"; id: number } | { kind: "shared"; code: string } | { kind: "collection"; key: string };
+type OpenList =
+  | { kind: "own"; id: number }
+  | { kind: "shared"; code: string }
+  | { kind: "collection"; key: string }
+  | { kind: "artist"; slug: string };
 
 const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
   { id: "home", label: "Басты", Icon: Home },
@@ -114,6 +119,9 @@ function MusicScreens() {
   const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [playlistsVersion, setPlaylistsVersion] = useState(0);
+  const [openTrack, setOpenTrack] = useState<number | null>(null);
+  const [trackDetail, setTrackDetail] = useState<TrackDetail | null>(null);
+  const [trackFailed, setTrackFailed] = useState(false);
   const clearToast = useCallback(() => setToast(null), []);
   const clearSent = useCallback(() => setSentCount(null), []);
 
@@ -126,18 +134,29 @@ function MusicScreens() {
   useEffect(loadHome, [loadHome]);
 
   // Ссылка извне: трек (`t_42`) — сразу в чат не шлём (человек ещё не нажимал), а
-  // открываем его действия; плейлист (`pl_код`) — экран чужого плейлиста.
+  // открываем его страницу; плейлист (`pl_код`) — экран чужого плейлиста.
   useEffect(() => {
     const target = musicTarget();
     if (target?.playlistCode) setOpenList({ kind: "shared", code: target.playlistCode });
-    if (target?.trackId) {
-      musicApi.track(target.trackId).then(setSheetTrack, () => setToast("Бұл ән табылмады"));
-    }
+    if (target?.trackId) setOpenTrack(target.trackId);
   }, []);
+
+  useEffect(() => {
+    setTrackDetail(null);
+    setTrackFailed(false);
+    if (openTrack === null) return;
+    musicApi.trackDetails(openTrack).then(setTrackDetail, () => setTrackFailed(true));
+  }, [openTrack]);
 
   const loadList = useCallback(async (target: OpenList) => {
     setListFailed(false);
     try {
+      if (target.kind === "artist") {
+        const found = await musicApi.artist(target.slug);
+        setPlaylist(null);
+        setList({ kind: "collection", title: found.name, subtitle: "орындаушы", tracks: found.tracks, Icon: User });
+        return;
+      }
       if (target.kind === "collection") {
         const found = await musicApi.collection(target.key);
         setPlaylist(null);
@@ -321,14 +340,15 @@ function MusicScreens() {
   }, [playlist]);
 
   // «Назад» Telegram закрывает верхний оверлей.
-  const overlayOpen = Boolean(sheetTrack || pickerTrack || prompt || botSheet || openList);
+  const overlayOpen = Boolean(sheetTrack || pickerTrack || prompt || botSheet || openList || openTrack);
   const closeTop = useCallback(() => {
     if (botSheet) setBotSheet(false);
     else if (prompt) setPrompt(null);
     else if (pickerTrack) setPickerTrack(null);
     else if (sheetTrack) setSheetTrack(null);
+    else if (openTrack !== null) setOpenTrack(null);
     else if (openList) setOpenList(null);
-  }, [botSheet, prompt, pickerTrack, sheetTrack, openList]);
+  }, [botSheet, prompt, pickerTrack, sheetTrack, openTrack, openList]);
   useTelegramBackButton(overlayOpen, closeTop);
 
   return (
@@ -380,7 +400,28 @@ function MusicScreens() {
         />
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-[36] mx-auto flex max-w-[1024px] border-t border-white/5 bg-bg/90 pb-[var(--safe-bottom)] backdrop-blur-xl">
+      {openTrack !== null && (
+        <TrackScreen
+          detail={trackDetail}
+          failed={trackFailed}
+          busy={sending}
+          onBack={() => setOpenTrack(null)}
+          onSend={(tracks) => void send(tracks)}
+          onMore={setSheetTrack}
+          onAddToPlaylist={setPickerTrack}
+          onShare={shareTrack}
+          onOpenArtist={(slug) => {
+            setOpenTrack(null);
+            setOpenList({ kind: "artist", slug });
+          }}
+          onOpenPlaylist={(p) => {
+            setOpenTrack(null);
+            setOpenList(p.is_own ? { kind: "own", id: p.id } : { kind: "shared", code: p.share_code });
+          }}
+        />
+      )}
+
+      <nav className="fixed inset-x-0 bottom-0 z-[38] mx-auto flex max-w-[1024px] border-t border-white/5 bg-bg/90 pb-[var(--safe-bottom)] backdrop-blur-xl">
         {TABS.map(({ id, label, Icon }) => {
           const active = tab === id && !openList;
           return (
@@ -389,6 +430,7 @@ function MusicScreens() {
               onClick={() => {
                 haptic.light();
                 setOpenList(null);
+                setOpenTrack(null);
                 setTab(id);
                 window.scrollTo({ top: 0 });
               }}
@@ -410,6 +452,7 @@ function MusicScreens() {
         onSend={(track) => void send([track])}
         onAddToPlaylist={setPickerTrack}
         onShare={shareTrack}
+        onAbout={(track) => setOpenTrack(track.id)}
         onRemove={openList?.kind === "own" && playlist?.is_own ? (track) => void removeFromPlaylist(track) : undefined}
       />
       <PlaylistPicker
