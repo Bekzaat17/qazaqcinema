@@ -52,7 +52,6 @@ async def _setup_commands(bot: Bot) -> None:
         await bot.set_my_commands(
             [
                 BotCommand(command="start", description="🎬 Кинотеатрды ашу"),
-                BotCommand(command="quest", description="🏡 QazaqQuest — ауылыңды дамыт"),
             ]
         )
         _log.info("Команды бота зарегистрированы")
@@ -114,11 +113,9 @@ async def main() -> None:
     await _setup_menu_button(bot, config)
     dispatcher = build_dispatcher(container)
     scheduler = build_scheduler(
-        container, quest_post_minute=config.quest.post_minute,
+        container,
         content_reminder_hour=config.bot.content_reminder_hour,
         content_reminder_minute=config.bot.content_reminder_minute,
-        game_report_hour=config.bot.game_report_hour,
-        game_report_minute=config.bot.game_report_minute,
     )
     scheduler.start()
     try:

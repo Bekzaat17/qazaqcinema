@@ -11,20 +11,11 @@ const API_TARGET = process.env.API_TARGET ?? "http://localhost:8000";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: (id) =>
-          id.includes("/node_modules/three/") ? "three" : undefined,
-      },
-    },
-  },
   server: {
     port: 5173,
     proxy: {
       "/api": { target: API_TARGET, changeOrigin: true },
       "/posters": { target: API_TARGET, changeOrigin: true },
-      "/games": { target: API_TARGET, changeOrigin: true },
     },
   },
 });

@@ -4,7 +4,7 @@ import { ButtonAdapter } from "./react";
 
 export default function Dialog({ title, eyebrow, onClose, children, className = "", theme }:
   { title: string; eyebrow?: ReactNode; onClose: () => void; children: ReactNode;
-    className?: string; theme?: "steppe" | "cinema" }) {
+    className?: string; theme?: "cinema" }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current!;

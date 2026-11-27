@@ -51,13 +51,6 @@ from app.application.services.seo_service import HubSeo, MovieSeo, SeoBuilder
 from app.config.settings import AppConfig
 from app.domain.catalog.categories import Category, get_category
 from app.domain.entities.movie import Movie
-from app.domain.seo.games import (
-    GAMES_DESCRIPTION,
-    GAMES_FAQ,
-    GAMES_PATH,
-    GAMES_TITLE,
-    GAMES_UPDATED,
-)
 from app.domain.seo.hubs import (
     COLLECTIONS,
     Hub,
@@ -263,24 +256,10 @@ def _page_gate(request: Request, path: str, page: int) -> RedirectResponse | Non
 router = APIRouter(tags=["seo"], route_class=DishkaRoute, include_in_schema=False)
 
 
-@router.get(GAMES_PATH, response_class=HTMLResponse)
-async def games_page(
-    request: Request,
-    seo: FromDishka[SeoBuilder],
-    config: FromDishka[AppConfig],
-) -> Response:
-    return _TEMPLATES.TemplateResponse(
-        request,
-        "games.html",
-        {
-            "seo": seo.games_seo(),
-            "title": GAMES_TITLE,
-            "description": GAMES_DESCRIPTION,
-            "faq": GAMES_FAQ,
-            "site_url": config.public_origin.rstrip("/"),
-        },
-        headers={"Cache-Control": "public, max-age=600"},
-    )
+@router.get("/games")
+async def games_page() -> Response:
+    """Раздела игр больше нет; проиндексированный адрес ведёт в каталог, а не в 404."""
+    return RedirectResponse(url=_CATALOG_PATH, status_code=301)
 
 
 @router.get("/m/{slug}", response_class=HTMLResponse)
@@ -486,9 +465,6 @@ async def sitemap(
     # притом что меняются они чаще карточек: каждый новый фильм меняет и каталог, и
     # свои разделы. Дата хаба = дата самого свежего фильма внутри него.
     urls: list[str] = [
-        _url_entry(
-            f"{site}{GAMES_PATH}", priority="0.9", changefreq="monthly", lastmod=GAMES_UPDATED
-        ),
         _url_entry(
             f"{site}{_CATALOG_PATH}", priority="1.0", changefreq="daily", lastmod=_newest(movies)
         ),

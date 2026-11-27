@@ -1,11 +1,10 @@
 // Липкая шапка: компактный логотип слева, профиль/статус справа.
 
-import { CircleUserRound, Gamepad2 } from "../ui-kit/adapters/icons";
+import { CircleUserRound } from "../ui-kit/adapters/icons";
 
 import { Brand } from "../ui-kit";
 import type { UserStatus } from "../lib/api";
 import { haptic } from "../lib/telegram";
-import { navigateApp } from "../quest/launch";
 
 const STATUS_DOT: Partial<Record<UserStatus, string>> = {
   active: "bg-success",
@@ -24,17 +23,6 @@ export default function TopBar({
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-bg/80 px-4 py-3 backdrop-blur-xl">
       <Brand product="cinema" compact />
       <div className="flex items-center gap-2">
-        <a
-          href="/quest"
-          onClick={(event) => {
-            event.preventDefault();
-            navigateApp("quest");
-          }}
-          aria-label="QazaqPlay — ойындар мен өз ауылың"
-          className="ui-play-entry"
-        >
-          <Gamepad2 size={18} /><span>Ойындар</span>
-        </a>
         <button
           onClick={() => {
             haptic.light();

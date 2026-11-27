@@ -15,7 +15,6 @@ from app.bot.handlers import (
     inline_query,
     milestone,
     moderation,
-    quest,
     quiz,
     riddles,
     stars,
@@ -28,7 +27,6 @@ def build_dispatcher(container: AsyncContainer) -> Dispatcher:
     dp = Dispatcher()
     dp.include_routers(
         start.router,
-        quest.router,
         add_movie.router,
         broadcast.router,
         channel_members.router,

@@ -4,18 +4,14 @@ import { createRoot } from "react-dom/client";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import { initWebApp } from "./lib/telegram";
-import { isQuestLaunch } from "./quest/launch";
 
 const Showcase = lazy(() => import("./ui-kit/Showcase"));
 const App = lazy(() => import("./App"));
-const QuestApp = lazy(() => import("./boardgame/BoardGameApp"));
 
 function AppRouter() {
-  const [quest, setQuest] = useState(isQuestLaunch);
   const [showcase, setShowcase] = useState(() => location.pathname === "/ui-kit");
   useEffect(() => {
     const onNavigate = () => {
-      setQuest(isQuestLaunch());
       setShowcase(location.pathname === "/ui-kit");
     };
     window.addEventListener("popstate", onNavigate);
@@ -29,7 +25,7 @@ function AppRouter() {
         </div>
       }
     >
-      {showcase ? <Showcase /> : quest ? <QuestApp /> : <App />}
+      {showcase ? <Showcase /> : <App />}
     </Suspense>
   );
 }

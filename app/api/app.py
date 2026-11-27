@@ -9,15 +9,13 @@ from pathlib import Path
 
 from dishka import AsyncContainer
 from dishka.integrations.fastapi import setup_dishka
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 
 from app.api.routers import (
     auth,
-    boardgame,
     catalog,
     events,
     favorites,
@@ -25,10 +23,8 @@ from app.api.routers import (
     me,
     payments,
     public_seo,
-    quest,
     support,
 )
-from app.application.ports.quest import QuestStorageError
 from app.config.settings import load_config
 from app.infrastructure.di.providers import build_container
 
@@ -70,13 +66,6 @@ def create_app(container: AsyncContainer | None = None) -> FastAPI:
     app.include_router(events.router)
     app.include_router(support.router)
     app.include_router(health.router)
-    app.include_router(quest.router)
-    app.include_router(boardgame.router)
-
-    @app.exception_handler(QuestStorageError)
-    async def quest_unavailable(request: Request, exc: QuestStorageError) -> JSONResponse:
-        _log.error("Хранилище игры недоступно: %s", request.url.path, exc_info=exc)
-        return JSONResponse(status_code=503, content={"detail": "quest_unavailable"})
     # Публичные SSR-страницы для SEO (/m/<slug>, /catalog, /sitemap.xml, /robots.txt).
     # Без /api-префикса и без авторизации — их отдаёт поисковикам сам бэкенд (Caddy
     # проксирует эти пути на api ДО SPA-фолбэка).

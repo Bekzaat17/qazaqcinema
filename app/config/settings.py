@@ -38,9 +38,6 @@ class BotConfig(BaseSettings):
     content_reminder_user_id: int = Field(default=0, ge=0)
     content_reminder_hour: int = Field(default=12, ge=0, le=23)
     content_reminder_minute: int = Field(default=45, ge=0, le=59)
-    game_report_user_id: int = Field(default=0, ge=0)
-    game_report_hour: int = Field(default=22, ge=0, le=23)
-    game_report_minute: int = Field(default=5, ge=0, le=59)
     archive_channel_id: int = 0     # секретный канал-архив с видео
     # ПУБЛИЧНЫЙ канал-витрина: туда бот сам постит фильм дня (раз в сутки) и новинки.
     # Не путать с `archive_channel_id`: там лежит видео и он приватный, здесь — афиши.
@@ -141,14 +138,6 @@ class MediaConfig(BaseSettings):
     content_root: str = "content"
 
 
-class QuestConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="QUEST_", env_file=".env", extra="ignore")
-
-    channel_id: int = 0
-    post_minute: int = Field(default=15, ge=0, le=59)
-    board_catalog: str = "web/public/boardgame/catalog.json"
-
-
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -166,7 +155,6 @@ class AppConfig(BaseSettings):
     payments: PaymentsConfig = Field(default_factory=PaymentsConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     media: MediaConfig = Field(default_factory=MediaConfig)
-    quest: QuestConfig = Field(default_factory=QuestConfig)
 
     @model_validator(mode="after")
     def _derive_from_public_origin(self) -> AppConfig:

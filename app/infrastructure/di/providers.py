@@ -17,7 +17,6 @@ from dishka import AsyncContainer, Provider, Scope, make_async_container, provid
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.application.ports.boardgame import GameRandom, RoomEvents, RoomRepository
 from app.application.ports.broadcast import BroadcastQueue
 from app.application.ports.cards import CardRenderer
 from app.application.ports.catalog_cache import CatalogCache
@@ -29,16 +28,9 @@ from app.application.ports.content import (
 )
 from app.application.ports.daily_pin import DailyPin
 from app.application.ports.discussion import DiscussionGroup
-from app.application.ports.game_analytics import GameAnalyticsRepository
 from app.application.ports.images import ImageProcessor
 from app.application.ports.lock import Lock
 from app.application.ports.payments import PaymentProvider
-from app.application.ports.quest import (
-    QuestChannelPublisher,
-    QuestChannelStore,
-    QuestRankingCache,
-    QuestRepository,
-)
 from app.application.ports.rate_limit import RateLimiter
 from app.application.ports.repositories import (
     ChannelMemberEventRepository,
@@ -62,7 +54,6 @@ from app.application.ports.telegram import TelegramNotifier
 from app.application.services.activity_service import UserActivityService
 from app.application.services.analytics_service import AnalyticsService
 from app.application.services.auth_service import AuthService
-from app.application.services.boardgame_service import BoardGameService
 from app.application.services.broadcast_service import BroadcastService
 from app.application.services.catalog_service import CatalogService
 from app.application.services.channel_service import ChannelService
@@ -72,16 +63,12 @@ from app.application.services.content_seed_service import ContentSeedService
 from app.application.services.daily_riddle_service import DailyRiddleService
 from app.application.services.daily_service import DailyMovieService
 from app.application.services.favorite_service import FavoriteService
-from app.application.services.game_analytics_service import GameAnalyticsService
 from app.application.services.ingestion_service import MovieIngestionService
 from app.application.services.milestone_service import MilestoneService
 from app.application.services.moderation_service import PaymentModerationService
 from app.application.services.payment_service import PaymentService
 from app.application.services.playback_service import PlaybackService
 from app.application.services.poster_service import PosterService
-from app.application.services.quest_channel_service import QuestChannelService
-from app.application.services.quest_ranking_service import QuestRankingService
-from app.application.services.quest_service import QuestService
 from app.application.services.quiz_service import QuizService
 from app.application.services.riddle_announcement_service import RiddleAnnouncementService
 from app.application.services.seo_service import SeoBuilder
@@ -92,7 +79,6 @@ from app.application.services.support_access_service import SupportAccessService
 from app.application.services.support_service import SupportService
 from app.application.services.video_retention_service import VideoRetentionService
 from app.config.settings import AppConfig, load_config
-from app.domain.boardgame.game import Catalog
 from app.domain.channel.cards import style_for_channel
 from app.domain.channel.content.kinds import ContentKind
 from app.domain.channel.content.render import RENDERERS, ContentRenderer
@@ -101,16 +87,13 @@ from app.infrastructure.analytics.admin_filter import (
     AdminBlindEventRepository,
     AdminBlindSearchRepository,
 )
-from app.infrastructure.cache.boardgame import RedisRoomEvents, SystemGameRandom
 from app.infrastructure.cache.broadcast import RedisBroadcastQueue
 from app.infrastructure.cache.catalog import RedisCatalogCache
 from app.infrastructure.cache.daily_pin import RedisDailyPin
 from app.infrastructure.cache.lock import RedisLock
 from app.infrastructure.cache.membership import CachedChannelMembership
-from app.infrastructure.cache.quest import RedisQuestRankingCache
 from app.infrastructure.cache.rate_limiter import RedisRateLimiter
 from app.infrastructure.cache.session import RedisSessionStore
-from app.infrastructure.content.boardgame import load_board_catalog
 from app.infrastructure.db.content_repositories import (
     PgContentRepository,
     PgPostLogRepository,
@@ -131,9 +114,6 @@ from app.infrastructure.db.repositories import (
     PgUserRepository,
     PgVideoDeliveryRepository,
 )
-from app.infrastructure.db.repositories.boardgame import PgRoomRepository
-from app.infrastructure.db.repositories.game_analytics import PgGameAnalyticsRepository
-from app.infrastructure.db.repositories.quest import PgQuestChannelStore, PgQuestRepository
 from app.infrastructure.db.riddle_repositories import PgPublicationGate, PgRiddleAnswerRepository
 from app.infrastructure.images.cards_pillow import PillowCardRenderer
 from app.infrastructure.images.pillow import PillowImageProcessor
@@ -147,25 +127,11 @@ from app.infrastructure.telegram.channel import (
 from app.infrastructure.telegram.discussion import AiogramDiscussionGroup
 from app.infrastructure.telegram.init_data import TelegramInitDataVerifier
 from app.infrastructure.telegram.notifier import AiogramNotifier
-from app.infrastructure.telegram.quest import AiogramQuestChannelPublisher
 
 
 class AppProvider(Provider):
     scope = Scope.APP
     publication_gate = provide(PgPublicationGate, provides=PublicationGate)
-
-    @provide
-    def board_catalog(self, config: AppConfig) -> Catalog:
-        return load_board_catalog(Path(config.quest.board_catalog))
-
-    game_random = provide(SystemGameRandom, provides=GameRandom)
-    room_events = provide(RedisRoomEvents, provides=RoomEvents)
-
-    quest_ranking_cache = provide(RedisQuestRankingCache, provides=QuestRankingCache)
-
-    @provide
-    def quest_publisher(self, bot: Bot, config: AppConfig) -> QuestChannelPublisher:
-        return AiogramQuestChannelPublisher(bot, config.quest.channel_id, config.bot.username)
 
     @provide
     def config(self) -> AppConfig:
@@ -305,46 +271,6 @@ class AppProvider(Provider):
 
 class RequestProvider(Provider):
     scope = Scope.REQUEST
-
-    room_repo = provide(PgRoomRepository, provides=RoomRepository)
-
-    @provide
-    def boardgame_service(
-        self,
-        repository: RoomRepository,
-        catalog: Catalog,
-        random: GameRandom,
-        events: RoomEvents,
-        membership: ChannelMembership,
-        config: AppConfig,
-        analytics: UserEventRepository,
-    ) -> BoardGameService:
-        return BoardGameService(
-            repository, catalog, random, events, membership, config.bot.public_channel_username,
-            analytics,
-        )
-
-    @provide
-    def game_analytics_repository(
-        self, session: AsyncSession, config: AppConfig,
-    ) -> GameAnalyticsRepository:
-        return PgGameAnalyticsRepository(session, tuple(config.bot.admin_user_ids))
-
-    @provide
-    def game_analytics_service(
-        self, repository: GameAnalyticsRepository, notifier: TelegramNotifier,
-        lock: Lock, config: AppConfig,
-    ) -> GameAnalyticsService:
-        recipient = config.bot.game_report_user_id
-        if recipient and recipient not in config.bot.admin_user_ids:
-            raise ValueError("Получатель игрового отчёта должен быть администратором")
-        return GameAnalyticsService(repository, notifier, lock, recipient)
-
-    quest_repo = provide(PgQuestRepository, provides=QuestRepository)
-    quest_posts = provide(PgQuestChannelStore, provides=QuestChannelStore)
-    quest = provide(QuestService)
-    quest_rankings = provide(QuestRankingService)
-    quest_channel = provide(QuestChannelService)
 
     @provide
     async def session(self, maker: async_sessionmaker[AsyncSession]) -> AsyncIterator[AsyncSession]:

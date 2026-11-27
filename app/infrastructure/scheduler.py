@@ -85,8 +85,6 @@ from app.application.services.broadcast_service import BroadcastService
 from app.application.services.channel_service import ChannelService
 from app.application.services.content_posting_service import ContentPostingService
 from app.application.services.content_reminder_service import ContentReminderService
-from app.application.services.game_analytics_service import GameAnalyticsService
-from app.application.services.quest_channel_service import QuestChannelService
 from app.application.services.quiz_service import QuizService
 from app.application.services.subscription_service import SubscriptionService
 from app.application.services.video_retention_service import VideoRetentionService
@@ -149,13 +147,6 @@ async def _expire_due_job(container: AsyncContainer) -> None:
         logger.info("Подписка истекла у %d пользователей → EXPIRED", count)
 
 
-async def _quest_ranking_job(container: AsyncContainer) -> None:
-    try:
-        async with container() as request_container:
-            service = await request_container.get(QuestChannelService)
-            await service.publish(datetime.now(UTC))
-    except Exception:
-        logger.exception("Не удалось обновить рейтинг QazaqQuest в канале")
 
 
 async def _purge_stale_videos_job(container: AsyncContainer) -> None:
@@ -305,17 +296,9 @@ async def _content_reminder_job(container: AsyncContainer) -> None:
             logger.info("Напоминание о пополнении каталога доставлено")
 
 
-async def _game_report_job(container: AsyncContainer) -> None:
-    async with container() as request_container:
-        service = await request_container.get(GameAnalyticsService)
-        if await service.send_daily(datetime.now(UTC)):
-            logger.info("Ежедневный игровой отчёт доставлен")
-
-
 def build_scheduler(
-    container: AsyncContainer, *, quest_post_minute: int = 15,
+    container: AsyncContainer, *,
     content_reminder_hour: int = 12, content_reminder_minute: int = 45,
-    game_report_hour: int = 22, game_report_minute: int = 5,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
@@ -446,15 +429,6 @@ def build_scheduler(
         coalesce=True,
     )
     scheduler.add_job(
-        _quest_ranking_job,
-        CronTrigger(minute=quest_post_minute, timezone=REPORT_TZ),
-        args=[container],
-        id="quest_ranking",
-        misfire_grace_time=3000,
-        coalesce=True,
-        max_instances=1,
-    )
-    scheduler.add_job(
         _content_reminder_job,
         CronTrigger(
             hour=content_reminder_hour, minute=content_reminder_minute, timezone=REPORT_TZ
@@ -462,15 +436,6 @@ def build_scheduler(
         args=[container],
         id="content_reminder",
         misfire_grace_time=1800,
-        coalesce=True,
-        max_instances=1,
-    )
-    scheduler.add_job(
-        _game_report_job,
-        CronTrigger(hour=game_report_hour, minute=game_report_minute, timezone=REPORT_TZ),
-        args=[container],
-        id="game_report",
-        misfire_grace_time=3600,
         coalesce=True,
         max_instances=1,
     )
