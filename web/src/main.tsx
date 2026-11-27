@@ -4,14 +4,18 @@ import { createRoot } from "react-dom/client";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import { initWebApp } from "./lib/telegram";
+import { isMusicLaunch } from "./music/launch";
 
 const Showcase = lazy(() => import("./ui-kit/Showcase"));
 const App = lazy(() => import("./App"));
+const MusicApp = lazy(() => import("./music/MusicApp"));
 
 function AppRouter() {
+  const [music, setMusic] = useState(isMusicLaunch);
   const [showcase, setShowcase] = useState(() => location.pathname === "/ui-kit");
   useEffect(() => {
     const onNavigate = () => {
+      setMusic(isMusicLaunch());
       setShowcase(location.pathname === "/ui-kit");
     };
     window.addEventListener("popstate", onNavigate);
@@ -25,7 +29,7 @@ function AppRouter() {
         </div>
       }
     >
-      {showcase ? <Showcase /> : <App />}
+      {showcase ? <Showcase /> : music ? <MusicApp /> : <App />}
     </Suspense>
   );
 }

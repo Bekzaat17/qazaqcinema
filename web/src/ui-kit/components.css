@@ -58,17 +58,17 @@
   .ui-brand-copy { gap: 5px; }
 }
 
-.ui-brand--play .ui-brand-name > span {
-  color: #d69c26;
-  background: linear-gradient(180deg, #f7d16b 5%, #d29a24 85%);
+.ui-brand--music .ui-brand-name > span {
+  background: linear-gradient(90deg, #a78bfa, #f472b6);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 .5px 0 #8a5d152e);
 }
 
-.ui-play-entry { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px; border-radius: 11px; color: #e3b64e; background: #e3b64e12; border: 1px solid #e3b64e35; text-decoration: none; }
-.ui-play-entry span { font-size: 11px; font-weight: 650; }
-.ui-play-entry svg { flex-shrink: 0; }
-.ui-play-entry:focus-visible { outline: 2px solid #e3b64e; outline-offset: 3px; }
+/* Переключатели между разделами в шапке: «🎧 Музыка» в кинотеатре, «🎬 Кино» в музыке. */
+.ui-switch-entry { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 10px; border-radius: 12px; color: var(--ui-ink); background: #ffffff0d; border: 1px solid #ffffff1a; text-decoration: none; cursor: pointer; }
+.ui-switch-entry span { font-size: 12px; font-weight: 650; }
+.ui-switch-entry svg { flex-shrink: 0; }
+.ui-switch-entry:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 3px; }
+.ui-switch-entry--music { color: #e9d5ff; background: linear-gradient(135deg, #7c3aed33, #f472b633); border-color: #a78bfa55; }
 @media(max-width:360px) { header > .ui-brand--compact .ui-brand-name { font-size: 16px; } header > .ui-brand--compact .ui-brand-mark { width: 30px; height: 30px; } }

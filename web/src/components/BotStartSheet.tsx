@@ -26,9 +26,17 @@ import Sheet from "../ui/Sheet";
 interface BotStartSheetProps {
   open: boolean;
   onClose: () => void;
+  /** Что уходит в чат: фильм (кинотеатр) или ән (музыка) — от этого только слова. */
+  subject?: "movie" | "music";
 }
 
-export default function BotStartSheet({ open, onClose }: BotStartSheetProps) {
+const COPY = {
+  movie: { sent: "Фильм", ready: "фильм көруге дайын", payload: "web" },
+  music: { sent: "Ән", ready: "ән тыңдауға дайын", payload: "music" },
+} as const;
+
+export default function BotStartSheet({ open, onClose, subject = "movie" }: BotStartSheetProps) {
+  const copy = COPY[subject];
   if (!open) return null;
 
   return (
@@ -41,7 +49,7 @@ export default function BotStartSheet({ open, onClose }: BotStartSheetProps) {
           Ботты іске қосыңыз
         </h2>
         <p className="mt-2 text-[15px] leading-relaxed text-muted">
-          Фильм ботпен чатқа жіберіледі. Telegram ботқа бірінші жазуға рұқсат бермейді —
+          {copy.sent} ботпен чатқа жіберіледі. Telegram ботқа бірінші жазуға рұқсат бермейді —
           сондықтан чатты бір рет ашу керек.
         </p>
 
@@ -57,12 +65,12 @@ export default function BotStartSheet({ open, onClose }: BotStartSheetProps) {
           </li>
           <li>
             <span className="mr-2 font-bold text-brand">3.</span>
-            Осында оралыңыз — фильм көруге дайын
+            Осында оралыңыз — {copy.ready}
           </li>
         </ol>
 
         <div className="mt-5">
-          <Button onClick={() => openBotChat("web")}>
+          <Button onClick={() => openBotChat(copy.payload)}>
             <Play size={18} />
             Ботты ашу
           </Button>

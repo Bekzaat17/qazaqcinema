@@ -18,6 +18,12 @@
   --color-brand-600: #2f6fe0;
   --color-brand-050: #d6e6ff;
 
+  /* Музыка: фиолетово-розовая пара — раздел узнаётся с первого взгляда, но живёт на
+     тех же тёмных поверхностях, что и кинотеатр (одно приложение, два настроения). */
+  --color-music: #a78bfa;
+  --color-music-600: #7c3aed;
+  --color-music-pink: #f472b6;
+
   /* Акценты: золото для рейтинга, красный Kaspi (узнаваемость), звёздный янтарь */
   --color-gold: #f5c518;
   --color-kaspi: #ff3b30;
@@ -103,6 +109,22 @@ body {
   from { transform: scale(1.08); }
   to   { transform: scale(1.16); }
 }
+/* Эквалайзер «сейчас играет» в строке трека: три полоски, разная фаза. */
+@keyframes qm-eq {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+.qm-eq > i { display: block; width: 3px; border-radius: 2px; background: currentColor; transform-origin: bottom; animation: qm-eq 0.9s ease-in-out infinite; }
+.qm-eq > i:nth-child(2) { animation-delay: -0.3s; }
+.qm-eq > i:nth-child(3) { animation-delay: -0.6s; }
+.qm-eq.paused > i { animation-play-state: paused; }
+/* Полоса перемотки: нативный range, перекрашенный под раздел. */
+.qm-range { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 99px; background: linear-gradient(to right, var(--color-music) var(--fill, 0%), rgb(255 255 255 / 0.14) var(--fill, 0%)); outline: none; }
+.qm-range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 6px rgb(0 0 0 / 0.5); }
+.qm-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; }
+.qm-gradient { background: linear-gradient(135deg, var(--color-music-600), var(--color-music-pink)); }
+.qm-text-gradient { background: linear-gradient(90deg, var(--color-music), var(--color-music-pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
 .anim-pulse-ring { animation: qc-pulse-ring 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
 .anim-breathe { animation: qc-breathe 22s ease-in-out infinite alternate; }
 .anim-fade { animation: qc-fade 0.2s ease-out both; }
@@ -135,6 +157,7 @@ body {
   .anim-pop,
   .anim-pulse-ring,
   .anim-breathe,
+  .qm-eq > i,
   .skeleton::after {
     animation: none;
   }

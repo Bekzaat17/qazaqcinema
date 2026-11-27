@@ -2,6 +2,8 @@
 // и без запущенного API) для отладки вёрстки. В прод-сборку НЕ попадает: вызывается только из
 // ветки `import.meta.env.DEV && !initData` через динамический import (Vite вырезает её в проде).
 
+import { mockMusic } from "../music/devMock";
+import { ApiError } from "./api";
 import type {
   Auth,
   CatalogHome,
@@ -109,6 +111,14 @@ export function mockJson<T>(path: string, init?: RequestInit): Promise<T> {
   const url = new URL(path, "http://mock");
   const p = url.pathname;
   const q = url.searchParams;
+
+  if (p.startsWith("/api/music/")) {
+    const music = mockMusic(p, url, init);
+    if (music.status) {
+      return new Promise((_, reject) => setTimeout(() => reject(new ApiError(music.status!, "not_found")), 250));
+    }
+    return new Promise((resolve) => setTimeout(() => resolve(music.data as T), 250));
+  }
 
   let data: unknown;
   if (p === "/api/auth") data = AUTH;

@@ -1,10 +1,11 @@
 // Липкая шапка: компактный логотип слева, профиль/статус справа.
 
-import { CircleUserRound } from "../ui-kit/adapters/icons";
+import { CircleUserRound, Headphones } from "../ui-kit/adapters/icons";
 
 import { Brand } from "../ui-kit";
 import type { UserStatus } from "../lib/api";
 import { haptic } from "../lib/telegram";
+import { navigateApp } from "../music/launch";
 
 const STATUS_DOT: Partial<Record<UserStatus, string>> = {
   active: "bg-success",
@@ -23,6 +24,19 @@ export default function TopBar({
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-bg/80 px-4 py-3 backdrop-blur-xl">
       <Brand product="cinema" compact />
       <div className="flex items-center gap-2">
+        <a
+          href="/music"
+          onClick={(event) => {
+            event.preventDefault();
+            haptic.light();
+            navigateApp("music");
+          }}
+          aria-label="QazaqMusic — музыка тыңдау және плейлистер"
+          className="ui-switch-entry ui-switch-entry--music"
+        >
+          <Headphones size={17} />
+          <span>Музыка</span>
+        </a>
         <button
           onClick={() => {
             haptic.light();
