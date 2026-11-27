@@ -16,11 +16,13 @@
     <meta name="description" content="{% block description %}{% endblock %}" />
     {% block head %}{% endblock %}
     <meta name="theme-color" content="#0a0a0c" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <meta property="og:site_name" content="QazaqCinema" />
+    {# У музыки свой знак — та же Q, внутри нота (`/logo-music.png`). #}
+    {% set logo = "/logo-music.png" if section == "music" else "/logo.png" %}
+    <link rel="icon" type="image/png" href="{{ logo }}" />
+    <meta property="og:site_name" content="{{ 'QazaqMusic' if section == 'music' else 'QazaqCinema' }}" />
     <meta property="og:locale" content="kk" />
     <meta property="og:locale:alternate" content="ru" />
-    <meta property="og:image" content="{{ site_url }}/logo.png" />
+    <meta property="og:image" content="{{ site_url }}{{ logo }}" />
 
     <style>
       /* ── Токены ────────────────────────────────────────────────────────────
@@ -343,7 +345,7 @@
            и поиск по песням `/music/search`; иначе шапка кинотеатра и `/catalog?q=`. #}
         {% if section == "music" %}
         <a class="brand music" href="/music">
-          <img src="/logo.png" alt="" width="30" height="30" />
+          <img src="/logo-music.png" alt="" width="30" height="30" />
           <b>Qazaq<i>Music</i></b>
         </a>
         <form class="search music" action="/music/search" method="get" role="search">
