@@ -81,6 +81,15 @@
       .brand img { width: 30px; height: 30px; border-radius: 8px; display: block; }
       .brand b { font-weight: 800; font-size: 1.02rem; letter-spacing: -0.02em; }
       .brand b i { color: var(--logo-blue); font-style: normal; }
+      /* Музыкальные страницы — тот же каркас, но свой раздел: вордмарк QazaqMusic и
+         фиолетово-розовый акцент, как в Mini App, чтобы человек понимал, где он. */
+      .brand.music b i {
+        background: linear-gradient(90deg, #a78bfa, #f472b6);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .search.music input:focus { border-color: #a78bfa; }
+      .search.music button { background: linear-gradient(135deg, #7c3aed, #f472b6); border: 0; }
+      .search.music button:hover { filter: brightness(1.08); background: linear-gradient(135deg, #7c3aed, #f472b6); }
       .search { display: flex; gap: 8px; margin-left: auto; min-width: 0; flex: 0 1 380px; }
       .search input {
         flex: 1; min-width: 0; padding: 9px 13px; border-radius: 10px; font: inherit;
@@ -330,6 +339,20 @@
   <body>
     <header class="topbar">
       <div class="inner">
+        {# `section == "music"` — музыкальные страницы (`routers/music_seo`): свой вордмарк
+           и поиск по песням `/music/search`; иначе шапка кинотеатра и `/catalog?q=`. #}
+        {% if section == "music" %}
+        <a class="brand music" href="/music">
+          <img src="/logo.png" alt="" width="30" height="30" />
+          <b>Qazaq<i>Music</i></b>
+        </a>
+        <form class="search music" action="/music/search" method="get" role="search">
+          <label for="q" hidden>Ән іздеу</label>
+          <input id="q" name="q" type="search" value="{{ query|default('', true) }}"
+                 autocomplete="off" placeholder="Ән, орындаушы / Песня, исполнитель…" />
+          <button type="submit">Іздеу</button>
+        </form>
+        {% else %}
         <a class="brand" href="/catalog">
           <img src="/logo.png" alt="" width="30" height="30" />
           <b>Qazaq<i>Cinema</i></b>
@@ -341,6 +364,7 @@
                  autocomplete="off" placeholder="Фильм іздеу / Поиск…" />
           <button type="submit">Іздеу</button>
         </form>
+        {% endif %}
       </div>
     </header>
 

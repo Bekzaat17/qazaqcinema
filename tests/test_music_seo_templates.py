@@ -50,3 +50,19 @@ def test_list_page_renders_blocks_and_links() -> None:
         ],
     )
     assert "/music/3-qairat-nurtas-auru" in html and "Орындаушылар" in html
+
+
+def test_music_pages_get_music_header_and_song_search() -> None:
+    meta = {
+        "title": "t", "description": "d", "canonical": "c", "og_type": "website",
+        "heading": "h", "subtitle": "s", "telegram_url": "https://t.me/x",
+        "gradient": "red", "initials": "♪", "crumbs": [], "jsonld": "{}",
+        "robots": "noindex, follow", "empty_hint": "Бұл ән каталогта әзірге жоқ.",
+    }
+    html = _TEMPLATES.get_template("music_list.html").render(
+        **_base(), section="music", meta=meta, blocks=[], query="кайрат"
+    )
+    assert 'action="/music/search"' in html and "Qazaq<i>Music</i>" in html
+    assert 'value="кайрат"' in html and 'content="noindex, follow"' in html
+    assert "Бұл ән каталогта әзірге жоқ." in html
+    assert 'action="/catalog"' not in html

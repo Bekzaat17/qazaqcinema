@@ -558,6 +558,7 @@ async def robots(config: FromDishka[AppConfig]) -> PlainTextResponse:
         # Результаты поиска и так под `noindex`; закрыть их и здесь — чтобы краулер не
         # тратил бюджет обхода на бесконечные комбинации запросов.
         "Disallow: /catalog?q=\n"
+        "Disallow: /music/search\n"
         f"Sitemap: {site}/sitemap.xml\n"
     )
     return PlainTextResponse(content=body)

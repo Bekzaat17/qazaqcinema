@@ -48,6 +48,8 @@ _INDEX_SHELF = 30
 _INDEX_ARTISTS = 60
 _INDEX_PLAYLISTS = 24
 _CACHE = {"Cache-Control": "public, max-age=600"}
+_SEARCH_LIMIT = 50
+_SEARCH_MAX = 100
 
 router = APIRouter(tags=["seo"], route_class=DishkaRoute, include_in_schema=False)
 
@@ -120,7 +122,13 @@ def _recording(site: str, track: Track) -> dict[str, object]:
 
 
 def _base_context(request: Request, config: AppConfig) -> dict[str, object]:
-    return {"request": request, "site_url": _site(config), "bot_username": _bot(config)}
+    # `section` переключает шапку `base.html` на QazaqMusic и поиск по песням.
+    return {
+        "request": request,
+        "site_url": _site(config),
+        "bot_username": _bot(config),
+        "section": "music",
+    }
 
 
 @router.get(MUSIC_PATH, response_class=HTMLResponse)
@@ -276,6 +284,50 @@ async def playlist_page(
         "music_list.html",
         {**_base_context(request, config), "meta": meta, "blocks": blocks},
         headers=_CACHE,
+    )
+
+
+@router.get(f"{MUSIC_PATH}/search", response_class=HTMLResponse)
+async def search_page(
+    request: Request,
+    music: FromDishka[MusicCatalogService],
+    config: FromDishka[AppConfig],
+    q: str = "",
+) -> Response:
+    """Поиск песен из шапки. `noindex, follow` и `Disallow` в robots: страницы результатов
+    Google индексировать не советует, а ссылки с них на треки пусть обходит.
+
+    Ищет тем же ключом, что Mini App: «кайрат», «Qairat» и «Қайрат» — одно и то же.
+    """
+    query = " ".join(q.split())[:_SEARCH_MAX]
+    if not query:
+        return RedirectResponse(url=MUSIC_PATH, status_code=302)
+    found = await music.search(query, _SEARCH_LIMIT, 0)
+    site = _site(config)
+    bot = _bot(config)
+    meta = {
+        "title": f"«{query}» — ән іздеу | QazaqMusic"[:70],
+        "description": f"«{query}» бойынша табылған әндер — Telegram-да тегін тыңдау.",
+        "canonical": f"{site}{MUSIC_PATH}",
+        "robots": "noindex, follow",
+        "og_type": "website",
+        "heading": f"«{query}»",
+        "subtitle": f"{len(found)} ән табылды" if found else "Әзірге табылмады",
+        "telegram_url": f"https://t.me/{bot}?start=seo-music",
+        "gradient": "linear-gradient(135deg, #7c3aed, #f472b6)",
+        "initials": "🔍",
+        "crumbs": [("Музыка", MUSIC_PATH), ("Іздеу", None)],
+        "jsonld": _script({"@context": "https://schema.org", "@type": "SearchResultsPage"}),
+        "empty_hint": (
+            "Бұл ән каталогта әзірге жоқ. Оны Telegram-нан тауып, ботқа қайта жіберіңіз — "
+            "ән бірден бәріне ашылады. Немесе ботта сұраныс қалдырыңыз."
+        ),
+    }
+    blocks = [_Block("Табылған әндер", _views(found), [])] if found else []
+    return _TEMPLATES.TemplateResponse(
+        request,
+        "music_list.html",
+        {**_base_context(request, config), "meta": meta, "blocks": blocks, "query": query},
     )
 
 

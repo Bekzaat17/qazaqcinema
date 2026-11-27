@@ -8,7 +8,7 @@
 {% block description %}{{ meta.description }}{% endblock %}
 
 {% block head %}
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="{{ meta.robots | default('index, follow') }}" />
     <link rel="canonical" href="{{ meta.canonical }}" />
     <meta property="og:type" content="{{ meta.og_type }}" />
     <meta property="og:url" content="{{ meta.canonical }}" />
@@ -49,5 +49,10 @@
       </section>
       {% endfor %}
 
-      {% if not blocks %}<p class="empty">Әзірге бос. <a href="{{ meta.telegram_url }}">Telegram-да ашу</a></p>{% endif %}
+      {% if not blocks %}
+      <div class="empty">
+        {% if meta.empty_hint %}<p>{{ meta.empty_hint }}</p>{% else %}<p>Әзірге бос.</p>{% endif %}
+        <p><a href="{{ meta.telegram_url }}" rel="nofollow">Telegram-да ашу →</a></p>
+      </div>
+      {% endif %}
 {% endblock %}

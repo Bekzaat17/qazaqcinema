@@ -621,6 +621,8 @@ Git: коммитить и пушить прямо в `main`, без фича-в
   (плейлист — `seo-pl_<код>`): человек попадает в чат, и на «Start» бот СРАЗУ присылает
   песню (плейлист — целиком по порядку, `MusicDeliveryService.send_link`), а Mini App —
   кнопкой под ней. Лишний шаг теряет людей из поиска. Caddy ведёт `/music*` на api.
+  Шапка музыкальных страниц — своя (`section="music"` в контексте → QazaqMusic и поиск
+  `/music/search` тем же ключом `fold`, под `noindex, follow` и `Disallow` в robots).
 - ⚠️ Фронт: `web/src/music/` — оболочка `MusicApp`, вход ТОЛЬКО `?app=music` (+`t=`/`pl=`)
   или `startapp=music|t_<id>|pl_<код>`. Путь `/music` занят SEO-страницей — обновление
   WebView на нём открыло бы её вместо приложения, поэтому `navigateApp` его не ставит.
